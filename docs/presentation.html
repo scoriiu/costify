@@ -1,0 +1,2949 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RedSparQ Financial Control - Platforma de Control Financiar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --red: #E63946;
+    --red-dark: #C1121F;
+    --red-light: #FFB4A2;
+    --dark: #0D1117;
+    --dark-2: #161B22;
+    --dark-3: #21262D;
+    --gray: #8B949E;
+    --gray-light: #C9D1D9;
+    --white: #F0F6FC;
+    --accent: #FF6B6B;
+    --green: #3FB950;
+    --blue: #58A6FF;
+    --orange: #F0883E;
+    --purple: #BC8CFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--red) var(--dark-2);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--dark);
+    color: var(--gray-light);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Navigation */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(230, 57, 70, 0.15);
+    padding: 0 2rem;
+  }
+
+  nav .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  nav .logo {
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--white);
+    letter-spacing: -0.5px;
+  }
+
+  nav .logo span { color: var(--red); }
+
+  nav .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  nav .nav-links a {
+    color: var(--gray);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: color 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  nav .nav-links a:hover { color: var(--white); }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 6rem 2rem 4rem;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(230, 57, 70, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(88, 166, 255, 0.04) 0%, transparent 50%);
+    animation: heroFloat 20s ease-in-out infinite;
+  }
+
+  @keyframes heroFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    33% { transform: translate(2%, -1%) rotate(1deg); }
+    66% { transform: translate(-1%, 2%) rotate(-1deg); }
+  }
+
+  .hero-content {
+    position: relative;
+    text-align: center;
+    max-width: 900px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1rem;
+    background: rgba(230, 57, 70, 0.1);
+    border: 1px solid rgba(230, 57, 70, 0.25);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    color: var(--red-light);
+    margin-bottom: 2rem;
+    font-weight: 500;
+  }
+
+  .hero-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--red);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 900;
+    color: var(--white);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--red), var(--orange), var(--red-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--gray);
+    max-width: 600px;
+    margin: 0 auto 3rem;
+    line-height: 1.7;
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 4rem;
+    margin-top: 4rem;
+    flex-wrap: wrap;
+  }
+
+  .hero-stat {
+    text-align: center;
+  }
+
+  .hero-stat .number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+
+  .hero-stat .number span { color: var(--red); }
+
+  .hero-stat .label {
+    font-size: 0.8rem;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.25rem;
+  }
+
+  /* Sections */
+  section {
+    padding: 6rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--red);
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+    line-height: 1.15;
+  }
+
+  .section-desc {
+    font-size: 1.05rem;
+    color: var(--gray);
+    max-width: 600px;
+    margin-bottom: 3.5rem;
+    line-height: 1.7;
+  }
+
+  /* Problem section */
+  .problems {
+    background: var(--dark-2);
+    border-radius: 24px;
+    padding: 4rem;
+    margin: 0 auto 2rem;
+    max-width: 1200px;
+    border: 1px solid var(--dark-3);
+  }
+
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  .problem-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--dark-3);
+    background: var(--dark);
+    transition: border-color 0.3s;
+  }
+
+  .problem-card:hover {
+    border-color: rgba(230, 57, 70, 0.3);
+  }
+
+  .problem-card .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--red);
+  }
+
+  .problem-card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 0.5rem;
+  }
+
+  .problem-card p {
+    font-size: 0.85rem;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  /* Modules section */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .module-card {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 16px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .module-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--red), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .module-card:hover::before { opacity: 1; }
+  .module-card:hover { border-color: rgba(230, 57, 70, 0.2); transform: translateY(-2px); }
+
+  .module-number {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--red);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 1rem;
+  }
+
+  .module-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 0.75rem;
+  }
+
+  .module-card p {
+    font-size: 0.88rem;
+    color: var(--gray);
+    line-height: 1.7;
+    margin-bottom: 1.25rem;
+  }
+
+  .module-features {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .module-features li {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+    background: rgba(230, 57, 70, 0.08);
+    border: 1px solid rgba(230, 57, 70, 0.15);
+    border-radius: 6px;
+    color: var(--gray-light);
+  }
+
+  /* Architecture visual */
+  .arch-container {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 24px;
+    padding: 3rem;
+    margin-top: 2rem;
+    overflow-x: auto;
+  }
+
+  .arch-flow {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+  }
+
+  .arch-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 160px;
+  }
+
+  .arch-col-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--gray);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .arch-box {
+    padding: 0.8rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-align: center;
+    min-width: 140px;
+    border: 1px solid;
+  }
+
+  .arch-box.source {
+    background: rgba(88, 166, 255, 0.08);
+    border-color: rgba(88, 166, 255, 0.25);
+    color: var(--blue);
+  }
+
+  .arch-box.engine {
+    background: rgba(230, 57, 70, 0.08);
+    border-color: rgba(230, 57, 70, 0.25);
+    color: var(--red-light);
+  }
+
+  .arch-box.store {
+    background: rgba(63, 185, 80, 0.08);
+    border-color: rgba(63, 185, 80, 0.25);
+    color: var(--green);
+  }
+
+  .arch-box.output {
+    background: rgba(188, 140, 255, 0.08);
+    border-color: rgba(188, 140, 255, 0.25);
+    color: var(--purple);
+  }
+
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dark-3);
+    font-size: 1.5rem;
+    align-self: center;
+    min-width: 40px;
+  }
+
+  /* Roles table */
+  .roles-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 2rem;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--dark-3);
+  }
+
+  .roles-table thead { background: var(--dark-2); }
+
+  .roles-table th {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gray);
+    font-weight: 600;
+    border-bottom: 1px solid var(--dark-3);
+  }
+
+  .roles-table td {
+    padding: 1rem 1.25rem;
+    font-size: 0.88rem;
+    border-bottom: 1px solid rgba(33, 38, 45, 0.5);
+    color: var(--gray-light);
+  }
+
+  .roles-table tbody tr {
+    transition: background 0.2s;
+  }
+
+  .roles-table tbody tr:hover { background: rgba(230, 57, 70, 0.03); }
+  .roles-table tbody tr:last-child td { border-bottom: none; }
+
+  .role-name {
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .check { color: var(--green); font-weight: 700; }
+  .dash { color: var(--dark-3); }
+
+  /* Timeline / Roadmap */
+  .timeline {
+    position: relative;
+    margin-top: 3rem;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--red), var(--orange), var(--purple), var(--blue));
+    border-radius: 2px;
+  }
+
+  .timeline-item {
+    position: relative;
+    padding-left: 64px;
+    padding-bottom: 3rem;
+  }
+
+  .timeline-item:last-child { padding-bottom: 0; }
+
+  .timeline-dot {
+    position: absolute;
+    left: 15px;
+    top: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--dark);
+    border: 3px solid var(--red);
+  }
+
+  .timeline-item:nth-child(2) .timeline-dot { border-color: var(--orange); }
+  .timeline-item:nth-child(3) .timeline-dot { border-color: var(--purple); }
+  .timeline-item:nth-child(4) .timeline-dot { border-color: var(--blue); }
+
+  .timeline-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .timeline-phase {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .timeline-duration {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--red-light);
+    font-weight: 500;
+  }
+
+  .timeline-desc {
+    font-size: 0.9rem;
+    color: var(--gray);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+  }
+
+  .timeline-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    list-style: none;
+  }
+
+  .timeline-items li {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 6px;
+    color: var(--gray-light);
+  }
+
+  /* KPI / Metrics */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2.5rem;
+  }
+
+  .metric-card {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 14px;
+    padding: 1.75rem;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .metric-card:hover {
+    border-color: rgba(230, 57, 70, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+
+  .metric-value .unit {
+    font-size: 1rem;
+    color: var(--red);
+    font-weight: 600;
+  }
+
+  .metric-label {
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-top: 0.3rem;
+  }
+
+  /* Dashboard preview */
+  .dashboard-preview {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-top: 2.5rem;
+    overflow: hidden;
+  }
+
+  .dash-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--dark);
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+  }
+
+  .dash-topbar .dash-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--white);
+  }
+
+  .dash-topbar .dash-period {
+    font-size: 0.75rem;
+    color: var(--gray);
+    padding: 0.3rem 0.8rem;
+    background: var(--dark-2);
+    border-radius: 6px;
+    border: 1px solid var(--dark-3);
+  }
+
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .dash-kpi {
+    background: var(--dark);
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid var(--dark-3);
+  }
+
+  .dash-kpi-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray);
+    margin-bottom: 0.5rem;
+  }
+
+  .dash-kpi-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .dash-kpi-change {
+    font-size: 0.72rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+  }
+
+  .dash-kpi-change.positive { color: var(--green); }
+  .dash-kpi-change.negative { color: var(--red); }
+
+  .dash-charts {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1rem;
+  }
+
+  .dash-chart {
+    background: var(--dark);
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid var(--dark-3);
+  }
+
+  .dash-chart-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gray-light);
+    margin-bottom: 1rem;
+  }
+
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    height: 120px;
+    padding-top: 0.5rem;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar-pair {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    width: 100%;
+    justify-content: center;
+    flex: 1;
+  }
+
+  .bar {
+    width: 12px;
+    border-radius: 3px 3px 0 0;
+    min-height: 4px;
+  }
+
+  .bar.budget { background: rgba(88, 166, 255, 0.4); }
+  .bar.actual { background: var(--red); }
+
+  .bar-label {
+    font-size: 0.6rem;
+    color: var(--gray);
+  }
+
+  .category-list {
+    list-style: none;
+  }
+
+  .category-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(33, 38, 45, 0.5);
+  }
+
+  .category-item:last-child { border-bottom: none; }
+
+  .cat-name {
+    font-size: 0.78rem;
+    color: var(--gray-light);
+    font-weight: 500;
+  }
+
+  .cat-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--dark-3);
+    border-radius: 2px;
+    margin: 0 1rem;
+    overflow: hidden;
+  }
+
+  .cat-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .cat-amount {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--white);
+    min-width: 70px;
+    text-align: right;
+  }
+
+  /* Integration logos */
+  .integrations {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+  }
+
+  .integration-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .integration-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--gray-light);
+    transition: all 0.3s;
+    font-weight: 700;
+  }
+
+  .integration-icon:hover {
+    border-color: var(--red);
+    transform: translateY(-3px);
+  }
+
+  .integration-name {
+    font-size: 0.8rem;
+    color: var(--gray);
+    font-weight: 500;
+  }
+
+  .integration-freq {
+    font-size: 0.68rem;
+    color: var(--gray);
+    opacity: 0.7;
+  }
+
+  /* CTA */
+  .cta-section {
+    text-align: center;
+    padding: 6rem 2rem 8rem;
+    position: relative;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(230, 57, 70, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cta-section h2 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 900;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+
+  .cta-section p {
+    font-size: 1.05rem;
+    color: var(--gray);
+    max-width: 500px;
+    margin: 0 auto 2.5rem;
+  }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 2.5rem;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    color: var(--white);
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(230, 57, 70, 0.25);
+  }
+
+  .cta-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(230, 57, 70, 0.35);
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 1px solid var(--dark-3);
+    font-size: 0.8rem;
+    color: var(--gray);
+  }
+
+  footer span { color: var(--red); font-weight: 600; }
+
+  /* Divider */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--dark-3), transparent);
+    margin: 1rem 0;
+  }
+
+  /* Comparison section */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  .comparison-card {
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid;
+  }
+
+  .comparison-card.before {
+    background: rgba(139, 148, 158, 0.03);
+    border-color: var(--dark-3);
+  }
+
+  .comparison-card.after {
+    background: rgba(230, 57, 70, 0.03);
+    border-color: rgba(230, 57, 70, 0.2);
+  }
+
+  .comparison-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--dark-3);
+  }
+
+  .comparison-card.before h3 { color: var(--gray); }
+  .comparison-card.after h3 { color: var(--red); }
+
+  .comparison-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .comparison-card li {
+    font-size: 0.88rem;
+    color: var(--gray-light);
+    padding-left: 1.5rem;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .comparison-card.before li::before {
+    content: '~';
+    position: absolute;
+    left: 0;
+    color: var(--gray);
+    font-weight: 700;
+  }
+
+  .comparison-card.after li::before {
+    content: '+';
+    position: absolute;
+    left: 0;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* Tech stack */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .tech-item {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+
+  .tech-item:hover { border-color: rgba(230, 57, 70, 0.2); }
+
+  .tech-item .tech-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 0.3rem;
+  }
+
+  .tech-item .tech-role {
+    font-size: 0.75rem;
+    color: var(--gray);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav .nav-links { display: none; }
+    .dash-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash-charts { grid-template-columns: 1fr; }
+    .comparison { grid-template-columns: 1fr; }
+    .hero-stats { gap: 2rem; }
+    .problems { padding: 2rem; }
+    .modules-grid { grid-template-columns: 1fr; }
+    .arch-flow { flex-direction: column; align-items: center; }
+    .arch-arrow { transform: rotate(90deg); }
+  }
+
+  /* Scroll animations */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* UI Mockup Styles */
+  .ui-mockup {
+    background: var(--dark-2);
+    border: 1px solid var(--dark-3);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+
+  .ui-mockup-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gray);
+    padding: 1rem 1.5rem 0.5rem;
+    background: var(--dark-2);
+  }
+
+  .ui-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    background: var(--dark);
+    border-bottom: 1px solid var(--dark-3);
+  }
+
+  .ui-titlebar-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .ui-titlebar-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dark-3);
+  }
+
+  .ui-titlebar-dots span:first-child { background: #FF5F57; }
+  .ui-titlebar-dots span:nth-child(2) { background: #FFBD2E; }
+  .ui-titlebar-dots span:nth-child(3) { background: #28C840; }
+
+  .ui-titlebar-url {
+    flex: 1;
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--gray);
+    background: var(--dark-2);
+    border-radius: 6px;
+    padding: 0.3rem 1rem;
+    margin: 0 2rem 0 0;
+  }
+
+  .ui-app {
+    display: flex;
+    min-height: 480px;
+  }
+
+  .ui-sidebar {
+    width: 220px;
+    background: var(--dark);
+    border-right: 1px solid var(--dark-3);
+    padding: 1rem 0;
+    flex-shrink: 0;
+  }
+
+  .ui-sidebar-brand {
+    padding: 0.5rem 1.25rem 1.25rem;
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: var(--white);
+    border-bottom: 1px solid var(--dark-3);
+    margin-bottom: 0.75rem;
+  }
+
+  .ui-sidebar-brand span { color: var(--red); }
+
+  .ui-nav-group {
+    padding: 0 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .ui-nav-group-label {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gray);
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  .ui-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    color: var(--gray-light);
+    cursor: default;
+    transition: background 0.15s;
+  }
+
+  .ui-nav-item:hover { background: var(--dark-2); }
+
+  .ui-nav-item.active {
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--white);
+  }
+
+  .ui-nav-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .ui-nav-item.active .ui-nav-icon { color: var(--red); }
+
+  .ui-nav-badge {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    background: var(--red);
+    color: var(--white);
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .ui-main {
+    flex: 1;
+    padding: 1.5rem;
+    overflow: hidden;
+    background: var(--dark-2);
+  }
+
+  .ui-main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+
+  .ui-main-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .ui-main-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .ui-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid var(--dark-3);
+    background: var(--dark);
+    color: var(--gray-light);
+    cursor: default;
+  }
+
+  .ui-btn.primary {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--white);
+  }
+
+  .ui-filters {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .ui-filter {
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    background: var(--dark);
+    border: 1px solid var(--dark-3);
+    color: var(--gray-light);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .ui-filter.active-filter {
+    border-color: rgba(230,57,70,0.3);
+    background: rgba(230,57,70,0.06);
+  }
+
+  .ui-filter-arrow {
+    font-size: 0.55rem;
+    color: var(--gray);
+  }
+
+  .ui-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.73rem;
+  }
+
+  .ui-table thead th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    color: var(--gray);
+    font-weight: 600;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--dark-3);
+    background: var(--dark);
+    position: sticky;
+    top: 0;
+  }
+
+  .ui-table tbody td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid rgba(33,38,45,0.4);
+    color: var(--gray-light);
+  }
+
+  .ui-table tbody tr:hover td {
+    background: rgba(230,57,70,0.02);
+  }
+
+  .ui-tag {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 500;
+  }
+
+  .ui-tag.green { background: rgba(63,185,80,0.12); color: var(--green); }
+  .ui-tag.red { background: rgba(230,57,70,0.12); color: var(--red); }
+  .ui-tag.blue { background: rgba(88,166,255,0.12); color: var(--blue); }
+  .ui-tag.orange { background: rgba(240,136,62,0.12); color: var(--orange); }
+  .ui-tag.purple { background: rgba(188,140,255,0.12); color: var(--purple); }
+  .ui-tag.gray { background: rgba(139,148,158,0.12); color: var(--gray); }
+
+  .ui-amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .ui-amount.negative { color: var(--red); }
+  .ui-amount.positive { color: var(--green); }
+
+  .ui-checkbox {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid var(--dark-3);
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  /* Mini KPI row inside UI mockup */
+  .ui-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .ui-kpi-card {
+    background: var(--dark);
+    border: 1px solid var(--dark-3);
+    border-radius: 10px;
+    padding: 0.9rem;
+  }
+
+  .ui-kpi-title {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--gray);
+    margin-bottom: 0.35rem;
+  }
+
+  .ui-kpi-val {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .ui-kpi-sub {
+    font-size: 0.6rem;
+    margin-top: 0.15rem;
+    font-weight: 500;
+  }
+
+  /* Workflow Styles */
+  .workflow-container {
+    margin-bottom: 3rem;
+  }
+
+  .workflow-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--white);
+    margin-bottom: 0.5rem;
+  }
+
+  .workflow-subtitle {
+    font-size: 0.85rem;
+    color: var(--gray);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
+  .wf-flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+
+  .wf-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 140px;
+    position: relative;
+    flex: 1;
+  }
+
+  .wf-step-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    position: relative;
+    z-index: 2;
+  }
+
+  .wf-step-icon.src { background: rgba(88,166,255,0.12); color: var(--blue); border: 1.5px solid rgba(88,166,255,0.3); }
+  .wf-step-icon.proc { background: rgba(230,57,70,0.12); color: var(--red-light); border: 1.5px solid rgba(230,57,70,0.3); }
+  .wf-step-icon.store { background: rgba(63,185,80,0.12); color: var(--green); border: 1.5px solid rgba(63,185,80,0.3); }
+  .wf-step-icon.out { background: rgba(188,140,255,0.12); color: var(--purple); border: 1.5px solid rgba(188,140,255,0.3); }
+  .wf-step-icon.warn { background: rgba(240,136,62,0.12); color: var(--orange); border: 1.5px solid rgba(240,136,62,0.3); }
+  .wf-step-icon.ok { background: rgba(63,185,80,0.12); color: var(--green); border: 1.5px solid rgba(63,185,80,0.3); }
+
+  .wf-step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--white);
+    text-align: center;
+    margin-bottom: 0.3rem;
+  }
+
+  .wf-step-desc {
+    font-size: 0.68rem;
+    color: var(--gray);
+    text-align: center;
+    max-width: 130px;
+    line-height: 1.4;
+  }
+
+  .wf-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    color: var(--dark-3);
+    font-size: 1.2rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .wf-branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .wf-branch-label {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .wf-branch-label.yes { background: rgba(63,185,80,0.12); color: var(--green); }
+  .wf-branch-label.no { background: rgba(240,136,62,0.12); color: var(--orange); }
+  .wf-branch-label.review { background: rgba(188,140,255,0.12); color: var(--purple); }
+
+  .wf-decision {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 140px;
+    flex: 1;
+    position: relative;
+  }
+
+  .wf-diamond {
+    width: 100%;
+    min-width: 120px;
+    max-width: 140px;
+    height: 52px;
+    background: rgba(240,136,62,0.12);
+    border: 1.5px solid rgba(240,136,62,0.3);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .wf-diamond-inner {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--orange);
+  }
+
+  .wf-paths {
+    display: flex;
+    gap: 2rem;
+    margin-top: 0.75rem;
+  }
+
+  .wf-path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .wf-path-arrow {
+    font-size: 0.9rem;
+    color: var(--dark-3);
+  }
+
+  /* Budget editor mockup */
+  .ui-budget-grid {
+    display: grid;
+    grid-template-columns: 200px repeat(6, 1fr);
+    font-size: 0.68rem;
+    border: 1px solid var(--dark-3);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .ui-bg-header {
+    padding: 0.5rem 0.6rem;
+    background: var(--dark);
+    color: var(--gray);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.6rem;
+    border-bottom: 1px solid var(--dark-3);
+    border-right: 1px solid rgba(33,38,45,0.4);
+  }
+
+  .ui-bg-header:last-child { border-right: none; }
+
+  .ui-bg-cat {
+    padding: 0.5rem 0.6rem;
+    background: var(--dark);
+    color: var(--white);
+    font-weight: 500;
+    border-bottom: 1px solid rgba(33,38,45,0.4);
+    border-right: 1px solid rgba(33,38,45,0.4);
+  }
+
+  .ui-bg-cell {
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid rgba(33,38,45,0.4);
+    border-right: 1px solid rgba(33,38,45,0.4);
+    text-align: right;
+    color: var(--gray-light);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ui-bg-cell:last-child { border-right: none; }
+  .ui-bg-cat:last-child, .ui-bg-cell:last-child { border-bottom: none; }
+
+  .ui-bg-cell.delta-pos { color: var(--green); }
+  .ui-bg-cell.delta-neg { color: var(--red); }
+
+  .ui-bg-cell.editable {
+    background: rgba(88,166,255,0.04);
+    border: 1px solid rgba(88,166,255,0.15);
+    border-radius: 3px;
+    margin: 2px;
+    padding: 0.35rem 0.5rem;
+  }
+
+  /* Scrollbar for mockup tables */
+  .ui-main::-webkit-scrollbar { width: 4px; }
+  .ui-main::-webkit-scrollbar-thumb { background: var(--dark-3); border-radius: 2px; }
+
+  @media (max-width: 768px) {
+    .ui-app { flex-direction: column; }
+    .ui-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--dark-3); }
+    .ui-kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .wf-flow { flex-wrap: wrap; justify-content: center; }
+    .ui-budget-grid { grid-template-columns: 140px repeat(6, 1fr); font-size: 0.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo">Red<span>SparQ</span> Financial Control</div>
+    <ul class="nav-links">
+      <li><a href="#problem">Problema</a></li>
+      <li><a href="#solution">Solutia</a></li>
+      <li><a href="#modules">Module</a></li>
+      <li><a href="#architecture">Arhitectura</a></li>
+      <li><a href="#roles">Roluri</a></li>
+      <li><a href="#roadmap">Plan</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="#ui-preview">Interfata</a></li>
+      <li><a href="#workflows">Fluxuri</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Propus de Nisindo
+    </div>
+    <h1>
+      Control Total Asupra<br>
+      <span class="gradient">Operatiunilor Financiare</span>
+    </h1>
+    <p>
+      Inlocuiti spreadsheet-urile cu o platforma unificata care preia automat tranzactiile,
+      clasifica costurile, urmareste bugetele si ofera fiecarui membru al echipei ownership asupra domeniului sau.
+    </p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="number">3<span>+1</span></div>
+        <div class="label">Verticale + Consolidat</div>
+      </div>
+      <div class="hero-stat">
+        <div class="number">23</div>
+        <div class="label">Membri Echipa</div>
+      </div>
+      <div class="hero-stat">
+        <div class="number">98<span>-116</span></div>
+        <div class="label">Subcategorii Costuri</div>
+      </div>
+      <div class="hero-stat">
+        <div class="number">200K<span>+</span></div>
+        <div class="label">Capacitate Tranzactii</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Problem -->
+<section id="problem" class="fade-in">
+  <div class="problems">
+    <div class="section-label">Provocarea</div>
+    <div class="section-title">Ce va tine pe loc astazi</div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="icon">M</div>
+        <h3>Introducere Manuala a Datelor</h3>
+        <p>Tranzactiile sunt copiate manual din extrasele bancare in Excel. Ore de munca repetitiva in fiecare luna cu risc mare de eroare.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">?</div>
+        <h3>Lipsa Trasabilitatii</h3>
+        <p>Nu se poate face drill-down de la un total pe categorie la tranzactia sursa. Cand cifrele nu corespund, gasirea cauzei este dureroasa.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">O</div>
+        <h3>Ownership Neclar</h3>
+        <p>Cine este responsabil pentru revizuirea abonamentelor IT? Cine aproba cheltuielile de marketing? Responsabilitatile exista in capul oamenilor, nu in sistem.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">F</div>
+        <h3>Forecast-uri Invechite</h3>
+        <p>Reforecast-ul necesita efort manual in Excel, asa ca se intampla rar. Pana cand un forecast este gata, realitatea s-a schimbat deja.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">V</div>
+        <h3>Haos de Versiuni</h3>
+        <p>Multiple versiuni Excel circuland. Fara audit trail. Fara flux de aprobare. "Care fisier e cel mai recent?" se intreaba saptamanal.</p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">D</div>
+        <h3>Vizibilitate Intarziata</h3>
+        <p>Datele despre solduri si cheltuieli sunt mereu cu zile sau saptamani in urma. Pana cand vedeti o problema in spreadsheet, banii sunt deja cheltuiti.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Before/After -->
+<section id="solution" class="fade-in">
+  <div class="section-label">Transformare</div>
+  <div class="section-title">Inainte vs Dupa</div>
+  <div class="comparison">
+    <div class="comparison-card before">
+      <h3>Starea Actuala (Excel)</h3>
+      <ul>
+        <li>Copy-paste manual din extrase bancare</li>
+        <li>Datele au zile/saptamani vechime</li>
+        <li>Ownership-ul exista in memoria oamenilor</li>
+        <li>Forecast actualizat trimestrial, in cel mai bun caz</li>
+        <li>Fara drill-down la tranzactia sursa</li>
+        <li>Conflicte de versiuni intre membrii echipei</li>
+        <li>Fara flux de aprobare pentru bugete</li>
+        <li>Clasificarea este manuala si predispusa la erori</li>
+        <li>Consolidarea necesita formule manuale</li>
+        <li>Fara audit trail al modificarilor</li>
+      </ul>
+    </div>
+    <div class="comparison-card after">
+      <h3>RedSparQ Financial Control</h3>
+      <ul>
+        <li>Preluare automata din FGO.ro sau direct din banci, orar</li>
+        <li>Solduri si tranzactii in timp real</li>
+        <li>Ownership atribuit per categorie cu notificari</li>
+        <li>Forecast continuu cu scenarii multiple</li>
+        <li>Drill-down cu un click la documentul sursa</li>
+        <li>Sursa unica de adevar, acces bazat pe roluri</li>
+        <li>Aprobare multi-nivel cu audit trail</li>
+        <li>Auto-clasificare bazata pe reguli (&gt;90%)</li>
+        <li>Consolidare automata pe verticale</li>
+        <li>Jurnal complet de audit pentru orice modificare</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Modules -->
+<section id="modules" class="fade-in">
+  <div class="section-label">Modulele Platformei</div>
+  <div class="section-title">Sapte Sisteme Integrate</div>
+  <div class="section-desc">Fiecare modul functioneaza independent, dar partajeaza date fara intreruperi in toata platforma.</div>
+
+  <div class="modules-grid">
+    <div class="module-card">
+      <div class="module-number">Modulul 01</div>
+      <h3>Motor de Preluare Date</h3>
+      <p>Preia automat tranzactiile din FGO.ro (agregator bancar) sau direct din conturile bancare, la fiecare ora. Normalizeaza, deduplica si imbogateste fiecare inregistrare.</p>
+      <ul class="module-features">
+        <li>FGO.ro (agregator)</li>
+        <li>Banci direct</li>
+        <li>Import CSV/XLSX</li>
+        <li>Deduplicare</li>
+        <li>Sincronizare orara</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 02</div>
+      <h3>Motor de Clasificare</h3>
+      <p>Motor de reguli configurabil care auto-clasifica tranzactiile dupa IBAN, furnizor, cuvinte-cheie, sume si tipare. Gestioneaza splituri pe categorii.</p>
+      <ul class="module-features">
+        <li>Bazat pe reguli</li>
+        <li>Multi-axial</li>
+        <li>Split tranzactii</li>
+        <li>Scor de incredere</li>
+        <li>ML-ready (Faza 2)</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 03</div>
+      <h3>Contabilitate &amp; Trezorerie</h3>
+      <p>Vedere in timp real a tuturor conturilor bancare, soldurilor si fluxurilor de numerar. Dashboard de trezorerie consolidat cu detalii per cont si reconciliere.</p>
+      <ul class="module-features">
+        <li>Sold total</li>
+        <li>Vedere per cont</li>
+        <li>Flux de numerar</li>
+        <li>Reconciliere</li>
+        <li>Multi-valuta</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 04</div>
+      <h3>Managementul Bugetelor</h3>
+      <p>Definiti bugete anuale per verticala, entitate si categorie. Control de versiuni cu stari draft/aprobat/revizuit si fluxuri de aprobare.</p>
+      <ul class="module-features">
+        <li>Bugete versionate</li>
+        <li>Flux de aprobare</li>
+        <li>Import Excel</li>
+        <li>Blocare perioade</li>
+        <li>Template-uri</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 05</div>
+      <h3>Forecast &amp; Optimizare</h3>
+      <p>Generati prognoze folosind run-rate, sezonalitate si metode bazate pe angajamente. Comparati scenarii si identificati oportunitati de optimizare a costurilor.</p>
+      <ul class="module-features">
+        <li>Metode multiple</li>
+        <li>Scenarii</li>
+        <li>Optimizare</li>
+        <li>Tracking abonamente</li>
+        <li>Detectie anomalii</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 06</div>
+      <h3>Ownership &amp; Acces</h3>
+      <p>Fiecare categorie de cost are un owner clar. Accesul bazat pe roluri asigura ca fiecare din cei 23 de membri ai echipei vede si controleaza doar ce trebuie.</p>
+      <ul class="module-features">
+        <li>6 roluri</li>
+        <li>Owneri per categorie</li>
+        <li>Notificari</li>
+        <li>Calendare de revizuire</li>
+        <li>Audit trail</li>
+      </ul>
+    </div>
+
+    <div class="module-card">
+      <div class="module-number">Modulul 07</div>
+      <h3>Integrari</h3>
+      <p>Se conecteaza la FGO.ro ca agregator bancar sau direct la banci. Se integreaza cu Saga pentru trimiterea facturilor catre contabil. Flux de date bidirectional.</p>
+      <ul class="module-features">
+        <li>FGO.ro</li>
+        <li>Banci directe</li>
+        <li>Saga</li>
+        <li>Export Excel</li>
+        <li>API pentru BI</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture" class="fade-in">
+  <div class="section-label">Arhitectura Sistemului</div>
+  <div class="section-title">Cum Se Conecteaza Totul</div>
+  <div class="section-desc">O arhitectura modulara, API-first, proiectata pentru fiabilitate si crestere viitoare.</div>
+
+  <div class="arch-container">
+    <div class="arch-flow">
+      <div class="arch-col">
+        <div class="arch-col-label">Surse de Date</div>
+        <div class="arch-box source">FGO.ro (agregator)</div>
+        <div class="arch-box source">Banci (direct)</div>
+        <div class="arch-box source">Upload Manual</div>
+        <div class="arch-box source">Saga</div>
+      </div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-col">
+        <div class="arch-col-label">Procesare</div>
+        <div class="arch-box engine">Workeri Preluare</div>
+        <div class="arch-box engine">Motor Clasificare</div>
+        <div class="arch-box engine">Motor Agregare</div>
+      </div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-col">
+        <div class="arch-col-label">Stocare</div>
+        <div class="arch-box store">PostgreSQL</div>
+        <div class="arch-box store">Redis Cache</div>
+        <div class="arch-box store">Stocare Fisiere (S3)</div>
+      </div>
+      <div class="arch-arrow">&rarr;</div>
+      <div class="arch-col">
+        <div class="arch-col-label">Prezentare</div>
+        <div class="arch-box output">API Gateway</div>
+        <div class="arch-box output">Dashboard Web</div>
+        <div class="arch-box output">Rapoarte &amp; Exporturi</div>
+        <div class="arch-box output">Notificari</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tech-grid" style="margin-top: 2.5rem;">
+    <div class="tech-item">
+      <div class="tech-name">Next.js + React</div>
+      <div class="tech-role">Frontend &amp; SSR</div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-name">Fastify / Go</div>
+      <div class="tech-role">Backend API</div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-name">PostgreSQL</div>
+      <div class="tech-role">Baza de Date Principala</div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-name">Redis + BullMQ</div>
+      <div class="tech-role">Cache &amp; Coada de Joburi</div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-name">Docker</div>
+      <div class="tech-role">Containerizare</div>
+    </div>
+    <div class="tech-item">
+      <div class="tech-name">Keycloak / Auth0</div>
+      <div class="tech-role">Autentificare</div>
+    </div>
+  </div>
+</section>
+
+<!-- Integrations -->
+<section id="integrations" class="fade-in">
+  <div class="section-label" style="text-align:center">Integrari</div>
+  <div class="section-title" style="text-align:center">Conectat la Instrumentele Existente</div>
+
+  <div class="integrations">
+    <div class="integration-item">
+      <div class="integration-icon">FGO</div>
+      <div class="integration-name">FGO.ro (agregator)</div>
+      <div class="integration-freq">Sincronizare orara</div>
+    </div>
+    <div class="integration-item">
+      <div class="integration-icon">BT</div>
+      <div class="integration-name">Banca Transilvania</div>
+      <div class="integration-freq">Sincronizare orara</div>
+    </div>
+    <div class="integration-item">
+      <div class="integration-icon">ING</div>
+      <div class="integration-name">ING Bank</div>
+      <div class="integration-freq">Sincronizare orara</div>
+    </div>
+    <div class="integration-item">
+      <div class="integration-icon">S</div>
+      <div class="integration-name">Saga</div>
+      <div class="integration-freq">Trimitere facturi</div>
+    </div>
+    <div class="integration-item">
+      <div class="integration-icon">XL</div>
+      <div class="integration-name">Export Excel</div>
+      <div class="integration-freq">La cerere</div>
+    </div>
+    <div class="integration-item">
+      <div class="integration-icon">BI</div>
+      <div class="integration-name">API Instrumente BI</div>
+      <div class="integration-freq">Timp real</div>
+    </div>
+  </div>
+</section>
+
+<!-- Roles -->
+<section id="roles" class="fade-in">
+  <div class="section-label">Control Acces</div>
+  <div class="section-title">Roluri &amp; Permisiuni</div>
+  <div class="section-desc">Sase roluri distincte asigura ca fiecare membru al echipei are exact accesul de care are nevoie.</div>
+
+  <table class="roles-table">
+    <thead>
+      <tr>
+        <th>Rol</th>
+        <th>Vizualizare</th>
+        <th>Editare</th>
+        <th>Clasificare</th>
+        <th>Aprobare</th>
+        <th>Admin</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="role-name">Administrator</span></td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+      </tr>
+      <tr>
+        <td><span class="role-name">CFO / Director Financiar</span></td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="check">&#10003;</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+      <tr>
+        <td><span class="role-name">Manager Verticala</span></td>
+        <td>Verticala proprie</td>
+        <td>Verticala proprie</td>
+        <td class="check">&#10003;</td>
+        <td>Verticala proprie</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+      <tr>
+        <td><span class="role-name">Owner Categorie</span></td>
+        <td>Categorii atribuite</td>
+        <td>Categorii atribuite</td>
+        <td class="check">&#10003;</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+      <tr>
+        <td><span class="role-name">Back-office / Contabilitate</span></td>
+        <td class="check">&#10003;</td>
+        <td>Import &amp; reconciliere</td>
+        <td class="check">&#10003;</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+      <tr>
+        <td><span class="role-name">Auditor</span></td>
+        <td class="check">&#10003;</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Dashboard Preview -->
+<section id="dashboard" class="fade-in">
+  <div class="section-label">Previzualizare Dashboard</div>
+  <div class="section-title">Dashboard Executiv</div>
+  <div class="section-desc">Vizibilitate financiara in timp real, dintr-o privire. Drill-down de la orice cifra la tranzactia sursa.</div>
+
+  <div class="dashboard-preview">
+    <div class="dash-topbar">
+      <div class="dash-title">RedSparQ Financial Control - Vedere Executiva</div>
+      <div class="dash-period">Aprilie 2026</div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">Sold Total</div>
+        <div class="dash-kpi-value">1.247.830 RON</div>
+        <div class="dash-kpi-change positive">+12,3% vs luna trecuta</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">Rata Lunara Cheltuieli</div>
+        <div class="dash-kpi-value">423.150 RON</div>
+        <div class="dash-kpi-change negative">+3,1% vs buget</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">Utilizare Buget</div>
+        <div class="dash-kpi-value">87,4%</div>
+        <div class="dash-kpi-change positive">Conform planului</div>
+      </div>
+      <div class="dash-kpi">
+        <div class="dash-kpi-label">Neclasificate</div>
+        <div class="dash-kpi-value">14</div>
+        <div class="dash-kpi-change negative">Necesita atentie</div>
+      </div>
+    </div>
+
+    <div class="dash-charts">
+      <div class="dash-chart">
+        <div class="dash-chart-title">Buget vs Actual (Lunar, mii RON)</div>
+        <div class="bar-chart">
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:65%"></div>
+              <div class="bar actual" style="height:58%"></div>
+            </div>
+            <div class="bar-label">Ian</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:62%"></div>
+              <div class="bar actual" style="height:67%"></div>
+            </div>
+            <div class="bar-label">Feb</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:70%"></div>
+              <div class="bar actual" style="height:65%"></div>
+            </div>
+            <div class="bar-label">Mar</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:68%"></div>
+              <div class="bar actual" style="height:72%"></div>
+            </div>
+            <div class="bar-label">Apr</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:75%"></div>
+              <div class="bar actual" style="height:70%"></div>
+            </div>
+            <div class="bar-label">Mai</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:80%"></div>
+              <div class="bar actual" style="height:77%"></div>
+            </div>
+            <div class="bar-label">Iun</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:72%"></div>
+              <div class="bar actual" style="height:75%"></div>
+            </div>
+            <div class="bar-label">Iul</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:78%"></div>
+              <div class="bar actual" style="height:74%"></div>
+            </div>
+            <div class="bar-label">Aug</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:85%"></div>
+              <div class="bar actual" style="height:80%"></div>
+            </div>
+            <div class="bar-label">Sep</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:90%"></div>
+              <div class="bar actual" style="height:88%"></div>
+            </div>
+            <div class="bar-label">Oct</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:82%"></div>
+              <div class="bar actual" style="height:85%"></div>
+            </div>
+            <div class="bar-label">Nov</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar budget" style="height:95%"></div>
+              <div class="bar actual" style="height:42%"></div>
+            </div>
+            <div class="bar-label">Dec</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:1.5rem; margin-top:0.75rem; justify-content:center">
+          <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.7rem; color:var(--gray)">
+            <div style="width:10px; height:10px; border-radius:2px; background:rgba(88,166,255,0.4)"></div> Buget
+          </div>
+          <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.7rem; color:var(--gray)">
+            <div style="width:10px; height:10px; border-radius:2px; background:var(--red)"></div> Actual
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-chart">
+        <div class="dash-chart-title">Top Categorii (% din cheltuieli totale)</div>
+        <ul class="category-list">
+          <li class="category-item">
+            <span class="cat-name">Personal</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:100%; background:var(--red)"></div></div>
+            <span class="cat-amount">36.3%</span>
+          </li>
+          <li class="category-item">
+            <span class="cat-name">Chirii</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:52.6%; background:var(--orange)"></div></div>
+            <span class="cat-amount">19.1%</span>
+          </li>
+          <li class="category-item">
+            <span class="cat-name">Tehnologie</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:30.6%; background:var(--blue)"></div></div>
+            <span class="cat-amount">11.1%</span>
+          </li>
+          <li class="category-item">
+            <span class="cat-name">Marketing</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:20.9%; background:var(--purple)"></div></div>
+            <span class="cat-amount">7.6%</span>
+          </li>
+          <li class="category-item">
+            <span class="cat-name">Servicii</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:16.5%; background:var(--green)"></div></div>
+            <span class="cat-amount">6.0%</span>
+          </li>
+          <li class="category-item">
+            <span class="cat-name">Altele</span>
+            <div class="cat-bar"><div class="cat-bar-fill" style="width:54.8%; background:var(--gray)"></div></div>
+            <span class="cat-amount">19.9%</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Roadmap -->
+<section id="roadmap" class="fade-in">
+  <div class="section-label">Planul de Implementare</div>
+  <div class="section-title">De la Descoperire la Control Total</div>
+  <div class="section-desc">O abordare pe faze care livreaza valoare devreme si creste odata cu nevoile voastre. Timeline total: 20 saptamani.</div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Faza 0: Descoperire &amp; Setup</span>
+        <span class="timeline-duration">Saptamanile 1-2</span>
+      </div>
+      <div class="timeline-desc">Transpunem modelul Excel existent intr-o schema de baza de date validata. Evaluam capabilitatile API FGO.ro si accesul direct la banci. Importam 3-6 luni de date istorice pentru validare.</div>
+      <ul class="timeline-items">
+        <li>Validare model de date</li>
+        <li>Finalizare taxonomie costuri</li>
+        <li>Evaluare integrari</li>
+        <li>Setup mediu dezvoltare</li>
+        <li>Import date istorice</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Faza 1: MVP - Platforma de Baza</span>
+        <span class="timeline-duration">Saptamanile 3-8</span>
+      </div>
+      <div class="timeline-desc">Inlocuim fluxul de lucru Excel de baza. Import extrase bancare, clasificare tranzactii, atribuire owneri, definire bugete si raport Buget vs Forecast vs Actual cu drill-down.</div>
+      <ul class="timeline-items">
+        <li>Import extrase bancare</li>
+        <li>Preluare automata FGO/banci</li>
+        <li>Taxonomie 3 niveluri</li>
+        <li>Reguli de clasificare</li>
+        <li>Atribuire ownership</li>
+        <li>Definire bugete</li>
+        <li>Raportare BvA</li>
+        <li>Drill-down</li>
+        <li>Audit trail</li>
+        <li>6 roluri utilizatori</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Faza 2: Automatizare &amp; Inteligenta</span>
+        <span class="timeline-duration">Saptamanile 9-14</span>
+      </div>
+      <div class="timeline-desc">Clasificare avansata, scenarii de forecast, integrare Saga, tracking abonamente si sugestii de optimizare a costurilor.</div>
+      <ul class="timeline-items">
+        <li>Sincronizare banci in timp real</li>
+        <li>Reguli avansate</li>
+        <li>Split tranzactii</li>
+        <li>Scenarii forecast</li>
+        <li>Integrare Saga</li>
+        <li>Tracking abonamente</li>
+        <li>Notificari</li>
+        <li>Inchidere perioade</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Faza 3: Raportare Avansata &amp; Scalare</span>
+        <span class="timeline-duration">Saptamanile 15-20</span>
+      </div>
+      <div class="timeline-desc">Constructor de rapoarte custom, clasificare asistata de ML, alerte avansate, integrare cu instrumente BI si dashboard-uri responsive mobile.</div>
+      <ul class="timeline-items">
+        <li>Rapoarte custom</li>
+        <li>Dashboard KPI executiv</li>
+        <li>Clasificare ML</li>
+        <li>Detectie anomalii</li>
+        <li>API pentru BI</li>
+        <li>Multi-valuta</li>
+        <li>Dashboard-uri mobile</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Success Metrics -->
+<section class="fade-in">
+  <div class="section-label">Metrici de Succes</div>
+  <div class="section-title">Rezultate Masurabile</div>
+  <div class="section-desc">Tinte clare pentru a valida ca platforma livreaza valoare reala.</div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-value">&gt;90<span class="unit">%</span></div>
+      <div class="metric-label">Tranzactii auto-clasificate</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt;1<span class="unit">h</span></div>
+      <div class="metric-label">Prospetime date</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt;2<span class="unit">zile</span></div>
+      <div class="metric-label">Timp inchidere lunara</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt;5<span class="unit">%</span></div>
+      <div class="metric-label">Neclasificate in orice moment</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">100<span class="unit">%</span></div>
+      <div class="metric-label">Acoperire audit trail</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">23<span class="unit">/23</span></div>
+      <div class="metric-label">Adoptie echipa in 30 zile</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt;10<span class="unit">%</span></div>
+      <div class="metric-label">Deviere forecast</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">0<span class="unit"></span></div>
+      <div class="metric-label">Dependenta de Excel</div>
+    </div>
+  </div>
+</section>
+
+<!-- UI Preview: Transaction List -->
+<section id="ui-preview" class="fade-in">
+  <div class="section-label">Previzualizare Interfata</div>
+  <div class="section-title">Cum Va Arata Platforma</div>
+  <div class="section-desc">Interfata proiectata pentru productivitate: navigare rapida, filtre avansate si drill-down instant la orice tranzactie.</div>
+
+  <!-- Screen 1: Transaction List -->
+  <div class="ui-mockup">
+    <div class="ui-mockup-label">Ecran 1 &mdash; Lista Tranzactii &amp; Clasificare</div>
+    <div class="ui-titlebar">
+      <div class="ui-titlebar-dots"><span></span><span></span><span></span></div>
+      <div class="ui-titlebar-url">app.redsparq.ro/tranzactii</div>
+    </div>
+    <div class="ui-app">
+      <div class="ui-sidebar">
+        <div class="ui-sidebar-brand">Red<span>SparQ</span></div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Principal</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">D</div> Dashboard</div>
+          <div class="ui-nav-item active"><div class="ui-nav-icon">T</div> Tranzactii <span class="ui-nav-badge">14</span></div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">C</div> Clasificare</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">R</div> Reguli</div>
+        </div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Financiar</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">B</div> Bugete</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">F</div> Forecast</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">$</div> Trezorerie</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">A</div> Abonamente</div>
+        </div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Raportare</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">R</div> Rapoarte</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">V</div> Verticale</div>
+        </div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Admin</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">U</div> Utilizatori</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">S</div> Setari</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">L</div> Audit Log</div>
+        </div>
+      </div>
+      <div class="ui-main">
+        <div class="ui-main-header">
+          <div class="ui-main-title">Tranzactii</div>
+          <div class="ui-main-actions">
+            <div class="ui-btn">Export Excel</div>
+            <div class="ui-btn primary">+ Import</div>
+          </div>
+        </div>
+        <div class="ui-kpi-row">
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">Total Luna Curenta</div>
+            <div class="ui-kpi-val">423.150 <small style="font-size:0.65rem;color:var(--gray)">RON</small></div>
+            <div class="ui-kpi-sub negative" style="color:var(--red)">+3,1% vs buget</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">Tranzactii Luna</div>
+            <div class="ui-kpi-val">847</div>
+            <div class="ui-kpi-sub" style="color:var(--green)">833 clasificate</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">Neclasificate</div>
+            <div class="ui-kpi-val" style="color:var(--orange)">14</div>
+            <div class="ui-kpi-sub" style="color:var(--orange)">Necesita revizuire</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">Ultima Sincronizare</div>
+            <div class="ui-kpi-val" style="font-size:0.9rem">Acum 12 min</div>
+            <div class="ui-kpi-sub" style="color:var(--green)">FGO.ro &bull; 3 conturi</div>
+          </div>
+        </div>
+        <div class="ui-filters">
+          <div class="ui-filter active-filter">Aprilie 2026 <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">Toate verticalele <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">Toate categoriile <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">Toate statusurile <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">Owner: Toti <span class="ui-filter-arrow">&#9662;</span></div>
+        </div>
+        <div style="overflow-x:auto; border-radius:10px; border:1px solid var(--dark-3)">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th style="width:30px"><span class="ui-checkbox"></span></th>
+              <th>Data</th>
+              <th>Descriere</th>
+              <th>Cont</th>
+              <th>Suma</th>
+              <th>Categorie</th>
+              <th>Verticala</th>
+              <th>Owner</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="ui-checkbox"></span></td>
+              <td>01.04</td>
+              <td>CHIRIE BIROU UNIRII - APRIL</td>
+              <td>BT ..4521</td>
+              <td class="ui-amount negative">-18.500,00</td>
+              <td><span class="ui-tag orange">Chirii &gt; Birou</span></td>
+              <td><span class="ui-tag blue">Coworking</span></td>
+              <td>M. Ionescu</td>
+              <td><span class="ui-tag green">Clasificat</span></td>
+            </tr>
+            <tr>
+              <td><span class="ui-checkbox"></span></td>
+              <td>01.04</td>
+              <td>TRANSFER SALARII MARTIE</td>
+              <td>BT ..4521</td>
+              <td class="ui-amount negative">-187.340,00</td>
+              <td><span class="ui-tag red">Personal &gt; Salarii</span></td>
+              <td><span class="ui-tag purple">Consolidat</span></td>
+              <td>A. Popescu</td>
+              <td><span class="ui-tag green">Clasificat</span></td>
+            </tr>
+            <tr>
+              <td><span class="ui-checkbox"></span></td>
+              <td>02.04</td>
+              <td>VODAFONE RO - ABONAMENT CORP</td>
+              <td>ING ..8823</td>
+              <td class="ui-amount negative">-2.340,00</td>
+              <td><span class="ui-tag blue">Abonamente &gt; Telecom</span></td>
+              <td><span class="ui-tag purple">Consolidat</span></td>
+              <td>D. Radu</td>
+              <td><span class="ui-tag green">Clasificat</span></td>
+            </tr>
+            <tr>
+              <td><span class="ui-checkbox"></span></td>
+              <td>02.04</td>
+              <td>INCASARE CLIENT - TECHNOVISION SRL</td>
+              <td>BT ..4521</td>
+              <td class="ui-amount positive">+45.200,00</td>
+              <td><span class="ui-tag blue">Venituri &gt; Servicii</span></td>
+              <td><span class="ui-tag blue">Outsourcing</span></td>
+              <td>C. Stan</td>
+              <td><span class="ui-tag green">Clasificat</span></td>
+            </tr>
+            <tr>
+              <td><span class="ui-checkbox"></span></td>
+              <td>03.04</td>
+              <td>AWS EMEA SARL - CLOUD HOSTING</td>
+              <td>ING ..8823</td>
+              <td class="ui-amount negative">-1.890,00</td>
+              <td><span class="ui-tag blue">Abonamente &gt; SaaS</span></td>
+              <td><span class="ui-tag purple">Consolidat</span></td>
+              <td>D. Radu</td>
+              <td><span class="ui-tag green">Clasificat</span></td>
+            </tr>
+            <tr style="background: rgba(240,136,62,0.03)">
+              <td><span class="ui-checkbox"></span></td>
+              <td>03.04</td>
+              <td>PLATA POS - MEGA IMAGE</td>
+              <td>BT ..4521</td>
+              <td class="ui-amount negative">-127,50</td>
+              <td><span class="ui-tag gray">?</span></td>
+              <td><span class="ui-tag gray">?</span></td>
+              <td>&mdash;</td>
+              <td><span class="ui-tag orange">Neclasificat</span></td>
+            </tr>
+            <tr style="background: rgba(240,136,62,0.03)">
+              <td><span class="ui-checkbox"></span></td>
+              <td>03.04</td>
+              <td>TRANSFER - MATEI ALEXANDRU</td>
+              <td>ING ..8823</td>
+              <td class="ui-amount negative">-4.500,00</td>
+              <td><span class="ui-tag gray">?</span></td>
+              <td><span class="ui-tag gray">?</span></td>
+              <td>&mdash;</td>
+              <td><span class="ui-tag orange">Neclasificat</span></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 2: Budget Editor -->
+  <div class="ui-mockup">
+    <div class="ui-mockup-label">Ecran 2 &mdash; Editor Bugete: Buget vs Forecast vs Actual</div>
+    <div class="ui-titlebar">
+      <div class="ui-titlebar-dots"><span></span><span></span><span></span></div>
+      <div class="ui-titlebar-url">app.redsparq.ro/bugete/2026-aprobat</div>
+    </div>
+    <div class="ui-app">
+      <div class="ui-sidebar">
+        <div class="ui-sidebar-brand">Red<span>SparQ</span></div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Principal</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">D</div> Dashboard</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">T</div> Tranzactii</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">C</div> Clasificare</div>
+        </div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Financiar</div>
+          <div class="ui-nav-item active"><div class="ui-nav-icon">B</div> Bugete</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">F</div> Forecast</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">$</div> Trezorerie</div>
+        </div>
+      </div>
+      <div class="ui-main">
+        <div class="ui-main-header">
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <div class="ui-main-title">Buget 2026</div>
+            <span class="ui-tag green">Aprobat</span>
+            <span style="font-size:0.72rem;color:var(--gray)">Verticala: Outsourcing</span>
+          </div>
+          <div class="ui-main-actions">
+            <div class="ui-btn">Versiuni</div>
+            <div class="ui-btn">Export</div>
+            <div class="ui-btn primary">Revizuire Q2</div>
+          </div>
+        </div>
+        <div class="ui-filters">
+          <div class="ui-filter active-filter">Outsourcing <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">T1 2026 <span class="ui-filter-arrow">&#9662;</span></div>
+          <div class="ui-filter">Toate categoriile <span class="ui-filter-arrow">&#9662;</span></div>
+        </div>
+        <div style="overflow-x:auto">
+        <div class="ui-budget-grid">
+          <div class="ui-bg-header">Categorie</div>
+          <div class="ui-bg-header" style="text-align:center">Ian Buget</div>
+          <div class="ui-bg-header" style="text-align:center">Ian Actual</div>
+          <div class="ui-bg-header" style="text-align:center">Ian Delta</div>
+          <div class="ui-bg-header" style="text-align:center">Feb Buget</div>
+          <div class="ui-bg-header" style="text-align:center">Feb Actual</div>
+          <div class="ui-bg-header" style="text-align:center">Feb Delta</div>
+
+          <div class="ui-bg-cat" style="font-weight:700">Personal</div>
+          <div class="ui-bg-cell">185.000</div>
+          <div class="ui-bg-cell">187.340</div>
+          <div class="ui-bg-cell delta-neg">-2.340</div>
+          <div class="ui-bg-cell">185.000</div>
+          <div class="ui-bg-cell">184.200</div>
+          <div class="ui-bg-cell delta-pos">+800</div>
+
+          <div class="ui-bg-cat">&nbsp;&nbsp;Salarii</div>
+          <div class="ui-bg-cell">160.000</div>
+          <div class="ui-bg-cell">161.800</div>
+          <div class="ui-bg-cell delta-neg">-1.800</div>
+          <div class="ui-bg-cell">160.000</div>
+          <div class="ui-bg-cell">159.500</div>
+          <div class="ui-bg-cell delta-pos">+500</div>
+
+          <div class="ui-bg-cat">&nbsp;&nbsp;Contributii</div>
+          <div class="ui-bg-cell">25.000</div>
+          <div class="ui-bg-cell">25.540</div>
+          <div class="ui-bg-cell delta-neg">-540</div>
+          <div class="ui-bg-cell">25.000</div>
+          <div class="ui-bg-cell">24.700</div>
+          <div class="ui-bg-cell delta-pos">+300</div>
+
+          <div class="ui-bg-cat" style="font-weight:700">Chirii</div>
+          <div class="ui-bg-cell">18.500</div>
+          <div class="ui-bg-cell">18.500</div>
+          <div class="ui-bg-cell" style="color:var(--gray)">0</div>
+          <div class="ui-bg-cell">18.500</div>
+          <div class="ui-bg-cell">18.500</div>
+          <div class="ui-bg-cell" style="color:var(--gray)">0</div>
+
+          <div class="ui-bg-cat" style="font-weight:700">Tehnologie</div>
+          <div class="ui-bg-cell">12.000</div>
+          <div class="ui-bg-cell">14.230</div>
+          <div class="ui-bg-cell delta-neg">-2.230</div>
+          <div class="ui-bg-cell">12.000</div>
+          <div class="ui-bg-cell">11.890</div>
+          <div class="ui-bg-cell delta-pos">+110</div>
+
+          <div class="ui-bg-cat" style="font-weight:700">Marketing</div>
+          <div class="ui-bg-cell">8.000</div>
+          <div class="ui-bg-cell">6.450</div>
+          <div class="ui-bg-cell delta-pos">+1.550</div>
+          <div class="ui-bg-cell">8.000</div>
+          <div class="ui-bg-cell">9.200</div>
+          <div class="ui-bg-cell delta-neg">-1.200</div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 3: Treasury -->
+  <div class="ui-mockup">
+    <div class="ui-mockup-label">Ecran 3 &mdash; Trezorerie: Solduri Conturi &amp; Flux Numerar</div>
+    <div class="ui-titlebar">
+      <div class="ui-titlebar-dots"><span></span><span></span><span></span></div>
+      <div class="ui-titlebar-url">app.redsparq.ro/trezorerie</div>
+    </div>
+    <div class="ui-app">
+      <div class="ui-sidebar">
+        <div class="ui-sidebar-brand">Red<span>SparQ</span></div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Principal</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">D</div> Dashboard</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">T</div> Tranzactii</div>
+        </div>
+        <div class="ui-nav-group">
+          <div class="ui-nav-group-label">Financiar</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">B</div> Bugete</div>
+          <div class="ui-nav-item"><div class="ui-nav-icon">F</div> Forecast</div>
+          <div class="ui-nav-item active"><div class="ui-nav-icon">$</div> Trezorerie</div>
+        </div>
+      </div>
+      <div class="ui-main">
+        <div class="ui-main-header">
+          <div class="ui-main-title">Trezorerie</div>
+          <div class="ui-main-actions">
+            <div class="ui-btn">Sincronizeaza Acum</div>
+          </div>
+        </div>
+        <div class="ui-kpi-row">
+          <div class="ui-kpi-card" style="border-left: 3px solid var(--green)">
+            <div class="ui-kpi-title">Sold Total</div>
+            <div class="ui-kpi-val" style="color:var(--green)">1.247.830 <small style="font-size:0.65rem;color:var(--gray)">RON</small></div>
+            <div class="ui-kpi-sub" style="color:var(--green)">+12,3% vs luna trecuta</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">BT ..4521 (RON)</div>
+            <div class="ui-kpi-val">892.340</div>
+            <div class="ui-kpi-sub" style="color:var(--gray)">Cont principal</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">ING ..8823 (RON)</div>
+            <div class="ui-kpi-val">287.490</div>
+            <div class="ui-kpi-sub" style="color:var(--gray)">Cont operational</div>
+          </div>
+          <div class="ui-kpi-card">
+            <div class="ui-kpi-title">BT ..7701 (EUR)</div>
+            <div class="ui-kpi-val">13.640 <small style="font-size:0.55rem;color:var(--gray)">EUR</small></div>
+            <div class="ui-kpi-sub" style="color:var(--gray)">~68.000 RON</div>
+          </div>
+        </div>
+        <!-- Cash flow mini chart -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem">
+          <div style="background:var(--dark); border:1px solid var(--dark-3); border-radius:10px; padding:1rem">
+            <div style="font-size:0.72rem; font-weight:600; color:var(--gray-light); margin-bottom:0.75rem">Flux Numerar - Ultimele 7 Zile</div>
+            <div style="display:flex; align-items:flex-end; gap:0.5rem; height:80px">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:60%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:45%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Lu</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:30%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:70%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Ma</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:80%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:25%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Mi</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:40%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:55%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Jo</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:50%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:35%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Vi</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:15%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:10%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Sa</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.2rem;justify-content:flex-end;height:100%">
+                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;flex:1">
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--green);height:5%"></div>
+                  <div style="width:10px;border-radius:2px 2px 0 0;background:var(--red);opacity:0.7;height:5%"></div>
+                </div>
+                <div style="font-size:0.55rem;color:var(--gray)">Du</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:1rem; margin-top:0.5rem; justify-content:center">
+              <div style="display:flex; align-items:center; gap:0.3rem; font-size:0.6rem; color:var(--gray)">
+                <div style="width:8px; height:8px; border-radius:2px; background:var(--green)"></div> Incasari
+              </div>
+              <div style="display:flex; align-items:center; gap:0.3rem; font-size:0.6rem; color:var(--gray)">
+                <div style="width:8px; height:8px; border-radius:2px; background:var(--red); opacity:0.7"></div> Plati
+              </div>
+            </div>
+          </div>
+          <div style="background:var(--dark); border:1px solid var(--dark-3); border-radius:10px; padding:1rem">
+            <div style="font-size:0.72rem; font-weight:600; color:var(--gray-light); margin-bottom:0.75rem">Proiectie Cash Runway</div>
+            <div style="display:flex;flex-direction:column;gap:0.6rem">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--gray);margin-bottom:0.25rem">
+                  <span>Sold curent</span><span style="color:var(--white);font-weight:600">1.247.830 RON</span>
+                </div>
+                <div style="height:6px;background:var(--dark-3);border-radius:3px;overflow:hidden">
+                  <div style="width:100%;height:100%;background:var(--green);border-radius:3px"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--gray);margin-bottom:0.25rem">
+                  <span>Estimat peste 30 zile</span><span style="color:var(--white);font-weight:600">874.200 RON</span>
+                </div>
+                <div style="height:6px;background:var(--dark-3);border-radius:3px;overflow:hidden">
+                  <div style="width:70%;height:100%;background:var(--blue);border-radius:3px"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--gray);margin-bottom:0.25rem">
+                  <span>Estimat peste 90 zile</span><span style="color:var(--white);font-weight:600">412.600 RON</span>
+                </div>
+                <div style="height:6px;background:var(--dark-3);border-radius:3px;overflow:hidden">
+                  <div style="width:33%;height:100%;background:var(--orange);border-radius:3px"></div>
+                </div>
+              </div>
+              <div style="font-size:0.65rem;color:var(--gray);margin-top:0.25rem;text-align:center;padding:0.4rem;background:var(--dark-2);border-radius:6px">
+                Rata lunara cheltuieli: <strong style="color:var(--white)">~423.000 RON</strong> &bull; Runway: <strong style="color:var(--green)">~2,9 luni</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Workflows -->
+<section id="workflows" class="fade-in">
+  <div class="section-label">Fluxuri de Lucru</div>
+  <div class="section-title">Cum Functioneaza in Practica</div>
+  <div class="section-desc">Fluxuri automatizate de la preluarea tranzactiei pana la raportul final, cu puncte de decizie clare si responsabilitati definite.</div>
+
+  <!-- Workflow 1: Transaction Ingestion & Classification -->
+  <div class="workflow-container">
+    <div class="workflow-title">1. Preluare &amp; Clasificare Tranzactii</div>
+    <div class="workflow-subtitle">De la contul bancar pana la categoria de cost &mdash; automat, in fiecare ora.</div>
+    <div style="background:var(--dark-2); border:1px solid var(--dark-3); border-radius:16px; padding:2rem; overflow-x:auto">
+      <div class="wf-flow">
+        <div class="wf-step">
+          <div class="wf-step-icon src">FGO</div>
+          <div class="wf-step-label">Sursa Date</div>
+          <div class="wf-step-desc">FGO.ro sau banci directe sincronizeaza orar</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">N</div>
+          <div class="wf-step-label">Normalizare</div>
+          <div class="wf-step-desc">Format unitar, deduplicare, imbogatire date</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon store">DB</div>
+          <div class="wf-step-label">Stocare</div>
+          <div class="wf-step-desc">Tranzactia se salveaza cu link la sursa</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-decision">
+          <div class="wf-diamond"><div class="wf-diamond-inner">?</div></div>
+          <div class="wf-step-label">Regula Gasita?</div>
+          <div class="wf-paths">
+            <div class="wf-path">
+              <div class="wf-branch-label yes">DA</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon ok" style="width:40px;height:40px;font-size:0.85rem">&#10003;</div>
+              <div class="wf-step-desc">Auto-clasificat, notifica owner</div>
+            </div>
+            <div class="wf-path">
+              <div class="wf-branch-label no">NU</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon warn" style="width:40px;height:40px;font-size:0.85rem">!</div>
+              <div class="wf-step-desc">Coada de revizuire manuala</div>
+            </div>
+          </div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon out">&#8721;</div>
+          <div class="wf-step-label">Agregare</div>
+          <div class="wf-step-desc">Totaluri actualizate, comparatie cu buget</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow 2: Budget Approval -->
+  <div class="workflow-container">
+    <div class="workflow-title">2. Ciclul de Bugetare &amp; Aprobare</div>
+    <div class="workflow-subtitle">De la draft la buget aprobat &mdash; cu versiuni, comentarii si audit trail complet.</div>
+    <div style="background:var(--dark-2); border:1px solid var(--dark-3); border-radius:16px; padding:2rem; overflow-x:auto">
+      <div class="wf-flow">
+        <div class="wf-step">
+          <div class="wf-step-icon src">+</div>
+          <div class="wf-step-label">Creare Draft</div>
+          <div class="wf-step-desc">Owner-ul creeaza bugetul pe categorie/verticala</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">E</div>
+          <div class="wf-step-label">Editare</div>
+          <div class="wf-step-desc">Ajustari lunare, import din Excel sau copiere an anterior</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon out">&#8593;</div>
+          <div class="wf-step-label">Trimitere</div>
+          <div class="wf-step-desc">Owner-ul trimite spre revizuire Manager Verticala</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-decision">
+          <div class="wf-diamond"><div class="wf-diamond-inner">?</div></div>
+          <div class="wf-step-label">Manager Aproba?</div>
+          <div class="wf-paths">
+            <div class="wf-path">
+              <div class="wf-branch-label yes">DA</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon src" style="width:40px;height:40px;font-size:0.7rem">CFO</div>
+              <div class="wf-step-desc">Merge la CFO pentru aprobare finala</div>
+            </div>
+            <div class="wf-path">
+              <div class="wf-branch-label no">NU</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon warn" style="width:40px;height:40px;font-size:0.7rem">&#8592;</div>
+              <div class="wf-step-desc">Inapoi la owner cu comentarii</div>
+            </div>
+          </div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon ok">&#10003;</div>
+          <div class="wf-step-label">Aprobat &amp; Blocat</div>
+          <div class="wf-step-desc">Versiunea devine activa, modificarile necesita revizie noua</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow 3: Invoice to Accountant via Saga -->
+  <div class="workflow-container">
+    <div class="workflow-title">3. Factura &rarr; Saga &rarr; Contabil</div>
+    <div class="workflow-subtitle">Fluxul de la tranzactia clasificata pana la trimiterea facturii catre contabil prin Saga.</div>
+    <div style="background:var(--dark-2); border:1px solid var(--dark-3); border-radius:16px; padding:2rem; overflow-x:auto">
+      <div class="wf-flow">
+        <div class="wf-step">
+          <div class="wf-step-icon store">T</div>
+          <div class="wf-step-label">Tranzactie Clasificata</div>
+          <div class="wf-step-desc">Tranzactia are categorie, verticala si owner</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">F</div>
+          <div class="wf-step-label">Atasare Factura</div>
+          <div class="wf-step-desc">Upload PDF/foto factura sau preluare din email</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">V</div>
+          <div class="wf-step-label">Validare</div>
+          <div class="wf-step-desc">Verificare suma, TVA, date, furnizor</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon src">S</div>
+          <div class="wf-step-label">Export Saga</div>
+          <div class="wf-step-desc">Trimitere automata catre Saga cu toate datele</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon out">&#9993;</div>
+          <div class="wf-step-label">Contabil</div>
+          <div class="wf-step-desc">Contabilul primeste factura clasificata in Saga</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon ok">&#10003;</div>
+          <div class="wf-step-label">Confirmare</div>
+          <div class="wf-step-desc">Status sincronizat inapoi in platforma</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Workflow 4: Monthly Close -->
+  <div class="workflow-container">
+    <div class="workflow-title">4. Inchidere Lunara</div>
+    <div class="workflow-subtitle">Procesul de inchidere a perioadei lunare cu validari, reconcilieri si blocare finala.</div>
+    <div style="background:var(--dark-2); border:1px solid var(--dark-3); border-radius:16px; padding:2rem; overflow-x:auto">
+      <div class="wf-flow">
+        <div class="wf-step">
+          <div class="wf-step-icon warn">!</div>
+          <div class="wf-step-label">Verificare</div>
+          <div class="wf-step-desc">Sistem verifica: tranzactii neclasificate, reconciliere solduri</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">O</div>
+          <div class="wf-step-label">Notifica Owneri</div>
+          <div class="wf-step-desc">Fiecare owner primeste lista categoriilor de confirmat</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon ok">&#10003;</div>
+          <div class="wf-step-label">Confirmari</div>
+          <div class="wf-step-desc">Ownerii confirma: "Costurile sunt corecte"</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-step">
+          <div class="wf-step-icon proc">R</div>
+          <div class="wf-step-label">Reconciliere</div>
+          <div class="wf-step-desc">Back-office verifica totaluri vs extrase bancare</div>
+        </div>
+        <div class="wf-arrow">&rarr;</div>
+        <div class="wf-decision">
+          <div class="wf-diamond"><div class="wf-diamond-inner">?</div></div>
+          <div class="wf-step-label">Totul Corespunde?</div>
+          <div class="wf-paths">
+            <div class="wf-path">
+              <div class="wf-branch-label yes">DA</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon ok" style="width:40px;height:40px;font-size:0.7rem">&#128274;</div>
+              <div class="wf-step-desc">CFO blocheaza luna</div>
+            </div>
+            <div class="wf-path">
+              <div class="wf-branch-label no">NU</div>
+              <div class="wf-path-arrow">&darr;</div>
+              <div class="wf-step-icon warn" style="width:40px;height:40px;font-size:0.7rem">&#8592;</div>
+              <div class="wf-step-desc">Corectii si reclasificari</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-section">
+  <h2>Pregatiti sa Preluati Controlul?</h2>
+  <p>Sa transformam operatiunile financiare din spreadsheet-uri intr-o platforma unificata de inteligenta financiara.</p>
+  <a href="mailto:contact@nisindo.com" class="cta-btn">Incepem Discutia &rarr;</a>
+</div>
+
+<!-- Footer -->
+<footer>
+  <p>Pregatit de <span>Nisindo</span> pentru <span>RedSparQ</span> &middot; Aprilie 2026 &middot; Confidential</p>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+</body>
+</html>
