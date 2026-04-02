@@ -785,6 +785,73 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 ---
 
+## Design System & Visual Identity
+
+### Reference Implementation
+
+The definitive design reference is `docs/costify-pitch.html`. All UI work must align with this visual language.
+
+### Brand Colors
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| `--primary` | `#6C5CE7` | Primary actions, links, active states, brand accent |
+| `--primary-dark` | `#5A4BD1` | Hover states on primary elements |
+| `--primary-light` | `#A29BFE` | Badges, highlighted text, secondary accent |
+| `--accent` | `#00B894` | Success states, positive indicators, growth metrics |
+| `--accent-light` | `#55EFC4` | Success badges, positive deltas |
+| `--danger` | `#E63946` | Errors, destructive actions, negative deltas, alerts |
+| `--warn` | `#FDCB6E` | Warnings, partial states, attention needed |
+| `--dark` | `#0D1117` | Page background |
+| `--dark-2` | `#161B22` | Card backgrounds, elevated surfaces |
+| `--dark-3` | `#21262D` | Borders, dividers, subtle backgrounds |
+| `--gray` | `#8B949E` | Secondary text, labels, placeholders |
+| `--gray-light` | `#C9D1D9` | Body text |
+| `--white` | `#F0F6FC` | Headings, primary text, high contrast |
+| `--blue` | `#58A6FF` | Informational, links, data visualization |
+| `--orange` | `#F0883E` | Warnings, secondary data visualization |
+| `--green` | `#3FB950` | Success, positive, checkmarks |
+| `--purple` | `#BC8CFF` | Tertiary accent, data visualization |
+
+### Typography
+
+- **Font**: Inter (weights: 300-900)
+- **Headings**: 800-900 weight, `--white` color, tight letter-spacing (-0.02em to -0.03em)
+- **Body**: 400-500 weight, `--gray-light` color, 1.6-1.7 line-height
+- **Labels**: 600 weight, uppercase, 0.1-0.15em letter-spacing, `--primary` or `--gray`
+- **Code/data**: Monospace inherited, tabular numbers for financial data
+
+### Component Patterns
+
+- **Cards**: `--dark-2` background, `--dark-3` border, 16px radius, 2rem padding. Hover: subtle border glow + translateY(-2px). Top gradient line appears on hover.
+- **Tags/badges**: 0.7rem font, small padding, rounded, semi-transparent background with matching border color.
+- **Tables**: Separate border-spacing, 16px border-radius container, `--dark-2` header, row hover with subtle primary tint.
+- **Sections**: 6rem vertical padding, 1200px max-width. Section label (uppercase, primary color) + title (large, white) + desc (gray, 650px max-width).
+- **Metrics/KPI cards**: Centered text, large bold number in white, unit/suffix in primary color, small gray label below.
+- **Timeline**: Left vertical gradient line, circular dots with color-coded borders, indented content.
+- **Pipeline/flow**: Horizontal flex with colored boxes (source=blue, process=purple, data=green, output=orange) connected by arrows.
+
+### Dark Theme First
+
+Costify is dark-theme-first. The dark palette (`#0D1117` base) is the primary experience. Light theme is a secondary mode that inverts the scale. All designs must look excellent in dark mode before considering light.
+
+### Responsive Breakpoints
+
+- Desktop: 1200px max-width content
+- Tablet: Cards collapse to single column below 768px, nav links hide
+- Mobile: Full-width cards, stacked layouts, reduced padding
+
+### HTML Templates
+
+Reusable starting points live in `templates/`:
+- `templates/landing.html` — Marketing/landing page with hero, features, pricing, CTA
+- `templates/dashboard.html` — App-like dashboard with sidebar, KPI cards, tables, charts
+- `templates/docs.html` — Documentation/content page with sidebar nav and prose
+
+These templates use the same CSS variables and component patterns as the pitch. Use them as starting points for any new page or prototype.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
