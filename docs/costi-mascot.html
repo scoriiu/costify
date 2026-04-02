@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costi — Mascota Costify</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --primary: #6C5CE7; --primary-light: #A29BFE;
+    --accent: #00B894; --accent-light: #55EFC4;
+    --warm: #FD79A8;
+    --danger: #E63946; --warn: #FDCB6E;
+    --dark: #0D1117; --dark-2: #161B22; --dark-3: #21262D;
+    --gray: #8B949E; --gray-light: #C9D1D9; --white: #F0F6FC;
+    --skin: #F5CBA7; --skin-shadow: #E5B898;
+    --hair: #5D4037; --glasses: #455A64;
+    --shirt: #6C5CE7; --tie: #00B894;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--dark); color: var(--gray-light); line-height: 1.6; }
+
+  .header { text-align: center; padding: 5rem 2rem 3rem; }
+  .header h1 { font-size: 2.5rem; font-weight: 900; color: var(--white); letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+  .header h1 span { color: var(--primary); }
+  .header p { font-size: 1rem; color: var(--gray); max-width: 550px; margin: 0 auto; }
+
+  .grid { max-width: 1200px; margin: 0 auto; padding: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
+
+  .card {
+    background: var(--dark-2); border: 1px solid var(--dark-3); border-radius: 20px;
+    padding: 2rem; text-align: center; transition: all 0.3s;
+  }
+  .card:hover { border-color: rgba(108,92,231,0.2); transform: translateY(-3px); }
+  .card .mascot { margin: 0 auto 1.5rem; }
+  .card h3 { font-size: 0.95rem; font-weight: 700; color: var(--white); margin-bottom: 0.3rem; }
+  .card .state { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--primary-light); margin-bottom: 0.6rem; }
+  .card p { font-size: 0.82rem; color: var(--gray); line-height: 1.6; }
+  .card .use { font-size: 0.72rem; color: var(--gray); margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--dark-3); font-style: italic; }
+
+  .section-label { text-align: center; padding: 3rem 2rem 1rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--primary-light); font-weight: 600; }
+
+  footer { text-align: center; padding: 4rem 2rem 2rem; font-size: 0.72rem; color: var(--gray); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Salut, sunt <span>Costi</span>!</h1>
+  <p style="font-size:1.2rem; color:var(--primary-light); font-weight:600; margin-bottom:0.75rem;">Costi + fy = Costify</p>
+  <p>Contabilul tău virtual. Te ajut să vezi unde se duc banii, îți organizez bugetul și te avertizez când ceva nu e în regulă. Eu sunt Costify — numele meu e în produs, produsul e în mine.</p>
+</div>
+
+<div class="section-label">Stări Principale</div>
+
+<div class="grid">
+
+  <!-- 1. Default / Salut -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <!-- Body -->
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <!-- Tie -->
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <!-- Neck -->
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <!-- Head -->
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <!-- Hair -->
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <!-- Glasses -->
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Eyes -->
+        <circle cx="70" cy="58" r="3" fill="#2C3E50"/>
+        <circle cx="90" cy="58" r="3" fill="#2C3E50"/>
+        <circle cx="71" cy="57" r="1" fill="white"/>
+        <circle cx="91" cy="57" r="1" fill="white"/>
+        <!-- Smile -->
+        <path d="M72 70 Q80 78 88 70" stroke="#C0392B" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Right hand waving -->
+        <g transform="rotate(-15, 115, 105)">
+          <rect x="108" y="95" width="14" height="35" rx="7" fill="var(--skin)"/>
+          <rect x="108" y="80" width="14" height="20" rx="7" fill="var(--skin)"/>
+          <!-- Fingers -->
+          <circle cx="110" cy="78" r="3.5" fill="var(--skin)"/>
+          <circle cx="115" cy="76" r="3.5" fill="var(--skin)"/>
+          <circle cx="120" cy="78" r="3.5" fill="var(--skin)"/>
+        </g>
+        <!-- Left arm -->
+        <rect x="38" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="40" y="128" width="10" height="12" rx="5" fill="var(--skin)"/>
+        <!-- Cheeks -->
+        <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.6"/>
+        <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="state">Salut / Bun venit</div>
+    <h3>„Bine ai venit! Hai să vedem ce s-a mai întâmplat."</h3>
+    <p>Starea implicită. Costi te întâmpină când deschizi aplicația, zâmbește și te invită să explorezi.</p>
+    <div class="use">Folosit la: login, onboarding, primul acces, pagina goală</div>
+  </div>
+
+  <!-- 2. Thinking / Analyzing -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Eyes looking up-right -->
+        <circle cx="72" cy="57" r="3" fill="#2C3E50"/>
+        <circle cx="92" cy="57" r="3" fill="#2C3E50"/>
+        <circle cx="73" cy="56" r="1" fill="white"/>
+        <circle cx="93" cy="56" r="1" fill="white"/>
+        <!-- Thinking mouth -->
+        <line x1="74" y1="72" x2="86" y2="72" stroke="#C0392B" stroke-width="2" stroke-linecap="round"/>
+        <!-- Hand on chin -->
+        <rect x="38" y="100" width="14" height="30" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="42" y="62" width="10" height="42" rx="5" fill="var(--skin)"/>
+        <!-- Right arm down -->
+        <rect x="108" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="110" y="128" width="10" height="12" rx="5" fill="var(--skin)"/>
+        <!-- Thought bubbles -->
+        <circle cx="125" cy="35" r="4" fill="var(--dark-3)"/>
+        <circle cx="135" cy="22" r="6" fill="var(--dark-3)"/>
+        <circle cx="140" cy="8" r="3" fill="var(--dark-3)"/>
+        <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.6"/>
+        <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="state">Analizez / Procesez</div>
+    <h3>„Stai puțin, verific datele..."</h3>
+    <p>Costi se gândește, analizează. Mâna pe bărbie, privirea în sus. Apare când sistemul procesează date.</p>
+    <div class="use">Folosit la: clasificare în curs, import date, sincronizare bancară, generare rapoarte</div>
+  </div>
+
+  <!-- 3. Success / Thumbs up -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Happy closed eyes -->
+        <path d="M65 58 Q70 53 75 58" stroke="#2C3E50" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M85 58 Q90 53 95 58" stroke="#2C3E50" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Big smile -->
+        <path d="M68 70 Q80 82 92 70" stroke="#C0392B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Thumbs up right -->
+        <rect x="108" y="88" width="14" height="30" rx="7" fill="var(--skin)"/>
+        <rect x="112" y="72" width="8" height="20" rx="4" fill="var(--skin)"/>
+        <rect x="108" y="85" width="14" height="8" rx="4" fill="var(--skin-shadow)"/>
+        <!-- Left arm -->
+        <rect x="38" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="40" y="128" width="10" height="12" rx="5" fill="var(--skin)"/>
+        <!-- Sparkles -->
+        <g stroke="var(--accent)" stroke-width="2" stroke-linecap="round">
+          <line x1="130" y1="65" x2="135" y2="60"/>
+          <line x1="138" y1="70" x2="138" y2="63"/>
+          <line x1="133" y1="78" x2="140" y2="78"/>
+        </g>
+        <circle cx="62" cy="68" r="6" fill="#FADBD8" opacity="0.7"/>
+        <circle cx="98" cy="68" r="6" fill="#FADBD8" opacity="0.7"/>
+      </svg>
+    </div>
+    <div class="state">Succes / Gata!</div>
+    <h3>„Perfect! Totul e în ordine."</h3>
+    <p>Costi e fericit, cu ochii închiși de bucurie și degetul mare sus. Apare când o acțiune s-a finalizat cu succes.</p>
+    <div class="use">Folosit la: clasificare completă, buget aprobat, perioadă închisă, export reușit</div>
+  </div>
+
+  <!-- 4. Alert / Warning -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Wide eyes -->
+        <circle cx="70" cy="57" r="4" fill="#2C3E50"/>
+        <circle cx="90" cy="57" r="4" fill="#2C3E50"/>
+        <circle cx="71.5" cy="56" r="1.5" fill="white"/>
+        <circle cx="91.5" cy="56" r="1.5" fill="white"/>
+        <!-- Eyebrows raised -->
+        <line x1="63" y1="47" x2="77" y2="45" stroke="var(--hair)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="83" y1="45" x2="97" y2="47" stroke="var(--hair)" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- O mouth -->
+        <ellipse cx="80" cy="73" rx="5" ry="4" fill="#C0392B" opacity="0.8"/>
+        <!-- Pointing hand right -->
+        <rect x="108" y="95" width="14" height="30" rx="7" fill="var(--skin)"/>
+        <rect x="120" y="100" width="18" height="8" rx="4" fill="var(--skin)"/>
+        <!-- Left arm -->
+        <rect x="38" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="40" y="128" width="10" height="12" rx="5" fill="var(--skin)"/>
+        <!-- Warning sign -->
+        <g transform="translate(132, 80)">
+          <polygon points="12,0 24,22 0,22" fill="var(--warn)" stroke="var(--dark)" stroke-width="1"/>
+          <line x1="12" y1="7" x2="12" y2="14" stroke="var(--dark)" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="12" cy="18" r="1.5" fill="var(--dark)"/>
+        </g>
+        <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+        <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="state">Atenție / Alertă</div>
+    <h3>„Hei, am găsit ceva ce trebuie verificat!"</h3>
+    <p>Costi are ochii mari și arată spre un semn de avertizare. Atrage atenția fără să sperie.</p>
+    <div class="use">Folosit la: depășire buget, tranzacții neclasificate, sold scăzut, termen fiscal aproape</div>
+  </div>
+
+  <!-- 5. Error / Confused -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <!-- Glasses crooked -->
+        <g transform="rotate(5, 80, 58)">
+          <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+          <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+          <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+          <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+          <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        </g>
+        <!-- Confused eyes -->
+        <text x="67" y="62" font-size="10" fill="#2C3E50" font-family="Inter" font-weight="800">x</text>
+        <text x="87" y="62" font-size="10" fill="#2C3E50" font-family="Inter" font-weight="800">x</text>
+        <!-- Wavy mouth -->
+        <path d="M70 72 Q74 68 78 72 Q82 76 86 72 Q90 68 94 72" stroke="#C0392B" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Scratching head -->
+        <rect x="100" y="35" width="12" height="30" rx="6" fill="var(--skin)"/>
+        <!-- Left arm -->
+        <rect x="38" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="40" y="128" width="10" height="12" rx="5" fill="var(--skin)"/>
+        <!-- Question marks -->
+        <text x="125" y="30" font-size="16" fill="var(--danger)" font-weight="800" font-family="Inter">?</text>
+        <text x="135" y="50" font-size="12" fill="var(--danger)" font-weight="800" font-family="Inter" opacity="0.5">?</text>
+      </svg>
+    </div>
+    <div class="state">Eroare / Confuz</div>
+    <h3>„Hmm, ceva nu a mers bine..."</h3>
+    <p>Costi cu ochelarii strâmbi, se scarpină pe cap. Exprimă eroare fără dramatism — lucrurile se pot repara.</p>
+    <div class="use">Folosit la: eroare de sincronizare, import eșuat, pagina 404, conexiune pierdută</div>
+  </div>
+
+  <!-- 6. Working / Busy -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Focused eyes -->
+        <circle cx="70" cy="58" r="3" fill="#2C3E50"/>
+        <circle cx="90" cy="58" r="3" fill="#2C3E50"/>
+        <circle cx="69" cy="57" r="1" fill="white"/>
+        <circle cx="89" cy="57" r="1" fill="white"/>
+        <!-- Determined mouth -->
+        <line x1="74" y1="72" x2="86" y2="70" stroke="#C0392B" stroke-width="2" stroke-linecap="round"/>
+        <!-- Laptop -->
+        <rect x="55" y="130" width="50" height="30" rx="3" fill="var(--dark-3)"/>
+        <rect x="58" y="133" width="44" height="22" rx="2" fill="var(--dark)" opacity="0.8"/>
+        <!-- Screen glow -->
+        <rect x="62" y="137" width="18" height="3" rx="1" fill="var(--primary)" opacity="0.5"/>
+        <rect x="62" y="142" width="14" height="3" rx="1" fill="var(--accent)" opacity="0.4"/>
+        <rect x="62" y="147" width="22" height="3" rx="1" fill="var(--primary)" opacity="0.3"/>
+        <!-- Keyboard base -->
+        <rect x="45" y="158" width="70" height="5" rx="2" fill="var(--dark-3)"/>
+        <!-- Arms on laptop -->
+        <rect x="38" y="100" width="14" height="32" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="42" y="126" width="16" height="10" rx="5" fill="var(--skin)"/>
+        <rect x="108" y="100" width="14" height="32" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="102" y="126" width="16" height="10" rx="5" fill="var(--skin)"/>
+        <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+        <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="state">Lucrează / Concentrat</div>
+    <h3>„Procesez, un moment..."</h3>
+    <p>Costi la laptop, concentrat. Folosit în momentele de așteptare când sistemul lucrează intens.</p>
+    <div class="use">Folosit la: import masiv, generare SAF-T, recalculare solduri, reconciliere</div>
+  </div>
+
+  <!-- 7. Celebrating -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Star eyes -->
+        <text x="66" y="62" font-size="11" fill="var(--warn)" font-family="Inter">&#9733;</text>
+        <text x="86" y="62" font-size="11" fill="var(--warn)" font-family="Inter">&#9733;</text>
+        <!-- Big open smile -->
+        <path d="M66 70 Q80 85 94 70" stroke="#C0392B" stroke-width="2" fill="#E74C3C" opacity="0.3"/>
+        <path d="M66 70 Q80 85 94 70" stroke="#C0392B" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Both arms up -->
+        <rect x="25" y="75" width="14" height="30" rx="7" fill="var(--shirt)" opacity="0.9" transform="rotate(-30, 32, 90)"/>
+        <rect x="28" y="65" width="10" height="12" rx="5" fill="var(--skin)" transform="rotate(-30, 33, 71)"/>
+        <rect x="120" y="75" width="14" height="30" rx="7" fill="var(--shirt)" opacity="0.9" transform="rotate(30, 127, 90)"/>
+        <rect x="122" y="65" width="10" height="12" rx="5" fill="var(--skin)" transform="rotate(30, 127, 71)"/>
+        <!-- Confetti -->
+        <rect x="25" y="25" width="6" height="6" rx="1" fill="var(--primary)" transform="rotate(20, 28, 28)" opacity="0.7"/>
+        <rect x="45" y="12" width="5" height="5" rx="1" fill="var(--accent)" transform="rotate(-15, 47, 14)" opacity="0.6"/>
+        <rect x="110" y="18" width="6" height="6" rx="1" fill="var(--warn)" transform="rotate(35, 113, 21)" opacity="0.7"/>
+        <rect x="130" y="30" width="5" height="5" rx="1" fill="var(--warm)" transform="rotate(-10, 132, 32)" opacity="0.6"/>
+        <circle cx="35" cy="42" r="3" fill="var(--accent)" opacity="0.5"/>
+        <circle cx="125" cy="45" r="3" fill="var(--primary)" opacity="0.5"/>
+        <circle cx="62" cy="68" r="6" fill="#FADBD8" opacity="0.8"/>
+        <circle cx="98" cy="68" r="6" fill="#FADBD8" opacity="0.8"/>
+      </svg>
+    </div>
+    <div class="state">Celebrare / Milestone</div>
+    <h3>„Bravo! Ai reușit!"</h3>
+    <p>Costi cu brațele sus, ochi sclipitori și confetti. Moment de celebrare pentru realizări importante.</p>
+    <div class="use">Folosit la: primul client adăugat, 100 tranzacții clasificate, an fiscal închis, obiectiv atins</div>
+  </div>
+
+  <!-- 8. Sleeping / Empty state -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <!-- Head slightly tilted -->
+        <g transform="rotate(8, 80, 60)">
+          <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+          <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+          <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+          <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+          <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+          <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+          <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+          <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+          <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+          <!-- Closed sleeping eyes -->
+          <line x1="64" y1="58" x2="76" y2="58" stroke="#2C3E50" stroke-width="2" stroke-linecap="round"/>
+          <line x1="84" y1="58" x2="96" y2="58" stroke="#2C3E50" stroke-width="2" stroke-linecap="round"/>
+          <!-- Peaceful mouth -->
+          <path d="M74 72 Q80 76 86 72" stroke="#C0392B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.4"/>
+          <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.4"/>
+        </g>
+        <!-- Arms relaxed -->
+        <rect x="38" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="108" y="100" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <!-- Zzz -->
+        <text x="115" y="35" font-size="14" fill="var(--gray)" font-weight="800" font-family="Inter" opacity="0.6">Z</text>
+        <text x="125" y="22" font-size="11" fill="var(--gray)" font-weight="800" font-family="Inter" opacity="0.4">z</text>
+        <text x="132" y="12" font-size="9" fill="var(--gray)" font-weight="800" font-family="Inter" opacity="0.25">z</text>
+      </svg>
+    </div>
+    <div class="state">Liniște / Nimic de făcut</div>
+    <h3>„Totul e în ordine, mă mai odihnesc puțin."</h3>
+    <p>Costi doarme liniștit. Capul ușor înclinat, Zzz-uri. Apare când nu sunt date sau acțiuni de procesat.</p>
+    <div class="use">Folosit la: stare goală (empty state), niciun rezultat, filtre fără date, cont nou fără configurare</div>
+  </div>
+
+  <!-- 9. Teaching / Onboarding -->
+  <div class="card">
+    <div class="mascot">
+      <svg width="160" height="180" viewBox="0 0 160 180" fill="none">
+        <rect x="50" y="95" width="60" height="55" rx="12" fill="var(--shirt)"/>
+        <polygon points="80,98 75,115 80,130 85,115" fill="var(--tie)"/>
+        <rect x="70" y="85" width="20" height="15" rx="4" fill="var(--skin)"/>
+        <ellipse cx="80" cy="60" rx="30" ry="32" fill="var(--skin)"/>
+        <ellipse cx="80" cy="38" rx="28" ry="14" fill="var(--hair)"/>
+        <rect x="52" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <rect x="98" y="35" width="10" height="15" rx="3" fill="var(--hair)"/>
+        <circle cx="70" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <circle cx="90" cy="58" r="9" stroke="var(--glasses)" stroke-width="2.5" fill="none"/>
+        <line x1="79" y1="58" x2="81" y2="58" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="61" y1="56" x2="55" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <line x1="99" y1="56" x2="105" y2="52" stroke="var(--glasses)" stroke-width="2"/>
+        <!-- Winking -->
+        <circle cx="70" cy="58" r="3" fill="#2C3E50"/>
+        <circle cx="71" cy="57" r="1" fill="white"/>
+        <line x1="84" y1="58" x2="96" y2="56" stroke="#2C3E50" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Friendly smile -->
+        <path d="M72 70 Q80 78 88 70" stroke="#C0392B" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Pointing with index finger -->
+        <rect x="108" y="90" width="14" height="25" rx="7" fill="var(--skin)"/>
+        <rect x="113" y="76" width="6" height="18" rx="3" fill="var(--skin)"/>
+        <!-- Left arm holding clipboard -->
+        <rect x="25" y="95" width="14" height="35" rx="7" fill="var(--shirt)" opacity="0.9"/>
+        <rect x="20" y="98" width="20" height="28" rx="3" fill="var(--white)" opacity="0.9"/>
+        <rect x="23" y="102" width="14" height="2" rx="1" fill="var(--primary)" opacity="0.5"/>
+        <rect x="23" y="107" width="12" height="2" rx="1" fill="var(--primary)" opacity="0.3"/>
+        <rect x="23" y="112" width="10" height="2" rx="1" fill="var(--primary)" opacity="0.2"/>
+        <rect x="23" y="117" width="14" height="2" rx="1" fill="var(--accent)" opacity="0.4"/>
+        <circle cx="62" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+        <circle cx="98" cy="68" r="5" fill="#FADBD8" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="state">Ghidare / Onboarding</div>
+    <h3>„Hai să îți arăt cum funcționează!"</h3>
+    <p>Costi cu clipboard în mână și degetul ridicat, face cu ochiul. Ghidul perfect pentru pașii de configurare.</p>
+    <div class="use">Folosit la: onboarding, tooltip-uri, ghid pas cu pas, secțiuni de ajutor, tour interactiv</div>
+  </div>
+
+</div>
+
+<div class="section-label">Ghid de Utilizare</div>
+
+<div style="max-width:700px; margin:0 auto; padding:0 2rem 4rem;">
+  <div style="background:var(--dark-2); border:1px solid var(--dark-3); border-radius:16px; padding:2rem;">
+    <h3 style="color:var(--white); font-size:1rem; font-weight:700; margin-bottom:1rem;">Unde apare Costi în aplicație</h3>
+    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Ecran de login</td><td style="padding:0.6rem 0; color:var(--gray)">Salut — cu mâna ridicată</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Stări goale (empty state)</td><td style="padding:0.6rem 0; color:var(--gray)">Liniște — doarme</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Loading / procesare</td><td style="padding:0.6rem 0; color:var(--gray)">Lucrează — la laptop</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Sincronizare / clasificare</td><td style="padding:0.6rem 0; color:var(--gray)">Analizez — mâna pe bărbie</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Operație reușită</td><td style="padding:0.6rem 0; color:var(--gray)">Succes — degetul mare sus</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Depășire buget / alertă</td><td style="padding:0.6rem 0; color:var(--gray)">Atenție — arată avertizare</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Eroare / 404</td><td style="padding:0.6rem 0; color:var(--gray)">Confuz — ochelari strâmbi</td></tr>
+      <tr style="border-bottom:1px solid var(--dark-3)"><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Milestone atins</td><td style="padding:0.6rem 0; color:var(--gray)">Celebrare — brațe sus, confetti</td></tr>
+      <tr><td style="padding:0.6rem 0; color:var(--white); font-weight:600;">Onboarding / tooltip</td><td style="padding:0.6rem 0; color:var(--gray)">Ghidare — clipboard, face cu ochiul</td></tr>
+    </table>
+  </div>
+</div>
+
+<footer>Costi — Mascota Costify &bull; Construit de Nisindo &bull; 2026</footer>
+
+</body>
+</html>
