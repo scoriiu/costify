@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Costify — The Financial Operating System for Romanian Businesses</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --primary: #6C5CE7;
+    --primary-dark: #5A4BD1;
+    --primary-light: #A29BFE;
+    --accent: #00B894;
+    --accent-light: #55EFC4;
+    --danger: #E63946;
+    --warn: #FDCB6E;
+    --dark: #0D1117;
+    --dark-2: #161B22;
+    --dark-3: #21262D;
+    --gray: #8B949E;
+    --gray-light: #C9D1D9;
+    --white: #F0F6FC;
+    --blue: #58A6FF;
+    --orange: #F0883E;
+    --green: #3FB950;
+    --purple: #BC8CFF;
+    --red: #E63946;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) var(--dark-2);
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--dark);
+    color: var(--gray-light);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Navigation */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(108, 92, 231, 0.15);
+    padding: 0 2rem;
+  }
+  nav .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; height: 64px;
+  }
+  nav .logo { font-weight: 800; font-size: 1.3rem; color: var(--white); letter-spacing: -0.5px; }
+  nav .logo span { color: var(--primary); }
+  nav .nav-links { display: flex; gap: 2rem; list-style: none; }
+  nav .nav-links a {
+    color: var(--gray); text-decoration: none; font-size: 0.85rem; font-weight: 500;
+    transition: color 0.2s; letter-spacing: 0.02em;
+  }
+  nav .nav-links a:hover { color: var(--white); }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; padding: 6rem 2rem 4rem;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(108, 92, 231, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(0, 184, 148, 0.06) 0%, transparent 50%);
+    animation: heroFloat 20s ease-in-out infinite;
+  }
+  @keyframes heroFloat {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    33% { transform: translate(2%, -1%) rotate(1deg); }
+    66% { transform: translate(-1%, 2%) rotate(-1deg); }
+  }
+  .hero-content { position: relative; text-align: center; max-width: 950px; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.4rem 1rem; background: rgba(108, 92, 231, 0.1);
+    border: 1px solid rgba(108, 92, 231, 0.25); border-radius: 100px;
+    font-size: 0.8rem; color: var(--primary-light); margin-bottom: 2rem; font-weight: 500;
+  }
+  .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .hero h1 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 900; color: var(--white);
+    line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 1.5rem;
+  }
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--primary), var(--accent), var(--primary-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero p { font-size: 1.15rem; color: var(--gray); max-width: 650px; margin: 0 auto 3rem; line-height: 1.7; }
+  .hero-stats { display: flex; justify-content: center; gap: 4rem; margin-top: 4rem; flex-wrap: wrap; }
+  .hero-stat { text-align: center; }
+  .hero-stat .number { font-size: 2.5rem; font-weight: 800; color: var(--white); letter-spacing: -0.02em; }
+  .hero-stat .number span { color: var(--primary); }
+  .hero-stat .label { font-size: 0.8rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.25rem; }
+
+  /* Sections */
+  section { padding: 6rem 2rem; max-width: 1200px; margin: 0 auto; }
+  .section-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--primary); font-weight: 600; margin-bottom: 1rem; }
+  .section-title { font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800; color: var(--white); letter-spacing: -0.02em; margin-bottom: 1rem; line-height: 1.15; }
+  .section-desc { font-size: 1.05rem; color: var(--gray); max-width: 650px; margin-bottom: 3.5rem; line-height: 1.7; }
+
+  /* Cards */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+  .card-grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; }
+  .card {
+    background: var(--dark-2); border: 1px solid var(--dark-3); border-radius: 16px;
+    padding: 2rem; transition: all 0.3s ease; position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .card:hover::before { opacity: 1; }
+  .card:hover { border-color: rgba(108, 92, 231, 0.2); transform: translateY(-2px); }
+  .card .icon {
+    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 1.1rem; margin-bottom: 1.2rem;
+    background: rgba(108, 92, 231, 0.1); color: var(--primary);
+  }
+  .card .icon.green { background: rgba(0, 184, 148, 0.1); color: var(--accent); }
+  .card .icon.blue { background: rgba(88, 166, 255, 0.1); color: var(--blue); }
+  .card .icon.orange { background: rgba(240, 136, 62, 0.1); color: var(--orange); }
+  .card .icon.red { background: rgba(230, 57, 70, 0.1); color: var(--red); }
+  .card h3 { font-size: 1.05rem; font-weight: 700; color: var(--white); margin-bottom: 0.6rem; }
+  .card p { font-size: 0.85rem; color: var(--gray); line-height: 1.7; }
+  .card .tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+  .tag {
+    font-size: 0.7rem; padding: 0.25rem 0.6rem; border-radius: 5px;
+    background: rgba(108, 92, 231, 0.08); border: 1px solid rgba(108, 92, 231, 0.15); color: var(--gray-light);
+  }
+  .tag.green { background: rgba(0, 184, 148, 0.08); border-color: rgba(0, 184, 148, 0.2); }
+
+  /* Competitor table */
+  .comp-table {
+    width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 16px;
+    overflow: hidden; border: 1px solid var(--dark-3); margin-top: 2rem;
+  }
+  .comp-table thead { background: var(--dark-2); }
+  .comp-table th {
+    padding: 1rem 1.25rem; text-align: left; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--gray); font-weight: 600; border-bottom: 1px solid var(--dark-3);
+  }
+  .comp-table td {
+    padding: 0.85rem 1.25rem; font-size: 0.85rem; border-bottom: 1px solid rgba(33, 38, 45, 0.5);
+    color: var(--gray-light);
+  }
+  .comp-table tbody tr { transition: background 0.2s; }
+  .comp-table tbody tr:hover { background: rgba(108, 92, 231, 0.03); }
+  .comp-table tbody tr:last-child td { border-bottom: none; }
+  .comp-name { font-weight: 600; color: var(--white); }
+  .check { color: var(--green); font-weight: 700; }
+  .cross { color: var(--dark-3); font-weight: 700; }
+  .partial { color: var(--warn); font-weight: 600; font-size: 0.75rem; }
+  .costify-row { background: rgba(108, 92, 231, 0.06) !important; }
+  .costify-row td { color: var(--white); font-weight: 500; }
+
+  /* Two faces diagram */
+  .faces-container {
+    background: var(--dark-2); border: 1px solid var(--dark-3); border-radius: 24px;
+    padding: 3rem; margin-top: 2.5rem; overflow: hidden;
+  }
+  .faces-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .face-col {
+    background: var(--dark); border-radius: 16px; padding: 2rem;
+    border: 1px solid var(--dark-3);
+  }
+  .face-col h3 {
+    font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; display: flex;
+    align-items: center; gap: 0.5rem;
+  }
+  .face-col h3 .face-icon { font-size: 1.3rem; }
+  .face-col.accountant h3 { color: var(--blue); }
+  .face-col.entrepreneur h3 { color: var(--primary-light); }
+  .face-list { list-style: none; }
+  .face-list li {
+    font-size: 0.82rem; padding: 0.5rem 0; color: var(--gray-light);
+    border-bottom: 1px solid rgba(33, 38, 45, 0.3); display: flex; align-items: center; gap: 0.5rem;
+  }
+  .face-list li:last-child { border-bottom: none; }
+  .face-list li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+  .face-col.accountant .face-list li::before { background: var(--blue); }
+  .face-col.entrepreneur .face-list li::before { background: var(--primary); }
+  .faces-shared {
+    text-align: center; padding: 1.5rem; margin-top: 2rem;
+    background: var(--dark); border-radius: 12px; border: 1px solid var(--dark-3);
+  }
+  .faces-shared h4 { font-size: 0.85rem; color: var(--accent); font-weight: 700; margin-bottom: 0.5rem; }
+  .faces-shared p { font-size: 0.8rem; color: var(--gray); }
+
+  /* Pipeline visual */
+  .pipeline { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin-top: 2.5rem; }
+  .pipe-stage {
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem; min-width: 100px; padding: 0.75rem;
+  }
+  .pipe-box {
+    padding: 0.6rem 1rem; border-radius: 10px; font-size: 0.75rem; font-weight: 600;
+    text-align: center; border: 1px solid; min-width: 110px;
+  }
+  .pipe-box.src { background: rgba(88, 166, 255, 0.08); border-color: rgba(88, 166, 255, 0.25); color: var(--blue); }
+  .pipe-box.proc { background: rgba(108, 92, 231, 0.08); border-color: rgba(108, 92, 231, 0.25); color: var(--primary-light); }
+  .pipe-box.data { background: rgba(0, 184, 148, 0.08); border-color: rgba(0, 184, 148, 0.25); color: var(--accent); }
+  .pipe-box.out { background: rgba(240, 136, 62, 0.08); border-color: rgba(240, 136, 62, 0.25); color: var(--orange); }
+  .pipe-audit { font-size: 0.6rem; color: var(--gray); font-style: italic; }
+  .pipe-arrow { color: var(--dark-3); font-size: 1.2rem; margin: 0 -0.2rem; }
+
+  /* Timeline */
+  .timeline { position: relative; margin-top: 3rem; }
+  .timeline::before {
+    content: ''; position: absolute; left: 24px; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(to bottom, var(--primary), var(--accent), var(--orange), var(--blue), var(--purple), var(--green));
+    border-radius: 2px;
+  }
+  .timeline-item { position: relative; padding-left: 64px; padding-bottom: 3rem; }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-dot {
+    position: absolute; left: 15px; top: 4px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--dark); border: 3px solid var(--primary);
+  }
+  .timeline-item:nth-child(2) .timeline-dot { border-color: var(--accent); }
+  .timeline-item:nth-child(3) .timeline-dot { border-color: var(--orange); }
+  .timeline-item:nth-child(4) .timeline-dot { border-color: var(--blue); }
+  .timeline-item:nth-child(5) .timeline-dot { border-color: var(--purple); }
+  .timeline-item:nth-child(6) .timeline-dot { border-color: var(--green); }
+  .timeline-item:nth-child(7) .timeline-dot { border-color: var(--warn); }
+  .timeline-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .timeline-phase { font-size: 1.05rem; font-weight: 700; color: var(--white); }
+  .timeline-duration {
+    font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 6px;
+    background: rgba(108, 92, 231, 0.1); color: var(--primary-light); font-weight: 500;
+  }
+  .timeline-desc { font-size: 0.88rem; color: var(--gray); margin-bottom: 1rem; line-height: 1.6; }
+  .timeline-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; }
+  .timeline-tags li {
+    font-size: 0.72rem; padding: 0.25rem 0.6rem; background: var(--dark-2);
+    border: 1px solid var(--dark-3); border-radius: 6px; color: var(--gray-light);
+  }
+
+  /* Metrics */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
+  .metric-card {
+    background: var(--dark-2); border: 1px solid var(--dark-3); border-radius: 14px;
+    padding: 1.75rem; text-align: center; transition: all 0.3s;
+  }
+  .metric-card:hover { border-color: rgba(108, 92, 231, 0.2); transform: translateY(-2px); }
+  .metric-value { font-size: 2rem; font-weight: 800; color: var(--white); letter-spacing: -0.02em; }
+  .metric-value .unit { font-size: 1rem; color: var(--primary); font-weight: 600; }
+  .metric-label { font-size: 0.78rem; color: var(--gray); margin-top: 0.3rem; }
+  .metric-sub { font-size: 0.68rem; color: var(--accent); margin-top: 0.15rem; }
+
+  /* Pricing */
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-top: 2.5rem; }
+  .price-card {
+    background: var(--dark-2); border: 1px solid var(--dark-3); border-radius: 16px;
+    padding: 2rem; text-align: center; transition: all 0.3s; position: relative;
+  }
+  .price-card:hover { border-color: rgba(108, 92, 231, 0.3); transform: translateY(-3px); }
+  .price-card.featured { border-color: var(--primary); }
+  .price-card.featured::before {
+    content: 'Popular'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: var(--primary); color: white; font-size: 0.65rem; font-weight: 700;
+    padding: 0.2rem 0.8rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .price-tier { font-size: 0.9rem; font-weight: 700; color: var(--white); margin-bottom: 0.25rem; }
+  .price-target { font-size: 0.72rem; color: var(--gray); margin-bottom: 1rem; }
+  .price-amount { font-size: 2.2rem; font-weight: 800; color: var(--white); }
+  .price-amount .currency { font-size: 1rem; color: var(--primary); }
+  .price-period { font-size: 0.7rem; color: var(--gray); margin-bottom: 1.25rem; }
+  .price-features { list-style: none; text-align: left; }
+  .price-features li { font-size: 0.78rem; padding: 0.4rem 0; color: var(--gray-light); border-bottom: 1px solid rgba(33, 38, 45, 0.3); }
+  .price-features li:last-child { border-bottom: none; }
+
+  /* CTA */
+  .cta-section {
+    text-align: center; padding: 6rem 2rem; max-width: 800px; margin: 0 auto;
+  }
+  .cta-section h2 {
+    font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; color: var(--white);
+    line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -0.02em;
+  }
+  .cta-section p { font-size: 1.05rem; color: var(--gray); margin-bottom: 2.5rem; line-height: 1.7; }
+
+  /* Footer */
+  footer {
+    text-align: center; padding: 3rem 2rem; border-top: 1px solid var(--dark-3);
+    font-size: 0.78rem; color: var(--gray);
+  }
+
+  /* Scroll animation */
+  .fade-in { opacity: 0; transform: translateY(30px); transition: all 0.7s ease-out; }
+  .fade-in.visible { opacity: 1; transform: translateY(0); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav .nav-links { display: none; }
+    .faces-grid { grid-template-columns: 1fr; }
+    .comp-table { font-size: 0.75rem; }
+    .comp-table th, .comp-table td { padding: 0.6rem 0.5rem; }
+    .pipeline { gap: 0.25rem; }
+    .pipe-stage { min-width: 70px; padding: 0.3rem; }
+    .pipe-box { min-width: 80px; font-size: 0.65rem; padding: 0.4rem 0.5rem; }
+  }
+
+  /* Full-width sections */
+  .full-width {
+    max-width: none; padding: 6rem 2rem;
+    background: var(--dark-2); border-top: 1px solid var(--dark-3); border-bottom: 1px solid var(--dark-3);
+  }
+  .full-width .inner { max-width: 1200px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">Costi<span>fy</span></div>
+    <ul class="nav-links">
+      <li><a href="#vision">Vision</a></li>
+      <li><a href="#market">Market</a></li>
+      <li><a href="#competitors">Competitors</a></li>
+      <li><a href="#product">Product</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#metrics">Metrics</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge"><div class="dot"></div> Internal Product Brief &mdash; Nisindo</div>
+    <h1>The Financial <span class="gradient">Operating System</span> for Romanian Businesses</h1>
+    <p>Costify is the only platform where the accountant does their job AND the entrepreneur runs their business &mdash; from the same data, in real time.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="number">1.1<span>M</span></div>
+        <div class="label">Active companies in RO</div>
+      </div>
+      <div class="hero-stat">
+        <div class="number">60<span>K</span></div>
+        <div class="label">Accounting firms</div>
+      </div>
+      <div class="hero-stat">
+        <div class="number">0</div>
+        <div class="label">Have a management layer</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Vision -->
+<section id="vision" class="fade-in">
+  <div class="section-label">The Opportunity</div>
+  <div class="section-title">Two Users, One Platform, Zero Competition</div>
+  <div class="section-desc">Every financial tool in Romania is built for the accountant OR for invoicing. Nobody builds for the entrepreneur who wants to understand and control their business financially. We serve both.</div>
+
+  <div class="faces-container">
+    <div class="faces-grid">
+      <div class="face-col accountant">
+        <h3><span class="face-icon">&#128200;</span> Accountant Side</h3>
+        <ul class="face-list">
+          <li>Chart of accounts (plan de conturi)</li>
+          <li>Double-entry bookkeeping</li>
+          <li>Trial balance (balanta de verificare)</li>
+          <li>e-Factura &mdash; send &amp; receive via ANAF SPV</li>
+          <li>e-Transport</li>
+          <li>SAF-T / D406 reporting</li>
+          <li>ANAF declarations (D112, D100, D300...)</li>
+          <li>Payroll (salarizare, REGES)</li>
+          <li>Invoicing &mdash; emit, receive, credit notes</li>
+          <li>Inventory &amp; stock management</li>
+          <li>Bank reconciliation</li>
+          <li>Period close &amp; lock</li>
+        </ul>
+      </div>
+      <div class="face-col entrepreneur">
+        <h3><span class="face-icon">&#128640;</span> Entrepreneur / Manager Side</h3>
+        <ul class="face-list">
+          <li>Real-time executive dashboard</li>
+          <li>Budget vs Actual vs Forecast</li>
+          <li>Auto bank feeds &amp; transaction classification</li>
+          <li>Treasury &mdash; all accounts, cash flow, runway</li>
+          <li>Spend analytics &amp; cost breakdown</li>
+          <li>Forecast engine with scenarios</li>
+          <li>Cost ownership per category</li>
+          <li>Subscription &amp; SaaS tracker</li>
+          <li>Optimization engine (anomalies, duplicates)</li>
+          <li>Multi-vertical P&amp;L</li>
+          <li>Approval workflows</li>
+          <li>Real-time alerts &amp; notifications</li>
+        </ul>
+      </div>
+    </div>
+    <div class="faces-shared">
+      <h4>Shared Foundation</h4>
+      <p>Automatic bank feeds &bull; Classification pipeline &bull; Immutable journal &bull; Full audit trail &bull; Multi-tenant (1 accountant &rarr; 1000+ companies)</p>
+    </div>
+  </div>
+</section>
+
+<!-- Market Gap -->
+<section id="market" class="full-width fade-in">
+  <div class="inner">
+    <div class="section-label">Market Analysis</div>
+    <div class="section-title">The Massive Gap Nobody Fills</div>
+    <div class="section-desc">Romanian entrepreneurs are financially blind. They send invoices through SmartBill, give documents to the accountant, and get a P&amp;L months later. They manage budgets in Excel &mdash; if at all.</div>
+
+    <div class="card-grid">
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Real-Time Visibility</h3>
+        <p>The entrepreneur learns about last month's financials next month. Decisions are based on gut feeling, not data. Bank balance is the only metric they check.</p>
+      </div>
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Cost Control</h3>
+        <p>"Are we on budget?" requires a phone call to the accountant. Nobody owns cost categories. Spend goes unquestioned until crisis hits.</p>
+      </div>
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Forecasting</h3>
+        <p>"Will we run out of cash in 3 months?" is a guess. No scenario modeling. No runway projection. Excel models rot after one use.</p>
+      </div>
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Automation</h3>
+        <p>Bank transactions are manually imported. Classification is manual. Reconciliation is manual. The accountant is a data entry machine instead of an advisor.</p>
+      </div>
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Multi-Vertical View</h3>
+        <p>Companies with multiple business lines have no consolidated view. Shared costs are split by approximation. Vertical profitability is unknown.</p>
+      </div>
+      <div class="card">
+        <div class="icon red">&#128683;</div>
+        <h3>No Audit Trail</h3>
+        <p>Who changed this number? When? Why? The answer is always "ask the accountant" or "check the old Excel." Compliance is hope-based.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Competitors -->
+<section id="competitors" class="fade-in">
+  <div class="section-label">Competitive Landscape</div>
+  <div class="section-title">We Know What They Do. And What They Don't.</div>
+  <div class="section-desc">Four competitors dominate the Romanian market. Each is strong in their lane. None crosses into management territory. We will.</div>
+
+  <div class="card-grid" style="margin-bottom:3rem">
+    <div class="card">
+      <div class="icon blue">S</div>
+      <h3>Saga</h3>
+      <p>The legacy king. 20+ years. Used by the majority of accounting cabinets. Desktop-first, recently launched Saga Web. Complete accounting engine, payroll, inventory, e-Factura, SAF-T, ANAF declarations.</p>
+      <div class="tag-row">
+        <span class="tag">Accounting</span>
+        <span class="tag">Payroll</span>
+        <span class="tag">Inventory</span>
+        <span class="tag">e-Factura</span>
+        <span class="tag">SAF-T</span>
+        <span class="tag">POS</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon green">S</div>
+      <h3>SmartBill</h3>
+      <p>Market leader in online invoicing. 170K clients. Modern, cloud-native, excellent UX. Part of Visma Group. Has invoicing, inventory, basic accounting, POS. Strong e-Factura integration.</p>
+      <div class="tag-row">
+        <span class="tag">Invoicing</span>
+        <span class="tag">Inventory</span>
+        <span class="tag">Basic Accounting</span>
+        <span class="tag">POS</span>
+        <span class="tag">e-Factura</span>
+        <span class="tag">eCommerce</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon orange">O</div>
+      <h3>Oblio</h3>
+      <p>The aggressive challenger. 150K+ users. 29 EUR/year for unlimited everything. Cloud-native, simple, loved by small businesses. Strong inventory + production module. Integrates with Saga/WinMentor.</p>
+      <div class="tag-row">
+        <span class="tag">Invoicing</span>
+        <span class="tag">Inventory</span>
+        <span class="tag">Production</span>
+        <span class="tag">e-Factura</span>
+        <span class="tag">29 EUR/year</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon">K</div>
+      <h3>Keez</h3>
+      <p>Not software &mdash; a service. "Contabil + Aplicatie." Assigns a CECCAR-certified accountant to your company. Real-time accounting. Part of Visma Group. 8,500+ clients. From 59 EUR/month.</p>
+      <div class="tag-row">
+        <span class="tag">Service Model</span>
+        <span class="tag">Accounting</span>
+        <span class="tag">Payroll</span>
+        <span class="tag">Invoicing</span>
+        <span class="tag">Real-time</span>
+      </div>
+    </div>
+  </div>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Capability</th>
+        <th>Saga</th>
+        <th>SmartBill</th>
+        <th>Oblio</th>
+        <th>Keez</th>
+        <th style="color:var(--primary)">Costify</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Invoicing &amp; e-Factura</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Double-entry accounting</td><td class="check">&#10003;</td><td class="partial">Basic</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Payroll</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Inventory / Stock</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>SAF-T / ANAF declarations</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>POS (retail / HoReCa)</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="partial">Basic</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Automatic bank feeds</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Auto-classification engine</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Budget management</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Forecast &amp; scenarios</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Executive dashboard</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Treasury &amp; cash flow</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Cost ownership &amp; approvals</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Multi-vertical P&amp;L</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr style="background: rgba(108,92,231,0.03)"><td style="color:var(--white);font-weight:600">Full pipeline audit trail</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Multi-tenant (1000+ companies)</td><td class="partial">50 max</td><td class="partial">ManagerConta</td><td class="check">&#10003;</td><td class="partial">Service</td><td class="check">&#10003;</td></tr>
+      <tr><td>Cloud-native</td><td class="partial">Saga Web</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>Mobile app</td><td class="partial">Invoice only</td><td class="check">&#10003;</td><td class="partial">PWA</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+      <tr><td>API &amp; integrations</td><td class="cross">&mdash;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="cross">&mdash;</td><td class="check">&#10003;</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Product Layers -->
+<section id="product" class="fade-in">
+  <div class="section-label">Product Architecture</div>
+  <div class="section-title">Four Layers of Value</div>
+  <div class="section-desc">Costify is built in layers. Layer 1 matches competitors. Layer 2 automates what they can't. Layer 3 delivers what nobody has. Layer 4 makes it a platform.</div>
+
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1.25rem; margin-bottom: 3rem;">
+    <div class="card" style="border-top: 2px solid var(--blue);">
+      <h3 style="color:var(--blue); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Layer 1 &mdash; Foundation</h3>
+      <p style="color:var(--white); font-weight:600; margin-bottom:0.5rem;">Parity with competitors</p>
+      <div class="tag-row">
+        <span class="tag">Invoicing</span><span class="tag">Accounting</span><span class="tag">Payroll</span>
+        <span class="tag">Inventory</span><span class="tag">e-Factura</span><span class="tag">SAF-T</span>
+        <span class="tag">ANAF</span><span class="tag">POS</span>
+      </div>
+    </div>
+    <div class="card" style="border-top: 2px solid var(--accent);">
+      <h3 style="color:var(--accent); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Layer 2 &mdash; Automation</h3>
+      <p style="color:var(--white); font-weight:600; margin-bottom:0.5rem;">What they can't do</p>
+      <div class="tag-row">
+        <span class="tag green">Bank Feeds</span><span class="tag green">Auto-Classification</span>
+        <span class="tag green">Smart Reconciliation</span><span class="tag green">Document OCR</span>
+      </div>
+    </div>
+    <div class="card" style="border-top: 2px solid var(--primary);">
+      <h3 style="color:var(--primary-light); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Layer 3 &mdash; Management Intelligence</h3>
+      <p style="color:var(--white); font-weight:600; margin-bottom:0.5rem;">What NOBODY has</p>
+      <div class="tag-row">
+        <span class="tag">Dashboard</span><span class="tag">Budget</span><span class="tag">Forecast</span>
+        <span class="tag">Treasury</span><span class="tag">Cost Control</span><span class="tag">Alerts</span>
+        <span class="tag">Multi-Vertical</span><span class="tag">Optimization</span>
+      </div>
+    </div>
+    <div class="card" style="border-top: 2px solid var(--orange);">
+      <h3 style="color:var(--orange); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Layer 4 &mdash; Platform</h3>
+      <p style="color:var(--white); font-weight:600; margin-bottom:0.5rem;">What makes us a business</p>
+      <div class="tag-row">
+        <span class="tag">Multi-Tenant</span><span class="tag">Client Portal</span><span class="tag">API</span>
+        <span class="tag">Mobile App</span><span class="tag">White-Label</span><span class="tag">Marketplace</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline -->
+<section id="pipeline" class="full-width fade-in">
+  <div class="inner">
+    <div class="section-label">Core Engine</div>
+    <div class="section-title">The Audited Pipeline</div>
+    <div class="section-desc">Every piece of financial data flows through a strict, audited pipeline. No stage can be skipped. Every state change is recorded with a tamper-proof checksum.</div>
+
+    <div class="pipeline">
+      <div class="pipe-stage">
+        <div class="pipe-box src">Sources</div>
+        <div class="pipe-audit">FGO / Banks / CSV</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box proc">Ingest</div>
+        <div class="pipe-audit">audit: raw hash</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box proc">Normalize</div>
+        <div class="pipe-audit">audit: dedup</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box proc">Classify</div>
+        <div class="pipe-audit">audit: rule + score</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box data">Journal</div>
+        <div class="pipe-audit">append-only</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box data">Balances</div>
+        <div class="pipe-audit">audit: snapshot</div>
+      </div>
+      <div class="pipe-arrow">&rarr;</div>
+      <div class="pipe-stage">
+        <div class="pipe-box out">Dashboard</div>
+        <div class="pipe-audit">real-time</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem; margin-top:3rem;">
+      <div class="card">
+        <div class="icon green">&#128274;</div>
+        <h3>Immutable Journal</h3>
+        <p>Append-only transaction ledger. Corrections create new entries &mdash; existing entries are never mutated. Sequential numbering per tenant, gap-free for compliance.</p>
+      </div>
+      <div class="card">
+        <div class="icon blue">&#128269;</div>
+        <h3>Full Traceability</h3>
+        <p>Any number on any dashboard can be drilled down to the source bank transaction. From KPI card &rarr; category &rarr; journal entry &rarr; raw bank data.</p>
+      </div>
+      <div class="card">
+        <div class="icon orange">&#128737;</div>
+        <h3>Tamper-Proof Audit</h3>
+        <p>Every audit record includes a SHA-256 checksum. Daily background jobs verify integrity. Any mismatch triggers an alert. 10-year retention (Romanian fiscal law).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Roadmap -->
+<section id="roadmap" class="fade-in">
+  <div class="section-label">Roadmap</div>
+  <div class="section-title">From Zero to Market Leader in 26 Months</div>
+  <div class="section-desc">Six phases. Each ships value. Phase 1 is the unique wedge that no competitor has. Phase 2 achieves accounting parity. Phase 3+ builds the moat.</div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 0: Foundation</span>
+        <span class="timeline-duration">Months 1-2</span>
+      </div>
+      <div class="timeline-desc">Project skeleton: auth with MFA, multi-tenant with RLS, audit system, CI pipeline, design system. A user can register, create a company, log in, and see an empty dashboard &mdash; fully secured.</div>
+      <ul class="timeline-tags">
+        <li>Next.js + Fastify + PG + Redis</li><li>Multi-tenant RLS</li><li>Auth + MFA</li>
+        <li>Audit system</li><li>CI pipeline</li><li>Design system</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 1: The Pipeline &mdash; Bank to Dashboard</span>
+        <span class="timeline-duration">Months 3-5</span>
+      </div>
+      <div class="timeline-desc">The unique wedge. Automatic bank feeds, transaction classification, immutable journal, real-time balances, executive dashboard, treasury view. This alone is worth paying for &mdash; no competitor offers it in Romania.</div>
+      <ul class="timeline-tags">
+        <li>Source management</li><li>FGO.ro connector</li><li>Bank API connector</li><li>CSV/XLSX import</li>
+        <li>Classification engine</li><li>Split transactions</li><li>Journal</li><li>Balance engine</li>
+        <li>Transaction log UI</li><li>Cost taxonomy</li><li>Ownership</li><li>Executive dashboard</li><li>Treasury</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 2: Invoicing + Accounting Core</span>
+        <span class="timeline-duration">Months 6-9</span>
+      </div>
+      <div class="timeline-desc">Replace Saga/SmartBill for the accountant. Full invoicing with e-Factura, double-entry bookkeeping, trial balance, financial statements, bank reconciliation, document management. The accountant can do 100% of their work in Costify.</div>
+      <ul class="timeline-tags">
+        <li>Invoicing</li><li>e-Factura</li><li>e-Transport</li><li>Chart of accounts</li>
+        <li>Double-entry</li><li>Trial balance</li><li>Balance sheet</li><li>P&amp;L</li>
+        <li>Reconciliation</li><li>Period close</li><li>Document OCR</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 3: Budget, Forecast &amp; Cost Control</span>
+        <span class="timeline-duration">Months 10-12</span>
+      </div>
+      <div class="timeline-desc">The management moat. Budget lifecycle, forecast engine with scenarios, approval workflows, alerts, vertical and owner dashboards. The entrepreneur can answer "Are we on budget?" and "Will we make it to December?" instantly.</div>
+      <ul class="timeline-tags">
+        <li>Budget management</li><li>Budget editor</li><li>BvA reporting</li><li>Forecast engine</li>
+        <li>Scenarios</li><li>Cash flow forecast</li><li>Approval workflows</li><li>Alerts</li>
+        <li>Vertical dashboards</li><li>Owner dashboards</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 4: Payroll &amp; Fiscal Compliance</span>
+        <span class="timeline-duration">Months 13-16</span>
+      </div>
+      <div class="timeline-desc">Complete the accountant's toolkit. Payroll with REGES, all ANAF declarations, SAF-T, Intrastat, fiscal calendar. Full parity with Saga &mdash; an accountant never needs to open another tool.</div>
+      <ul class="timeline-tags">
+        <li>Payroll engine</li><li>REGES</li><li>ANAF declarations</li><li>SAF-T / D406</li>
+        <li>Intrastat</li><li>Fiscal calendar</li><li>SPV integration</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 5: Intelligence &amp; Optimization</span>
+        <span class="timeline-duration">Months 17-20</span>
+      </div>
+      <div class="timeline-desc">From tracking to intelligence. ML-assisted classification, anomaly detection, subscription tracker, vendor analysis, cost optimization recommendations, custom report builder.</div>
+      <ul class="timeline-tags">
+        <li>ML classification</li><li>Anomaly detection</li><li>Subscription tracker</li>
+        <li>Vendor analysis</li><li>Cost optimization</li><li>Report builder</li><li>BI export</li>
+      </ul>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-header">
+        <span class="timeline-phase">Phase 6: Platform &amp; Scale</span>
+        <span class="timeline-duration">Months 21-26</span>
+      </div>
+      <div class="timeline-desc">From product to platform. Inventory + production, POS, eCommerce connectors, native mobile app, white-label for accounting firms, marketplace for extensions, EU expansion (Bulgaria, Hungary, Czech Republic).</div>
+      <ul class="timeline-tags">
+        <li>Inventory + production</li><li>POS</li><li>eCommerce</li><li>Mobile app</li>
+        <li>White-label</li><li>Marketplace</li><li>API v2</li><li>EU expansion</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing" class="full-width fade-in">
+  <div class="inner">
+    <div class="section-label">Pricing Strategy</div>
+    <div class="section-title">Tiered SaaS, Per Company Per Month</div>
+    <div class="section-desc">Aggressive on entry, premium on value. Cheaper than Keez for more features, more valuable than Saga for the same audience.</div>
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-tier">Starter</div>
+        <div class="price-target">Solo / PFA</div>
+        <div class="price-amount"><span class="currency">&euro;</span>15</div>
+        <div class="price-period">/ month per company</div>
+        <ul class="price-features">
+          <li>Invoicing + e-Factura</li>
+          <li>Bank feeds</li>
+          <li>Dashboard</li>
+          <li>Basic reports</li>
+          <li>1 user</li>
+        </ul>
+      </div>
+      <div class="price-card featured">
+        <div class="price-tier">Business</div>
+        <div class="price-target">SRL, 1-20 employees</div>
+        <div class="price-amount"><span class="currency">&euro;</span>49</div>
+        <div class="price-period">/ month per company</div>
+        <ul class="price-features">
+          <li>Everything in Starter</li>
+          <li>Accounting + Payroll</li>
+          <li>Budgets + Forecasts</li>
+          <li>Cost control + Ownership</li>
+          <li>5 users</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="price-tier">Enterprise</div>
+        <div class="price-target">Multi-vertical, 20-200 emp</div>
+        <div class="price-amount"><span class="currency">&euro;</span>99</div>
+        <div class="price-period">/ month per company</div>
+        <ul class="price-features">
+          <li>Everything in Business</li>
+          <li>Multi-vertical P&amp;L</li>
+          <li>Approval workflows</li>
+          <li>Custom reports + API</li>
+          <li>Unlimited users</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="price-tier">Accountant</div>
+        <div class="price-target">Accounting firms, up to 50 co.</div>
+        <div class="price-amount"><span class="currency">&euro;</span>149</div>
+        <div class="price-period">/ month</div>
+        <ul class="price-features">
+          <li>Multi-tenant management</li>
+          <li>Up to 50 companies</li>
+          <li>Client portal</li>
+          <li>All features included</li>
+          <li>Priority support</li>
+        </ul>
+      </div>
+      <div class="price-card">
+        <div class="price-tier">Accountant Pro</div>
+        <div class="price-target">Large firms, up to 500 co.</div>
+        <div class="price-amount"><span class="currency">&euro;</span>399</div>
+        <div class="price-period">/ month</div>
+        <ul class="price-features">
+          <li>Up to 500 companies</li>
+          <li>White-label portal</li>
+          <li>Dedicated support</li>
+          <li>Custom onboarding</li>
+          <li>SLA guarantee</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Target Metrics -->
+<section id="metrics" class="fade-in">
+  <div class="section-label">Success Metrics</div>
+  <div class="section-title">What We're Building Toward</div>
+
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:2rem; margin-bottom:3rem;">
+    <div>
+      <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--primary); font-weight:600; margin-bottom:1.5rem;">Year 1</div>
+      <div class="metrics-grid" style="grid-template-columns:1fr;">
+        <div class="metric-card"><div class="metric-value">500</div><div class="metric-label">Paying companies</div></div>
+        <div class="metric-card"><div class="metric-value">50</div><div class="metric-label">Active accountants</div></div>
+        <div class="metric-card"><div class="metric-value">25<span class="unit">K</span></div><div class="metric-label">EUR MRR</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--accent); font-weight:600; margin-bottom:1.5rem;">Year 2</div>
+      <div class="metrics-grid" style="grid-template-columns:1fr;">
+        <div class="metric-card"><div class="metric-value">5<span class="unit">K</span></div><div class="metric-label">Paying companies</div></div>
+        <div class="metric-card"><div class="metric-value">300</div><div class="metric-label">Active accountants</div></div>
+        <div class="metric-card"><div class="metric-value">150<span class="unit">K</span></div><div class="metric-label">EUR MRR</div></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--orange); font-weight:600; margin-bottom:1.5rem;">Year 3</div>
+      <div class="metrics-grid" style="grid-template-columns:1fr;">
+        <div class="metric-card"><div class="metric-value">25<span class="unit">K</span></div><div class="metric-label">Paying companies</div></div>
+        <div class="metric-card"><div class="metric-value">1<span class="unit">K</span></div><div class="metric-label">Active accountants</div></div>
+        <div class="metric-card"><div class="metric-value">3<span class="unit">M</span></div><div class="metric-label">EUR ARR</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="metric-value">&gt;85<span class="unit">%</span></div><div class="metric-label">Auto-classification rate</div></div>
+    <div class="metric-card"><div class="metric-value">&lt;1<span class="unit">h</span></div><div class="metric-label">Data freshness</div></div>
+    <div class="metric-card"><div class="metric-value">&lt;200<span class="unit">ms</span></div><div class="metric-label">API p95 latency</div></div>
+    <div class="metric-card"><div class="metric-value">99.9<span class="unit">%</span></div><div class="metric-label">Uptime SLA</div></div>
+    <div class="metric-card"><div class="metric-value">100<span class="unit">M+</span></div><div class="metric-label">Total transactions capacity</div></div>
+    <div class="metric-card"><div class="metric-value">&gt;50</div><div class="metric-label">NPS target</div></div>
+  </div>
+</section>
+
+<!-- Go To Market -->
+<section class="fade-in">
+  <div class="section-label">Go-To-Market</div>
+  <div class="section-title">Three Waves to Market</div>
+  <div class="section-desc">Start with the wedge (what nobody has), win accountants second, go mass-market third.</div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="icon green">1</div>
+      <h3>Wave 1: The Wedge (Months 3-5)</h3>
+      <p>Target entrepreneurs managing budgets in Excel. Lead with the pipeline: automatic bank feeds, classification, real-time dashboard. "See where your money goes. In real time. Without Excel."</p>
+      <div class="tag-row">
+        <span class="tag">Direct outreach</span><span class="tag">LinkedIn content</span>
+        <span class="tag">3-5 accounting firm partners</span><span class="tag">Case studies</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon blue">2</div>
+      <h3>Wave 2: The Accountant (Months 6-12)</h3>
+      <p>Target accounting cabinets managing 50-500 companies. Full accounting parity with Saga. "Your clients can finally see their own numbers. And you get automatic bank feeds."</p>
+      <div class="tag-row">
+        <span class="tag">CECCAR events</span><span class="tag">Free Saga migration tool</span>
+        <span class="tag">Referral program</span><span class="tag">Content marketing</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="icon orange">3</div>
+      <h3>Wave 3: The Market (Months 13+)</h3>
+      <p>Mass market &mdash; every Romanian SRL and PFA. "The financial OS for your business." SEO, company formation partnerships, free tier, government partnerships, EU expansion.</p>
+      <div class="tag-row">
+        <span class="tag">SEO</span><span class="tag">Partnerships</span>
+        <span class="tag">Free tier</span><span class="tag">EU expansion</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="full-width fade-in">
+  <div class="inner">
+    <div class="section-label">Engineering</div>
+    <div class="section-title">Built for Scale, Security, and Speed</div>
+
+    <div class="card-grid-4">
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Frontend</h3>
+        <p>Next.js 15, React 19, TailwindCSS. Server-rendered, responsive, dark/light mode.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Backend</h3>
+        <p>Fastify (TypeScript strict). Modular services, max 100 lines per function, full audit middleware.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Database</h3>
+        <p>PostgreSQL 16 with Row-Level Security, partitioned by tenant + date. Redis 7 for cache/queues.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Security</h3>
+        <p>MFA, JWT + refresh rotation, RLS, AES-256 encryption, OWASP ZAP, Semgrep, Trivy, Gitleaks.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Testing</h3>
+        <p>Vitest (unit), Testcontainers (integration), Supertest (e2e), Playwright (UI across 5 browsers).</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Queue</h3>
+        <p>BullMQ for ingestion workers, classification jobs, balance recalc, notifications, exports.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Deployment</h3>
+        <p>Docker, Kubernetes-ready. GitHub Actions CI. CDN via CloudFlare. S3 for file storage.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.85rem;">Monitoring</h3>
+        <p>Grafana + Prometheus. Structured logging. Error tracking. Uptime monitoring with alerting.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section fade-in">
+  <h2>Let's Build the Future of Financial Software in Romania</h2>
+  <p>1.1 million companies. Zero management tools. The gap is massive, the timing is right, and we have the blueprint. Costify is not just a product &mdash; it's the operating system every Romanian business will run on.</p>
+  <div style="font-size:0.85rem; color:var(--primary-light); font-weight:600;">Nisindo &bull; 2026</div>
+</section>
+
+<footer>
+  Costify &mdash; Financial Operating System &bull; Built by Nisindo &bull; Confidential
+</footer>
+
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.08 });
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
