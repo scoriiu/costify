@@ -870,3 +870,58 @@ These templates use the same CSS variables and component patterns as the pitch. 
 | Monitoring | Grafana + Prometheus |
 | Deployment | Docker, Kubernetes-ready |
 | CI/CD | GitHub Actions |
+
+---
+
+## Romanian Accounting Knowledge (Contabil AI)
+
+Romanian accounting training lives in `training/contabil/`. **Do NOT load these files automatically.** Only read them when the user explicitly asks an accounting question or says to consult the contabil (e.g. "ask the contabil", "check the accounting rules", "how does TVA work", etc.).
+
+When asked, start by reading `training/contabil/SKILL.md`, then load the specific file relevant to the question:
+
+**Level 1 — Professional Identity:**
+- **Profession / who can do accounting / access to profession** -> `training/contabil/profesie-og65.md`
+- **CECCAR organization / standards 21/22/35 / internship** -> `training/contabil/profesie-ceccar.md`
+- **Professional ethics / independence / conflicts of interest** -> `training/contabil/etica-profesionala.md`
+
+**Level 2 — Accounting Engine:**
+- **Accounting law / registers / documents / sanctions** -> `training/contabil/legea-contabilitatii.md`
+- **Accounting regulations / OMFP 1802 / principles / recognition / measurement** -> `training/contabil/omfp-1802.md`
+- **IFRS / OMFP 2844 / deferred tax / IFRS 16 / IFRS 15** -> `training/contabil/ifrs-omfp2844.md`
+- **Plan de conturi / chart of accounts** -> `training/contabil/plan-de-conturi.md`
+- **Journal entries / note contabile** -> `training/contabil/note-contabile.md`
+- **Debit/credit rules** -> `training/contabil/debit-credit.md`
+- **Trial balance / bilant / financial statements** -> `training/contabil/balanta-bilant.md`
+- **Depreciation / fixed assets** -> `training/contabil/amortizare-imobilizari.md`
+
+**Level 3 — Tax Engine:**
+- **Fiscal code / profit tax / micro / TVA / contributions / dividends** -> `training/contabil/codul-fiscal.md`
+- **Tax procedure / inspections / contestations / enforcement / penalties** -> `training/contabil/procedura-fiscala.md`
+- **Tax legislation summary (legacy)** -> `training/contabil/legislatie-fiscala.md`
+- **All Romanian legal codes overview** -> `training/contabil/coduri-romania.md`
+
+**Level 4 — Compliance & Risk:**
+- **AML / KYC / beneficial owner / suspicious transactions / sanctions** -> `training/contabil/aml-kyc.md`
+- **CAEN codes / activity classification / sector-specific rules** -> `training/contabil/coduri-caen.md`
+
+**Level 5 — Corporate & Payroll:**
+- **Company law / capital / AGA / dividends / mergers / dissolution** -> `training/contabil/legea-societatilor.md`
+- **Payroll / labor code / Revisal / D112 / salary calculation** -> `training/contabil/salarizare-payroll.md`
+
+**Level 6 — Digital Reporting:**
+- **e-Factura / SAF-T / e-Transport / ANAF API** -> `training/contabil/e-factura-saft.md`
+- **Transaction classification patterns** -> `training/contabil/clasificare-tranzactii.md`
+
+**Fiscal constants (ALWAYS read first for any rate/threshold question):**
+- **Tax rates / thresholds / deadlines / penalties for current year** -> `training/contabil/constante-fiscale-2026.md`
+
+**Master reference:**
+- **Training matrix (all 17 acts, task types, example questions)** -> `training/contabil/training-matrix.md`
+
+---
+
+## Workspace Rules
+
+- **Temp files stay in this project.** Never write to `/tmp`, `~`, or any directory outside this repo. Use `temp/` inside the project root for any temporary files, scaffolding, or scratch work. Clean up after.
+- **Logs stay in this project.** Server logs, build logs, etc. go to `temp/` inside the project root (e.g. `temp/server.log`), never outside.
+- **Server start script:** Use `./start.sh` to run the dev server on port 3041.
