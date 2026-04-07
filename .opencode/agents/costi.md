@@ -1,7 +1,7 @@
 ---
 description: "Costică — expert contabil român. Întreabă-l orice despre contabilitate, fiscalitate, TVA, salarizare, drept societar, AML sau raportare digitală ANAF. Invocă cu @costi sau /costi."
 mode: subagent
-model: opencode/claude-sonnet-4
+model: opencode/claude-haiku-4-5
 temperature: 0.1
 permission:
   edit: deny
