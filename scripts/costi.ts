@@ -4,18 +4,17 @@
  * 
  * Usage:
  *   npx tsx scripts/costi.ts "Care e TVA-ul standard?"
- *   echo "Care e plafonul micro?" | npx tsx scripts/costi.ts
+ *   costi "Care e impozitul pe dividende?"  (with alias)
  * 
- * Or add alias in ~/.zshrc:
- *   alias costi='npx tsx /path/to/costify/scripts/costi.ts'
- * 
- * Then: costi "Care e impozitul pe dividende?"
- * 
- * Requires: ANTHROPIC_API_KEY in .env or environment
+ * Uses Anthropic API (direct or via proxy).
+ * Config priority:
+ *   1. ANTHROPIC_API_KEY + ANTHROPIC_BASE_URL from environment
+ *   2. ANTHROPIC_API_KEY from .env
+ *   3. OpenCode global config (proxy from ~/.config/opencode/opencode.json)
  */
 
 import Anthropic from "@anthropic-ai/sdk"
-import { readFileSync, readdirSync } from "fs"
+import { readFileSync, readdirSync, existsSync } from "fs"
 import { join, resolve, dirname } from "path"
 import { fileURLToPath } from "url"
 
@@ -74,6 +73,58 @@ function findRelevantChunks(question: string, allChunks: string[]): string[] {
   })
 }
 
+function resolveConfig(): { apiKey: string; baseURL?: string } {
+  // 1. Check environment
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      baseURL: process.env.ANTHROPIC_BASE_URL,
+    }
+  }
+
+  // 2. Check project .env
+  const envPath = join(ROOT, ".env")
+  if (existsSync(envPath)) {
+    const envFile = readFileSync(envPath, "utf-8")
+    let apiKey: string | undefined
+    let baseURL: string | undefined
+    for (const line of envFile.split("\n")) {
+      const keyMatch = line.match(/^ANTHROPIC_API_KEY=(.+)/)
+      if (keyMatch) apiKey = keyMatch[1].trim().replace(/^["']|["']$/g, "")
+      const urlMatch = line.match(/^ANTHROPIC_BASE_URL=(.+)/)
+      if (urlMatch) baseURL = urlMatch[1].trim().replace(/^["']|["']$/g, "")
+    }
+    if (apiKey) return { apiKey, baseURL }
+  }
+
+  // 3. Check OpenCode global config for proxy
+  const opencodeConfigPath = join(
+    process.env.HOME || "~",
+    ".config/opencode/opencode.json"
+  )
+  if (existsSync(opencodeConfigPath)) {
+    try {
+      const config = JSON.parse(readFileSync(opencodeConfigPath, "utf-8"))
+      const baseURL = config?.provider?.anthropic?.options?.baseURL
+      if (baseURL) {
+        // Proxy exists — use a placeholder key (proxy handles auth)
+        return { apiKey: "proxy-handled", baseURL }
+      }
+    } catch { /* invalid config */ }
+  }
+
+  console.error(`Lipsește ANTHROPIC_API_KEY. Opțiuni:
+
+  1. Adaugă în .env:
+     echo 'ANTHROPIC_API_KEY=sk-ant-...' >> ${join(ROOT, ".env")}
+
+  2. Sau ca variabilă de mediu:
+     export ANTHROPIC_API_KEY=sk-ant-...
+
+  3. Sau configurează un proxy în ~/.config/opencode/opencode.json`)
+  process.exit(1)
+}
+
 async function main() {
   const question = process.argv.slice(2).join(" ").trim()
 
@@ -82,26 +133,7 @@ async function main() {
     process.exit(1)
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    try {
-      const envFile = readFileSync(join(ROOT, ".env"), "utf-8")
-      for (const line of envFile.split("\n")) {
-        const match = line.match(/^ANTHROPIC_API_KEY=(.+)/)
-        if (match) {
-          process.env.ANTHROPIC_API_KEY = match[1].trim().replace(/^["']|["']$/g, "")
-          break
-        }
-      }
-    } catch { /* no .env file */ }
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("Lipsește ANTHROPIC_API_KEY. Setează-l în .env sau ca variabilă de mediu:")
-    console.error("  echo 'ANTHROPIC_API_KEY=sk-ant-...' >> .env")
-    console.error("  # sau")
-    console.error("  export ANTHROPIC_API_KEY=sk-ant-...")
-    process.exit(1)
-  }
+  const { apiKey, baseURL } = resolveConfig()
 
   const taxRates = loadJSON("tax-rates.json")
   const calendar = loadJSON("tax-calendar.json")
@@ -140,10 +172,13 @@ ${JSON.stringify(penalties, null, 2)}
 CONTEXT SUPLIMENTAR (chunks relevante):
 ${relevantChunks.join("\n\n---\n\n")}`
 
-  const client = new Anthropic()
+  const clientOptions: Record<string, unknown> = { apiKey }
+  if (baseURL) clientOptions.baseURL = baseURL
+
+  const client = new Anthropic(clientOptions as ConstructorParameters<typeof Anthropic>[0])
 
   const response = await client.messages.create({
-    model: "claude-haiku-4-20250414",
+    model: "claude-sonnet-4-20250514",
     max_tokens: 2048,
     temperature: 0.1,
     system: systemPrompt,
