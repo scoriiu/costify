@@ -19,10 +19,10 @@ Fiecare întrebare corespunde unui `[VERIFY]` tag din fișierele de training. R�
 ## B. Impozit pe profit și micro ✅ DONE
 
 6. ✅ **16%** — confirmat, neschimbat
-7. ✅ **100.000 EUR** (din 1 ian 2026; anterior: 250k în 2024-2025, 500k în 2023, 1M anterior)
+7. ✅ **100.000 EUR** din 1 ian 2026 (509.850 RON la cursul 31.12.2025). Se cumulează cu întreprinderi legate. Anterior: 250k (2025).
 8. ✅ **1%** — cu cel puțin un salariat
-9. ✅ **3% nu mai este aplicabilă** — fără salariat = ieșire din micro, trecere la impozit pe profit
-10. ✅ **100.000 EUR** — ieșire din trimestrul depășirii, fără posibilitate de revenire
+9. ✅ **3% există** în cazuri specifice. 1% = regula generală cu salariat. Fără salariat = ieșire din micro.
+10. ✅ **100.000 EUR** (din 2026) — ieșire din trimestrul depășirii, fără posibilitate de revenire. Condiție nouă: ieșire și la >20% venituri consultanță/management.
 11. ⚠️ **7 ani** cu limitare procentuală anuală — necesită verificare formă actuală art. 31 CF pentru detalii
 
 ---

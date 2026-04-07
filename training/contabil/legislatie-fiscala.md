@@ -47,13 +47,14 @@ Impozit pe profit = Profit impozabil x 16%
 #### Titlul III -- Impozitul pe Venitul Microintreprinderilor (Micro-Enterprise Tax)
 
 **Conditions for micro-enterprise status (2026):**
-- Revenue under **100,000 EUR** at previous year-end (was 500k in 2023, 250k in 2024-2025)
+- Revenue under **100,000 EUR** at previous year-end (from 1 Jan 2026; was 250k in 2025, 500k in 2023). Cumulated with linked enterprises.
 - Not operating in banking, insurance, capital markets, gambling
 - Has at least 1 employee (mandatory — no employee = no micro regime)
 - Share capital is held by persons other than the state
 
-**Tax rate:**
-- **1%** of revenue (single rate; the former 3% rate no longer applies)
+**Tax rates:**
+- **1%** of revenue (general rule, with min. 1 employee)
+- **3%** of revenue (specific cases)
 
 **Revenue base:**
 - Total income from any source per accounting records
@@ -63,6 +64,7 @@ Impozit pe profit = Profit impozabil x 16%
 
 **Exit conditions (forced to profit tax):**
 - Revenue exceeds **100,000 EUR** during the year — profit tax from that quarter, no return to micro
+- Consulting/management revenue exceeds **20%** of total revenue
 - Share capital changes to state ownership
 - Employee contract ceases (no 60-day grace period in current form)
 - Starts activities in excluded sectors

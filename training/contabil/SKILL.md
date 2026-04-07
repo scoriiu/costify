@@ -103,9 +103,41 @@ A complex question (e.g., "the client wants to distribute dividends") should tou
 
 ---
 
-## Fiscal Constants — Single Source of Truth
+## Data Architecture — Two Tiers
 
-**All tax rates, thresholds, deadlines, and penalty amounts are canonically defined in `training/contabil/constante-fiscale-2026.md`.** When any other file mentions a rate or threshold, the value in `constante-fiscale-2026.md` takes precedence. At the start of each fiscal year, only that file needs updating.
+### Tier 1: Structured JSON (instant lookup, no LLM needed)
+
+Located in `training/contabil/structured/`:
+
+| File | Use for |
+|---|---|
+| `tax-rates.json` | All rates, thresholds, limits — READ THIS FIRST for any rate question |
+| `tax-calendar.json` | Filing deadlines, payment dates |
+| `payroll.json` | Salary calculation, contributions, Revisal, leave |
+| `corporate.json` | Capital social, AGA, dividends, archival, prescription |
+| `penalties.json` | All fines and sanctions |
+
+**For any question about a specific rate, threshold, deadline, or penalty: look up the JSON first. Do not guess from memory.**
+
+### Tier 2: RAG Chunks (reasoning with small LLM)
+
+Located in `training/contabil/chunks/`. Each chunk is a self-contained ~200-500 token markdown file with YAML frontmatter (id, topic, task_types, articles, keywords).
+
+Use chunks when the answer requires **reasoning, explanation, or procedure** — not just a number lookup.
+
+### Tier 3: Full Training Files (deep reference)
+
+Located in `training/contabil/`. The original narrative files. Use these only when Tier 1 + Tier 2 don't have enough detail.
+
+### Lookup order
+
+1. **JSON first** → instant fact retrieval
+2. **Chunks second** → targeted reasoning context
+3. **Full files third** → deep reference (only if needed)
+
+### Fiscal Constants
+
+All tax rates, thresholds, deadlines, and penalty amounts are canonically defined in `training/contabil/structured/tax-rates.json` and `training/contabil/constante-fiscale-2026.md`. When any other file mentions a rate or threshold, the structured data takes precedence.
 
 ---
 
@@ -162,7 +194,7 @@ BANK EXPENSE:
 | Tax | Rate | Base |
 |---|---|---|
 | Impozit pe profit | 16% | Profit impozabil |
-| Micro-enterprise (1 employee+, ≤100k EUR) | 1% | Venituri |
+| Micro-enterprise (1 employee+, ≤100k EUR from 2026) | 1% (or 3% specific cases) | Venituri |
 | Impozit pe salarii | 10% | Venit net - deducere personală |
 | CAS (pensie) | 25% | Salariu brut (angajat) |
 | CASS (sănătate) | 10% | Salariu brut (angajat) |

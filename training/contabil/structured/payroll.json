@@ -1,0 +1,107 @@
+{
+  "_meta": {
+    "year": 2026,
+    "updated": "2026-04-07",
+    "source": "salarizare-payroll.md, constante-fiscale-2026.md"
+  },
+  "minimum_salary": {
+    "jan_jun_2026": 4050,
+    "jul_dec_2026": 4325,
+    "history": { "2025": 3700, "2024": 3300, "2023": 3000 }
+  },
+  "contributions": {
+    "cas": { "rate": 0.25, "payer": "angajat", "account": "4312", "article": "art. 138 CF" },
+    "cass": { "rate": 0.10, "payer": "angajat", "account": "4314", "article": "art. 156 CF" },
+    "cam": { "rate": 0.0225, "payer": "angajator", "account": "4311", "article": "art. 220^3 CF" },
+    "income_tax": { "rate": 0.10, "payer": "angajat", "account": "444", "article": "art. 78 CF" }
+  },
+  "personal_deduction": {
+    "full_up_to_gross": 2000,
+    "partial_up_to_gross": 4000,
+    "zero_above_gross": 4000,
+    "depends_on": "numar persoane in intretinere (0, 1, 2, 3, 4+)",
+    "article": "art. 77 CF",
+    "note": "verificati grila actuala — pragurile pot fi corelate cu salariul minim"
+  },
+  "it_exemption": {
+    "exists": true,
+    "article": "art. 60 CF",
+    "eligible_caen": ["5821", "5829", "6201", "6202", "6209"],
+    "conditions": [
+      "activitate efectiva de dezvoltare software",
+      "studii superioare de profil sau echivalent",
+      "numar minim salariati angajator (verificati norma)",
+      "plafonare salariala (verificati forma actuala)"
+    ],
+    "note": "nu a fost eliminata in 2026, dar conditii restranse progresiv"
+  },
+  "salary_calculation_example": {
+    "gross": 6000,
+    "cas_25pct": 1500,
+    "cass_10pct": 600,
+    "net_income": 3900,
+    "personal_deduction": 0,
+    "taxable_base": 3900,
+    "income_tax_10pct": 390,
+    "net_salary": 3510,
+    "cam_employer_2_25pct": 135,
+    "total_employer_cost": 6135,
+    "note": "deducere personala = 0 la 6.000 RON brut (peste plafon 4.000)"
+  },
+  "journal_entries": {
+    "gross_salary": { "debit": "641", "credit": "421", "desc": "Cheltuieli cu salariile" },
+    "cas_retention": { "debit": "421", "credit": "4312", "desc": "CAS angajat 25%" },
+    "cass_retention": { "debit": "421", "credit": "4314", "desc": "CASS angajat 10%" },
+    "income_tax_retention": { "debit": "421", "credit": "444", "desc": "Impozit pe venit 10%" },
+    "cam_employer": { "debit": "646", "credit": "4311", "desc": "CAM angajator 2.25%" },
+    "net_salary_payment": { "debit": "421", "credit": "5121", "desc": "Plata salariu net" },
+    "contributions_payment": [
+      { "debit": "4312", "credit": "5121", "desc": "Virare CAS" },
+      { "debit": "4314", "credit": "5121", "desc": "Virare CASS" },
+      { "debit": "444", "credit": "5121", "desc": "Virare impozit salariu" },
+      { "debit": "4311", "credit": "5121", "desc": "Virare CAM" }
+    ]
+  },
+  "working_time": {
+    "standard_hours_day": 8,
+    "standard_hours_week": 40,
+    "max_overtime_week": 8,
+    "max_total_week": 48,
+    "overtime_surcharge_min_pct": 75,
+    "night_surcharge_min_pct": 25,
+    "night_interval": "22:00-06:00"
+  },
+  "leave": {
+    "annual_min_days": 20,
+    "sick_leave_employer_days": 5,
+    "sick_leave_rate_pct": 75,
+    "maternity_days": 126,
+    "maternity_rate_pct": 85,
+    "parental_leave_until_child_age": 2,
+    "parental_leave_disabled_child_age": 3,
+    "parental_leave_rate_pct": 85
+  },
+  "notice_periods": {
+    "resignation_execution_days": 20,
+    "resignation_management_days": 45,
+    "termination_days": 20
+  },
+  "probation": {
+    "execution_max_days": 90,
+    "management_max_days": 120
+  },
+  "fixed_term_contract_max_months": 36,
+  "collective_bargaining_threshold_employees": 10,
+  "collective_bargaining_note": "negocierea este obligatorie de la 10 salariati (Legea 367/2022), dar incheierea CCM nu e obligatorie daca nu se ajunge la acord",
+  "revisal": {
+    "penalties": {
+      "late_transmission": { "min": 5000, "max": 8000, "per": "salariat" },
+      "incorrect_data": { "min": 5000, "max": 8000 },
+      "refusal_to_present": { "min": 10000, "max": 20000 }
+    }
+  },
+  "salary_payment": {
+    "method": "virament bancar sau numerar (cu acordul partilor)",
+    "note": "Codul muncii nu impune un prag de salariati pentru obligativitatea viramentului"
+  }
+}

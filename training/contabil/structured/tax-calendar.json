@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "year": 2026,
+    "updated": "2026-04-07",
+    "source": "codul-fiscal.md, procedura-fiscala.md, constante-fiscale-2026.md"
+  },
+  "monthly": [
+    { "declaration": "D300", "name": "Decont TVA", "deadline": "25 ale lunii urmatoare", "content": "TVA colectata, deductibila, de plata/recuperat", "who": "platitori TVA cu perioada fiscala lunara" },
+    { "declaration": "D112", "name": "Declaratie contributii salariale", "deadline": "25 ale lunii urmatoare", "content": "CAS, CASS, impozit salariu, CAM — nominal per salariat", "who": "toti angajatorii" },
+    { "declaration": "D390", "name": "Declaratie recapitulativa", "deadline": "25 ale lunii urmatoare", "content": "livrari/achizitii intracomunitare", "who": "cei cu operatiuni intra-UE" },
+    { "declaration": "D406", "name": "SAF-T", "deadline": "25 ale lunii urmatoare (sau trimestrial)", "content": "export complet contabilitate in format XML", "who": "toti contribuabilii (din 2025)" }
+  ],
+  "quarterly": [
+    { "declaration": "D100", "name": "Impozit micro / alte impozite trimestriale", "deadlines": ["25 aprilie", "25 iulie", "25 octombrie", "25 ianuarie (an urmator)"], "who": "microintreprinderi + alte impozite trimestriale" },
+    { "declaration": "D300 trimestrial", "name": "Decont TVA trimestrial", "deadlines": ["25 aprilie", "25 iulie", "25 octombrie", "25 ianuarie"], "who": "platitori TVA cu CA sub plafon" },
+    { "declaration": "Impozit profit trimestrial", "name": "Plata avans impozit pe profit", "deadlines": ["25 aprilie", "25 iulie", "25 octombrie", "25 ianuarie"], "who": "platitori impozit pe profit" },
+    { "declaration": "Impozit dividende", "name": "Impozit pe dividende retinut la sursa", "deadline": "25 ale lunii urmatoare trimestrului in care s-a platit dividendul", "who": "societati care distribuie dividende" }
+  ],
+  "annual": [
+    { "declaration": "D101", "name": "Declaratie anuala impozit pe profit", "deadline": "25 martie", "who": "platitori impozit pe profit" },
+    { "declaration": "Situatii financiare", "name": "Bilant + CPP + note", "deadline": "31 mai (150 zile de la 31 decembrie)", "who": "toate persoanele juridice" },
+    { "declaration": "D205", "name": "Declaratie informativa dividende PF", "deadline": "conform calendar ANAF", "who": "societati care au platit dividende PF" },
+    { "declaration": "AGA ordinara", "name": "Adunarea generala ordinara", "deadline": "in primele 5 luni de la inchiderea exercitiului", "who": "toate societatile" }
+  ],
+  "event_triggered": [
+    { "event": "Depasire plafon TVA", "action": "Inregistrare in scopuri de TVA", "deadline": "10 zile de la depasire", "article": "art. 310 CF" },
+    { "event": "Emitere factura", "action": "Upload in e-Factura SPV", "deadline": "5 zile lucratoare de la emitere", "article": "OUG 120/2021" },
+    { "event": "Angajare", "action": "Transmitere Revisal", "deadline": "cel putin 1 zi lucratoare inainte de inceperea activitatii", "article": "HG 905/2017" },
+    { "event": "Incetare CIM", "action": "Transmitere Revisal", "deadline": "cel tarziu la data incetarii", "article": "HG 905/2017" },
+    { "event": "Suspendare CIM", "action": "Transmitere Revisal", "deadline": "cel tarziu in ziua anterioara producerii suspendarii", "article": "HG 905/2017" },
+    { "event": "Tranzactie suspecta AML", "action": "Raportare STR la ONPCSB", "deadline": "24 ore de la luarea la cunostinta", "article": "art. 28 Legea 129/2019" },
+    { "event": "Tranzactie cash >= 10.000 EUR", "action": "Raportare CTR la ONPCSB", "deadline": "automat", "article": "art. 29 Legea 129/2019" },
+    { "event": "Decizie de impunere primita", "action": "Depunere contestatie", "deadline": "45 zile de la comunicare", "article": "art. 268 CPF" }
+  ]
+}

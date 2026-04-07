@@ -86,7 +86,10 @@ Regula generală: cheltuielile sunt deductibile dacă sunt **efectuate în scopu
 - **Amenzi, confiscări, majorări** datorate autorităților (cu excepția celor contractuale)
 - Cheltuieli fără documente justificative
 - Cheltuieli cu TVA aferentă bunurilor acordate salariaților ca avantaje în natură (dacă TVA nu a fost deductibilă)
-- Pierderi din creanțe — nedeductibile cu excepțiile exprese: procedură de insolvență deschisă, debitorul a murit fără avere, creanțe neîncasate > 270 zile de la scadență (negarantate, neafiliate — verificați forma actuală art. 26 CF pentru praguri și condiții exacte)
+- Pierderi din creanțe — nedeductibile ca regulă generală, cu excepțiile din art. 26 alin. (1):
+  - **Deductibilitate parțială (30%)**: creanțe neîncasate > 270 zile de la scadență, negarantate, datorate de persoane neafiliate (regula generală pentru creanțe înregistrate din 01.01.2024)
+  - **Deductibilitate integrală (100%)**: deschidere procedură faliment, debitor radiat, hotărâre judecătorească definitivă, închidere procedură insolvență fără recuperare (art. 26 alin. 1 lit. j)
+  - Dacă nu s-a constituit ajustare anterior, cheltuiala cu scoaterea din evidență e deductibilă doar la confirmarea planului de reorganizare cu pierdere sau la închiderea procedurii de faliment
 - Cheltuieli în favoarea acționarilor/asociaților (care nu au legătură cu activitatea)
 - Cheltuieli cu contribuțiile plătite peste limita deductibilă
 - Cheltuieli de funcționare a locuinței (50% nedeductibile dacă sediul social = la domiciliu)
@@ -124,7 +127,7 @@ Duratele de amortizare fiscală: conform **Catalogul din HG 2139/2004** sau dura
 
 O persoană juridică română este microîntreprindere dacă, la 31 decembrie al anului anterior, îndeplinește **cumulativ**:
 
-1. **Venituri** realizate: ≤ **100.000 EUR** echivalent (din 1 ianuarie 2026; anterior: 250.000 EUR în 2024-2025, 500.000 EUR în 2023)
+1. **Venituri** realizate: ≤ **100.000 EUR** echivalent (din 1 ianuarie 2026; 509.850 RON la cursul 31.12.2025). Anterior: 250.000 EUR (2025), 500.000 EUR (2023). Se cumulează cu veniturile întreprinderilor legate.
 2. **Capital social** deținut de persoane altele decât statul și UAT-urile
 3. **Nu activează** în domeniile: bancar (CAEN 6419, 6491), asigurări (6511, 6512, 6520), piețe de capital (6611, 6612, 6619, 6621, 6629, 6630), jocuri de noroc (9200)
 4. **Are cel puțin un salariat** — sau asociatul unic este angajat pe CIM full-time
@@ -134,9 +137,10 @@ O persoană juridică română este microîntreprindere dacă, la 31 decembrie a
 
 | Situație | Cotă |
 |---|---|
-| Microîntreprindere cu minimum 1 salariat | **1%** din venituri |
+| Microîntreprindere cu minimum 1 salariat (regula generală) | **1%** din venituri |
+| Cazuri specifice (în funcție de situație) | **3%** din venituri |
 
-Cota de 3% (fără salariat) nu mai este aplicabilă. Existența a cel puțin unui salariat este condiție obligatorie pentru regimul micro. Fără salariat → ieșire din regim, trecere la impozit pe profit 16%.
+Existența a cel puțin unui salariat cu normă întreagă este condiție obligatorie. Fără salariat → ieșire din regim, trecere la impozit pe profit 16%.
 
 ### Baza de impozitare (art. 53)
 
@@ -163,7 +167,8 @@ Declarație: formularul **D100** (trimestrial).
 ### Ieșirea din regimul micro (art. 52)
 
 Microîntreprinderea trece la impozit pe profit dacă, în cursul unui an fiscal:
-- Veniturile depășesc **100.000 EUR** echivalent (din 2026). Impozitul pe profit se datorează din trimestrul depășirii, fără posibilitate de revenire la micro.
+- Veniturile depășesc **100.000 EUR** (din 2026). Impozitul pe profit se datorează din trimestrul depășirii, fără posibilitate de revenire la micro.
+- Veniturile din consultanță/management depășesc **20%** din veniturile totale
 - Nu mai are niciun salariat (ieșire la încetarea CIM)
 - Capitalul social trece în proprietatea statului
 - Începe o activitate din sectoarele excluse

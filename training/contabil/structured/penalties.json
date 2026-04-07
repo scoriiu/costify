@@ -1,0 +1,73 @@
+{
+  "_meta": {
+    "year": 2026,
+    "updated": "2026-04-07",
+    "source": "legea-contabilitatii.md, procedura-fiscala.md, aml-kyc.md, salarizare-payroll.md, e-factura-saft.md"
+  },
+  "accounting_law": {
+    "source": "Legea 82/1991 art. 41-42",
+    "fines": [
+      { "violation": "Neorganizarea contabilitatii", "min": 1000, "max": 10000 },
+      { "violation": "Neintocmirea/nedepunerea situatiilor financiare", "min": 300, "max": 5000 },
+      { "violation": "Neefectuarea inventarierii", "min": 400, "max": 5000 },
+      { "violation": "Prezentarea de date necorespunzatoare realitatii", "min": 400, "max": 5000 },
+      { "violation": "Nerespectarea regulilor privind registrele", "min": 300, "max": 4000 },
+      { "violation": "Nerespectarea regulilor de arhivare", "min": 300, "max": 4000 },
+      { "violation": "Nedepunerea situatiilor financiare la termen", "min": 300, "max": 5000, "note": "+ risc dizolvare de drept" }
+    ]
+  },
+  "tax_procedure": {
+    "source": "Legea 207/2015 (CPF) art. 325-345",
+    "fines": [
+      { "violation": "Nedepunerea declaratiilor fiscale la termen", "min": 1000, "max": 5000, "who": "PJ" },
+      { "violation": "Nedepunerea declaratiilor informative", "min": 500, "max": 1000 },
+      { "violation": "Nerespectarea obligatiei de informare", "min": 2000, "max": 5000 },
+      { "violation": "Nerespectarea obligatiei de acces la documente", "min": 2000, "max": 5000 },
+      { "violation": "Neinregistrarea fiscala", "min": 500, "max": 1000 },
+      { "violation": "Obstructionarea inspectiei fiscale", "min": 2000, "max": 5000 },
+      { "violation": "Neinstalarea casei de marcat", "min": 8000, "max": 10000 }
+    ]
+  },
+  "e_factura": {
+    "source": "OUG 120/2021 + OG 13/2024",
+    "fines": [
+      { "violation": "Netransmiterea e-Factura (PJ)", "min": 5000, "max": 10000 },
+      { "violation": "Netransmiterea e-Factura (PFA)", "min": 2500, "max": 5000 }
+    ]
+  },
+  "e_transport": {
+    "source": "OUG e-Transport",
+    "fines": [
+      { "violation": "Transport fara UIT", "min": 10000, "max": 50000, "note": "+ risc confiscare" },
+      { "violation": "Declaratie transport incorecta", "min": 5000, "max": 10000 }
+    ]
+  },
+  "revisal": {
+    "source": "HG 905/2017",
+    "fines": [
+      { "violation": "Netransmiterea la termen", "min": 5000, "max": 8000, "per": "salariat" },
+      { "violation": "Completare eronata", "min": 5000, "max": 8000 },
+      { "violation": "Refuz prezentare la control", "min": 10000, "max": 20000 }
+    ]
+  },
+  "aml": {
+    "source": "Legea 129/2019 art. 43-51",
+    "fines": [
+      { "violation": "Neaplicare KYC", "pf_min": 5000, "pf_max": 30000, "pj_min": 25000, "pj_max": 150000 },
+      { "violation": "Neidentificarea beneficiarului real", "pf_min": 5000, "pf_max": 30000, "pj_min": 25000, "pj_max": 150000 },
+      { "violation": "Neraportarea tranzactiilor suspecte", "pf_min": 15000, "pf_max": 50000, "pj_min": 50000, "pj_max": 500000 },
+      { "violation": "Neraportarea tranzactiilor cash >= 10.000 EUR", "pf_min": 10000, "pf_max": 30000, "pj_min": 25000, "pj_max": 150000 },
+      { "violation": "Neimplementarea procedurilor interne", "pf_min": 5000, "pf_max": 20000, "pj_min": 25000, "pj_max": 100000 },
+      { "violation": "Nepastrarea evidentelor", "pf_min": 5000, "pf_max": 20000, "pj_min": 25000, "pj_max": 100000 },
+      { "violation": "Tipping-off (informarea clientului)", "type": "penal" }
+    ],
+    "note": "Regimul sanctionator consolidat prin Legea 86/2025 — verificati cuantumurile in forma actuala"
+  },
+  "criminal": {
+    "tax_evasion": { "imprisonment": "2-8 ani", "source": "Legea 241/2005" },
+    "money_laundering": { "imprisonment": "3-10 ani", "source": "Legea 129/2019" },
+    "terrorism_financing": { "imprisonment": "5-12 ani" },
+    "fraudulent_bankruptcy": { "imprisonment": "1-5 ani" },
+    "document_forgery": { "imprisonment": "6 luni - 5 ani" }
+  }
+}

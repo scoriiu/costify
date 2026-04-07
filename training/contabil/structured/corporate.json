@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "year": 2026,
+    "updated": "2026-04-07",
+    "source": "legea-societatilor.md, constante-fiscale-2026.md"
+  },
+  "company_forms": {
+    "SRL": { "capital_min": 1, "currency": "RON", "associates_min": 1, "associates_max": 50, "liability": "limitata la capitalul social", "article": "art. 11 Legea 31/1990" },
+    "SA": { "capital_min": 90000, "currency": "RON", "shareholders_min": 2, "liability": "limitata la actiuni", "article": "art. 10 Legea 31/1990" },
+    "SNC": { "capital_min": null, "associates_min": 2, "liability": "nelimitata si solidara" },
+    "SCS": { "capital_min": null, "associates_min": 2, "liability": "nelimitata (comanditati) + limitata (comanditari)" },
+    "SCA": { "capital_min": 90000, "currency": "RON", "associates_min": 2, "liability": "ca SCS" }
+  },
+  "share_capital_srl": {
+    "min_value": 1,
+    "nominal_value_per_share": "se stabileste prin actul constitutiv (nu exista minim legal)",
+    "contributions": ["numerar (obligatoriu la constituire)", "natura (evaluate de expert)", "nu in munca la SRL"],
+    "article": "art. 11 Legea 31/1990"
+  },
+  "profit_distribution_order": [
+    "1. Acoperirea pierderilor din anii anteriori (117 debitor)",
+    "2. Constituirea rezervei legale: 5% din profit pana la 20% din capital social (1061)",
+    "3. Constituirea altor rezerve prevazute de lege sau statut (1068)",
+    "4. Distribuirea de dividende (457) SAU reportare ca profit nedistribuit (117 creditor)"
+  ],
+  "dividends": {
+    "conditions": [
+      "doar din profitul real (contabil net)",
+      "nu se distribuie daca activul net < capitalul social + rezerve legale",
+      "proportional cu cota de participare (sau conform act constitutiv)"
+    ],
+    "interim_dividends": "posibile trimestrial, cu situatii financiare interimare. Daca profitul real < dividende interimare platite, asociatii restituie diferenta.",
+    "tax_rate": 0.16,
+    "journal_entries": {
+      "distribution": { "debit": "129", "credit": "457", "desc": "Repartizarea profitului la dividende" },
+      "tax_withholding": { "debit": "457", "credit": "446", "desc": "Retinere impozit pe dividende 16%" },
+      "payment_net": { "debit": "457", "credit": "5121", "desc": "Plata dividende nete" },
+      "payment_tax": { "debit": "446", "credit": "5121", "desc": "Virare impozit dividende la ANAF" }
+    }
+  },
+  "aga": {
+    "ordinara": { "frequency": "cel putin o data pe an, in primele 5 luni", "competences": "aprobare situatii financiare, repartizare profit, numire/revocare administratori, descarcare gestiune" },
+    "extraordinara": { "frequency": "ori de cate ori e necesar", "competences": "modificare act constitutiv, majorare/reducere capital, fuziune, divizare, dizolvare" },
+    "quorum_srl": { "ordinara": "> 50% capital social (supletiv)", "extraordinara": "3/4 din capital social" }
+  },
+  "dissolution_de_drept": {
+    "trigger": "nedepunerea situatiilor financiare 2 exercitii consecutive",
+    "action": "ONRC notifica si dispune dizolvarea",
+    "article": "art. 237^1 Legea 31/1990"
+  },
+  "legal_reserve": {
+    "rate_from_profit": 0.05,
+    "ceiling_from_capital": 0.20,
+    "account": "1061",
+    "use": "doar pentru acoperirea pierderilor"
+  },
+  "prescription": {
+    "tax_assessment_years": 5,
+    "tax_assessment_start": "1 iulie a anului urmator",
+    "tax_evasion_years": "pana la 10 ani (depinde de incadrare penala)",
+    "tax_enforcement_years": 5,
+    "article_assessment": "art. 110 CPF",
+    "article_enforcement": "art. 218-219 CPF"
+  },
+  "archival_years": {
+    "financial_statements": 10,
+    "accounting_registers": 10,
+    "supporting_documents": 10,
+    "payroll_records": 50,
+    "aml_kyc_records": 5
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "_meta": {
+    "year": 2026,
+    "updated": "2026-04-07",
+    "source": "constante-fiscale-2026.md"
+  },
+  "profit_tax": {
+    "rate": 0.16,
+    "base": "profit_impozabil",
+    "article": "art. 17 CF",
+    "payment": "trimestrial, 25 ale lunii urm. trimestrului",
+    "declaration": "D101 anual (25 martie)"
+  },
+  "micro": {
+    "rate_standard": 0.01,
+    "rate_specific": 0.03,
+    "threshold_eur": 100000,
+    "threshold_ron": 509850,
+    "exchange_rate_date": "2025-12-31",
+    "exchange_rate": 5.0985,
+    "conditions": [
+      "venituri ≤ 100.000 EUR (verificare la 31.12 an precedent)",
+      "capital social detinut de persoane altele decat statul/UAT",
+      "CAEN neexclus (nu banking, asigurari, piete capital, jocuri noroc)",
+      "minimum 1 salariat cu norma intreaga",
+      "nu este in dizolvare urmata de lichidare",
+      "veniturile se cumuleaza cu intreprinderile legate"
+    ],
+    "exit_conditions": [
+      "depasire 100.000 EUR in cursul anului",
+      "venituri consultanta/management > 20% din total",
+      "pierderea salariatului",
+      "capital trece in proprietatea statului",
+      "incepe activitate in sector exclus"
+    ],
+    "excluded_caen": ["6419", "6491", "6511", "6512", "6520", "6611", "6612", "6619", "6621", "6629", "6630", "9200"],
+    "article": "art. 47-57 CF",
+    "payment": "trimestrial, 25 ale lunii urm. trimestrului",
+    "declaration": "D100"
+  },
+  "income_tax_salary": {
+    "rate": 0.10,
+    "base": "venit_net - deducere_personala",
+    "article": "art. 78 CF",
+    "formula": "brut - CAS(25%) - CASS(10%) - deducere_personala = baza × 10%"
+  },
+  "dividend_tax": {
+    "rate_pf_resident": 0.16,
+    "rate_pj_ro_to_pj_ro": 0,
+    "rate_nonresident_default": 0.16,
+    "article": "art. 97 CF",
+    "law": "Legea 141/2025",
+    "history": {
+      "pre_2023": 0.05,
+      "2023": 0.08,
+      "2024_2025": 0.10,
+      "2026_plus": 0.16
+    },
+    "withholding": "la sursa, de societatea platitoare",
+    "declaration": "D100 trimestrial, D205 anual informativ"
+  },
+  "capital_gains_shares": {
+    "rate": 0.10,
+    "base": "pret_cesiune - valoare_nominala",
+    "article": "art. 97 CF"
+  },
+  "social_contributions": {
+    "cas": {
+      "rate": 0.25,
+      "payer": "angajat (retinut din brut)",
+      "base": "salariu brut",
+      "ceiling_employees": "fara plafon maxim lunar",
+      "ceiling_pfa_12": "12 salarii minime",
+      "ceiling_pfa_24": "24 salarii minime",
+      "account": "4312",
+      "article": "art. 138 lit. a CF"
+    },
+    "cass": {
+      "rate": 0.10,
+      "payer": "angajat (retinut din brut)",
+      "base": "salariu brut",
+      "account": "4314",
+      "article": "art. 156 CF"
+    },
+    "cam": {
+      "rate": 0.0225,
+      "payer": "angajator (peste brut)",
+      "base": "fond total salarii brute",
+      "account": "4311",
+      "article": "art. 220^3 CF"
+    }
+  },
+  "tva": {
+    "standard": { "rate": 0.21, "from": "2025-07-01" },
+    "reduced": { "rate": 0.11, "from": "2025-07-01", "applies_to": "alimente, apa, medicamente, hoteluri, restaurante (fara alcool), carti, ziare, energie termica, acces muzee" },
+    "transitional": { "rate": 0.09, "applies_to": "anumite livrari de locuinte", "until": "2026-07-31" },
+    "zero": { "rate": 0, "applies_to": "exporturi, livrari intracomunitare" },
+    "history": {
+      "pre_2025_07": { "standard": 0.19, "reduced_food": 0.09, "reduced_books": 0.05 }
+    },
+    "threshold_exemption": { "amount_ron": 395000, "from": "2025-09-01", "article": "art. 310 CF", "note": "doar livrari/prestari cu locul in RO, fara active imobilizate" },
+    "threshold_cash_accounting": { "amount_ron": 5000000, "period": "mar-dec 2026", "from_2027": 5500000, "article": "art. 282^2 CF", "law": "OUG 8/2026" },
+    "accounts": {
+      "4426": "TVA deductibila (activ)",
+      "4427": "TVA colectata (pasiv)",
+      "4423": "TVA de plata (4427 > 4426)",
+      "4424": "TVA de recuperat (4426 > 4427)",
+      "4428": "TVA neexigibila (TVA la incasare)"
+    }
+  },
+  "nonresident_withholding": {
+    "dividends": 0.16,
+    "interest": 0.16,
+    "royalties": 0.16,
+    "management_consulting": 0.16,
+    "commissions": 0.16,
+    "note": "sau cota din CEDI daca e mai mica, cu certificat de rezidenta fiscala"
+  },
+  "late_payment": {
+    "interest_per_day": 0.0002,
+    "penalty_per_day": 0.0001,
+    "non_declaration_penalty_per_day": 0.0008,
+    "non_declaration_ceiling": "100% din obligatia fiscala principala",
+    "article_interest": "art. 174 CPF",
+    "article_penalty": "art. 176 CPF",
+    "article_non_declaration": "art. 181 CPF"
+  },
+  "deductibility_limits": {
+    "protocol": { "limit": "2% din (profit contabil + cheltuieli protocol)", "article": "art. 25^1 CF" },
+    "sponsorship": { "limit": "0.75% din CA sau 20% din impozit pe profit", "mechanism": "credit din impozit, nu din baza", "article": "art. 25^1 CF" },
+    "per_diem": { "limit": "2.5x nivelul legal", "article": "art. 25^1 CF" },
+    "auto_mixed_use": { "limit": 0.50, "applies_to": "combustibil, intretinere, amortizare, leasing, asigurare, TVA", "article": "art. 25^1 CF" },
+    "private_health_insurance": { "limit_eur_per_employee": 400, "article": "art. 25^1 CF" },
+    "voluntary_pension": { "limit_eur_per_employee": 400, "article": "art. 25^1 CF" }
+  },
+  "bad_debt_deductibility": {
+    "partial": { "rate": 0.30, "conditions": ["neincasata > 270 zile", "negarantata", "neafiliata"], "article": "art. 26 alin. 1 CF" },
+    "full": { "conditions": ["procedura faliment", "debitor radiat", "hotarare judecatoreasca definitiva", "inchidere insolventa fara recuperare"], "article": "art. 26 alin. 1 lit. j CF" }
+  },
+  "loss_carryforward": {
+    "years": 7,
+    "note": "cu limitare procentuala anuala — verificati art. 31 CF",
+    "article": "art. 31 CF"
+  },
+  "minimum_salary": {
+    "jan_jun_2026": 4050,
+    "jul_dec_2026": 4325
+  },
+  "capitalization_threshold": {
+    "amount_ron": 2500,
+    "useful_life_min_years": 1,
+    "article": "art. 28 CF"
+  }
+}

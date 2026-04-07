@@ -24,9 +24,10 @@
 
 | Situație | Cotă | Baza |
 |---|---|---|
-| Cu minimum 1 salariat | **1%** | Venituri (conform art. 53) |
+| Cu minimum 1 salariat (regula generală) | **1%** | Venituri (conform art. 53) |
+| Cazuri specifice (în funcție de situație) | **3%** | Venituri |
 
-Cota de 3% (fără salariat) **nu mai este aplicabilă** din 2023+. Dacă nu mai are salariat, societatea iese din regimul micro și trece la impozit pe profit.
+Existența a cel puțin unui salariat cu normă întreagă este condiție obligatorie. Plafonul se cumulează cu veniturile întreprinderilor legate.
 
 ### Contribuții sociale (salariale)
 
@@ -83,7 +84,7 @@ Cota de 3% (fără salariat) **nu mai este aplicabilă** din 2023+. Dacă nu mai
 
 | Prag | Valoare | Referință |
 |---|---|---|
-| Plafon microîntreprindere | **100.000 EUR** venituri an precedent (din 1 ian 2026; anterior: 250k, 500k, 1M) | Art. 47 CF |
+| Plafon microîntreprindere | **100.000 EUR** venituri an precedent (din 1 ian 2026; 509.850 RON la cursul 31.12.2025 de 5,0985). Anterior: 250k EUR (2025), 500k EUR (2023). Se cumulează cu veniturile întreprinderilor legate. | Art. 47 CF |
 | Plafon scutire TVA (înregistrare obligatorie) | **395.000 RON** CA anuală (din 1 sept 2025; doar livrări/prestări cu locul în RO, fără active imobilizate) | Art. 310 CF |
 | Plafon TVA la încasare | **5.000.000 RON** CA (mar–dec 2026, conform OUG 8/2026; devine 5.500.000 RON din 1 ian 2027) | Art. 282^2 CF |
 
