@@ -1219,7 +1219,7 @@ export function DesignSystem() {
               <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
-              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: number) => `${v}K RON`} />
+              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: unknown) => `${v}K RON`} />
               <Bar dataKey="venituri" fill="#0D6B5E" radius={[4, 4, 0, 0]} />
               <Bar dataKey="cheltuieli" fill="#EF4444" radius={[4, 4, 0, 0]} opacity={0.6} />
             </BarChart>
@@ -1256,7 +1256,7 @@ export function DesignSystem() {
               <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
-              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: number) => `${v}K RON`} />
+              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: unknown) => `${v}K RON`} />
               <Area type="monotone" dataKey="cash" stroke="#0D6B5E" strokeWidth={2} fill="url(#gradCash)" />
               <Area type="monotone" dataKey="creante" stroke="#3B82F6" strokeWidth={1.5} fill="url(#gradCreante)" />
               <Area type="monotone" dataKey="datorii" stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="4 4" />
@@ -1287,7 +1287,7 @@ export function DesignSystem() {
                     <Cell key={i} fill={color} />
                   ))}
                 </Pie>
-                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} formatter={(v: number) => `${(v / 1000).toFixed(1)}K RON`} />
+                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} formatter={(v: unknown) => `${(Number(v) / 1000).toFixed(1)}K RON`} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#8A877F" }} />
               </PieChart>
             </ResponsiveContainer>
@@ -1313,7 +1313,7 @@ export function DesignSystem() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
                 <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
-                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} formatter={(v: number) => `${v}K RON`} />
+                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} formatter={(v: unknown) => `${v}K RON`} />
                 <Line type="monotone" dataKey="actual" stroke="#34D3A0" strokeWidth={2.5} dot={{ fill: "#34D3A0", r: 3 }} activeDot={{ r: 5 }} />
                 <Line type="monotone" dataKey="buget" stroke="#8A877F" strokeWidth={1.5} strokeDasharray="6 4" dot={false} />
               </LineChart>

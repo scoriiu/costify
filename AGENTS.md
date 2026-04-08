@@ -414,126 +414,78 @@ Testing is not optional. Every module, every flow, every screen has tests. The t
 
 ```
 tests/
-  unit/                          -- Pure logic, no I/O, fast (<1s each)
+  unit/                              -- Pure logic, no I/O, fast (<1s each)
+    money.test.ts                    -- normalizeMoney, round2 (Romanian format, thousands, negatives)
+    accounts.test.ts                 -- getContBase, getAccountType, isPnlAccount, computeLeafFlags
+    balance.test.ts                  -- computeBalanceFromJournal (debit/credit, P&L closing, leaf, verification)
+
+    shared/
+      errors.test.ts                 -- Result pattern (ok/err), error factories (notFound, validation, etc.)
+      types.test.ts                  -- paginate helper, PaginatedResult
+
     modules/
-      normalizer/
-        normalizer.test.ts       -- Field mapping, currency conversion, date parsing
-        deduplicator.test.ts     -- Hash computation, duplicate detection logic
-      classifier/
-        rule-engine.test.ts      -- Rule matching, priority ordering, condition evaluation
-        split-handler.test.ts    -- Amount splitting, percentage validation, rounding
-        confidence.test.ts       -- Confidence score computation
-      journal/
-        journal.test.ts          -- Entry creation, immutability enforcement
-      balances/
-        balance-calc.test.ts     -- Balance math, running totals, multi-currency
-        snapshot.test.ts         -- Point-in-time snapshot creation
-      budget/
-        budget.test.ts           -- Version lifecycle, line calculations
-        forecast.test.ts         -- Run-rate, seasonality, moving average methods
-        scenarios.test.ts        -- Scenario generation, comparison
       audit/
-        checksum.test.ts         -- Tamper detection hash computation
-        audit-record.test.ts     -- Record creation, required fields
+        checksum.test.ts             -- SHA-256 computation, determinism, tamper detection, verification
       auth/
-        rbac.test.ts             -- Permission evaluation, role hierarchy
-        tenant-isolation.test.ts -- Tenant context enforcement
-      shared/
-        currency.test.ts
-        date-utils.test.ts
-        hashing.test.ts
+        rbac.test.ts                 -- Permission evaluation per role, authorize throws, role union
+      reporting/
+        kpi.test.ts                  -- KPI computation: cash, creante, datorii, TVA, rezultat, marja
+        cpp.test.ts                  -- CPP computation: exploatare/financiar, impozit, loss, empty
+      ingestion/
+        parser.test.ts               -- XLSX parsing, header resolution, compound entries, post-closing
+        partner-extractor.test.ts    -- Partner name extraction, suffix matching, frequency picking
+      balances/
+        compute-balance.test.ts      -- Balance math, opening balances, year closing, multi-period
 
-  integration/                   -- Database + Redis + queues, real I/O
+  integration/                       -- Database + Redis, real I/O
     pipeline/
-      ingest-to-journal.test.ts  -- Full: raw data → normalize → classify → journal entry
-      classify-and-split.test.ts -- Transaction with split across categories/verticals
-      balance-recalc.test.ts     -- Journal write triggers balance recalculation
-      duplicate-rejection.test.ts-- Same transaction ingested twice → second rejected
-      reclassification.test.ts   -- Re-classify existing transaction, verify audit trail
-    sources/
-      fgo-connector.test.ts      -- FGO.ro API integration (mocked external, real DB)
-      bank-connector.test.ts     -- Direct bank API integration
-      csv-import.test.ts         -- CSV/XLSX file parsing and ingestion
-      saga-export.test.ts        -- Push classified invoice to Saga
-    budget/
-      budget-lifecycle.test.ts   -- Draft → Review → Approved → Locked → Revised
-      approval-workflow.test.ts  -- Multi-step approval with role checks
-      bva-report.test.ts         -- Budget vs Actual vs Forecast computation
+      ingest-to-balance.test.ts      -- Full: XLSX → parse → store → compute balance → verify
+      duplicate-rejection.test.ts    -- Same file imported twice → second gets deduplicated
     tenant/
-      isolation.test.ts          -- Tenant A cannot see Tenant B data (RLS verified)
-      cross-tenant-admin.test.ts -- Platform user sees aggregated view across tenants
+      isolation.test.ts              -- Tenant A cannot see Tenant B data
+      access-control.test.ts         -- verifyTenantAccess, getTenantBySlug boundary checks
     audit/
-      audit-trail.test.ts        -- Verify audit records created at each pipeline stage
-      tamper-detection.test.ts   -- Modify audit record → detection job catches it
-      audit-query.test.ts        -- Trace a transaction from ingestion to report
+      audit-trail.test.ts            -- Verify audit records created at each pipeline stage
+      tamper-detection.test.ts       -- Modify audit record → checksum mismatch detected
 
-  e2e/                           -- Full API tests, HTTP requests against running server
+  e2e/                               -- Full API tests, HTTP requests against running server
     flows/
-      transaction-lifecycle.test.ts  -- Ingest → Classify → Journal → Balance → Report
-      budget-cycle.test.ts           -- Create budget → Owner fills → Manager reviews → CFO approves
-      monthly-close.test.ts          -- Close period → Lock → Verify immutability
-      source-management.test.ts      -- Add source → Sync → Verify transactions appear
-      user-onboarding.test.ts        -- Create tenant → Add bank accounts → First sync
-      invoice-to-saga.test.ts        -- Classify invoice → Push to Saga → Verify status sync
+      import-lifecycle.test.ts       -- Upload XLSX → dataset created → balance viewable
+      user-onboarding.test.ts        -- Register → create client → import → view reports
     security/
-      auth.test.ts                   -- Login, JWT refresh, session expiry
+      auth.test.ts                   -- Login, session expiry, logout clears cookie
       rbac-enforcement.test.ts       -- Each role can only access permitted endpoints
       tenant-boundary.test.ts        -- API requests scoped to tenant, cross-tenant blocked
-      rate-limiting.test.ts          -- Verify rate limits enforced per tenant
-      input-validation.test.ts       -- SQL injection, XSS, oversized payloads, malformed JSON
-      csrf.test.ts                   -- CSRF token validation on state-changing requests
+      input-validation.test.ts       -- Oversized payloads, missing fields, malformed data
 
-  ui/                            -- Playwright browser tests
+  ui/                                -- Playwright browser tests
     setup/
-      global-setup.ts            -- Start test server, seed database, create test users
-      global-teardown.ts         -- Cleanup test data, stop server
-      fixtures.ts                -- Page objects, test tenant factory, auth helpers
+      global-setup.ts               -- Start test server, seed database, create test users
+      global-teardown.ts            -- Cleanup test data, stop server
+      fixtures.ts                   -- Page objects, test tenant factory, auth helpers
     auth/
-      login.spec.ts              -- Login flow, invalid credentials, locked account
-      logout.spec.ts             -- Logout clears session, redirect to login
-      session-expiry.spec.ts     -- Expired token → redirect to login with return URL
-    dashboard/
-      executive.spec.ts          -- KPI cards render, charts load, period filter works
-      vertical.spec.ts           -- Switch between verticals, data changes correctly
-      owner.spec.ts              -- Owner sees only their categories
-    transactions/
-      list.spec.ts               -- Table renders, pagination, column sorting
-      filter.spec.ts             -- Filter by date, category, status, account, amount range
-      search.spec.ts             -- Full-text search in descriptions
-      classify.spec.ts           -- Manual classification modal, category picker, save
-      split.spec.ts              -- Split transaction UI, percentage slider, amount validation
-      bulk-actions.spec.ts       -- Select multiple, bulk classify, bulk approve
-    budget/
-      editor.spec.ts             -- Budget grid, inline editing, save
-      import.spec.ts             -- Upload Excel, mapping preview, confirm import
-      approval.spec.ts           -- Submit for review, manager approves, status changes
-      version-history.spec.ts    -- View past versions, compare versions side by side
-    reports/
-      bva.spec.ts                -- Budget vs Actual loads, drill-down to transactions
-      cashflow.spec.ts           -- Cash flow chart renders, date range filter
-      export.spec.ts             -- Export to Excel/PDF, verify downloaded file
+      login.spec.ts                 -- Login flow, invalid credentials, redirect
+      logout.spec.ts                -- Logout clears session, redirect to login
+    clients/
+      list.spec.ts                  -- Client grid renders, create dialog works
+      detail.spec.ts                -- Client detail, dataset list, import link
+    datasets/
+      import.spec.ts                -- Upload XLSX, progress, success redirect
+      balance-view.spec.ts          -- Balance table renders, period selector, tab switch
+      cpp-view.spec.ts              -- CPP table renders, totals correct
+      kpi-cards.spec.ts             -- KPI cards render with correct values
+    costi/
+      chat.spec.ts                  -- Chat opens, sends message, receives response
     settings/
-      sources.spec.ts            -- Add bank source, configure sync, test connection
-      rules.spec.ts              -- Create classification rule, test against sample data
-      users.spec.ts              -- Invite user, assign role, deactivate user
-      taxonomy.spec.ts           -- Add/edit/reorder categories, drag-and-drop
-    tenant/
-      switch-client.spec.ts      -- Switch between client organizations, data changes
-      create-client.spec.ts      -- Create new client org, initial setup wizard
-    accessibility/
-      keyboard-nav.spec.ts       -- Tab order, focus management, keyboard shortcuts
-      screen-reader.spec.ts      -- ARIA labels, role attributes, announcements
+      profile.spec.ts               -- User info displays correctly
     responsive/
-      mobile.spec.ts             -- Key screens render correctly on mobile viewport
-      tablet.spec.ts             -- Tablet breakpoints, sidebar behavior
+      mobile.spec.ts                -- Key screens render correctly on mobile viewport
 
-  fixtures/                      -- Shared test data
-    tenants.ts                   -- Factory for generating test tenants
-    transactions.ts              -- Factory for realistic transaction data
-    bank-statements.ts           -- Sample CSV/XLSX/MT940 files
-    classification-rules.ts      -- Standard rule sets for testing
-    budgets.ts                   -- Sample budget versions with lines
-    users.ts                     -- Users with different roles and permissions
+  fixtures/                          -- Shared test data factories
+    entries.ts                       -- Factory for JournalEntry with sensible defaults
+    balance-rows.ts                  -- Factory for BalanceRowView with overrides
+    tenants.ts                       -- Factory for generating test tenants
+    users.ts                         -- Users with different roles and permissions
 ```
 
 ### Test Principles

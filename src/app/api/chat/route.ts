@@ -167,6 +167,15 @@ async function streamOllama(systemPrompt: string, messages: ChatMessage[]) {
 }
 
 export async function POST(request: Request) {
+  const { getSessionUser } = await import("@/modules/auth/session");
+  const user = await getSessionUser();
+  if (!user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { messages } = (await request.json()) as { messages: ChatMessage[] };
 
   if (!messages?.length) {

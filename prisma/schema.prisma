@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  passwordHash  String
+  emailVerified Boolean   @default(false)
+  active        Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  clients  Client[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  slug      String
+  cui       String?
+  caen      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  datasets Dataset[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+}
+
+model Dataset {
+  id         String   @id @default(cuid())
+  clientId   String
+  name       String
+  fileName   String
+  fileHash   String
+  sourceType String   @default("registru_jurnal")
+  status     String   @default("processing")
+  periodYear Int?
+  periodMonth Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  journalLines    JournalLine[]
+  balanceRows     BalanceRow[]
+  journalPartners JournalPartner[]
+
+  @@index([clientId, createdAt(sort: Desc)])
+}
+
+model JournalLine {
+  id        String   @id @default(cuid())
+  datasetId String
+
+  data      DateTime
+  year      Int
+  month     Int
+  ndp       String
+
+  contD     String
+  contDBase String
+  contC     String
+  contCBase String
+  suma      Decimal  @default(0) @db.Decimal(18, 2)
+
+  explicatie String
+  felD       String   @default("")
+  categorie  String?
+  cod        String?
+  validat    String?
+  tva        Decimal? @db.Decimal(18, 2)
+
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId, year, month])
+  @@index([datasetId, contDBase])
+  @@index([datasetId, contCBase])
+  @@index([datasetId, categorie])
+  @@index([datasetId, cod])
+}
+
+model BalanceRow {
+  id        String @id @default(cuid())
+  datasetId String
+  year      Int?
+  month     Int?
+
+  cont      String
+  contBase  String
+  denumire  String
+  tip       String
+
+  isLeaf   Boolean @default(true)
+  hasChild Boolean @default(false)
+
+  debInit  Decimal @default(0) @db.Decimal(18, 2)
+  credInit Decimal @default(0) @db.Decimal(18, 2)
+  soldInD  Decimal @default(0) @db.Decimal(18, 2)
+  soldInC  Decimal @default(0) @db.Decimal(18, 2)
+  debPrec  Decimal @default(0) @db.Decimal(18, 2)
+  credPrec Decimal @default(0) @db.Decimal(18, 2)
+  rulajD   Decimal @default(0) @db.Decimal(18, 2)
+  rulajC   Decimal @default(0) @db.Decimal(18, 2)
+  rulajTD  Decimal @default(0) @db.Decimal(18, 2)
+  rulajTC  Decimal @default(0) @db.Decimal(18, 2)
+  totalDeb Decimal @default(0) @db.Decimal(18, 2)
+  totalCred Decimal @default(0) @db.Decimal(18, 2)
+  finD     Decimal @default(0) @db.Decimal(18, 2)
+  finC     Decimal @default(0) @db.Decimal(18, 2)
+
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
+  @@index([datasetId, isLeaf])
+  @@index([datasetId, contBase])
+  @@index([datasetId, year])
+  @@index([datasetId, year, month])
+}
+
+model JournalPartner {
+  id              String @id @default(cuid())
+  datasetId       String
+  analyticAccount String
+  contBase        String
+  partnerName     String
+  cod             String?
+
+  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, analyticAccount])
+  @@index([datasetId, contBase])
+  @@index([datasetId, partnerName])
+}
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  actorId       String
+  actorType     String
+  pipelineStage String
+  action        String
+  entityType    String
+  entityId      String
+  before        Json?
+  after         Json?
+  metadata      Json     @default("{}")
+  checksum      String
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, pipelineStage, createdAt])
+  @@index([actorId, createdAt])
+  @@index([tenantId, createdAt])
+}
