@@ -342,25 +342,25 @@ function Teaching() {
           <ellipse cx={126.5} cy={46} rx={3} ry={2.2} fill={SKIN} />
         </g>
       </g>
-      {/* Left arm — sleeve from shoulder, curving to clipboard */}
-      <path d="M42 100 Q42 118 30 120" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
-      <path d="M42 100 Q42 118 30 120" stroke={JACKET_SHADOW} strokeWidth={14} fill="none" strokeLinecap="round" opacity={0.15} />
-      {/* Clipboard */}
-      <rect x={4} y={98} width={28} height={38} rx={3} fill={WHITE} opacity={0.9} />
-      <rect x={6} y={96} width={24} height={4} rx={2} fill={DARK_3} />
-      <rect x={9} y={104} width={16} height={2} rx={1} fill={PRIMARY} opacity={0.5} />
-      <rect x={9} y={110} width={12} height={2} rx={1} fill={PRIMARY} opacity={0.3} />
-      <rect x={9} y={116} width={14} height={2} rx={1} fill={ACCENT} opacity={0.4} />
-      <rect x={9} y={122} width={10} height={2} rx={1} fill={PRIMARY} opacity={0.2} />
-      <rect x={9} y={128} width={16} height={2} rx={1} fill={PRIMARY} opacity={0.15} />
-      {/* Palm gripping clipboard */}
-      <rect x={26} y={110} width={7} height={14} rx={3} fill={SKIN} />
-      {/* Thumb */}
-      <ellipse cx={29} cy={109} rx={3} ry={2.5} fill={SKIN} />
-      {/* Fingers over far edge */}
-      <circle cx={5} cy={112} r={2.5} fill={SKIN} />
-      <circle cx={4} cy={118} r={2.5} fill={SKIN} />
-      <circle cx={5} cy={124} r={2.5} fill={SKIN} />
+      {/* Right arm holding notebook (his right, our left) */}
+      <path d="M50 100 Q46 110 38 118" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
+      {/* Forearm — skin, angled to hold notebook */}
+      <path d="M38 118 Q34 124 30 128" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+      {/* Notebook */}
+      <rect x={10} y={106} width={26} height={34} rx={3} fill={WHITE} opacity={0.9} />
+      <rect x={12} y={110} width={16} height={2} rx={1} fill={PRIMARY} opacity={0.5} />
+      <rect x={12} y={115} width={12} height={2} rx={1} fill={PRIMARY} opacity={0.3} />
+      <rect x={12} y={120} width={14} height={2} rx={1} fill={ACCENT} opacity={0.4} />
+      <rect x={12} y={125} width={10} height={2} rx={1} fill={PRIMARY} opacity={0.2} />
+      <rect x={12} y={130} width={16} height={2} rx={1} fill={PRIMARY} opacity={0.15} />
+      {/* Hand gripping side — fingers wrap near edge (behind notebook) */}
+      <rect x={34} y={114} width={5} height={14} rx={2.5} fill={SKIN} />
+      {/* Finger tips curling over the near edge onto the front */}
+      <circle cx={11} cy={116} r={2.2} fill={SKIN} />
+      <circle cx={11} cy={121} r={2.2} fill={SKIN} />
+      <circle cx={11} cy={126} r={2.2} fill={SKIN} />
+      {/* Thumb on front face */}
+      <ellipse cx={32} cy={118} rx={2.5} ry={4} fill={SKIN} />
     </Base>
   );
 }
