@@ -49,37 +49,37 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  datasets Dataset[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines    JournalLine[]
+  importEvents    ImportEvent[]
+  journalPartners JournalPartner[]
 
   @@unique([userId, slug])
   @@index([userId])
 }
 
-model Dataset {
-  id         String   @id @default(cuid())
-  clientId   String
-  name       String
-  fileName   String
-  fileHash   String
-  sourceType String   @default("registru_jurnal")
-  status     String   @default("processing")
-  periodYear Int?
-  periodMonth Int?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model ImportEvent {
+  id           String   @id @default(cuid())
+  clientId     String
+  fileName     String
+  fileHash     String
+  sourceFormat String   @default("saga")
+  entriesAdded Int      @default(0)
+  dateStart    DateTime?
+  dateEnd      DateTime?
+  status       String   @default("processing")
+  createdAt    DateTime @default(now())
 
-  client          Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  journalLines    JournalLine[]
-  balanceRows     BalanceRow[]
-  journalPartners JournalPartner[]
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  journalLines JournalLine[]
 
   @@index([clientId, createdAt(sort: Desc)])
 }
 
 model JournalLine {
-  id        String   @id @default(cuid())
-  datasetId String
+  id            String    @id @default(cuid())
+  clientId      String
+  importEventId String
 
   data      DateTime
   year      Int
@@ -99,66 +99,33 @@ model JournalLine {
   validat    String?
   tva        Decimal? @db.Decimal(18, 2)
 
-  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  dedupHash String?
+  deletedAt DateTime?
 
-  @@index([datasetId, year, month])
-  @@index([datasetId, contDBase])
-  @@index([datasetId, contCBase])
-  @@index([datasetId, categorie])
-  @@index([datasetId, cod])
-}
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  importEvent ImportEvent @relation(fields: [importEventId], references: [id], onDelete: Cascade)
 
-model BalanceRow {
-  id        String @id @default(cuid())
-  datasetId String
-  year      Int?
-  month     Int?
-
-  cont      String
-  contBase  String
-  denumire  String
-  tip       String
-
-  isLeaf   Boolean @default(true)
-  hasChild Boolean @default(false)
-
-  debInit  Decimal @default(0) @db.Decimal(18, 2)
-  credInit Decimal @default(0) @db.Decimal(18, 2)
-  soldInD  Decimal @default(0) @db.Decimal(18, 2)
-  soldInC  Decimal @default(0) @db.Decimal(18, 2)
-  debPrec  Decimal @default(0) @db.Decimal(18, 2)
-  credPrec Decimal @default(0) @db.Decimal(18, 2)
-  rulajD   Decimal @default(0) @db.Decimal(18, 2)
-  rulajC   Decimal @default(0) @db.Decimal(18, 2)
-  rulajTD  Decimal @default(0) @db.Decimal(18, 2)
-  rulajTC  Decimal @default(0) @db.Decimal(18, 2)
-  totalDeb Decimal @default(0) @db.Decimal(18, 2)
-  totalCred Decimal @default(0) @db.Decimal(18, 2)
-  finD     Decimal @default(0) @db.Decimal(18, 2)
-  finC     Decimal @default(0) @db.Decimal(18, 2)
-
-  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
-
-  @@index([datasetId])
-  @@index([datasetId, isLeaf])
-  @@index([datasetId, contBase])
-  @@index([datasetId, year])
-  @@index([datasetId, year, month])
+  @@index([clientId, year, month])
+  @@index([clientId, deletedAt])
+  @@index([clientId, contDBase])
+  @@index([clientId, contCBase])
+  @@index([clientId, dedupHash])
+  @@index([importEventId])
 }
 
 model JournalPartner {
   id              String @id @default(cuid())
-  datasetId       String
+  clientId        String
   analyticAccount String
   contBase        String
   partnerName     String
   cod             String?
 
-  dataset Dataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@unique([datasetId, analyticAccount])
-  @@index([datasetId, contBase])
-  @@index([datasetId, partnerName])
+  @@unique([clientId, analyticAccount])
+  @@index([clientId, contBase])
+  @@index([clientId, partnerName])
 }
 
 model AuditEvent {

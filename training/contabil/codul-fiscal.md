@@ -107,6 +107,20 @@ Reguli de amortizare fiscală — pot diferi de amortizarea contabilă:
 
 Duratele de amortizare fiscală: conform **Catalogul din HG 2139/2004** sau duratele stabilite de contribuabil (dacă sunt justificate și acceptate de ANAF).
 
+**Amortizare autoturisme categoria M1 (art. 28 alin. (14)):**
+
+Cheltuiala cu amortizarea autoturismelor din categoria M1 este deductibilă limitat la **1.500 lei/lună** per autoturism la calculul impozitului pe profit.
+
+Excepții — amortizare **integral deductibilă** (fără plafonul de 1.500 lei/lună):
+- Servicii de urgență, pază și protecție, curierat
+- Activitatea agenților de vânzări/achiziții
+- Test drive și demonstrații
+- Transport de persoane cu plată (taximetrie)
+- Închiriere, leasing operațional
+- Școli de șoferi
+
+Condiție: autoturismul trebuie încadrat în **categoria M1** și trebuie să existe documente justificative privind utilizarea exclusivă în activitățile exceptate. Dacă utilizarea este mixtă (business + personal), se aplică suplimentar și regula de **50% deductibilitate** din art. 25^1.
+
 ### Pierderea fiscală (art. 31)
 
 - Pierderea fiscală din anii anteriori se **reportează** pe **7 ani** consecutivi (cu limitare procentuală anuală — verificați forma actuală a art. 31 CF pentru detalii privind limita anuală de recuperare)
@@ -206,6 +220,28 @@ Venit brut
 × 10%
 = Impozit pe salariu
 ```
+
+### Venituri neimpozabile din sfera salarială (art. 76 alin. (4^1))
+
+Art. 76 alin. (4^1) stabilește un mecanism de **neimpozitare limitată** pentru anumite venituri cumulate lunar, în limita a **33% din salariul de bază**. Prestațiile incluse:
+
+| Litera | Tip prestație | Limită specifică |
+|---|---|---|
+| **a)** | Prestații suplimentare în baza clauzei de mobilitate (art. 25 CM), altele decât cele de la art. 76 alin. (2) lit. k) | **2,5 × indemnizația publică de delegare** = 57,50 lei/zi (2026) |
+| b)–g) | Alte categorii (tichete de masă, pensii facultative, asigurare sănătate privată etc.) | Limite specifice fiecărei categorii |
+
+Reguli de aplicare:
+- Plafonul de 33% se aplică **cumulat** pentru toate categoriile lit. a)–g)
+- **Ordinea de alocare** în plafonul de 33% este stabilită de angajator
+- Depășirile devin **venit impozabil** din sfera art. 76 alin. (2) lit. k^1) — venit asimilat salariilor, supus impozit + CAS + CASS + CAM
+
+**Prestații de mobilitate — condiții pentru tratamentul neimpozabil:**
+- Existența clauzei de mobilitate în CIM/act adițional (art. 25 Codul muncii)
+- Prestațiile prevăzute în CIM ca nivel/modalitate
+- Nu se aplică lucrătorilor mobili din transport rutier (aceștia au regim separat la art. 76 alin. (2) lit. k))
+- Respectarea ambelor plafoane: zilnic (2,5× referința publică) **și** lunar (33%)
+
+**Contribuții sociale:** aceeași logică se aplică și pentru CAS/CASS/CAM — veniturile în limita plafonului 33% sunt excluse din baza de calcul (art. 142 alin. (1) lit. aa^1)), iar depășirile intră în baza de calcul.
 
 ### Deducerea personală (art. 77)
 

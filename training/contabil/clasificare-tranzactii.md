@@ -256,6 +256,24 @@ Category: Operating > Travel
 Confidence: MEDIUM
 ```
 
+#### Mobility Allowance (Prestatii mobilitate — clauza de mobilitate)
+```
+Keywords: "mobilitate", "prestatii mobilitate", "indemnizatie mobilitate",
+          "clauza mobilitate", "deplasare mobilitate"
+Account: 421 D / 5121 C (payment to employee)
+         641 D / 421 C (salary expense recognition)
+TVA: N/A (salary component)
+Tax treatment:
+  - Nontaxable: up to 57.50 lei/day (2.5 x 23 lei public per diem)
+    AND up to 33% of base salary/month (cumulated with other art. 76 alin. (4^1) items)
+  - Excess: taxable as salary income (income tax + CAS + CASS + CAM)
+  - Art. 76 alin. (4^1) lit. a) CF / art. 76 alin. (2) lit. k^1) CF
+D112: nontaxable at row 8.5.1 (E3_91), taxable excess at row 8.2.5
+Category: Personnel > Mobility Allowance
+Confidence: HIGH if recurring + employee name matched + mobility clause in CIM
+Note: Do NOT confuse with transport mobile workers (HG 38/2008) — separate regime
+```
+
 #### Subscriptions & Software (Abonamente & Software)
 ```
 Keywords: "abonament", "subscriptie", "licenta", "Microsoft", "Google",

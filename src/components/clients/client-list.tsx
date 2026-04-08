@@ -12,7 +12,7 @@ interface ClientItem {
   name: string;
   cui: string | null;
   caen: string | null;
-  datasetCount: number;
+  entryCount: number;
   createdAt: string;
 }
 
@@ -77,7 +77,7 @@ function ClientCard({ client }: { client: ClientItem }) {
       </div>
       <div className="flex items-center gap-1.5 font-mono text-[11px] text-gray" style={{ letterSpacing: "-0.04em" }}>
         <Database size={12} />
-        {client.datasetCount} dataset{client.datasetCount !== 1 ? "s" : ""}
+        {client.entryCount.toLocaleString("ro-RO")} intrari
       </div>
     </Link>
   );

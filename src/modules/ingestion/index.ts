@@ -1,4 +1,4 @@
-export { importJournal } from "./service";
+export { importJournal, softDeleteEntriesFrom } from "./service";
 export type { ImportResult, ImportInput } from "./service";
 export { parseJournalXLSX } from "./journal-parser";
 export { buildPartnerMappings, extractPartnerName } from "./partner-extractor";

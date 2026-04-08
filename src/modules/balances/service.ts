@@ -1,35 +1,42 @@
 import { prisma } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
+import { computeBalanceFromJournal } from "./compute-balance";
+import { getAccountName } from "@/lib/account-names";
 import type { Result } from "@/shared/errors";
 import { ok, err, notFound } from "@/shared/errors";
-import type { BalanceFilter, BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";
+import type { BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";
+import type { JournalEntry } from "@/modules/ingestion/types";
 
-export async function getBalanceRows(filter: BalanceFilter): Promise<Result<BalanceRowView[]>> {
-  const where = buildWhereClause(filter);
-
-  const rows = await prisma.balanceRow.findMany({
-    where,
-    orderBy: { cont: "asc" },
-  });
-
-  if (rows.length === 0) {
-    return err(notFound("Balance data", filter.datasetId));
+export async function getBalanceRows(
+  clientId: string,
+  year: number,
+  month: number,
+): Promise<Result<BalanceRowView[]>> {
+  const entries = await getActiveEntries(clientId);
+  if (entries.length === 0) {
+    return err(notFound("Journal entries", clientId));
   }
+
+  const accountNames = buildAccountNames(entries);
+  const rows = computeBalanceFromJournal(entries, year, month, accountNames);
 
   return ok(rows.map(toBalanceRowView));
 }
 
-export async function getBalanceSummary(filter: BalanceFilter): Promise<Result<BalanceSummary>> {
-  const result = await getBalanceRows({ ...filter, leafOnly: true });
+export async function getBalanceSummary(
+  clientId: string,
+  year: number,
+  month: number,
+): Promise<Result<BalanceSummary>> {
+  const result = await getBalanceRows(clientId, year, month);
   if (!result.ok) return result;
 
-  const rows = result.data;
+  const leafRows = result.data.filter((r) => r.isLeaf);
   let totalFinD = 0;
   let totalFinC = 0;
   let totalRulajD = 0;
   let totalRulajC = 0;
 
-  for (const row of rows) {
+  for (const row of leafRows) {
     totalFinD += row.finD;
     totalFinC += row.finC;
     totalRulajD += row.rulajD;
@@ -41,44 +48,65 @@ export async function getBalanceSummary(filter: BalanceFilter): Promise<Result<B
     totalFinC: round2(totalFinC),
     totalRulajD: round2(totalRulajD),
     totalRulajC: round2(totalRulajC),
-    accountCount: rows.length,
+    accountCount: leafRows.length,
     isBalanced: Math.abs(totalFinD - totalFinC) < 0.01,
   });
 }
 
-export async function getDatasetPeriods(datasetId: string): Promise<DatasetPeriod[]> {
-  const rows = await prisma.balanceRow.findMany({
-    where: { datasetId },
+export async function getAvailablePeriods(clientId: string): Promise<DatasetPeriod[]> {
+  const rows = await prisma.journalLine.findMany({
+    where: { clientId, deletedAt: null },
     select: { year: true, month: true },
     distinct: ["year", "month"],
     orderBy: [{ year: "asc" }, { month: "asc" }],
   });
 
-  return rows
-    .filter((r): r is { year: number; month: number } => r.year !== null && r.month !== null)
-    .map((r) => ({ year: r.year, month: r.month }));
+  return rows.map((r) => ({ year: r.year, month: r.month }));
 }
 
-export async function getDatasetYears(datasetId: string): Promise<number[]> {
-  const rows = await prisma.balanceRow.findMany({
-    where: { datasetId },
+export async function getAvailableYears(clientId: string): Promise<number[]> {
+  const rows = await prisma.journalLine.findMany({
+    where: { clientId, deletedAt: null },
     select: { year: true },
     distinct: ["year"],
     orderBy: { year: "asc" },
   });
 
-  return rows.filter((r) => r.year !== null).map((r) => r.year!);
+  return rows.map((r) => r.year);
 }
 
-function buildWhereClause(filter: BalanceFilter): Prisma.BalanceRowWhereInput {
-  const where: Prisma.BalanceRowWhereInput = { datasetId: filter.datasetId };
+async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
+  const lines = await prisma.journalLine.findMany({
+    where: { clientId, deletedAt: null },
+    orderBy: [{ data: "asc" }, { ndp: "asc" }],
+  });
 
-  if (filter.year !== undefined) where.year = filter.year;
-  if (filter.month !== undefined) where.month = filter.month;
-  if (filter.leafOnly) where.isLeaf = true;
-  if (filter.contBasePrefix) where.contBase = { startsWith: filter.contBasePrefix };
+  return lines.map((l) => ({
+    data: l.data,
+    year: l.year,
+    month: l.month,
+    ndp: l.ndp,
+    contD: l.contD,
+    contDBase: l.contDBase,
+    contC: l.contC,
+    contCBase: l.contCBase,
+    suma: Number(l.suma),
+    explicatie: l.explicatie,
+    felD: l.felD,
+    categorie: l.categorie,
+    cod: l.cod,
+    validat: l.validat,
+    tva: l.tva ? Number(l.tva) : null,
+  }));
+}
 
-  return where;
+function buildAccountNames(entries: JournalEntry[]): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const e of entries) {
+    if (!names.has(e.contD)) names.set(e.contD, getAccountName(e.contDBase));
+    if (!names.has(e.contC)) names.set(e.contC, getAccountName(e.contCBase));
+  }
+  return names;
 }
 
 function toBalanceRowView(row: {
@@ -88,43 +116,22 @@ function toBalanceRowView(row: {
   tip: string;
   isLeaf: boolean;
   hasChild: boolean;
-  debInit: Prisma.Decimal;
-  credInit: Prisma.Decimal;
-  soldInD: Prisma.Decimal;
-  soldInC: Prisma.Decimal;
-  debPrec: Prisma.Decimal;
-  credPrec: Prisma.Decimal;
-  rulajD: Prisma.Decimal;
-  rulajC: Prisma.Decimal;
-  rulajTD: Prisma.Decimal;
-  rulajTC: Prisma.Decimal;
-  totalDeb: Prisma.Decimal;
-  totalCred: Prisma.Decimal;
-  finD: Prisma.Decimal;
-  finC: Prisma.Decimal;
+  debInit: number;
+  credInit: number;
+  soldInD: number;
+  soldInC: number;
+  debPrec: number;
+  credPrec: number;
+  rulajD: number;
+  rulajC: number;
+  rulajTD: number;
+  rulajTC: number;
+  totalDeb: number;
+  totalCred: number;
+  finD: number;
+  finC: number;
 }): BalanceRowView {
-  return {
-    cont: row.cont,
-    contBase: row.contBase,
-    denumire: row.denumire,
-    tip: row.tip,
-    isLeaf: row.isLeaf,
-    hasChild: row.hasChild,
-    debInit: row.debInit.toNumber(),
-    credInit: row.credInit.toNumber(),
-    soldInD: row.soldInD.toNumber(),
-    soldInC: row.soldInC.toNumber(),
-    debPrec: row.debPrec.toNumber(),
-    credPrec: row.credPrec.toNumber(),
-    rulajD: row.rulajD.toNumber(),
-    rulajC: row.rulajC.toNumber(),
-    rulajTD: row.rulajTD.toNumber(),
-    rulajTC: row.rulajTC.toNumber(),
-    totalDeb: row.totalDeb.toNumber(),
-    totalCred: row.totalCred.toNumber(),
-    finD: row.finD.toNumber(),
-    finC: row.finC.toNumber(),
-  };
+  return { ...row };
 }
 
 function round2(n: number): number {

@@ -72,7 +72,9 @@ Existența a cel puțin unui salariat cu normă întreagă este condiție obliga
 | Protocol (reprezentare) | **2%** din (profit contabil ajustat) |
 | Sponsorizare | **0,75%** din CA sau **20%** din impozit pe profit |
 | Diurna | **2,5×** nivelul legal |
-| Auto (neexclusiv business) | **50%** |
+| Prestații mobilitate (art. 76 alin. (4^1) lit. a) CF) | Neimpozabil: **max. 2,5 × 23 = 57,50 lei/zi** + **max. 33%** din salariul de bază/lună (cumulat cu celelalte venituri din art. 76 alin. (4^1)); depășiri = venit salarial impozabil |
+| Auto — cheltuieli utilizare mixtă (neexclusiv business) | **50%** din cheltuieli (combustibil, întreținere, amortizare, leasing, asigurare) |
+| Auto — amortizare fiscală (art. 28 alin. (14) CF) | **1.500 lei/lună** per autoturism cat. M1; excepții: urgențe, pază, curierat, agenți vânzări, test drive, transport persoane cu plată, închiriere/leasing operațional, școli de șoferi |
 | Asigurare privată sănătate | **400 EUR/an/salariat** |
 | Pensie facultativă | **400 EUR/an/salariat** |
 
@@ -93,6 +95,16 @@ Existența a cel puțin unui salariat cu normă întreagă este condiție obliga
 | Prag | Valoare |
 |---|---|
 | Prag imobilizare (activ fix) | **2.500 RON** + durată > 1 an (verificați forma actuală art. 28 CF) |
+
+### Plafoane mobilitate și amortizare auto
+
+| Parametru | Valoare 2026 | Bază legală |
+|---|---|---|
+| Indemnizația de delegare sector public (referință) | **23 lei/zi** (din 01.04.2023, HG 714/2018 modificat) | HG 714/2018 |
+| Plafon zilnic neimpozabil prestații mobilitate | **57,50 lei/zi** (2,5 × 23 lei/zi) | Art. 76 alin. (4^1) lit. a) CF |
+| Plafon lunar neimpozabil (cumulat art. 76 alin. (4^1)) | **33%** din salariul de bază | Art. 76 alin. (4^1) CF |
+| Amortizare fiscală maximă autoturisme M1 | **1.500 lei/lună** per autoturism | Art. 28 alin. (14) CF |
+| Deductibilitate cheltuieli auto (utilizare mixtă) | **50%** | Art. 25^1 CF |
 
 ### Capital social minim
 

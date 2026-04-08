@@ -2,27 +2,26 @@ import { prisma } from "@/lib/db";
 import { createHash } from "crypto";
 import { parseJournalXLSX } from "./journal-parser";
 import { buildPartnerMappings } from "./partner-extractor";
-import { computeBalanceFromJournal } from "@/modules/balances/compute-balance";
 import { recordAuditEvent } from "@/modules/audit";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
-import type { JournalParseResult } from "./types";
+import type { JournalEntry } from "./types";
 
 const BATCH_SIZE = 5000;
 
 export interface ImportResult {
-  datasetId: string;
-  years: number[];
-  entriesCount: number;
-  totalRaw: number;
+  importEventId: string;
+  entriesAdded: number;
+  entriesSkipped: number;
+  dateStart: Date | null;
+  dateEnd: Date | null;
+  totalParsed: number;
   errorsCount: number;
-  partnersCount: number;
 }
 
 export interface ImportInput {
   clientId: string;
   userId: string;
-  name: string;
   fileName: string;
   buffer: Buffer;
 }
@@ -32,15 +31,44 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   const parseResult = parseJournalXLSX(input.buffer);
 
   if (parseResult.entries.length === 0) {
-    return err(appError("PARSE_ERROR", "No entries parsed", {
+    return err(appError("PARSE_ERROR", "Nu s-au gasit intrari in fisier", {
       errors: parseResult.errors,
     }));
   }
 
-  const dataset = await createDataset(input, fileHash, parseResult);
-  await storeJournalLines(dataset.id, parseResult);
-  await storeBalanceRows(dataset.id, parseResult);
-  const partnersCount = await storePartnerMappings(dataset.id, parseResult);
+  const newEntries = await filterDuplicates(input.clientId, parseResult.entries);
+
+  if (newEntries.length === 0) {
+    return ok({
+      importEventId: "",
+      entriesAdded: 0,
+      entriesSkipped: parseResult.entries.length,
+      dateStart: null,
+      dateEnd: null,
+      totalParsed: parseResult.entries.length,
+      errorsCount: parseResult.errors.length,
+    });
+  }
+
+  const dates = newEntries.map((e) => e.data).sort((a, b) => a.getTime() - b.getTime());
+  const dateStart = dates[0];
+  const dateEnd = dates[dates.length - 1];
+
+  const importEvent = await prisma.importEvent.create({
+    data: {
+      clientId: input.clientId,
+      fileName: input.fileName,
+      fileHash,
+      sourceFormat: "saga",
+      entriesAdded: newEntries.length,
+      dateStart,
+      dateEnd,
+      status: "ready",
+    },
+  });
+
+  await storeJournalLines(input.clientId, importEvent.id, newEntries);
+  await updatePartnerMappings(input.clientId, parseResult.entries);
 
   await recordAuditEvent({
     tenantId: input.clientId,
@@ -48,55 +76,63 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
     actorType: "user",
     pipelineStage: "ingest",
     action: "create",
-    entityType: "dataset",
-    entityId: dataset.id,
+    entityType: "import_event",
+    entityId: importEvent.id,
     before: null,
     after: {
       fileName: input.fileName,
       fileHash,
-      entriesCount: parseResult.entries.length,
-      years: parseResult.years,
+      entriesAdded: newEntries.length,
+      dateStart: dateStart.toISOString(),
+      dateEnd: dateEnd.toISOString(),
     },
-    metadata: { totalRaw: parseResult.totalRaw, errorsCount: parseResult.errors.length },
+    metadata: {
+      totalParsed: parseResult.entries.length,
+      duplicatesSkipped: parseResult.entries.length - newEntries.length,
+    },
   });
 
   return ok({
-    datasetId: dataset.id,
-    years: parseResult.years,
-    entriesCount: parseResult.entries.length,
-    totalRaw: parseResult.totalRaw,
+    importEventId: importEvent.id,
+    entriesAdded: newEntries.length,
+    entriesSkipped: parseResult.entries.length - newEntries.length,
+    dateStart,
+    dateEnd,
+    totalParsed: parseResult.entries.length,
     errorsCount: parseResult.errors.length,
-    partnersCount,
   });
 }
 
-async function createDataset(
-  input: ImportInput,
-  fileHash: string,
-  parseResult: JournalParseResult
+function computeDedupHash(entry: JournalEntry): string {
+  return createHash("md5")
+    .update(`${entry.data.toISOString()}|${entry.contD}|${entry.contC}|${entry.suma}|${entry.explicatie}`)
+    .digest("hex");
+}
+
+async function filterDuplicates(
+  clientId: string,
+  entries: JournalEntry[]
+): Promise<JournalEntry[]> {
+  const existingHashes = await prisma.journalLine.findMany({
+    where: { clientId, deletedAt: null },
+    select: { dedupHash: true },
+  });
+
+  const hashSet = new Set(existingHashes.map((r) => r.dedupHash));
+  return entries.filter((e) => !hashSet.has(computeDedupHash(e)));
+}
+
+async function storeJournalLines(
+  clientId: string,
+  importEventId: string,
+  entries: JournalEntry[]
 ) {
-  const { years } = parseResult;
-  return prisma.dataset.create({
-    data: {
-      clientId: input.clientId,
-      name: input.name,
-      fileName: input.fileName,
-      fileHash,
-      sourceType: "registru_jurnal",
-      status: "ready",
-      periodYear: years[years.length - 1],
-      periodMonth: 12,
-    },
-  });
-}
-
-async function storeJournalLines(datasetId: string, parseResult: JournalParseResult) {
-  const { entries } = parseResult;
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const batch = entries.slice(i, i + BATCH_SIZE);
     await prisma.journalLine.createMany({
       data: batch.map((e) => ({
-        datasetId,
+        clientId,
+        importEventId,
         data: e.data,
         year: e.year,
         month: e.month,
@@ -112,75 +148,62 @@ async function storeJournalLines(datasetId: string, parseResult: JournalParseRes
         cod: e.cod,
         validat: e.validat,
         tva: e.tva,
+        dedupHash: computeDedupHash(e),
       })),
     });
   }
 }
 
-async function storeBalanceRows(datasetId: string, parseResult: JournalParseResult) {
-  const { entries, years, accountNames } = parseResult;
-  for (const y of years) {
-    const months = uniqueMonths(entries, y);
-    for (const m of months) {
-      const rows = computeBalanceFromJournal(entries, y, m, accountNames);
-      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batch = rows.slice(i, i + BATCH_SIZE);
-        await prisma.balanceRow.createMany({
-          data: batch.map((r) => ({
-            datasetId,
-            year: y,
-            month: m,
-            cont: r.cont,
-            contBase: r.contBase,
-            denumire: r.denumire,
-            tip: r.tip,
-            isLeaf: r.isLeaf,
-            hasChild: r.hasChild,
-            debInit: r.debInit,
-            credInit: r.credInit,
-            soldInD: r.soldInD,
-            soldInC: r.soldInC,
-            debPrec: r.debPrec,
-            credPrec: r.credPrec,
-            rulajD: r.rulajD,
-            rulajC: r.rulajC,
-            rulajTD: r.rulajTD,
-            rulajTC: r.rulajTC,
-            totalDeb: r.totalDeb,
-            totalCred: r.totalCred,
-            finD: r.finD,
-            finC: r.finC,
-          })),
-        });
-      }
-    }
+async function updatePartnerMappings(clientId: string, entries: JournalEntry[]) {
+  const partners = buildPartnerMappings(entries);
+  if (partners.length === 0) return;
+
+  for (const p of partners) {
+    await prisma.journalPartner.upsert({
+      where: { clientId_analyticAccount: { clientId, analyticAccount: p.analyticAccount } },
+      update: { partnerName: p.partnerName, contBase: p.contBase, cod: p.cod },
+      create: {
+        clientId,
+        analyticAccount: p.analyticAccount,
+        contBase: p.contBase,
+        partnerName: p.partnerName,
+        cod: p.cod,
+      },
+    });
   }
 }
 
-async function storePartnerMappings(
-  datasetId: string,
-  parseResult: JournalParseResult
-): Promise<number> {
-  const partners = buildPartnerMappings(parseResult.entries);
-  if (partners.length === 0) return 0;
-
-  await prisma.journalPartner.createMany({
-    data: partners.map((p) => ({
-      datasetId,
-      analyticAccount: p.analyticAccount,
-      contBase: p.contBase,
-      partnerName: p.partnerName,
-      cod: p.cod,
-    })),
+export async function softDeleteEntriesFrom(
+  clientId: string,
+  userId: string,
+  fromDate: Date
+): Promise<Result<{ deletedCount: number }>> {
+  const entries = await prisma.journalLine.findMany({
+    where: { clientId, deletedAt: null, data: { gte: fromDate } },
+    select: { id: true, data: true, contD: true, contC: true, suma: true },
   });
 
-  return partners.length;
-}
-
-function uniqueMonths(entries: JournalParseResult["entries"], year: number): number[] {
-  const set = new Set<number>();
-  for (const e of entries) {
-    if (e.year === year) set.add(e.month);
+  if (entries.length === 0) {
+    return err(appError("NOT_FOUND", "Nu exista intrari de la aceasta data"));
   }
-  return [...set].sort((a, b) => a - b);
+
+  await prisma.journalLine.updateMany({
+    where: { clientId, deletedAt: null, data: { gte: fromDate } },
+    data: { deletedAt: new Date() },
+  });
+
+  await recordAuditEvent({
+    tenantId: clientId,
+    actorId: userId,
+    actorType: "user",
+    pipelineStage: "journal",
+    action: "delete",
+    entityType: "journal_lines",
+    entityId: clientId,
+    before: { count: entries.length, entries: entries.slice(0, 50) },
+    after: null,
+    metadata: { fromDate: fromDate.toISOString(), totalDeleted: entries.length },
+  });
+
+  return ok({ deletedCount: entries.length });
 }

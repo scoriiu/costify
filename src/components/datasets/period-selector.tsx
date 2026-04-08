@@ -1,6 +1,7 @@
 "use client";
 
 import type { DatasetPeriod } from "@/modules/balances";
+import { Select } from "@/components/ui/select";
 
 const MONTH_NAMES = [
   "", "Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie",
@@ -31,25 +32,16 @@ export function PeriodSelector({ periods, selectedYear, selectedMonth, onChange 
 
   return (
     <div className="flex items-center gap-2">
-      <select
-        value={selectedYear}
-        onChange={(e) => handleYearChange(parseInt(e.target.value))}
-        className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-xs text-white focus:border-primary focus:outline-none"
-      >
-        {years.map((y) => (
-          <option key={y} value={y}>{y}</option>
-        ))}
-      </select>
-
-      <select
-        value={selectedMonth}
-        onChange={(e) => onChange(selectedYear, parseInt(e.target.value))}
-        className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-xs text-white focus:border-primary focus:outline-none"
-      >
-        {monthsForYear.map((m) => (
-          <option key={m} value={m}>{MONTH_NAMES[m]}</option>
-        ))}
-      </select>
+      <Select
+        value={String(selectedYear)}
+        options={years.map((y) => ({ value: String(y), label: String(y) }))}
+        onChange={(v) => handleYearChange(parseInt(v))}
+      />
+      <Select
+        value={String(selectedMonth)}
+        options={monthsForYear.map((m) => ({ value: String(m), label: MONTH_NAMES[m] }))}
+        onChange={(v) => onChange(selectedYear, parseInt(v))}
+      />
     </div>
   );
 }

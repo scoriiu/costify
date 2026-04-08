@@ -60,12 +60,12 @@ export async function listTenants(userId: string): Promise<TenantWithStats[]> {
   const clients = await prisma.client.findMany({
     where: { userId, active: true },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { datasets: true } } },
+    include: { _count: { select: { journalLines: { where: { deletedAt: null } } } } },
   });
 
   return clients.map((c) => ({
     ...toTenant(c),
-    datasetCount: c._count.datasets,
+    datasetCount: c._count.journalLines,
   }));
 }
 

@@ -6,15 +6,15 @@
    ============================================ */
 
 :root {
-  --surface-0: #0D1117;
-  --surface-1: #161B22;
-  --surface-2: #21262D;
-  --surface-3: #30363D;
+  --surface-0: #0B1514;
+  --surface-1: #111F1E;
+  --surface-2: #182A28;
+  --surface-3: #223633;
   --text-primary: #E9E8E3;
   --text-secondary: #C5C3BC;
   --text-muted: #8A877F;
   --overlay: rgba(0, 0, 0, 0.6);
-  --autofill-bg: #161B22;
+  --autofill-bg: #111F1E;
   --autofill-text: #C9D1D9;
   --selection-bg: rgba(13, 107, 94, 0.3);
 }

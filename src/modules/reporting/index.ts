@@ -1,4 +1,4 @@
-export { getDatasetKpis, getDatasetCpp } from "./service";
+export { getClientKpis, getClientCpp } from "./service";
 export { computeKpis } from "./kpi";
 export { computeCpp } from "./cpp";
 export type { KpiSnapshot, CppData, CppLine, BalanceSheetData, BalanceSheetSection, BalanceSheetRow } from "./types";

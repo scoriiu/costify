@@ -137,10 +137,13 @@ Matrice completă pentru antrenarea agentului contabil expert pe drept românesc
 | Art. 25^1 — Cheltuieli cu deductibilitate limitată | tax_determination | MUST | "Care sunt limitele pentru cheltuieli de protocol, sponsorizare, auto?" |
 | Art. 26 — Cheltuieli nedeductibile | tax_determination | MUST | "Ce cheltuieli sunt integral nedeductibile?" |
 | Art. 28 — Amortizare fiscală | tax_determination | MUST | "Cum diferă amortizarea fiscală de cea contabilă?" |
+| Art. 28 alin. (14) — Amortizare autoturisme M1 | tax_determination | MUST | "Care este amortizarea deductibilă pentru autoturisme? Ce excepții există?" |
 | Titlul III — Impozitul pe veniturile microîntreprinderilor (art. 47-57) | tax_determination | MUST | "Ce condiții trebuie îndeplinite pentru regimul micro?" |
 | Art. 52 — Baza de impozitare micro | tax_determination | MUST | "Ce se include și ce se exclude din baza impozabilă micro?" |
 | Titlul IV — Impozitul pe venit (art. 58-134) | tax_determination, payroll | MUST | "Cum se calculează impozitul pe venitul din salarii?" |
 | Art. 76 — Venituri din salarii | tax_determination, payroll | MUST | "Ce constituie venit salarial impozabil?" |
+| Art. 76 alin. (4^1) — Venituri neimpozabile limitat (33%) | tax_determination, payroll | MUST | "Ce prestații suplimentare de mobilitate sunt neimpozabile și în ce limite?" |
+| Art. 76 alin. (2) lit. k^1) — Depășiri mobilitate | tax_determination, payroll | MUST | "Cum se tratează fiscal depășirile de la clauza de mobilitate?" |
 | Art. 78 — Deducerea personală | tax_determination, payroll | MUST | "Cum funcționează deducerea personală la salarii?" |
 | Titlul V — Contribuții sociale obligatorii (art. 135-228) | tax_determination, payroll | MUST | "Care sunt cotele CAS, CASS și CAM?" |
 | Art. 137-138 — Baza de calcul CAS | payroll | MUST | "Care este baza de calcul pentru CAS?" |
@@ -247,6 +250,7 @@ Matrice completă pentru antrenarea agentului contabil expert pe drept românesc
 | Secțiune | Task-type | Prioritate | Exemple de întrebări |
 |---|---|---|---|
 | Titlul II — CIM (art. 10-79) | payroll | MUST | "Ce elemente obligatorii conține un CIM?" |
+| Art. 25 — Clauza de mobilitate | payroll, tax_determination | MUST | "Ce este clauza de mobilitate? Ce prestații sunt neimpozabile și în ce limite?" |
 | Art. 16 — Forma scrisă a CIM | payroll | MUST | "Este obligatorie forma scrisă a CIM?" |
 | Art. 17 — Informarea salariatului | payroll | MUST | "Ce informații trebuie comunicate salariatului?" |
 | Art. 31-33 — Perioada de probă | payroll | MUST | "Cât durează perioada de probă?" |
@@ -332,6 +336,8 @@ Agentul trebuie să gestioneze corect interacțiunile între niveluri. Exemple e
 | Corporate → Contabil | Distribuirea dividendelor (Legea 31 art. 67) → nota contabilă (457/5121) | legea-societatilor.md + note-contabile.md |
 | Corporate → Fiscal | Dividendele (Legea 31) → impozit pe dividende 16% (art. 97 CF, din 2026) | legea-societatilor.md + codul-fiscal.md |
 | Payroll → Fiscal | Salariul brut (Codul muncii) → CAS/CASS/impozit (Titlul V CF) → D112 | salarizare-payroll.md + codul-fiscal.md |
+| Payroll → Fiscal (mobilitate) | Clauza de mobilitate (art. 25 CM) → neimpozitare limitată (art. 76 alin. (4^1) lit. a) CF) → raportare D112 (8.5.1 / 8.2.5) | salarizare-payroll.md + codul-fiscal.md |
+| Fiscal → Amortizare auto | Amortizare autoturism M1 (art. 28 alin. (14)) → plafon 1.500 lei/lună + excepții activități specifice | codul-fiscal.md + constante-fiscale-2026.md |
 | Payroll → Contabil | Înregistrarea salariilor (641, 421, 431x, 444) | salarizare-payroll.md + note-contabile.md |
 | Contabil → Digital | Note contabile → SAF-T General Ledger | note-contabile.md + e-factura-saft.md |
 | Fiscal → Procedural | TVA de plată (CF) → D300 (CPF) → e-Factura (OUG 120) | codul-fiscal.md + procedura-fiscala.md |

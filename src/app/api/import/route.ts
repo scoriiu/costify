@@ -7,20 +7,19 @@ export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Neautorizat" }, { status: 401 });
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const clientId = formData.get("clientId") as string | null;
-  const name = (formData.get("name") as string) || file?.name || "Import";
 
   if (!file || !clientId) {
-    return NextResponse.json({ error: "File and clientId required" }, { status: 400 });
+    return NextResponse.json({ error: "Fisierul si clientId sunt obligatorii" }, { status: 400 });
   }
 
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) {
-    return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    return NextResponse.json({ error: "Client negasit" }, { status: 404 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -28,7 +27,6 @@ export async function POST(request: Request) {
   const result = await importJournal({
     clientId,
     userId: user.id,
-    name,
     fileName: file.name,
     buffer,
   });

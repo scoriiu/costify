@@ -32,11 +32,11 @@ export function BalanceTable({ rows }: Props) {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-dark-3">
-        <table className="w-full border-collapse">
+        <table className="w-full border-separate border-spacing-0">
           <thead>
-            <tr className="bg-dark-2">
-              <Th align="left" className="min-w-[80px]">Cont</Th>
-              <Th align="left" className="min-w-[180px]">Denumire</Th>
+            <tr className="bg-dark-2 border-b border-dark-3">
+              <Th align="left" first>Cont</Th>
+              <Th align="left">Denumire</Th>
               <Th>Sold in D</Th>
               <Th>Sold in C</Th>
               <Th>Rulaj D</Th>
@@ -44,7 +44,7 @@ export function BalanceTable({ rows }: Props) {
               <Th>Total D</Th>
               <Th>Total C</Th>
               <Th>Sold fin D</Th>
-              <Th>Sold fin C</Th>
+              <Th last>Sold fin C</Th>
             </tr>
           </thead>
           <tbody>
@@ -63,17 +63,14 @@ export function BalanceTable({ rows }: Props) {
 
 function BalanceRow({ row }: { row: BalanceRowView }) {
   const isParent = row.hasChild;
-  const rowClass = isParent ? "text-white font-semibold" : "text-gray-light";
 
   return (
-    <tr className={`border-t border-dark-3 hover:bg-dark-2/50 ${rowClass}`}>
-      <Td align="left">
+    <tr className={`border-b border-dark-3/50 hover:bg-dark-2/40 ${isParent ? "text-white font-semibold" : "text-gray-light"}`}>
+      <Td align="left" first>
         <span className="font-mono text-xs">{row.cont}</span>
       </Td>
       <Td align="left">
-        <span className="text-xs truncate max-w-[250px] inline-block">
-          {row.denumire}
-        </span>
+        <span className="text-xs truncate max-w-[250px] inline-block">{row.denumire}</span>
       </Td>
       <Td><Num value={row.soldInD} /></Td>
       <Td><Num value={row.soldInC} /></Td>
@@ -82,7 +79,7 @@ function BalanceRow({ row }: { row: BalanceRowView }) {
       <Td><Num value={row.totalDeb} /></Td>
       <Td><Num value={row.totalCred} /></Td>
       <Td><Num value={row.finD} highlight /></Td>
-      <Td><Num value={row.finC} highlight /></Td>
+      <Td last><Num value={row.finC} highlight /></Td>
     </tr>
   );
 }
@@ -105,7 +102,7 @@ function TotalRow({ rows }: { rows: BalanceRowView[] }) {
 
   return (
     <tr className="border-t-2 border-dark-3 bg-dark-2 font-bold text-white">
-      <Td align="left"><span className="font-mono text-xs">TOTAL</span></Td>
+      <Td align="left" first><span className="font-mono text-xs">TOTAL</span></Td>
       <Td align="left" />
       <Td><Num value={totals.soldInD} /></Td>
       <Td><Num value={totals.soldInC} /></Td>
@@ -114,7 +111,7 @@ function TotalRow({ rows }: { rows: BalanceRowView[] }) {
       <Td><Num value={totals.totalDeb} /></Td>
       <Td><Num value={totals.totalCred} /></Td>
       <Td><Num value={totals.finD} highlight /></Td>
-      <Td><Num value={totals.finC} highlight /></Td>
+      <Td last><Num value={totals.finC} highlight /></Td>
     </tr>
   );
 }
@@ -140,17 +137,19 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode
 function Th({
   children,
   align = "right",
-  className = "",
+  first,
+  last,
 }: {
   children?: React.ReactNode;
   align?: "left" | "right";
-  className?: string;
+  first?: boolean;
+  last?: boolean;
 }) {
   return (
     <th
       className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${
         align === "right" ? "text-right" : "text-left"
-      } ${className}`}
+      } ${!last ? "border-r border-white/[0.04]" : ""} ${first ? "min-w-[80px]" : ""}`}
     >
       {children}
     </th>
@@ -160,12 +159,20 @@ function Th({
 function Td({
   children,
   align = "right",
+  first,
+  last,
 }: {
   children?: React.ReactNode;
   align?: "left" | "right";
+  first?: boolean;
+  last?: boolean;
 }) {
   return (
-    <td className={`px-3 py-1.5 ${align === "right" ? "text-right" : "text-left"}`}>
+    <td
+      className={`px-3 py-1.5 ${align === "right" ? "text-right" : "text-left"} ${
+        !last ? "border-r border-white/[0.04]" : ""
+      } ${first ? "min-w-[80px]" : ""}`}
+    >
       {children}
     </td>
   );

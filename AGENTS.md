@@ -9,6 +9,7 @@
 - **Primary:** Evergreen Teal `#0D6B5E` (dark: `#0A5A4F`, light: `#34D3A0`)
 - **Accent:** Indigo `#6366F1` (light: `#818CF8`)
 - **Danger:** `#EF4444` · **Warning:** `#F59E0B` · **Green:** `#3FB950`
+- **Dark theme surfaces:** teal-tinted, not neutral gray. `surface-0: #0B1514`, `surface-1: #111F1E`, `surface-2: #182A28`, `surface-3: #223633`. No pure blacks — every surface carries a subtle teal undertone from the primary.
 - **Text on dark primary buttons:** `#E9E8E3` (warm off-white, never pure `#FFFFFF`)
 - **Dark theme text:** primary `#E9E8E3`, secondary `#C5C3BC`, muted `#8A877F`
 - **Light theme background:** `#F0EFEA` (warm cream, inspired by Danubian)
@@ -45,6 +46,11 @@
 ### Component Rules
 - Cards: `rounded-xl border border-dark-3 bg-dark-2 p-5`
 - Tables: compact, monospaced numbers, right-aligned financial columns, `text-[0.6rem]` uppercase tracking headers
+- Table column delimiters: `border-r border-white/[0.04]` on every cell and header, last column excluded. For flex-div grids (virtualized), use `items-stretch` on rows + `flex items-center` inside cells so vertical borders are continuous.
+- Table row borders: `border-b border-dark-3/50` (data rows), `border-b border-dark-3` (header). Use `hover:bg-dark-2/40` on data rows.
+- Table header padding: `py-2.5 px-3`. Consistent across `<table>` and flex-div grids.
+- Virtualized tables (`<table>` not possible): use flex-div layout with `@tanstack/react-virtual`. Native `<table>` for anything under ~500 rows.
+- KPI cards: **neutral white (`text-white`) for all informational values**. Color only for values that carry a signal — green/red on Rezultat and Marja (profit/loss), red on TVA de plata (you owe money). Never use a rainbow of colors on KPI cards.
 - Status messages: semantic border + tinted background (green/red/yellow/blue at 5% + 20% border)
 - Input labels: `font-mono text-[11px] font-medium uppercase` with `-0.04em` tracking
 
@@ -55,6 +61,115 @@
 Costify is a multi-tenant financial control platform. Each **user** (typically an accountant or finance manager) operates **thousands of clients**. Each client has their own bank accounts, transactions, budgets, and reports — fully isolated.
 
 The system must scale horizontally to support thousands of concurrent users, each managing 1000+ client organizations.
+
+---
+
+## Journal-Centric Architecture
+
+The Registru Jurnal (accounting journal) is the single source of truth for each client. Everything else — Balanta de verificare, Cont Profit si Pierdere, KPIs — is computed from it.
+
+### Data Model
+
+```
+User (accountant)
+  └── Client (company / SRL)
+        └── JournalLine[]     -- ONE unified journal per client, grows over time
+        └── ImportEvent[]     -- audit trail of each upload (when, what file, which entries)
+        └── JournalPartner[]  -- extracted partner name mappings
+```
+
+A client has **one journal** that accumulates entries over time. There are no separate "datasets" — each upload appends new entries to the same journal. The `ImportEvent` tracks what was uploaded, when, and which entries came from it (for audit/rollback).
+
+### Client Detail Page — Three Tabs
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Client: 4Walls Studio SRL          [Upload Jurnal]     │
+├─────────────┬──────────────────────┬────────────────────┤
+│ Registru    │ Balanta de           │ Cont Profit si     │
+│ Jurnal      │ Verificare           │ Pierdere           │
+├─────────────┴──────────────────────┴────────────────────┤
+│                                                         │
+│  Tab 1: Virtualized Excel-like grid of journal entries  │
+│         Column filters, fast scroll, 10K+ rows          │
+│                                                         │
+│  Tab 2: Computed trial balance with period selector      │
+│         KPI cards, leaf/all toggle, search               │
+│                                                         │
+│  Tab 3: P&L statement computed from journal data         │
+│         Exploatare/financiar, rezultat net               │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Journal Entry Format (Saga Standard)
+
+The journal is stored in Saga C format as the internal standard. Other accounting software formats (e.g. Ciel, WinMentor, FreERP) are translated to Saga format on import via format-specific adapters.
+
+```
+JournalLine {
+  clientId        -- direct FK to client (no dataset indirection)
+  importEventId   -- which upload brought this entry
+  data            -- transaction date
+  year, month     -- derived, indexed for fast period queries
+  ndp             -- document number
+  contD, contC    -- debit/credit accounts (analytic)
+  contDBase, contCBase  -- base accounts (synthetic, e.g. "401" from "401.00023")
+  suma            -- amount (Decimal 18,2)
+  explicatie      -- description
+  felD            -- document type
+  deletedAt       -- soft-delete timestamp (null = active)
+}
+```
+
+### Upload Flow (Append New Entries)
+
+```
+1. Accountant uploads XLSX (full journal export from Saga C)
+2. System parses all entries from the file
+3. System compares with existing journal entries for this client:
+   - Computes dedup hash per entry (date + contD + contC + suma + explicatie)
+   - Identifies NEW entries (not in existing journal)
+   - Shows: "X intrari noi intre [data_start] si [data_end]"
+4. Accountant confirms → new entries are appended
+5. ImportEvent created with: fileName, fileHash, dateRange, entriesAdded count
+6. Balanta + CPP recomputed for affected periods
+7. Audit trail recorded
+```
+
+### Historical Correction Flow (Delete + Re-upload)
+
+When the accountant needs to correct historical entries (e.g. wrong amounts, missing entries from a past month):
+
+```
+1. Accountant clicks "Corecteaza date istorice"
+2. Selects a start date: "Sterge intrarile de la [data]"
+3. System shows: "Se vor sterge N intrari de la [data] pana in prezent"
+4. Modal confirmation: accountant must type "DELETE" (no copy-paste allowed)
+5. Entries are SOFT-DELETED (deletedAt = now), not removed from DB
+6. Audit event recorded with full snapshot of deleted entries
+7. Accountant uploads corrected journal → append flow runs for the gap
+8. Balanta + CPP recomputed
+```
+
+### Balanta & CPP Computation
+
+Balanta de verificare and Cont Profit si Pierdere are always computed on-the-fly from the active (non-deleted) journal entries. They are NOT pre-stored snapshots.
+
+```
+getBalanceForPeriod(clientId, year, month):
+  1. Query JournalLines WHERE clientId AND deletedAt IS NULL
+  2. Filter by year/month range (cumulative up to selected month)
+  3. computeBalanceFromJournal() — pure function, same as today
+  4. Return computed rows
+
+getCppForPeriod(clientId, year, month):
+  1. Get balance rows from above
+  2. computeCpp() — pure function, same as today
+  3. Return P&L data
+```
+
+For performance, we may cache computed balances in the future (invalidated on journal changes), but the source of truth is always the live journal.
 
 ---
 

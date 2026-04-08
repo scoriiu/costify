@@ -103,5 +103,53 @@
   "salary_payment": {
     "method": "virament bancar sau numerar (cu acordul partilor)",
     "note": "Codul muncii nu impune un prag de salariati pentru obligativitatea viramentului"
+  },
+  "mobility_clause": {
+    "legal_basis": {
+      "labor_code": "art. 25 Codul muncii (Legea 53/2003)",
+      "tax_code_nontaxable": "art. 76 alin. (4^1) lit. a) CF",
+      "tax_code_taxable_excess": "art. 76 alin. (2) lit. k^1) CF",
+      "contributions_exclusion": "art. 142 alin. (1) lit. aa^1) CF",
+      "reference_per_diem": "HG 714/2018 (modificat)"
+    },
+    "nontaxable_daily_cap": {
+      "multiplier": 2.5,
+      "public_per_diem_reference": 23.00,
+      "daily_cap_ron": 57.50,
+      "effective_from": "2023-04-01",
+      "note": "recalculabil daca se schimba nivelul public prin ordin"
+    },
+    "nontaxable_monthly_cap": {
+      "ratio": 0.33,
+      "base": "salariul de baza corespunzator locului de munca ocupat",
+      "cumulated_with": "alte venituri din art. 76 alin. (4^1) lit. a)-g)",
+      "allocation_order": "stabilita de angajator"
+    },
+    "excess_treatment": {
+      "income_tax": true,
+      "cas": true,
+      "cass": true,
+      "cam": true,
+      "classification": "venit asimilat salariilor"
+    },
+    "exclusions": ["lucratori mobili transport rutier (HG 38/2008) — regim separat art. 76 alin. (2) lit. k)"],
+    "d112_reporting": {
+      "nontaxable_row": "8.5.1",
+      "nontaxable_field": "E3_91",
+      "taxable_excess_row": "8.2.5"
+    },
+    "conditions": [
+      "clauza de mobilitate in CIM / act aditional",
+      "prestatiile prevazute in CIM (cuantum + modalitate)",
+      "nu se aplica lucratorilor mobili transport rutier",
+      "documentatie: politica interna + evidenta zile mobilitate"
+    ],
+    "payroll_constants": {
+      "MOBILITY_CLAUSE_NONTAXABLE_MONTHLY_CAP_RATIO": 0.33,
+      "PUBLIC_SECTOR_DELEGATION_PER_DIEM_DOMESTIC": 23.00,
+      "MOBILITY_CLAUSE_NONTAXABLE_DAILY_CAP": 57.50,
+      "MOBILITY_CLAUSE_SCOPE_FLAG_EXCLUDE_HG38_2008_MOBILE_WORKERS": true,
+      "NONTAXABLE_BUCKET_ORDER_33_PERCENT_CAP": "configurable (angajatorul stabileste ordinea)"
+    }
   }
 }

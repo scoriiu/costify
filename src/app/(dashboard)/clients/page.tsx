@@ -10,7 +10,7 @@ export default async function ClientsPage() {
   const clients = await prisma.client.findMany({
     where: { userId: user.id, active: true },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { datasets: true } } },
+    include: { _count: { select: { journalLines: { where: { deletedAt: null } } } } },
   });
 
   const items = clients.map((c) => ({
@@ -19,7 +19,7 @@ export default async function ClientsPage() {
     name: c.name,
     cui: c.cui,
     caen: c.caen,
-    datasetCount: c._count.datasets,
+    entryCount: c._count.journalLines,
     createdAt: c.createdAt.toISOString(),
   }));
 

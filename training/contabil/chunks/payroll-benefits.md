@@ -2,8 +2,8 @@
 id: "payroll-benefits-2026"
 topic: "payroll"
 task_types: ["payroll", "tax_determination"]
-articles: ["art. 76 CF", "Legea 165/2018"]
-keywords: ["tichete de masa", "avantaje natura", "beneficii", "impozit", "contributii", "meal vouchers"]
+articles: ["art. 76 CF", "art. 76 alin. (4^1) CF", "Legea 165/2018"]
+keywords: ["tichete de masa", "avantaje natura", "beneficii", "impozit", "contributii", "meal vouchers", "mobilitate", "prestatii mobilitate"]
 level: 3
 ---
 
@@ -24,6 +24,9 @@ Tratament fiscal avantaje in natura:
 - Se datoreaza: impozit pe venit 10% + CAS 25% + CASS 10%
 - Angajatorul datoreaza CAM 2,25% pe valoarea avantajului
 - Exceptii: tichete de masa (in limita), tichete de vacanta (in limita), contributii la pensii facultative (400 EUR/an), asigurare sanatate privata (400 EUR/an)
+
+PRESTATII MOBILITATE (art. 76 alin. (4^1) lit. a) CF):
+Neimpozabil in limita: 57,50 lei/zi (2,5 x 23 lei/zi indemnizatie publica) + max. 33% din salariul de baza/luna. Depasirile = venit salarial impozabil (impozit + CAS/CASS + CAM). Nu se aplica la lucratori mobili transport rutier. Vezi chunks/mobility-clause.md pentru detalii.
 
 NOTA CONTABILA avantaje in natura:
 604/628 (cheltuiala) = 421 (personal, datorii) — evaluarea avantajului

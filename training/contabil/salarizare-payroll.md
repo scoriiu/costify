@@ -255,6 +255,100 @@ Salariu net: 6.000 - 1.500 - 600 - 0 = 3.900 RON
 
 ---
 
+## Clauza de mobilitate — Art. 25 Codul muncii + Art. 76 alin. (4^1) lit. a) Cod fiscal
+
+### Cadrul juridic
+
+Clauza de mobilitate (art. 25 Codul muncii) este o clauză specifică din CIM prin care părțile stabilesc că salariatul își execută obligațiile de serviciu **fără un loc stabil de muncă**. În schimb, salariatul beneficiază de **prestații suplimentare** (în bani și/sau în natură), al căror cuantum și modalități trebuie specificate în contract.
+
+Condiție esențială: clauza trebuie să existe în CIM / act adițional, cu cuantumul/modalitatea prestațiilor. Fără ancorare contractuală, plățile se tratează ca venit salarial obișnuit.
+
+### Regimul fiscal al prestațiilor de mobilitate (2026)
+
+Prestațiile suplimentare acordate în baza clauzei de mobilitate (altele decât cele aferente „lucrătorilor mobili" din transport rutier) beneficiază de **neimpozitare limitată**:
+
+**Impozit pe venit (art. 76 alin. (4^1) CF):**
+- Neimpozabil în **limita zilnică de 2,5 × indemnizația publică de delegare** = 2,5 × 23 = **57,50 lei/zi**
+- Neimpozabil în **limita lunară cumulată de 33%** din salariul de bază (împreună cu celelalte venituri din art. 76 alin. (4^1))
+- Depășirile devin venit impozabil conform art. 76 alin. (2) lit. k^1) — venit asimilat salariilor
+
+**Contribuții sociale (CAS/CASS/CAM):**
+- În limitele de mai sus: **excluse din baza de calcul** (art. 142 alin. (1) lit. aa^1) CF)
+- Depășirile: intră în baza de calcul CAS 25% + CASS 10% (angajat) + CAM 2,25% (angajator)
+
+### Distincția critică: mobilitate generală vs. lucrători mobili transport
+
+| Categorie | Bază legală | Tratament fiscal |
+|---|---|---|
+| Clauza de mobilitate generală (art. 25 CM) | Art. 76 alin. (4^1) lit. a) CF | Neimpozabil: 57,50 lei/zi + 33% lunar |
+| Lucrători mobili transport rutier (HG 38/2008) | Art. 76 alin. (2) lit. k) CF | Regim separat, rânduri D112 distincte |
+
+Art. 76 alin. (4^1) lit. a) exclude explicit cazul lucrătorilor mobili din transport rutier. Implementarea payroll trebuie să trateze cele două scenarii pe rânduri separate.
+
+### Plafoane aplicabile (2026)
+
+```
+MOBILITY_CLAUSE_NONTAXABLE_MONTHLY_CAP_RATIO = 0.33
+PUBLIC_SECTOR_DELEGATION_PER_DIEM_DOMESTIC    = 23.00 lei/zi  (HG 714/2018, din 01.04.2023)
+MOBILITY_CLAUSE_NONTAXABLE_DAILY_CAP          = 2.5 × 23 = 57.50 lei/zi
+```
+
+Ordinea de alocare a veniturilor din art. 76 alin. (4^1) lit. a)–g) în plafonul de 33% se stabilește de angajator.
+
+### Exemple de calcul
+
+**Exemplu A — integral neimpozabil:**
+```
+Salariu de bază: 6.000 lei → plafon 33% = 1.980 lei
+Mobilitate: 20 zile × 50 lei/zi = 1.000 lei
+50 lei/zi < 57,50 lei/zi ✓
+1.000 lei < 1.980 lei ✓
+→ 1.000 lei neimpozabil integral (net = 1.000 lei)
+```
+
+**Exemplu B — depășire plafon zilnic:**
+```
+Salariu de bază: 6.000 lei → plafon 33% = 1.980 lei
+Mobilitate: 20 zile × 80 lei/zi = 1.600 lei
+Neimpozabil/zi: 57,50 lei → 20 × 57,50 = 1.150 lei neimpozabil
+Depășire: 1.600 - 1.150 = 450 lei impozabil (art. 76 alin. (2) lit. k^1))
+
+Calcul pe partea impozabilă (450 lei):
+  CAS 25%:  112,50 lei
+  CASS 10%:  45,00 lei
+  Bază impozit: 450 - 112,50 - 45,00 = 292,50 lei
+  Impozit 10%: 29,25 lei
+  Net parte impozabilă: 263,25 lei
+
+Net total mobilitate: 1.150 + 263,25 = 1.413,25 lei
+```
+
+### Raportare D112
+
+| Categorie | Rând D112 | Câmp |
+|---|---|---|
+| Prestații neimpozabile (în limita 2,5× și 33%) | 8.5.1 | E3_91 |
+| Prestații impozabile (depășiri, art. 76 alin. (2) lit. k^1)) | 8.2.5 | Secțiunea impozabilă |
+
+### Documentație necesară
+
+- CIM / act adițional cu clauza de mobilitate + cuantum/modalitate prestații
+- Politică internă cu metodologia de determinare a zilelor de mobilitate
+- Evidența zilelor efective de mobilitate per salariat
+
+### Înregistrare contabilă prestații mobilitate
+
+```
+1. Înregistrare prestație mobilitate:
+   641 Cheltuieli cu salariile = 421 Personal — salarii datorate    [suma totală]
+
+2. Pentru partea impozabilă (depășiri):
+   Reținerile standard: 421 = 4312 (CAS) / 4314 (CASS) / 444 (impozit)
+   CAM angajator: 646 = 4311
+```
+
+---
+
 ## Revisal — HG nr. 905/2017
 
 ### Ce este Revisal

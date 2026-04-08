@@ -67,38 +67,42 @@ function UserMenu({ userName, userEmail }: { userName: string; userEmail: string
         <ChevronDown size={14} className={cn("text-gray transition-transform", open && "rotate-180")} />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-dark-3 bg-dark-2 shadow-xl shadow-black/30" role="menu">
-          <div className="border-b border-dark-3 px-4 py-3">
-            <p className="text-[14px] font-semibold text-white truncate" style={{ letterSpacing: "-0.04em" }}>{userName}</p>
-            <p className="text-[12px] text-gray truncate">{userEmail}</p>
-          </div>
-          <div className="py-1">
-            <Link
-              href="/settings"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors"
-            >
-              <Settings size={14} />
-              Setari
-            </Link>
-          </div>
-          <div className="border-t border-dark-3 py-1">
-            <ThemeToggle />
-          </div>
-          <div className="border-t border-dark-3 py-1">
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13px] text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors cursor-pointer"
-              >
-                <LogOut size={14} />
-                Deconectare
-              </button>
-            </form>
-          </div>
+      <div
+        className={cn(
+          "absolute right-0 top-full mt-2 z-50 w-56 rounded-xl border border-dark-3 bg-dark-2 shadow-xl shadow-black/30 transition-[opacity,scale] duration-150 origin-top-right",
+          open ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+        )}
+        role="menu"
+      >
+        <div className="border-b border-dark-3 px-4 py-3">
+          <p className="text-[14px] font-semibold text-white truncate" style={{ letterSpacing: "-0.04em" }}>{userName}</p>
+          <p className="text-[12px] text-gray truncate">{userEmail}</p>
         </div>
-      )}
+        <div className="py-1">
+          <Link
+            href="/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors"
+          >
+            <Settings size={14} />
+            Setari
+          </Link>
+        </div>
+        <div className="border-t border-dark-3 py-1">
+          <ThemeToggle />
+        </div>
+        <div className="border-t border-dark-3 py-1">
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13px] text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors cursor-pointer"
+            >
+              <LogOut size={14} />
+              Deconectare
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

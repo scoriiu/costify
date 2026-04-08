@@ -130,6 +130,30 @@
     "sponsorship": { "limit": "0.75% din CA sau 20% din impozit pe profit", "mechanism": "credit din impozit, nu din baza", "article": "art. 25^1 CF" },
     "per_diem": { "limit": "2.5x nivelul legal", "article": "art. 25^1 CF" },
     "auto_mixed_use": { "limit": 0.50, "applies_to": "combustibil, intretinere, amortizare, leasing, asigurare, TVA", "article": "art. 25^1 CF" },
+    "auto_depreciation_m1": {
+      "monthly_cap_ron": 1500,
+      "article": "art. 28 alin. (14) CF",
+      "applies_to": "autoturisme categoria M1",
+      "exceptions_full_deductibility": [
+        "servicii de urgenta, paza si protectie, curierat",
+        "activitatea agentilor de vanzari / achizitii",
+        "test drive si demonstratii",
+        "transport de persoane cu plata (taximetrie)",
+        "inchiriere, leasing operational",
+        "scoli de soferi"
+      ],
+      "note": "in cazul utilizarii mixte, se aplica suplimentar regula de 50% (art. 25^1)"
+    },
+    "mobility_clause_nontaxable": {
+      "daily_cap_ron": 57.50,
+      "daily_cap_formula": "2.5 x indemnizatia publica delegare (23 lei/zi)",
+      "monthly_cap_ratio": 0.33,
+      "monthly_cap_base": "salariul de baza",
+      "reference_per_diem_ron": 23.00,
+      "reference_per_diem_source": "HG 714/2018 (din 01.04.2023)",
+      "article": "art. 76 alin. (4^1) lit. a) CF",
+      "excess_article": "art. 76 alin. (2) lit. k^1) CF"
+    },
     "private_health_insurance": { "limit_eur_per_employee": 400, "article": "art. 25^1 CF" },
     "voluntary_pension": { "limit_eur_per_employee": 400, "article": "art. 25^1 CF" }
   },
