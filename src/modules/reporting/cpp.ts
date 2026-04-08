@@ -23,6 +23,7 @@ const VENITURI_EXPLOATARE: AccountGroup[] = [
 const CHELTUIELI_EXPLOATARE: AccountGroup[] = [
   { prefix: "601", label: "Cheltuieli materii prime" },
   { prefix: "602", label: "Cheltuieli materiale consumabile" },
+  { prefix: "603", label: "Cheltuieli cu obiectele de inventar" },
   { prefix: "604", label: "Cheltuieli materiale nestocate" },
   { prefix: "605", label: "Cheltuieli cu energia si apa" },
   { prefix: "607", label: "Cheltuieli cu marfurile" },
@@ -50,6 +51,7 @@ const CHELTUIELI_EXPLOATARE: AccountGroup[] = [
 const VENITURI_FINANCIARE: AccountGroup[] = [
   { prefix: "765", label: "Venituri diferente curs valutar" },
   { prefix: "766", label: "Venituri din dobanzi" },
+  { prefix: "767", label: "Venituri din sconturi obtinute" },
   { prefix: "768", label: "Alte venituri financiare" },
 ];
 
