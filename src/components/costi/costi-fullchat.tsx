@@ -191,16 +191,16 @@ export function CostiFullChat() {
     <div className="flex h-[calc(100vh-56px)] flex-col">
       {/* Messages */}
       <div className="relative flex-1 overflow-y-auto" ref={scrollContainerRef}>
-        <div className="mx-auto max-w-5xl px-6 py-6 space-y-4">
+        <div className={cn("mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-4", messages.length === 0 && "flex min-h-full items-center justify-center")}>
           {messages.length === 0 && (
-            <div className="flex flex-col items-center pt-12 pb-6">
+            <div className="flex flex-col items-center pb-6">
               <CostiMascot state="teaching" size={160} />
               <h2 className="mt-5 text-xl font-bold text-white">Salut! Sunt Costi.</h2>
               <p className="mt-2 text-center text-sm text-gray max-w-md">
                 Expert contabil Costify. Intreaba-ma orice despre contabilitate romaneasca, 
                 fiscalitate, salarizare, Saga C, sau legislatie.
               </p>
-              <div className="mt-8 grid grid-cols-2 gap-3 w-full max-w-lg">
+              <div className="mt-8 grid grid-cols-1 gap-3 w-full max-w-lg sm:grid-cols-2">
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
@@ -238,7 +238,7 @@ export function CostiFullChat() {
                 className={cn(
                   "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                   msg.role === "user"
-                    ? "max-w-[65%] bg-primary/20 text-white rounded-br-md"
+                    ? "max-w-[85%] sm:max-w-[65%] bg-primary/20 text-white rounded-br-md"
                     : "max-w-full flex-1 bg-dark-3/40 text-gray-light rounded-bl-md"
                 )}
               >
@@ -271,7 +271,7 @@ export function CostiFullChat() {
 
       {/* Input */}
       <div className="border-t border-dark-3 bg-dark-2/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-5xl px-6 py-4">
+        <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6">
           <div className="flex items-end gap-3 rounded-2xl border border-dark-3 bg-dark px-4 py-3 focus-within:border-primary/40 transition-colors">
             <textarea
               ref={inputRef}

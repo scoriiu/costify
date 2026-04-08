@@ -33,12 +33,12 @@ export default function RootLayout({
   return (
     <html
       lang="ro"
-      className={`${altform.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${altform.variable} ${geistMono.variable} h-full antialiased light`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <Script id="theme-init" strategy="beforeInteractive">
-          {`try{if(localStorage.getItem("costify-theme")==="light")document.documentElement.classList.add("light")}catch(e){}`}
+          {`try{if(localStorage.getItem("costify-theme")==="dark")document.documentElement.classList.remove("light")}catch(e){}`}
         </Script>
         {children}
       </body>

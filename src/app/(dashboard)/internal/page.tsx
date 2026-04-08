@@ -21,7 +21,7 @@ export default async function InternalPage() {
   if (!INTERNAL_WHITELIST.includes(user.email)) redirect("/clients");
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-16">
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-8 sm:py-16">
       <h1 className="text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Internal</h1>
       <p className="mt-2 text-[14px] text-gray" style={{ letterSpacing: "-0.02em" }}>Resurse interne — vizibile doar pentru echipa.</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-3">

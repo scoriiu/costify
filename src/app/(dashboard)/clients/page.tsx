@@ -24,7 +24,7 @@ export default async function ClientsPage() {
   }));
 
   return (
-    <div className="mx-auto max-w-7xl px-8 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
       <ClientList clients={items} />
     </div>
   );

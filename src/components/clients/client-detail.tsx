@@ -61,7 +61,7 @@ export function ClientDetail({
   const needsPeriod = tab === "balanta" || tab === "cpp";
 
   return (
-    <div className="mx-auto max-w-7xl px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
       <Link
         href="/clients"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray hover:text-white transition-colors"
@@ -69,12 +69,12 @@ export function ClientDetail({
         <ArrowLeft size={14} /> Clienti
       </Link>
 
-      <div className="mb-6 flex items-end justify-between">
+      <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+          <h1 className="text-[22px] sm:text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
             {client.name}
           </h1>
-          <div className="mt-1 flex items-center gap-3 font-mono text-xs text-gray">
+          <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3 font-mono text-xs text-gray">
             {client.cui && <span>CUI {client.cui}</span>}
             {client.caen && <span>CAEN {client.caen}</span>}
             <span>{entryCount.toLocaleString("ro-RO")} intrari</span>
@@ -91,7 +91,7 @@ export function ClientDetail({
           )}
           <Link href={`/clients/${client.slug}/import`}>
             <Button variant="primary">
-              <Upload size={14} /> Upload Jurnal
+              <Upload size={14} /> <span className="hidden sm:inline">Upload</span> Jurnal
             </Button>
           </Link>
         </div>
@@ -119,12 +119,12 @@ export function ClientDetail({
 
 function TabBar({ active, onTabChange }: { active: Tab; onTabChange: (t: Tab) => void }) {
   return (
-    <div className="flex gap-1 rounded-lg bg-dark-2 p-1 w-fit">
+    <div className="flex gap-1 rounded-lg bg-dark-2 p-1 w-full sm:w-fit overflow-x-auto">
       {TABS.map((t) => (
         <button
           key={t.key}
           onClick={() => onTabChange(t.key)}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+          className={`shrink-0 rounded-md px-3 py-2 text-xs sm:text-sm sm:px-4 font-medium transition-colors ${
             active === t.key
               ? "bg-primary text-[#E9E8E3]"
               : "text-gray hover:text-white"

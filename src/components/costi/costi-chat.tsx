@@ -160,8 +160,9 @@ export function CostiChat() {
       {/* Chat panel */}
       <div
         className={cn(
-          "fixed bottom-6 right-6 z-50 flex flex-col",
-          "w-[420px] h-[640px] max-h-[calc(100vh-3rem)]",
+          "fixed z-50 flex flex-col",
+          "inset-2 sm:inset-auto sm:bottom-6 sm:right-6",
+          "sm:w-[420px] sm:h-[640px] sm:max-h-[calc(100vh-3rem)]",
           "rounded-2xl border border-dark-3 bg-dark-2 shadow-[0_24px_80px_rgba(0,0,0,0.6)]",
           "transition-all duration-300 origin-bottom-right",
           open ? "scale-100 opacity-100" : "scale-75 opacity-0 pointer-events-none"

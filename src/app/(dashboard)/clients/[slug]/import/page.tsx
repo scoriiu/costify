@@ -20,7 +20,7 @@ export default async function ImportPage(props: Props) {
   if (!client) notFound();
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
       <ImportWizard clientId={client.id} clientSlug={client.slug} clientName={client.name} />
     </div>
   );

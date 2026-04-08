@@ -7,7 +7,7 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-16">
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-8 sm:py-16">
       <h1 className="text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Setari</h1>
       <div className="mt-8 rounded-xl border border-dark-3 bg-dark-2 p-6">
         <h2 className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Profil</h2>
