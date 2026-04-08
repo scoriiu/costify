@@ -17,6 +17,7 @@
   --autofill-bg: #111F1E;
   --autofill-text: #C9D1D9;
   --selection-bg: rgba(13, 107, 94, 0.3);
+  --warn: #FDCB6E;
 }
 
 html.light,
@@ -33,6 +34,7 @@ html.light *,
   --autofill-bg: #F7F6F2 !important;
   --autofill-text: #44413C !important;
   --selection-bg: rgba(13, 107, 94, 0.2) !important;
+  --warn: #B45309 !important;
 }
 
 @theme inline {
@@ -53,7 +55,7 @@ html.light *,
   --color-accent-light: #818CF8;
 
   --color-danger: #E63946;
-  --color-warn: #FDCB6E;
+  --color-warn: var(--warn);
   --color-green: #3FB950;
   --color-blue: #58A6FF;
   --color-orange: #F0883E;
