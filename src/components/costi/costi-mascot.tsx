@@ -93,16 +93,25 @@ function Greeting() {
         <Brows />
         <path d="M72 76 Q80 80 90 76" stroke={MOUTH} strokeWidth={1.5} fill="none" strokeLinecap="round" />
       </Head>
-      {/* Right hand raised */}
+      {/* Left arm waving (his left, our right) */}
       <g>
+        {/* Sleeve */}
         <rect x={112} y={95} width={12} height={28} rx={6} fill={JACKET} />
-        <rect x={112} y={80} width={12} height={20} rx={6} fill={SKIN} />
-        <circle cx={114} cy={78} r={3} fill={SKIN} />
-        <circle cx={118} cy={76} r={3} fill={SKIN} />
-        <circle cx={122} cy={78} r={3} fill={SKIN} />
+        {/* Forearm */}
+        <rect x={114} y={82} width={8} height={16} rx={4} fill={SKIN} />
+        {/* Palm */}
+        <rect x={112} y={72} width={12} height={12} rx={4} fill={SKIN} />
+        {/* Four fingers */}
+        <rect x={111} y={64} width={3.5} height={10} rx={1.8} fill={SKIN} />
+        <rect x={115} y={62} width={3.5} height={12} rx={1.8} fill={SKIN} />
+        <rect x={119} y={62} width={3.5} height={12} rx={1.8} fill={SKIN} />
+        <rect x={123} y={64} width={3.5} height={10} rx={1.8} fill={SKIN} />
+        {/* Thumb */}
+        <rect x={108} y={74} width={6} height={3.5} rx={1.8} fill={SKIN} />
       </g>
-      <rect x={36} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={38} y={128} width={9} height={10} rx={4} fill={SKIN} />
+      {/* Right arm relaxed (his right, our left) */}
+      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
     </Base>
   );
 }
