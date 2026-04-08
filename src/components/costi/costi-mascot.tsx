@@ -134,8 +134,8 @@ function Thinking() {
       <rect x={36} y={95} width={12} height={20} rx={6} fill={JACKET} />
       <path d="M42 68 L42 98" stroke={SKIN} strokeWidth={10} strokeLinecap="round" />
       <circle cx={42} cy={66} r={5} fill={SKIN} />
-      <rect x={112} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={114} y={128} width={9} height={10} rx={4} fill={SKIN} />
+      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
       {/* Thought dots */}
       <circle cx={128} cy={38} r={3} fill={DARK_3} />
       <circle cx={136} cy={26} r={4.5} fill={DARK_3} />
@@ -194,8 +194,8 @@ function Alert() {
       <rect x={112} y={92} width={12} height={30} rx={6} fill={JACKET} />
       <rect x={112} y={85} width={10} height={16} rx={5} fill={SKIN} />
       <rect x={120} y={82} width={22} height={6} rx={3} fill={SKIN} />
-      <rect x={36} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={38} y={128} width={9} height={10} rx={4} fill={SKIN} />
+      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
       {/* Warning triangle */}
       <g transform="translate(134, 64)">
         <polygon points="10,0 20,18 0,18" fill={WARN} stroke={DARK} strokeWidth={1} />
@@ -222,8 +222,8 @@ function Error() {
       <rect x={36} y={95} width={12} height={18} rx={6} fill={JACKET} />
       <rect x={44} y={52} width={8} height={15} rx={4} fill={SKIN} />
       <circle cx={48} cy={50} r={4} fill={SKIN} />
-      <rect x={112} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={114} y={128} width={9} height={10} rx={4} fill={SKIN} />
+      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
     </Base>
   );
 }
@@ -278,9 +278,9 @@ function Celebrating() {
       {/* Steam */}
       <path d="M124 66 Q126 60 124 54" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.3} />
       <path d="M129 68 Q131 62 129 56" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.2} />
-      {/* Pocket hand */}
-      <rect x={36} y={100} width={12} height={20} rx={6} fill={JACKET} />
-      <rect x={40} y={118} width={8} height={6} rx={3} fill={SKIN} />
+      {/* Right arm relaxed */}
+      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
     </Base>
   );
 }
@@ -300,10 +300,10 @@ function Sleeping() {
         <line x1={86} y1={57} x2={98} y2={57} stroke="#1A1A1A" strokeWidth={2} strokeLinecap="round" />
         <path d="M74 76 Q80 78 86 76" stroke={MOUTH} strokeWidth={1.5} fill="none" strokeLinecap="round" />
       </g>
-      <rect x={36} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={38} y={128} width={9} height={10} rx={4} fill={SKIN} />
-      <rect x={112} y={100} width={12} height={32} rx={6} fill={JACKET} />
-      <rect x={114} y={128} width={9} height={10} rx={4} fill={SKIN} />
+      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
+      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
       <text x={118} y={35} fontSize={16} fill={GRAY} fontWeight={800} fontFamily="Inter" opacity={0.5}>Z</text>
       <text x={130} y={22} fontSize={12} fill={GRAY} fontWeight={800} fontFamily="Inter" opacity={0.35}>z</text>
       <text x={138} y={12} fontSize={9} fill={GRAY} fontWeight={800} fontFamily="Inter" opacity={0.2}>z</text>
