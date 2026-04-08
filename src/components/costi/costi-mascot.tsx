@@ -221,10 +221,18 @@ function Error() {
         <path d="M85 51 Q92 47 99 50" stroke={HAIR} strokeWidth={2.5} fill="none" strokeLinecap="round" />
         <path d="M74 77 Q80 74 86 77" stroke={MOUTH} strokeWidth={1.5} fill="none" strokeLinecap="round" />
       </Head>
-      {/* Pinching bridge of nose */}
-      <rect x={36} y={95} width={12} height={18} rx={6} fill={JACKET} />
-      <rect x={44} y={52} width={8} height={15} rx={4} fill={SKIN} />
-      <circle cx={48} cy={50} r={4} fill={SKIN} />
+      {/* Left hand pinching nose bridge (his right, our left) */}
+      <g>
+        <path d="M50 100 Q42 98 38 90" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
+        <path d="M38 90 Q36 78 42 64" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+        {/* Thumb on left side of bridge */}
+        <ellipse cx={54} cy={54} rx={3} ry={2.2} fill={SKIN} />
+        {/* Index finger on right side of bridge */}
+        <ellipse cx={60} cy={52} rx={2.2} ry={3} fill={SKIN} />
+        {/* Knuckles behind glasses */}
+        <circle cx={50} cy={56} r={3.5} fill={SKIN} />
+      </g>
+      {/* Right arm relaxed (his left, our right) */}
       <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
       <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
     </Base>
