@@ -95,19 +95,21 @@ function Greeting() {
       </Head>
       {/* Left arm waving (his left, our right) */}
       <g>
-        {/* Sleeve */}
-        <rect x={112} y={95} width={12} height={28} rx={6} fill={JACKET} />
-        {/* Forearm */}
-        <rect x={114} y={82} width={8} height={16} rx={4} fill={SKIN} />
-        {/* Palm */}
-        <rect x={112} y={72} width={12} height={12} rx={4} fill={SKIN} />
-        {/* Four fingers */}
-        <rect x={111} y={64} width={3.5} height={10} rx={1.8} fill={SKIN} />
-        <rect x={115} y={62} width={3.5} height={12} rx={1.8} fill={SKIN} />
-        <rect x={119} y={62} width={3.5} height={12} rx={1.8} fill={SKIN} />
-        <rect x={123} y={64} width={3.5} height={10} rx={1.8} fill={SKIN} />
-        {/* Thumb */}
-        <rect x={108} y={74} width={6} height={3.5} rx={1.8} fill={SKIN} />
+        {/* Upper arm sleeve — curves outward from shoulder */}
+        <path d="M110 100 Q122 105 128 92" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
+        {/* Forearm — curves upward */}
+        <path d="M128 92 Q134 78 130 56" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+        {/* Palm — tilted */}
+        <g transform="rotate(-20, 130, 52)">
+          <rect x={122} y={44} width={14} height={11} rx={4} fill={SKIN} />
+          {/* Fingers — spread naturally */}
+          <rect x={121} y={36} width={3.2} height={10} rx={1.6} fill={SKIN} />
+          <rect x={125} y={34} width={3.2} height={12} rx={1.6} fill={SKIN} />
+          <rect x={129} y={34} width={3.2} height={12} rx={1.6} fill={SKIN} />
+          <rect x={133} y={36} width={3.2} height={10} rx={1.6} fill={SKIN} />
+          {/* Thumb — angled out */}
+          <rect x={117} y={47} width={7} height={3.2} rx={1.6} fill={SKIN} />
+        </g>
       </g>
       {/* Right arm relaxed (his right, our left) */}
       <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
