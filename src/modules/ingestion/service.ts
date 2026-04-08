@@ -31,8 +31,12 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   const parseResult = parseJournalXLSX(input.buffer);
 
   if (parseResult.entries.length === 0) {
-    return err(appError("PARSE_ERROR", "Nu s-au gasit intrari in fisier", {
+    const detail = parseResult.errors.length > 0
+      ? parseResult.errors.map((e) => e.message).join("; ")
+      : `Fisierul a fost citit (${parseResult.totalRaw} randuri) dar nicio intrare valida nu a fost extrasa. Verificati formatul coloanelor.`;
+    return err(appError("PARSE_ERROR", detail, {
       errors: parseResult.errors,
+      totalRaw: parseResult.totalRaw,
     }));
   }
 

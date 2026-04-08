@@ -13,6 +13,9 @@ const VENITURI_EXPLOATARE: AccountGroup[] = [
   { prefix: "707", label: "Venituri din vanzarea marfurilor" },
   { prefix: "708", label: "Venituri din activitati diverse" },
   { prefix: "711", label: "Variatia stocurilor" },
+  { prefix: "721", label: "Venituri din productia de imobilizari necorporale" },
+  { prefix: "722", label: "Venituri din productia de imobilizari corporale" },
+  { prefix: "725", label: "Venituri din productia de imobilizari" },
   { prefix: "741", label: "Venituri din subventii" },
   { prefix: "758", label: "Alte venituri din exploatare" },
 ];

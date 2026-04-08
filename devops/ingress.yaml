@@ -23,11 +23,11 @@ metadata:
 spec:
   tls:
     - hosts:
-        - costify.io
-        - www.costify.io
+        - costify.ro
+        - www.costify.ro
       secretName: costify-tls
   rules:
-    - host: costify.io
+    - host: costify.ro
       http:
         paths:
           - path: /
@@ -37,7 +37,7 @@ spec:
                 name: costify
                 port:
                   number: 80
-    - host: www.costify.io
+    - host: www.costify.ro
       http:
         paths:
           - path: /
@@ -58,10 +58,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - registry.costify.io
+        - registry.costify.ro
       secretName: registry-tls
   rules:
-    - host: registry.costify.io
+    - host: registry.costify.ro
       http:
         paths:
           - path: /
@@ -82,10 +82,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - analytics.costify.io
+        - analytics.costify.ro
       secretName: umami-tls
   rules:
-    - host: analytics.costify.io
+    - host: analytics.costify.ro
       http:
         paths:
           - path: /

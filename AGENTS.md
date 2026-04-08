@@ -42,6 +42,7 @@
 - **No icons in navigation** — pure typographic, clean.
 - **Monospace for all data** — labels, values, numbers always in Geist Mono.
 - **No emojis** — unless user explicitly requests.
+- **All user-facing text in Romanian** — error messages, labels, tooltips, placeholders, confirmations. Code comments and variable names stay in English. Never mix languages in the same string.
 
 ### Component Rules
 - Cards: `rounded-xl border border-dark-3 bg-dark-2 p-5`

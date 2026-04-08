@@ -40,18 +40,19 @@ function makeEntry(
 export function parseJournalXLSX(buffer: Buffer): JournalParseResult {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return emptyResult([{ row: 0, message: "No sheets found" }]);
+  if (!sheetName) return emptyResult([{ row: 0, message: "Fisierul nu contine niciun sheet" }]);
 
   const sheet = workbook.Sheets[sheetName];
   const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-  if (data.length === 0) return emptyResult([{ row: 0, message: "Sheet is empty" }]);
+  if (data.length === 0) return emptyResult([{ row: 0, message: "Sheet-ul este gol" }]);
 
   const rawHeaders = Object.keys(data[0]);
   const { resolved } = resolveHeaders(rawHeaders);
 
   const required = ["data", "cont_d", "cont_c", "suma"] as const;
   const missing = required.filter((col) => !resolved[col]);
-  if (missing.length > 0) return emptyResult([{ row: 0, message: `Missing columns: ${missing.join(", ")}` }]);
+  const COLUMN_LABELS: Record<string, string> = { data: "Data", cont_d: "Cont Debit", cont_c: "Cont Credit", suma: "Suma" };
+  if (missing.length > 0) return emptyResult([{ row: 0, message: `Coloane obligatorii lipsa: ${missing.map((c) => COLUMN_LABELS[c] ?? c).join(", ")}` }]);
 
   const entries: JournalEntry[] = [];
   const errors: ParseError[] = [];
