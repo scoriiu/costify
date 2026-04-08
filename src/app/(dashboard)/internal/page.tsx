@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Palette, Megaphone, Smile } from "lucide-react";
 
 const INTERNAL_WHITELIST = [
-  "solomon.coriiu@nisindo.com",
+  "solomon.coriiu@costify.ro",
+  "claudia.solomon@costify.ro",
+  "sorin.crisan@costify.ro",
 ];
 
 const ITEMS = [

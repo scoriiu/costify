@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: costify
+  namespace: costify
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: costify
+  template:
+    metadata:
+      labels:
+        app: costify
+    spec:
+      initContainers:
+        - name: prisma-migrate
+          image: registry.costify.io/costify:latest
+          command: ["npx", "prisma", "db", "push", "--skip-generate"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: DATABASE_URL
+      containers:
+        - name: costify
+          image: registry.costify.io/costify:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: DATABASE_URL
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: SESSION_SECRET
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: ANTHROPIC_API_KEY
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 1000m
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: costify
+  namespace: costify
+spec:
+  selector:
+    app: costify
+  ports:
+    - port: 80
+      targetPort: 3000

@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.idea
+temp
+reference
+training
+docs
+tests
+*.md
+!README.md
+.env
+.env.*

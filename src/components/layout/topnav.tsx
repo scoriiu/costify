@@ -10,7 +10,9 @@ import { logoutAction } from "@/modules/auth/actions";
 import { ThemeToggle } from "@/components/theme/theme-selector";
 
 const INTERNAL_WHITELIST = [
-  "solomon.coriiu@nisindo.com",
+  "solomon.coriiu@costify.ro",
+  "claudia.solomon@costify.ro",
+  "sorin.crisan@costify.ro",
 ];
 
 const NAV_ITEMS = [
