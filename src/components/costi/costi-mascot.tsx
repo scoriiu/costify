@@ -190,17 +190,20 @@ function Alert() {
         <circle cx={93.5} cy={56} r={1.2} fill="white" />
         <line x1={74} y1={77} x2={86} y2={77} stroke={MOUTH} strokeWidth={2} strokeLinecap="round" />
       </Head>
-      {/* Pointing — arm extended */}
+      {/* Pointing arm (his left, our right) */}
       <rect x={112} y={92} width={12} height={30} rx={6} fill={JACKET} />
-      <rect x={112} y={85} width={10} height={16} rx={5} fill={SKIN} />
-      <rect x={120} y={82} width={22} height={6} rx={3} fill={SKIN} />
+      {/* Hand — fist with index finger */}
+      <rect x={114} y={85} width={10} height={11} rx={5} fill={SKIN} />
+      {/* Index finger pointing */}
+      <rect x={122} y={84} width={14} height={4} rx={2} fill={SKIN} />
+      <circle cx={136} cy={86} r={2.2} fill={SKIN} />
       <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
       <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
-      {/* Warning triangle */}
-      <g transform="translate(134, 64)">
-        <polygon points="10,0 20,18 0,18" fill={WARN} stroke={DARK} strokeWidth={1} />
-        <line x1={10} y1={5} x2={10} y2={11} stroke={DARK} strokeWidth={2} strokeLinecap="round" />
-        <circle cx={10} cy={15} r={1.2} fill={DARK} />
+      {/* Warning triangle — near fingertip */}
+      <g transform="translate(120, 60)">
+        <polygon points="12,0 24,22 0,22" fill={WARN} stroke={DARK} strokeWidth={1} />
+        <line x1={12} y1={6} x2={12} y2={13} stroke={DARK} strokeWidth={2.5} strokeLinecap="round" />
+        <circle cx={12} cy={18} r={1.5} fill={DARK} />
       </g>
     </Base>
   );
@@ -264,23 +267,36 @@ function Celebrating() {
         <Brows />
         <path d="M70 76 Q80 84 90 76" stroke={MOUTH} strokeWidth={2} fill="none" strokeLinecap="round" />
       </Head>
-      {/* Right arm */}
-      <rect x={112} y={92} width={12} height={28} rx={6} fill={JACKET} />
-      {/* Coffee cup */}
-      <rect x={118} y={72} width={16} height={18} rx={3} fill={WHITE} opacity={0.9} />
-      <rect x={118} y={70} width={16} height={4} rx={2} fill={GRAY} opacity={0.3} />
-      <path d="M134 78 Q140 78 140 84 Q140 90 134 90" stroke={WHITE} strokeWidth={2} fill="none" opacity={0.6} />
-      {/* Hand wrapping cup */}
-      <path d="M116 76 Q114 76 114 80 L114 88 Q114 90 116 90" stroke={SKIN} strokeWidth={7} fill="none" strokeLinecap="round" />
-      <path d="M132 76 Q134 76 134 80 L134 86 Q134 88 132 88" stroke={SKIN} strokeWidth={4} fill="none" strokeLinecap="round" />
-      {/* Thumb */}
-      <ellipse cx={116} cy={78} rx={4} ry={3} fill={SKIN} />
-      {/* Steam */}
-      <path d="M124 66 Q126 60 124 54" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.3} />
-      <path d="M129 68 Q131 62 129 56" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.2} />
-      {/* Right arm relaxed */}
+      {/* Left arm relaxed (his right, our left) */}
       <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
       <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      {/* Right arm — jacket sleeve curves out from shoulder */}
+      <path d="M110 100 Q120 106 124 96" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
+      {/* Forearm — skin, angled to hold cup */}
+      <path d="M124 96 Q128 88 126 80" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+      {/* Coffee cup — behind hand */}
+      <rect x={116} y={68} width={18} height={22} rx={4} fill={WHITE} opacity={0.9} />
+      <rect x={116} y={66} width={18} height={4} rx={2} fill={GRAY} opacity={0.3} />
+      {/* Cup handle */}
+      <path d="M134 74 Q141 74 141 81 Q141 88 134 88" stroke={WHITE} strokeWidth={2} fill="none" opacity={0.6} />
+      {/* Hand gripping cup — fingers wrap the near side */}
+      <rect x={114} y={74} width={5} height={14} rx={2.5} fill={SKIN} />
+      {/* Finger tips curling over onto the front face */}
+      <circle cx={118} cy={76} r={2.2} fill={SKIN} />
+      <circle cx={118} cy={80} r={2.2} fill={SKIN} />
+      <circle cx={118} cy={84} r={2.2} fill={SKIN} />
+      {/* Thumb on far side */}
+      <ellipse cx={132} cy={78} rx={2.5} ry={4} fill={SKIN} />
+      {/* Steam */}
+      <path d="M122 62 Q124 56 122 50" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.3} />
+      <path d="M128 64 Q130 58 128 52" stroke={GRAY} strokeWidth={1.5} fill="none" strokeLinecap="round" opacity={0.2} />
+      {/* Confetti */}
+      <rect x={28} y={18} width={5} height={5} rx={1} fill={PRIMARY} opacity={0.6} transform="rotate(20, 30, 20)" />
+      <rect x={48} y={8} width={4} height={4} rx={1} fill={ACCENT} opacity={0.5} transform="rotate(-15, 50, 10)" />
+      <rect x={105} y={12} width={5} height={5} rx={1} fill={WARN} opacity={0.6} transform="rotate(35, 107, 14)" />
+      <rect x={130} y={30} width={4} height={4} rx={1} fill="#E63946" opacity={0.5} transform="rotate(-25, 132, 32)" />
+      <circle cx={40} cy={30} r={2.5} fill={WARN} opacity={0.4} />
+      <circle cx={118} cy={20} r={2} fill={PRIMARY} opacity={0.45} />
     </Base>
   );
 }
