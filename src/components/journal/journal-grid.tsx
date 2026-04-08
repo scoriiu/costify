@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { SearchInput } from "@/components/ui/search-input";
 
 interface JournalRow {
   id: string;
@@ -135,14 +136,13 @@ export function JournalGrid({ clientId }: Props) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <input
-          type="text"
-          placeholder="Filtreaza (cont, explicatie, data...)"
+        <SearchInput
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-xs text-white placeholder:text-gray focus:border-primary focus:outline-none w-72"
+          onChange={setFilter}
+          placeholder="Filtreaza (cont, explicatie, data...)"
+          className="w-80"
         />
-        <span className="ml-auto font-mono text-[0.6rem] text-gray">
+        <span className="ml-auto font-mono text-xs text-gray">
           {filter ? `${filtered.length} / ` : ""}{total.toLocaleString("ro-RO")} intrari
         </span>
       </div>

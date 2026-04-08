@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import type { BalanceRowView } from "@/modules/balances";
+import { SearchInput } from "@/components/ui/search-input";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 
 interface Props {
   rows: BalanceRowView[];
@@ -26,15 +28,21 @@ export function BalanceTable({ rows }: Props) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <ViewToggle mode={viewMode} onChange={setViewMode} />
-        <input
-          type="text"
-          placeholder="Cauta cont..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-xs text-white placeholder:text-gray focus:border-primary focus:outline-none"
+        <ToggleGroup
+          value={viewMode}
+          options={[
+            { value: "leaf", label: "Analitice" },
+            { value: "full", label: "Toate" },
+          ]}
+          onChange={setViewMode}
         />
-        <span className="ml-auto font-mono text-[0.6rem] text-gray">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Cauta cont..."
+          className="w-72"
+        />
+        <span className="ml-auto font-mono text-xs text-gray">
           {filtered.length} conturi
         </span>
       </div>
@@ -180,24 +188,6 @@ function TotalRow({ rows }: { rows: BalanceRowView[] }) {
       <Td><Num value={totals.finD} highlight /></Td>
       <Td last><Num value={totals.finC} highlight /></Td>
     </tr>
-  );
-}
-
-function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
-  return (
-    <div className="flex gap-1 rounded-lg bg-dark-2 p-0.5">
-      {(["leaf", "full"] as const).map((m) => (
-        <button
-          key={m}
-          onClick={() => onChange(m)}
-          className={`rounded-md px-3 py-1 font-mono text-[0.65rem] font-medium transition-colors ${
-            mode === m ? "bg-primary text-[#E9E8E3]" : "text-gray hover:text-white"
-          }`}
-        >
-          {m === "leaf" ? "Analitice" : "Toate"}
-        </button>
-      ))}
-    </div>
   );
 }
 
