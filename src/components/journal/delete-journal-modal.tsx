@@ -85,7 +85,7 @@ export function DeleteJournalModal({ clientId, clientName, open, onClose, onComp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border border-dark-3 bg-dark-1 p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-xl border border-dark-3 bg-dark-2 p-6 shadow-2xl">
         <button onClick={onClose} className="absolute right-4 top-4 text-gray hover:text-white transition-colors">
           <X size={18} />
         </button>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, MoreVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DatasetPeriod } from "@/modules/balances";
 import { PeriodSelector } from "@/components/datasets/period-selector";
@@ -92,16 +92,14 @@ export function ClientDetail({
               onChange={(y, m) => navigate({ year: y, month: m })}
             />
           )}
-          {entryCount > 0 && (
-            <Button variant="ghost" onClick={() => setDeleteOpen(true)}>
-              <Trash2 size={14} /> <span className="hidden sm:inline">Corecteaza date</span>
-            </Button>
-          )}
           <Link href={`/clients/${client.slug}/import`}>
             <Button variant="primary">
               <Upload size={14} /> <span className="hidden sm:inline">Upload</span> Jurnal
             </Button>
           </Link>
+          {entryCount > 0 && (
+            <ActionsMenu onDelete={() => setDeleteOpen(true)} />
+          )}
         </div>
       </div>
 
@@ -129,6 +127,41 @@ export function ClientDetail({
         onClose={() => setDeleteOpen(false)}
         onComplete={() => router.refresh()}
       />
+    </div>
+  );
+}
+
+function ActionsMenu({ onDelete }: { onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-dark-3 bg-dark-2 text-gray transition-colors hover:border-primary/40 hover:text-white"
+      >
+        <MoreVertical size={16} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden rounded-xl border border-dark-3 bg-dark-2 py-1 shadow-xl shadow-black/30">
+          <button
+            onClick={() => { setOpen(false); onDelete(); }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-danger transition-colors hover:bg-danger/10"
+          >
+            <Trash2 size={14} />
+            Sterge date istorice
+          </button>
+        </div>
+      )}
     </div>
   );
 }
