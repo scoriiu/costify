@@ -23,10 +23,21 @@ metadata:
 spec:
   tls:
     - hosts:
-        - app.costify.io
+        - costify.io
+        - www.costify.io
       secretName: costify-tls
   rules:
-    - host: app.costify.io
+    - host: costify.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: costify
+                port:
+                  number: 80
+    - host: www.costify.io
       http:
         paths:
           - path: /
