@@ -23,11 +23,19 @@ const SUGGESTIONS = [
 ];
 
 const STORAGE_KEY = "costify-costi-chat";
+const STORAGE_TS_KEY = "costify-costi-chat-ts";
 const API_CONTEXT_LIMIT = 8;
+const EXPIRE_MS = 60 * 60 * 1000; // 1 hour
 
 function loadMessages(): Message[] {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const ts = localStorage.getItem(STORAGE_TS_KEY);
+    if (ts && Date.now() - Number(ts) > EXPIRE_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_TS_KEY);
+      return [];
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     return JSON.parse(raw) as Message[];
   } catch {
@@ -37,20 +45,31 @@ function loadMessages(): Message[] {
 
 function saveMessages(msgs: Message[]) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+    localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
   } catch { /* quota exceeded — ignore */ }
 }
 
 export function CostiFullChat() {
-  const [messages, setMessages] = useState<Message[]>(() => loadMessages());
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [costiState, setCostiState] = useState<CostiState>(() => loadMessages().length > 0 ? "success" : "greeting");
+  const [costiState, setCostiState] = useState<CostiState>("greeting");
+  const [hydrated, setHydrated] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  useEffect(() => {
+    const restored = loadMessages();
+    if (restored.length > 0) {
+      setMessages(restored);
+      setCostiState("success");
+    }
+    setHydrated(true);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -164,7 +183,8 @@ export function CostiFullChat() {
     setCostiState("greeting");
     setStreaming(false);
     setInput("");
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_TS_KEY);
   }
 
   return (

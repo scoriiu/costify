@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { Lock, LogOut, Settings, ChevronDown } from "lucide-react";
 import { logoutAction } from "@/modules/auth/actions";
+import { ThemeToggle } from "@/components/theme/theme-selector";
 
 const INTERNAL_WHITELIST = [
   "solomon.coriiu@nisindo.com",
@@ -81,6 +82,9 @@ function UserMenu({ userName, userEmail }: { userName: string; userEmail: string
               <Settings size={14} />
               Setari
             </Link>
+          </div>
+          <div className="border-t border-dark-3 py-1">
+            <ThemeToggle />
           </div>
           <div className="border-t border-dark-3 py-1">
             <form action={logoutAction}>

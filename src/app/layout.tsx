@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const altform = localFont({
@@ -35,14 +36,12 @@ export default function RootLayout({
       className={`${altform.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem("costify-theme")==="light")document.documentElement.classList.add("light")}catch(e){}`,
-          }}
-        />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`try{if(localStorage.getItem("costify-theme")==="light")document.documentElement.classList.add("light")}catch(e){}`}
+        </Script>
+        {children}
+      </body>
     </html>
   );
 }
