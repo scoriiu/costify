@@ -912,6 +912,9 @@ When asked, start by reading `training/contabil/SKILL.md`, then load the specifi
 - **e-Factura / SAF-T / e-Transport / ANAF API** -> `training/contabil/e-factura-saft.md`
 - **Transaction classification patterns** -> `training/contabil/clasificare-tranzactii.md`
 
+**Level 7 — Software Contabil (Saga C):**
+- **Saga C usage / configuration / operations / closing / declarations / e-Factura from Saga** -> `training/contabil/saga-c.md`
+
 **Fiscal constants (ALWAYS read first for any rate/threshold question):**
 - **Tax rates / thresholds / deadlines / penalties for current year** -> `training/contabil/constante-fiscale-2026.md`
 

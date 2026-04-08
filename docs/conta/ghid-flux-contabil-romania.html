@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghid Flux Contabil România</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF7;
+  --surface: #FFFFFF;
+  --surface-alt: #F3F1EC;
+  --border: #E2DFD6;
+  --text: #1A1A18;
+  --text-muted: #6B6860;
+  --accent: #2D5A3D;
+  --accent-light: #E8F0EB;
+  --accent-dark: #1B3A26;
+  --debit: #B45309;
+  --debit-bg: #FEF3C7;
+  --credit: #1D4ED8;
+  --credit-bg: #DBEAFE;
+  --highlight: #F59E0B;
+  --highlight-bg: #FFFBEB;
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+  --step-line: #C7C3B8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; font-size: 17px; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.72;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* NAV */
+.nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(250,250,247,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.7rem 2rem;
+  display: flex; align-items: center; gap: 1.5rem;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.nav a {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+.nav a:hover, .nav a.active { color: var(--accent); }
+
+/* LAYOUT */
+.container { max-width: 860px; margin: 0 auto; padding: 0 2rem; }
+
+/* HERO */
+.hero {
+  padding: 5rem 0 3rem;
+  text-align: center;
+}
+.hero-badge {
+  display: inline-block;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 1rem;
+  border-radius: 100px;
+  margin-bottom: 1.5rem;
+}
+.hero h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.8rem;
+  line-height: 1.15;
+  color: var(--accent-dark);
+  margin-bottom: 1rem;
+}
+.hero p {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* FLOW DIAGRAM */
+.flow-diagram {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  margin: 2rem 0 4rem;
+}
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.2rem;
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+.flow-step:last-child { padding-bottom: 0; }
+.flow-icon {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 2;
+}
+.flow-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 44px;
+  bottom: 0;
+  width: 2px;
+  background: var(--step-line);
+  z-index: 1;
+}
+.flow-icon.doc { background: #FEF3C7; color: #92400E; }
+.flow-icon.nota { background: #E0E7FF; color: #3730A3; }
+.flow-icon.jurnal { background: #D1FAE5; color: #065F46; }
+.flow-icon.carte { background: #FCE7F3; color: #9D174D; }
+.flow-icon.balanta { background: #DBEAFE; color: #1E40AF; }
+.flow-icon.sit { background: #ECFDF5; color: #047857; }
+.flow-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.15rem; }
+.flow-content p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+/* SECTIONS */
+section {
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--border);
+}
+section:first-of-type { border-top: none; }
+.section-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 3.5rem;
+  color: var(--accent-light);
+  line-height: 1;
+  margin-bottom: 0.3rem;
+  user-select: none;
+}
+h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.8rem;
+  color: var(--accent-dark);
+  margin-bottom: 1rem;
+  line-height: 1.25;
+}
+h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2rem 0 0.7rem;
+}
+h3:first-child { margin-top: 0; }
+p { margin-bottom: 1rem; }
+p:last-child { margin-bottom: 0; }
+
+/* CALLOUT BOXES */
+.callout {
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+}
+.callout-title {
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+.callout.tip { background: var(--accent-light); border-left: 4px solid var(--accent); }
+.callout.tip .callout-title { color: var(--accent-dark); }
+.callout.warn { background: var(--highlight-bg); border-left: 4px solid var(--highlight); }
+.callout.warn .callout-title { color: #92400E; }
+.callout.info { background: var(--credit-bg); border-left: 4px solid var(--credit); }
+.callout.info .callout-title { color: var(--credit); }
+
+/* ANALOGY */
+.analogy {
+  background: var(--surface-alt);
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  position: relative;
+  padding-left: 3rem;
+}
+.analogy::before {
+  content: '💡';
+  font-style: normal;
+  position: absolute;
+  left: 1.2rem;
+  top: 1.2rem;
+}
+
+/* TABLES */
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  background: var(--surface);
+}
+thead { background: var(--surface-alt); }
+th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.8rem 1rem;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+.td-debit { color: var(--debit); font-weight: 600; }
+.td-credit { color: var(--credit); font-weight: 600; }
+.td-mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; }
+.td-bold { font-weight: 700; }
+.td-muted { color: var(--text-muted); }
+tr.total-row { background: var(--surface-alt); font-weight: 700; }
+
+/* TREE DIAGRAM */
+.tree {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.9;
+  overflow-x: auto;
+}
+.tree .root { font-weight: 700; color: var(--accent-dark); }
+.tree .branch { color: var(--text-muted); }
+.tree .leaf { color: var(--text); }
+.tree .num { color: var(--accent); font-weight: 600; }
+
+/* CODE-LIKE */
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  background: var(--surface-alt);
+  padding: 0.15em 0.45em;
+  border-radius: 5px;
+}
+
+/* EQUATION BOX */
+.equation {
+  background: var(--accent-dark);
+  color: #fff;
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem 0;
+  text-align: center;
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
+}
+.equation small {
+  display: block;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  margin-bottom: 0.5rem;
+}
+
+/* GRID CARDS */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.3rem 1.4rem;
+}
+.card-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.card h4 {
+  font-size: 1rem;
+  margin-bottom: 0.4rem;
+}
+.card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0; }
+.card.c1 { border-top: 3px solid #7C3AED; }
+.card.c1 .card-label { color: #7C3AED; }
+.card.c2 { border-top: 3px solid #2563EB; }
+.card.c2 .card-label { color: #2563EB; }
+.card.c3 { border-top: 3px solid #059669; }
+.card.c3 .card-label { color: #059669; }
+.card.c4 { border-top: 3px solid #D97706; }
+.card.c4 .card-label { color: #D97706; }
+.card.c5 { border-top: 3px solid #DC2626; }
+.card.c5 .card-label { color: #DC2626; }
+.card.c6 { border-top: 3px solid #E11D48; }
+.card.c6 .card-label { color: #E11D48; }
+.card.c7 { border-top: 3px solid #0891B2; }
+.card.c7 .card-label { color: #0891B2; }
+
+/* FORMULA */
+.formula-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+  flex-wrap: wrap;
+}
+.formula-row .tag {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.formula-row .op {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+.tag-green { background: #D1FAE5; color: #065F46; }
+.tag-red { background: #FEE2E2; color: #991B1B; }
+.tag-blue { background: #DBEAFE; color: #1E40AF; }
+.tag-amber { background: #FEF3C7; color: #92400E; }
+
+/* GLOSAR */
+.glosar-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.glosar-item:last-child { border-bottom: none; }
+.glosar-term {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  min-width: 140px;
+}
+.glosar-def { font-size: 0.9rem; color: var(--text-muted); }
+
+/* FOOTER */
+footer {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+  .hero h1 { font-size: 2rem; }
+  .container { padding: 0 1.2rem; }
+  .nav { padding: 0.6rem 1rem; gap: 1rem; }
+  .card-grid { grid-template-columns: 1fr; }
+  .glosar-item { flex-direction: column; gap: 0.2rem; }
+  .glosar-term { min-width: unset; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#flux">Flux</a>
+  <a href="#documente">Documente</a>
+  <a href="#nota">Nota contabilă</a>
+  <a href="#jurnal">Registrul Jurnal</a>
+  <a href="#balanta">Balanța</a>
+  <a href="#situatii">Situații financiare</a>
+  <a href="#plan">Plan de conturi</a>
+  <a href="#analitice">Conturi analitice</a>
+  <a href="#extragere">Extragere date</a>
+  <a href="#glosar">Glosar</a>
+</nav>
+
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-badge">Ghid educativ</span>
+  <h1>Fluxul contabil<br>în România</h1>
+  <p>De la documentul justificativ la situațiile financiare — explicat pas cu pas, cu exemple concrete, pentru persoane non-tehnice care vor să construiască un program de analiză financiară.</p>
+</div>
+
+<!-- FLOW -->
+<div class="flow-diagram" id="flux">
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-icon doc">📄</div>
+      <div class="flow-content">
+        <h4>1. Document justificativ</h4>
+        <p>Factură, chitanță, extras de cont — dovada că s-a întâmplat o operațiune economică.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon nota">📝</div>
+      <div class="flow-content">
+        <h4>2. Notă contabilă (articol contabil)</h4>
+        <p>„Traducerea" documentului în limbaj contabil: care cont se debitează, care se creditează, cu ce sumă.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon jurnal">📚</div>
+      <div class="flow-content">
+        <h4>3. Registrul Jurnal</h4>
+        <p>Toate notele contabile, în ordine cronologică — „jurnalul de bord" al firmei.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon carte">📂</div>
+      <div class="flow-content">
+        <h4>4. Cartea Mare / Fișe de cont</h4>
+        <p>Aceleași date, dar reorganizate pe conturi — câte un „dosar" pentru fiecare cont.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon balanta">📊</div>
+      <div class="flow-content">
+        <h4>5. Balanța de verificare</h4>
+        <p>Tabloul de bord: solduri inițiale, rulaje, solduri finale — pe fiecare cont, la un moment dat.</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-icon sit">🏛️</div>
+      <div class="flow-content">
+        <h4>6. Situații financiare</h4>
+        <p>Bilanț, Cont de Profit și Pierdere, Note explicative — rapoartele oficiale depuse la ANAF.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DOCUMENTE -->
+<section id="documente">
+  <div class="section-num">01</div>
+  <h2>Documentul justificativ</h2>
+  <p>Orice hârtie sau document electronic care dovedește că s-a întâmplat ceva din punct de vedere economic: o vânzare, o cumpărare, o plată, o încasare.</p>
+
+  <h3>Exemple concrete</h3>
+  <div class="card-grid">
+    <div class="card c1">
+      <div class="card-label">Achiziții</div>
+      <h4>Factura de la furnizor</h4>
+      <p>Primești o factură când cumperi materii prime, echipamente, servicii.</p>
+    </div>
+    <div class="card c2">
+      <div class="card-label">Încasări</div>
+      <h4>Chitanța</h4>
+      <p>Dovada unei plăți/încasări efectuate în numerar.</p>
+    </div>
+    <div class="card c3">
+      <div class="card-label">Bancă</div>
+      <h4>Extrasul de cont</h4>
+      <p>Mișcările de bani din contul bancar al firmei.</p>
+    </div>
+    <div class="card c4">
+      <div class="card-label">Personal</div>
+      <h4>Statul de plată</h4>
+      <p>Documentul care detaliază salariile lunare datorate angajaților.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">⚠️ Regulă de aur</div>
+    Nicio înregistrare contabilă nu se face fără un document justificativ. Documentul este „dovada" că operațiunea a avut loc.
+  </div>
+</section>
+
+<!-- NOTA CONTABILA -->
+<section id="nota">
+  <div class="section-num">02</div>
+  <h2>Nota contabilă (articolul contabil)</h2>
+  <p>„Traducerea" documentului justificativ în limbajul contabilității. Fiecare document generează cel puțin o notă contabilă — uneori mai multe.</p>
+
+  <div class="analogy">Gândește-te la partidă dublă ca la un balansoar: când o parte urcă (debit), cealaltă coboară (credit), dar greutatea totală rămâne aceeași.</div>
+
+  <h3>Exemplu: Achiziția unui laptop — 5.000 lei + TVA 19%</h3>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Cont debitat</th><th>Cont creditat</th><th>Sumă</th><th>Ce înseamnă</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-mono td-debit">214 Mobilier, aparatură</td>
+          <td class="td-mono td-credit">404 Furnizori imobilizări</td>
+          <td class="td-bold">5.000 lei</td>
+          <td class="td-muted">Firma a primit laptopul</td>
+        </tr>
+        <tr>
+          <td class="td-mono td-debit">4426 TVA deductibilă</td>
+          <td class="td-mono td-credit">404 Furnizori imobilizări</td>
+          <td class="td-bold">950 lei</td>
+          <td class="td-muted">Dreptul de deducere TVA</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-title">📌 Un document, mai multe note contabile</div>
+    Același laptop va genera în fiecare lună o notă contabilă de <strong>amortizare</strong> (uzură): <code>6811 = 2814</code> cu ~139 lei/lună, timp de 36 de luni. Deci dintr-o singură factură rezultă 1 notă de achiziție + 36 de note de amortizare.
+  </div>
+</section>
+
+<!-- REGISTRUL JURNAL -->
+<section id="jurnal">
+  <div class="section-num">03</div>
+  <h2>Registrul Jurnal</h2>
+  <p>„Jurnalul de bord" al contabilității: toate notele contabile, puse una după alta, în ordinea cronologică în care s-au întâmplat. Nu se grupează pe categorii, nu se fac rezumate — doar se notează totul.</p>
+
+  <div class="analogy">Imaginează-ți un caiet în care scrii, zi de zi, absolut tot ce se întâmplă financiar în firmă.</div>
+
+  <h3>Exemplu: o săptămână din Registrul Jurnal</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Nr.</th><th>Data</th><th>Document</th><th>Explicație</th><th>Debit</th><th>Credit</th><th>Sumă</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>03.03</td><td>Fact. #1234</td><td>Achiziție laptop</td><td class="td-mono td-debit">214</td><td class="td-mono td-credit">404</td><td class="td-bold">5.000</td></tr>
+        <tr><td>2</td><td>03.03</td><td>Fact. #1234</td><td>TVA deductibilă</td><td class="td-mono td-debit">4426</td><td class="td-mono td-credit">404</td><td class="td-bold">950</td></tr>
+        <tr><td>3</td><td>04.03</td><td>Fact. #501</td><td>Vânzare servicii client X</td><td class="td-mono td-debit">4111</td><td class="td-mono td-credit">704</td><td class="td-bold">10.000</td></tr>
+        <tr><td>4</td><td>04.03</td><td>Fact. #501</td><td>TVA colectată</td><td class="td-mono td-debit">4111</td><td class="td-mono td-credit">4427</td><td class="td-bold">1.900</td></tr>
+        <tr><td>5</td><td>05.03</td><td>Extras bancar</td><td>Plată chirie birou</td><td class="td-mono td-debit">612</td><td class="td-mono td-credit">5121</td><td class="td-bold">3.000</td></tr>
+        <tr><td>6</td><td>07.03</td><td>Stat de plată</td><td>Salarii februarie</td><td class="td-mono td-debit">641</td><td class="td-mono td-credit">421</td><td class="td-bold">15.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-title">🔑 Pentru programul tău</div>
+    Registrul Jurnal este cel mai detaliat set de date. Dacă ai acces la el, ai acces la <strong>toate</strong> informațiile — fiecare tranzacție, fiecare sumă, fiecare cont afectat. Poți reconstitui din el orice alt raport.
+  </div>
+</section>
+
+<!-- BALANTA -->
+<section id="balanta">
+  <div class="section-num">04</div>
+  <h2>Balanța de verificare</h2>
+  <p>Un tabel rezumat care arată, pentru fiecare cont, patru lucruri: soldul inițial, rulajul debitor (cât s-a mișcat pe debit), rulajul creditor (cât s-a mișcat pe credit) și soldul final.</p>
+
+  <div class="analogy">Dacă Registrul Jurnal este jurnalul de bord și Cartea Mare sunt dosarele pe subiecte, Balanța este „tabloul de bord" al firmei — vezi dintr-o privire starea tuturor conturilor.</div>
+
+  <h3>Exemplu simplificat de Balanță (31 martie)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Cont</th><th>Denumire</th><th>SI Debit</th><th>SI Credit</th><th>Rulaj D</th><th>Rulaj C</th><th>SF Debit</th><th>SF Credit</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="td-mono">214</td><td>Mobilier, aparatură</td><td>20.000</td><td>—</td><td>5.000</td><td>—</td><td class="td-bold">25.000</td><td>—</td></tr>
+        <tr><td class="td-mono">2814</td><td>Amortizare imobilizări</td><td>—</td><td>8.000</td><td>—</td><td>139</td><td>—</td><td class="td-bold">8.139</td></tr>
+        <tr><td class="td-mono">4111</td><td>Clienți</td><td>15.000</td><td>—</td><td>11.900</td><td>11.900</td><td class="td-bold">15.000</td><td>—</td></tr>
+        <tr><td class="td-mono">5121</td><td>Conturi la bănci</td><td>50.000</td><td>—</td><td>11.900</td><td>18.000</td><td class="td-bold">43.900</td><td>—</td></tr>
+        <tr><td class="td-mono">612</td><td>Cheltuieli chirii</td><td>—</td><td>—</td><td>3.000</td><td>—</td><td class="td-bold">3.000</td><td>—</td></tr>
+        <tr><td class="td-mono">641</td><td>Cheltuieli salarii</td><td>—</td><td>—</td><td>15.000</td><td>—</td><td class="td-bold">15.000</td><td>—</td></tr>
+        <tr><td class="td-mono">704</td><td>Venituri din servicii</td><td>—</td><td>—</td><td>—</td><td>10.000</td><td>—</td><td class="td-bold">10.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="equation">
+    <small>Regula fundamentală</small>
+    Total Solduri Debitoare = Total Solduri Creditoare
+  </div>
+  <p>Dacă totalurile nu sunt egale, înseamnă că există o eroare în înregistrări. De aici și numele de „balanță de <em>verificare</em>".</p>
+</section>
+
+<!-- SITUATII FINANCIARE -->
+<section id="situatii">
+  <div class="section-num">05</div>
+  <h2>Situațiile financiare</h2>
+  <p>Rapoartele finale, oficiale, care sintetizează toată activitatea firmei. Se depun la ANAF și sunt publice.</p>
+
+  <h3>Bilanțul contabil</h3>
+  <p>O „fotografie" a firmei la un moment dat — ce deține, ce datorează și cât „valorează" pentru proprietari.</p>
+  <div class="equation">
+    <small>Ecuația fundamentală</small>
+    ACTIVE = DATORII + CAPITALURI PROPRII
+  </div>
+
+  <div class="analogy">Bilanțul este ca inventarul casei tale: ai o casă de 200.000 € (activ), dar mai ai de plătit la bancă 120.000 € (datorie). Partea ta reală e 80.000 € (capital propriu).</div>
+
+  <p><strong>De unde vin datele:</strong> din balanță, conturile din clasele 1–5. Soldurile debitoare ale conturilor de activ formează partea de Active. Soldurile creditoare ale conturilor de datorii și capitaluri formează cealaltă parte.</p>
+
+  <h3>Contul de Profit și Pierdere</h3>
+  <p>„Filmul" activității pe o perioadă: cât a câștigat firma minus cât a cheltuit.</p>
+
+  <div class="equation">
+    <small>Ecuația</small>
+    VENITURI − CHELTUIELI = REZULTAT (profit sau pierdere)
+  </div>
+
+  <p><strong>De unde vin datele:</strong></p>
+  <div class="formula-row">
+    <span class="tag tag-green">Clasa 7 — Venituri</span>
+    <span class="op">−</span>
+    <span class="tag tag-red">Clasa 6 — Cheltuieli</span>
+    <span class="op">=</span>
+    <span class="tag tag-blue">Profit / Pierdere</span>
+  </div>
+
+  <h3>Exemplu rapid</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Element</th><th>Cont</th><th>Sumă</th></tr></thead>
+      <tbody>
+        <tr><td>Venituri din servicii</td><td class="td-mono">704</td><td class="td-bold" style="color: var(--accent);">+10.000 lei</td></tr>
+        <tr><td>Cheltuieli cu chiriile</td><td class="td-mono">612</td><td class="td-bold" style="color: var(--danger);">−3.000 lei</td></tr>
+        <tr><td>Cheltuieli cu salariile</td><td class="td-mono">641</td><td class="td-bold" style="color: var(--danger);">−15.000 lei</td></tr>
+        <tr><td>Cheltuieli cu amortizarea</td><td class="td-mono">6811</td><td class="td-bold" style="color: var(--danger);">−139 lei</td></tr>
+        <tr class="total-row"><td>REZULTAT</td><td></td><td style="color: var(--danger);">−8.139 lei (pierdere)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- PLAN DE CONTURI -->
+<section id="plan">
+  <div class="section-num">06</div>
+  <h2>Planul de conturi: cele 9 clase</h2>
+  <p>Planul de conturi este „catalogul" tuturor conturilor disponibile. În România este reglementat prin OMFP 1802/2014 și are 9 clase, organizate logic.</p>
+
+  <h3>Clasele 1–5: Conturi de bilanț</h3>
+  <p>Aceste conturi au solduri care apar în bilanț la sfârșitul perioadei.</p>
+  <div class="card-grid">
+    <div class="card c1">
+      <div class="card-label">Clasa 1</div>
+      <h4>Capitaluri</h4>
+      <p>Capital social, rezerve, profit reportat, împrumuturi pe termen lung, provizioane.</p>
+    </div>
+    <div class="card c2">
+      <div class="card-label">Clasa 2</div>
+      <h4>Imobilizări</h4>
+      <p>Clădiri, echipamente, mașini, licențe, brevete — active pe termen lung.</p>
+    </div>
+    <div class="card c3">
+      <div class="card-label">Clasa 3</div>
+      <h4>Stocuri</h4>
+      <p>Materii prime, mărfuri, produse finite, producție în curs.</p>
+    </div>
+    <div class="card c4">
+      <div class="card-label">Clasa 4</div>
+      <h4>Terți</h4>
+      <p>Clienți, furnizori, stat (TVA, impozite), personal (salarii).</p>
+    </div>
+    <div class="card c5">
+      <div class="card-label">Clasa 5</div>
+      <h4>Trezorerie</h4>
+      <p>Bani în bancă, bani în casă, investiții pe termen scurt.</p>
+    </div>
+  </div>
+
+  <h3>Clasele 6–7: Conturi de rezultat</h3>
+  <p>Aceste conturi se „închid" la final de an și formează contul de Profit și Pierdere.</p>
+  <div class="card-grid">
+    <div class="card c6">
+      <div class="card-label">Clasa 6</div>
+      <h4>Cheltuieli</h4>
+      <p>Tot ce costă firma: materii prime, salarii, chirii, servicii, amortizare, dobânzi.</p>
+    </div>
+    <div class="card c7">
+      <div class="card-label">Clasa 7</div>
+      <h4>Venituri</h4>
+      <p>Tot ce aduce bani: vânzări de produse, servicii prestate, chirii, dobânzi.</p>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-title">Clasele 8 și 9</div>
+    <strong>Clasa 8</strong> = conturi speciale (extrabilanțiere — informații suplimentare). <strong>Clasa 9</strong> = conturi de gestiune (contabilitate managerială, opționale).
+  </div>
+</section>
+
+<!-- CONTURI ANALITICE -->
+<section id="analitice">
+  <div class="section-num">07</div>
+  <h2>Conturi sintetice vs. analitice</h2>
+  <p>Aceasta este o distincție crucială pentru oricine construiește un program de analiză financiară.</p>
+
+  <h3>Contul sintetic = „contul mare"</h3>
+  <p>Definit în planul de conturi național. Are 3 cifre (grad I) sau 4 cifre (grad II). Arată un total general.</p>
+  <p>Exemplu: <code>401</code> = „Furnizori" — totalul tuturor datoriilor către toți furnizorii firmei, într-o singură sumă.</p>
+
+  <h3>Contul analitic = „detaliul"</h3>
+  <p>O detaliere a contului sintetic, creată de fiecare firmă în funcție de nevoile proprii. Adaugă cifre suplimentare.</p>
+
+  <div class="tree">
+    <div><span class="num">401</span> <span class="root">„Furnizori"</span> <span class="branch">— sintetic, totalul pe toți furnizorii</span></div>
+    <div>&nbsp;&nbsp;├── <span class="num">401.001</span> <span class="leaf">„Furnizor — Orange România"</span></div>
+    <div>&nbsp;&nbsp;├── <span class="num">401.002</span> <span class="leaf">„Furnizor — Dedeman"</span></div>
+    <div>&nbsp;&nbsp;├── <span class="num">401.003</span> <span class="leaf">„Furnizor — Emag"</span></div>
+    <div>&nbsp;&nbsp;└── <span class="num">401.004</span> <span class="leaf">„Furnizor — Enel Energie"</span></div>
+  </div>
+
+  <div class="tree">
+    <div><span class="num">704</span> <span class="root">„Venituri din servicii prestate"</span> <span class="branch">— sintetic</span></div>
+    <div>&nbsp;&nbsp;├── <span class="num">704.01</span> <span class="leaf">„Venituri din consultanță IT"</span> <span class="branch">= 60.000 lei</span></div>
+    <div>&nbsp;&nbsp;├── <span class="num">704.02</span> <span class="leaf">„Venituri din mentenanță"</span> <span class="branch">= 30.000 lei</span></div>
+    <div>&nbsp;&nbsp;└── <span class="num">704.03</span> <span class="leaf">„Venituri din training"</span> <span class="branch">= 10.000 lei</span></div>
+    <div style="margin-top:0.5rem;"><span class="branch">────────────────────── Total sintetic = </span><span class="root">100.000 lei ✓</span></div>
+  </div>
+
+  <div class="equation">
+    <small>Regula de aur</small>
+    Suma tuturor analiticelor = Soldul contului sintetic
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-title">🎯 De ce contează pentru programul tău</div>
+    La nivel <strong>sintetic</strong> poți arăta: „Firma a câștigat 100.000 lei din servicii". La nivel <strong>analitic</strong> poți arăta: „60% din venituri vin din consultanță IT, 30% din mentenanță, 10% din training." Analiticele permit defalcarea pe categorii, pe furnizori, pe clienți, pe proiecte.
+  </div>
+</section>
+
+<!-- EXTRAGERE DATE -->
+<section id="extragere">
+  <div class="section-num">08</div>
+  <h2>Cum extragi informații utile din balanță</h2>
+  <p>Acesta este scopul final al unui program de analiză financiară: să transforme datele brute în informații pe care le înțelege un patron, un manager sau un investitor.</p>
+
+  <h3>Extragerea veniturilor</h3>
+  <p>Din balanță, ia toate conturile care încep cu <code>7</code> (clasa 7). Rulajul creditor = veniturile firmei.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Grupă</th><th>Ce conține</th><th>Exemple</th></tr></thead>
+      <tbody>
+        <tr><td class="td-bold">Grupa 70</td><td>Cifra de afaceri netă</td><td class="td-muted">701 vânzări produse, 704 servicii, 707 mărfuri</td></tr>
+        <tr><td class="td-bold">Grupa 76</td><td>Venituri financiare</td><td class="td-muted">766 dobânzi, 765 diferențe de curs</td></tr>
+        <tr><td class="td-bold">Grupa 78</td><td>Venituri din provizioane</td><td class="td-muted">Ajustări tehnice, de corecție</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Extragerea cheltuielilor</h3>
+  <p>Ia toate conturile care încep cu <code>6</code> (clasa 6). Rulajul debitor = cheltuielile firmei.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Grupă</th><th>Ce conține</th><th>Exemple</th></tr></thead>
+      <tbody>
+        <tr><td class="td-bold">Grupa 60</td><td>Cheltuieli cu stocurile</td><td class="td-muted">Materii prime, materiale, mărfuri</td></tr>
+        <tr><td class="td-bold">Grupa 61</td><td>Servicii de la terți</td><td class="td-muted">Chirii, reparații, întreținere</td></tr>
+        <tr><td class="td-bold">Grupa 62</td><td>Alte servicii</td><td class="td-muted">Poștă, telecom, asigurări, deplasări, reclamă</td></tr>
+        <tr><td class="td-bold">Grupa 63</td><td>Impozite și taxe</td><td class="td-muted">Altele decât impozitul pe profit</td></tr>
+        <tr><td class="td-bold">Grupa 64</td><td>Personal</td><td class="td-muted">Salarii + contribuții sociale</td></tr>
+        <tr><td class="td-bold">Grupa 65</td><td>Alte cheltuieli exploatare</td><td class="td-muted">Amenzi, penalități, donații</td></tr>
+        <tr><td class="td-bold">Grupa 66</td><td>Cheltuieli financiare</td><td class="td-muted">Dobânzi, pierderi curs valutar</td></tr>
+        <tr><td class="td-bold">Grupa 68</td><td>Amortizare & provizioane</td><td class="td-muted">Uzura activelor, ajustări de valoare</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Calcularea profitului</h3>
+  <div class="formula-row">
+    <span class="tag tag-green">Venituri exploatare (gr. 70–75)</span>
+    <span class="op">−</span>
+    <span class="tag tag-red">Cheltuieli exploatare (gr. 60–65, 68)</span>
+    <span class="op">=</span>
+    <span class="tag tag-amber">Profit din exploatare</span>
+  </div>
+  <div class="formula-row">
+    <span class="tag tag-green">Venituri financiare (gr. 76)</span>
+    <span class="op">−</span>
+    <span class="tag tag-red">Cheltuieli financiare (gr. 66)</span>
+    <span class="op">=</span>
+    <span class="tag tag-amber">Profit financiar</span>
+  </div>
+  <div class="formula-row">
+    <span class="tag tag-amber">Profit exploatare</span>
+    <span class="op">+</span>
+    <span class="tag tag-amber">Profit financiar</span>
+    <span class="op">−</span>
+    <span class="tag tag-red">Impozit pe profit (691)</span>
+    <span class="op">=</span>
+    <span class="tag tag-blue">Profit net</span>
+  </div>
+
+  <h3>Ce analize poți construi</h3>
+  <div class="card-grid">
+    <div class="card c3">
+      <div class="card-label">Profitabilitate</div>
+      <h4>Marje de profit</h4>
+      <p>Marja brută, operațională, netă — ca procent din venituri.</p>
+    </div>
+    <div class="card c2">
+      <div class="card-label">Lichiditate</div>
+      <h4>Capacitate de plată</h4>
+      <p>Active circulante / Datorii pe termen scurt.</p>
+    </div>
+    <div class="card c4">
+      <div class="card-label">Structură</div>
+      <h4>Defalcarea cheltuielilor</h4>
+      <p>Ce % merg pe salarii? Chirii? Materii prime? Evoluție lunară.</p>
+    </div>
+    <div class="card c7">
+      <div class="card-label">Detaliu analitic</div>
+      <h4>Venituri pe serviciu/produs</h4>
+      <p>Pe ce câștigă firma cel mai mult — folosind conturile analitice.</p>
+    </div>
+  </div>
+
+  <h3>Ce sursă de date să alegi</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Sursă</th><th>Ce conține</th><th>Ce poți face</th></tr></thead>
+      <tbody>
+        <tr><td class="td-bold">Registrul Jurnal</td><td>Fiecare tranzacție, cu data, conturi, sume</td><td>Analiză granulară: pe zi, pe document</td></tr>
+        <tr><td class="td-bold">Balanța de verificare</td><td>Solduri și rulaje pe conturi</td><td>Analiză de sinteză: venituri, cheltuieli, active</td></tr>
+        <tr><td class="td-bold">Ambele combinat</td><td>Detaliu + sinteză</td><td>Program complet de analiză financiară</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-title">💡 Recomandare</div>
+    Ideal, pornești de la <strong>Registrul Jurnal</strong> (date brute), construiești automat balanța prin totalizare pe conturi, apoi generezi situații financiare și indicatori. Dacă ai doar <strong>balanța</strong>, poți totuși calcula bilanțul, contul de profit și pierdere și cei mai importanți indicatori.
+  </div>
+</section>
+
+<!-- GLOSAR -->
+<section id="glosar">
+  <div class="section-num">09</div>
+  <h2>Glosar rapid</h2>
+  <div class="glosar-item"><span class="glosar-term">Debit</span><span class="glosar-def">Partea stângă a unui cont. Pentru active/cheltuieli = creștere. Pentru pasive/venituri = scădere.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Credit</span><span class="glosar-def">Partea dreaptă a unui cont. Funcționează invers față de debit.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Rulaj</span><span class="glosar-def">Totalul mișcărilor pe o perioadă — cât s-a mișcat pe debit sau pe credit.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Sold</span><span class="glosar-def">Diferența dintre debit și credit = „cât rămâne" în cont la un moment dat.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Partidă dublă</span><span class="glosar-def">Fiecare tranzacție afectează minimum 2 conturi; total debit = total credit, mereu.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Cont sintetic</span><span class="glosar-def">Contul „mare", de bază (3–4 cifre). Ex: 401 = toți furnizorii.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Cont analitic</span><span class="glosar-def">Detaliere a sinteticului, creată de firmă. Ex: 401.001 = Orange România.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Exercițiu financiar</span><span class="glosar-def">Perioada contabilă, de obicei 1 ianuarie – 31 decembrie.</span></div>
+  <div class="glosar-item"><span class="glosar-term">ANAF</span><span class="glosar-def">Agenția Națională de Administrare Fiscală — unde se depun situațiile financiare.</span></div>
+  <div class="glosar-item"><span class="glosar-term">Amortizare</span><span class="glosar-def">Uzura în timp a unui activ. Se înregistrează lunar ca o cheltuială (cont 6811).</span></div>
+</section>
+
+</div>
+
+<footer>
+  Material educativ — Fluxul contabil românesc pentru construcția unui program de analiză financiară.
+</footer>
+
+</body>
+</html>

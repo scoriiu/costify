@@ -22,6 +22,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, "..")
 const STRUCTURED_DIR = join(ROOT, "training/contabil/structured")
 const CHUNKS_DIR = join(ROOT, "training/contabil/chunks")
+const TRAINING_DIR = join(ROOT, "training/contabil")
 
 function loadJSON(filename: string): Record<string, unknown> {
   return JSON.parse(readFileSync(join(STRUCTURED_DIR, filename), "utf-8"))
@@ -53,6 +54,7 @@ function findRelevantChunks(question: string, allChunks: string[]): string[] {
     intracomunitar: ["intracomunitar", "livrare intracomunitara", "reverse charge", "taxare inversa"],
     imobil: ["imobil", "ajustare tva", "20 ani", "vanzare imobil", "cladire"],
     beneficii: ["tichete", "masa", "avantaje natura", "beneficii"],
+    saga: ["saga", "saga c", "inchidere luna", "validare", "devalidare", "configurare societati", "conturi automate", "nomenclat", "gestiune global", "coeficient k", "registru casa", "jurnal banca", "stat de plata", "nir", "fisa cont", "cartea mare", "balanta", "spv", "d100", "d101", "d700", "diferente curs"],
   }
 
   const matchedTopics = new Set<string>()
@@ -64,13 +66,22 @@ function findRelevantChunks(question: string, allChunks: string[]): string[] {
 
   if (matchedTopics.size === 0) return allChunks.slice(0, 5)
 
-  return allChunks.filter((chunk) => {
+  const matched = allChunks.filter((chunk) => {
     const chunkLower = chunk.toLowerCase()
     return [...matchedTopics].some((topic) => {
       const kws = keywords[topic]
       return kws.some((kw) => chunkLower.includes(kw))
     })
   })
+
+  if (matchedTopics.has("saga")) {
+    const sagaPath = join(TRAINING_DIR, "saga-c.md")
+    if (existsSync(sagaPath)) {
+      matched.push(readFileSync(sagaPath, "utf-8"))
+    }
+  }
+
+  return matched
 }
 
 function resolveConfig(): { apiKey: string; baseURL?: string } {

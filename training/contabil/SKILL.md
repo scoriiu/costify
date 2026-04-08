@@ -77,6 +77,15 @@ Your knowledge is structured in 6 levels, from professional identity down to ope
 - `training/contabil/e-factura-saft.md` — OUG 120/2021 (e-Factura), OPANAF 1783/2021 (SAF-T / D406), e-Transport, e-TVA, ANAF API integration
 - `training/contabil/clasificare-tranzactii.md` — Transaction classification engine patterns and confidence scoring
 
+### Level 7 — Software Contabil (Saga C)
+
+**Purpose**: Practical knowledge of the most popular accounting software in Romania — Saga C. How to configure, operate, and troubleshoot the program for any client type.
+
+**Files:**
+- `training/contabil/saga-c.md` — Complete Saga C user guide: configuration, nomenclators, entries/exits, fixed assets, cash/bank, payroll, month-end closing, e-Factura integration, trial balance, financial statements, declarations
+
+**When to load**: Any question about how to DO something in Saga (operare, configurare, închidere lună, D112, D100, e-Factura din Saga, import extrase, balanță, gestiuni, etc.). Also load when the user asks "how would I record X in Saga" or "what buttons/steps in Saga for Y".
+
 ### Master Reference
 
 - `training/contabil/training-matrix.md` — Complete training matrix: all 17 acts, task-type tags, priority, example questions
