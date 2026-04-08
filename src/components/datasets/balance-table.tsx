@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import type { BalanceRowView } from "@/modules/balances";
 
 interface Props {
@@ -9,11 +10,18 @@ interface Props {
 
 type ViewMode = "full" | "leaf";
 
+function isUnmapped(denumire: string): boolean {
+  return denumire.startsWith("Cont ");
+}
+
 export function BalanceTable({ rows }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("leaf");
   const [search, setSearch] = useState("");
+  const [showUnmapped, setShowUnmapped] = useState(false);
 
   const filtered = filterRows(rows, viewMode, search);
+  const unmappedRows = filtered.filter((r) => isUnmapped(r.denumire));
+  const unmappedCount = unmappedRows.length;
 
   return (
     <div>
@@ -30,6 +38,14 @@ export function BalanceTable({ rows }: Props) {
           {filtered.length} conturi
         </span>
       </div>
+
+      {unmappedCount > 0 && (
+        <UnmappedSection
+          rows={unmappedRows}
+          open={showUnmapped}
+          onToggle={() => setShowUnmapped(!showUnmapped)}
+        />
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-dark-3">
         <table className="w-full border-separate border-spacing-0">
@@ -61,8 +77,56 @@ export function BalanceTable({ rows }: Props) {
   );
 }
 
+function UnmappedSection({
+  rows,
+  open,
+  onToggle,
+}: {
+  rows: BalanceRowView[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="mb-3 rounded-xl border border-warn/20 bg-warn/5">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-warn/10"
+      >
+        <AlertTriangle size={14} className="shrink-0 text-warn" />
+        <span className="font-mono text-xs text-warn">
+          {rows.length} {rows.length === 1 ? "cont nemapat" : "conturi nemapate"}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`ml-auto text-warn/60 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-warn/10 px-4 py-2">
+          <div className="space-y-1">
+            {rows.map((r) => (
+              <div key={r.cont} className="flex items-center gap-3 font-mono text-xs">
+                <span className="text-warn">{r.cont}</span>
+                <span className="text-gray">—</span>
+                <span className="text-gray-light">
+                  Sold fin D: {formatNum(r.finD)} | Sold fin C: {formatNum(r.finC)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[0.65rem] text-gray">
+            Aceste conturi nu au denumire in planul de conturi standard.
+            Verificati daca sunt conturi analitice specifice sau conturi lipsa.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BalanceRow({ row }: { row: BalanceRowView }) {
   const isParent = row.hasChild;
+  const unmapped = isUnmapped(row.denumire);
 
   return (
     <tr className={`border-b border-dark-3/50 hover:bg-dark-2/40 ${isParent ? "text-white font-semibold" : "text-gray-light"}`}>
@@ -70,7 +134,10 @@ function BalanceRow({ row }: { row: BalanceRowView }) {
         <span className="font-mono text-xs">{row.cont}</span>
       </Td>
       <Td align="left">
-        <span className="text-xs truncate max-w-[250px] inline-block">{row.denumire}</span>
+        <span className={`text-xs truncate max-w-[250px] inline-flex items-center gap-1.5 ${unmapped ? "text-warn/70" : ""}`}>
+          {unmapped && <AlertTriangle size={10} className="shrink-0 text-warn" />}
+          {row.denumire}
+        </span>
       </Td>
       <Td><Num value={row.soldInD} /></Td>
       <Td><Num value={row.soldInC} /></Td>
@@ -183,16 +250,18 @@ function Num({ value, highlight }: { value: number; highlight?: boolean }) {
     return <span className="font-mono text-xs text-dark-4">-</span>;
   }
 
-  const formatted = value.toLocaleString("ro-RO", {
+  return (
+    <span className={`font-mono text-xs ${highlight ? "text-white" : ""}`}>
+      {formatNum(value)}
+    </span>
+  );
+}
+
+function formatNum(n: number): string {
+  return n.toLocaleString("ro-RO", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-
-  return (
-    <span className={`font-mono text-xs ${highlight ? "text-white" : ""}`}>
-      {formatted}
-    </span>
-  );
 }
 
 function filterRows(rows: BalanceRowView[], mode: ViewMode, search: string): BalanceRowView[] {
