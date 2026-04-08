@@ -1,5 +1,8 @@
 # Costify — Engineering Standards & Architecture Guide
 
+## Git Rules
+- Never add `Co-Authored-By` lines to commit messages.
+
 ## Design System Rules
 
 ### Palette

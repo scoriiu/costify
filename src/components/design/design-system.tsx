@@ -3,6 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/ui/logo";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
+  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend,
+  RadialBarChart, RadialBar,
+} from "recharts";
 import { CostiMascot, type CostiState } from "@/components/costi/costi-mascot";
 import {
   Users,
@@ -22,6 +27,7 @@ import {
   TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
+  Building2,
 } from "lucide-react";
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -913,6 +919,489 @@ export function DesignSystem() {
             </Card>
           ))}
         </div>
+      </Section>
+
+      {/* ─── VOICE & TONE ─── */}
+      {/* ─── UI COMPONENTS CATALOG ─── */}
+      <Section title="UI Components" description="Toate elementele vizuale folosite in aplicatie — forme, selectoare, tabele, grafice, badge-uri, progress, tooltips.">
+
+        {/* Select / Combobox */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Select / Combobox</p>
+          <div className="grid gap-5 max-w-lg">
+            <div className="space-y-1.5">
+              <label className="block font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Perioada</label>
+              <select className="w-full rounded-lg border border-dark-3 bg-dark-2 px-3.5 py-2.5 text-[14px] text-gray-light outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer">
+                <option>Ianuarie 2024</option>
+                <option>Februarie 2024</option>
+                <option>Martie 2024</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Client</label>
+              <select className="w-full rounded-lg border border-dark-3 bg-dark-2 px-3.5 py-2.5 text-[14px] text-gray-light outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer">
+                <option>SC Exemplu SRL</option>
+                <option>SC Demo SA</option>
+                <option>PFA Ion Popescu</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Tip raport</label>
+              <select disabled className="w-full rounded-lg border border-dark-3 bg-dark-2 px-3.5 py-2.5 text-[14px] text-gray/50 outline-none opacity-50 cursor-not-allowed">
+                <option>Bilant F10</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        {/* Textarea */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Textarea</p>
+          <div className="max-w-lg space-y-1.5">
+            <label className="block font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Notite</label>
+            <textarea
+              rows={3}
+              placeholder="Adauga notite despre acest client..."
+              className="w-full rounded-lg border border-dark-3 bg-dark-2 px-3.5 py-2.5 text-[14px] text-gray-light placeholder:text-gray/60 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30 resize-none"
+            />
+          </div>
+        </Card>
+
+        {/* Checkbox & Radio */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Checkbox & Radio</p>
+          <div className="grid gap-6 sm:grid-cols-2 max-w-lg">
+            <div className="space-y-3">
+              <p className="font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Checkbox</p>
+              {["Bilant F10", "CPP F20", "Balanta de verificare"].map((label) => (
+                <label key={label} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="checkbox" className="h-4 w-4 rounded border-dark-3 bg-dark-2 text-primary accent-primary cursor-pointer" defaultChecked={label === "Bilant F10"} />
+                  <span className="text-[14px] text-gray-light group-hover:text-white transition-colors">{label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <p className="font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Radio</p>
+              {["Luna curenta", "Trimestru", "An complet"].map((label) => (
+                <label key={label} className="flex items-center gap-2.5 cursor-pointer group">
+                  <input type="radio" name="period" className="h-4 w-4 border-dark-3 bg-dark-2 text-primary accent-primary cursor-pointer" defaultChecked={label === "Luna curenta"} />
+                  <span className="text-[14px] text-gray-light group-hover:text-white transition-colors">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Toggle Switch */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Toggle</p>
+          <div className="space-y-4 max-w-sm">
+            {[
+              { label: "Afiseaza conturi analitice", on: true },
+              { label: "Include conturi cu sold zero", on: false },
+              { label: "Grupeaza pe clase", on: true },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between">
+                <span className="text-[14px] text-gray-light">{item.label}</span>
+                <div className={`w-10 h-5.5 rounded-full p-0.5 cursor-pointer transition-colors ${item.on ? "bg-primary" : "bg-dark-3"}`}>
+                  <div className={`h-4.5 w-4.5 rounded-full bg-white shadow transition-transform ${item.on ? "translate-x-4.5" : "translate-x-0"}`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Badges & Tags */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Badges & Tags</p>
+          <div className="flex flex-wrap gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-green/10 text-green border border-green/20">
+              <CheckCircle2 size={12} /> Activ
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-danger/10 text-danger border border-danger/20">
+              <XCircle size={12} /> Esuat
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-warn/10 text-warn border border-warn/20">
+              <AlertTriangle size={12} /> In asteptare
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-blue/10 text-blue border border-blue/20">
+              <Info size={12} /> Procesare
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-primary/10 text-primary-light border border-primary/20">
+              Jurnal contabil
+            </span>
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 font-mono text-[11px] font-medium bg-dark-3 text-gray-light">
+              v2.1
+            </span>
+          </div>
+        </Card>
+
+        {/* Progress & Loading */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Progress & Loading</p>
+          <div className="space-y-5 max-w-lg">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-mono text-[11px] text-gray uppercase" style={{ letterSpacing: "-0.04em" }}>Import progres</span>
+                <span className="font-mono text-[11px] text-primary-light">73%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-dark-3">
+                <div className="h-2 rounded-full bg-primary" style={{ width: "73%" }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-mono text-[11px] text-gray uppercase" style={{ letterSpacing: "-0.04em" }}>Calcul balanta</span>
+                <span className="font-mono text-[11px] text-green">100%</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-dark-3">
+                <div className="h-2 rounded-full bg-green" style={{ width: "100%" }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <span className="font-mono text-[11px] text-gray uppercase" style={{ letterSpacing: "-0.04em" }}>Skeleton loading</span>
+              <div className="space-y-2">
+                <div className="h-4 w-3/4 rounded bg-dark-3 animate-pulse" />
+                <div className="h-4 w-1/2 rounded bg-dark-3 animate-pulse" />
+                <div className="h-4 w-5/6 rounded bg-dark-3 animate-pulse" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              <span className="text-[13px] text-gray">Se proceseaza...</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Tabs */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Tabs</p>
+          <div className="space-y-4">
+            <div className="flex gap-1 border-b border-dark-3">
+              {["Bilant", "CPP", "Balanta", "Jurnal"].map((tab, i) => (
+                <button
+                  key={tab}
+                  className={`px-4 py-2.5 text-[14px] font-semibold transition-colors border-b-2 -mb-px ${
+                    i === 0
+                      ? "border-primary text-white"
+                      : "border-transparent text-gray hover:text-gray-light"
+                  }`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 rounded-lg bg-dark-3/50 p-1">
+              {["Lunar", "Trimestrial", "Anual"].map((tab, i) => (
+                <button
+                  key={tab}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                    i === 0
+                      ? "bg-primary text-[#E9E8E3] shadow-sm"
+                      : "text-gray hover:text-gray-light"
+                  }`}
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Tooltip & Popover */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Tooltip</p>
+          <div className="flex items-center gap-8">
+            <div className="relative group">
+              <span className="text-[14px] text-gray-light underline decoration-dashed underline-offset-4 cursor-help">Lichiditate curenta</span>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-dark-3 border border-dark-4 shadow-lg text-[12px] text-gray-light whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Active curente / Datorii curente
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 rotate-45 bg-dark-3 border-r border-b border-dark-4" />
+              </div>
+            </div>
+            <div className="relative group">
+              <span className="text-[14px] text-gray-light underline decoration-dashed underline-offset-4 cursor-help">DSO</span>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-dark-3 border border-dark-4 shadow-lg text-[12px] text-gray-light whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Days Sales Outstanding — zile medii incasare creante
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 rotate-45 bg-dark-3 border-r border-b border-dark-4" />
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Financial Table — Full */}
+        <Card className="overflow-hidden p-0">
+          <div className="px-5 py-3 border-b border-dark-3 flex items-center justify-between">
+            <p className="font-mono text-[0.65rem] text-gray">Balanta de verificare — Decembrie 2024</p>
+            <div className="flex gap-2">
+              <button className="rounded-md border border-dark-3 px-2.5 py-1 font-mono text-[11px] text-gray hover:text-white hover:border-primary/30 transition-colors">
+                <Download size={11} className="inline mr-1" />Excel
+              </button>
+              <button className="rounded-md border border-dark-3 px-2.5 py-1 font-mono text-[11px] text-gray hover:text-white hover:border-primary/30 transition-colors">
+                <Download size={11} className="inline mr-1" />PDF
+              </button>
+            </div>
+          </div>
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="border-b border-dark-3 bg-dark-3/30">
+                <th className="px-4 py-2.5 text-left font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Cont</th>
+                <th className="px-4 py-2.5 text-left font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Denumire</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Sold Initial D</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Sold Initial C</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Rulaj D</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Rulaj C</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Sold Final D</th>
+                <th className="px-4 py-2.5 text-right font-mono text-[11px] font-medium uppercase text-gray" style={{ letterSpacing: "-0.04em" }}>Sold Final C</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dark-3/50">
+              {[
+                { cont: "1012", den: "Capital subscris varsat", sid: "", sic: "200.000,00", rd: "0,00", rc: "0,00", sfd: "", sfc: "200.000,00", cls: "1" },
+                { cont: "121", den: "Profit si pierdere", sid: "", sic: "45.678,00", rd: "12.300,00", rc: "18.900,00", sfd: "", sfc: "52.278,00", cls: "1" },
+                { cont: "2131", den: "Echipamente tehnologice", sid: "156.000,00", sic: "", rd: "23.000,00", rc: "0,00", sfd: "179.000,00", sfc: "", cls: "2" },
+                { cont: "2814", den: "Amortizare mijl. transport", sid: "", sic: "34.500,00", rd: "0,00", rc: "2.875,00", sfd: "", sfc: "37.375,00", cls: "2" },
+                { cont: "401", den: "Furnizori", sid: "", sic: "89.012,00", rd: "67.890,00", rc: "78.123,00", sfd: "", sfc: "99.245,00", cls: "4" },
+                { cont: "4111", den: "Clienti", sid: "123.456,00", sic: "", rd: "234.567,00", rc: "198.765,00", sfd: "159.258,00", sfc: "", cls: "4" },
+                { cont: "5121", den: "Conturi la banci in lei", sid: "234.567,00", sic: "", rd: "456.789,00", rc: "412.345,00", sfd: "279.011,00", sfc: "", cls: "5" },
+                { cont: "5311", den: "Casa in lei", sid: "12.345,00", sic: "", rd: "5.678,00", rc: "8.901,00", sfd: "9.122,00", sfc: "", cls: "5" },
+                { cont: "6022", den: "Cheltuieli mat. consumabile", sid: "", sic: "", rd: "15.678,00", rc: "0,00", sfd: "15.678,00", sfc: "", cls: "6" },
+                { cont: "641", den: "Cheltuieli cu salariile", sid: "", sic: "", rd: "87.654,00", rc: "0,00", sfd: "87.654,00", sfc: "", cls: "6" },
+                { cont: "704", den: "Venituri din prestari servicii", sid: "", sic: "", rd: "0,00", rc: "345.678,00", sfd: "", sfc: "345.678,00", cls: "7" },
+                { cont: "7588", den: "Alte venituri din exploatare", sid: "", sic: "", rd: "0,00", rc: "12.345,00", sfd: "", sfc: "12.345,00", cls: "7" },
+              ].map((row) => (
+                <tr key={row.cont} className="hover:bg-dark-3/20 transition-colors">
+                  <td className="px-4 py-2 font-mono text-[12px] font-semibold text-primary-light">{row.cont}</td>
+                  <td className="px-4 py-2 text-gray-light">{row.den}</td>
+                  <td className="px-4 py-2 text-right font-mono text-[12px] text-gray-light">{row.sid || <span className="text-dark-3">—</span>}</td>
+                  <td className="px-4 py-2 text-right font-mono text-[12px] text-gray-light">{row.sic || <span className="text-dark-3">—</span>}</td>
+                  <td className="px-4 py-2 text-right font-mono text-[12px] text-gray-light">{row.rd}</td>
+                  <td className="px-4 py-2 text-right font-mono text-[12px] text-gray-light">{row.rc}</td>
+                  <td className={`px-4 py-2 text-right font-mono text-[12px] font-semibold ${row.sfd ? "text-green" : ""}`}>{row.sfd || <span className="text-dark-3">—</span>}</td>
+                  <td className={`px-4 py-2 text-right font-mono text-[12px] font-semibold ${row.sfc ? "text-danger" : ""}`}>{row.sfc || <span className="text-dark-3">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-dark-3 bg-dark-3/20">
+                <td className="px-4 py-2.5 font-semibold text-white" colSpan={2}>TOTAL</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-white">526.368,00</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-white">369.190,00</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-white">903.556,00</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-white">1.078.832,00</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-green">729.723,00</td>
+                <td className="px-4 py-2.5 text-right font-mono text-[12px] font-bold text-danger">746.921,00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </Card>
+
+        {/* Charts with Recharts */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Venituri vs Cheltuieli — Bar Chart</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={[
+              { month: "Ian", venituri: 85, cheltuieli: 62 },
+              { month: "Feb", venituri: 72, cheltuieli: 58 },
+              { month: "Mar", venituri: 98, cheltuieli: 71 },
+              { month: "Apr", venituri: 110, cheltuieli: 85 },
+              { month: "Mai", venituri: 95, cheltuieli: 78 },
+              { month: "Iun", venituri: 120, cheltuieli: 92 },
+              { month: "Iul", venituri: 88, cheltuieli: 95 },
+              { month: "Aug", venituri: 105, cheltuieli: 82 },
+              { month: "Sep", venituri: 130, cheltuieli: 88 },
+              { month: "Oct", venituri: 115, cheltuieli: 90 },
+              { month: "Nov", venituri: 140, cheltuieli: 95 },
+              { month: "Dec", venituri: 155, cheltuieli: 102 },
+            ]} barGap={2} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
+              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: number) => `${v}K RON`} />
+              <Bar dataKey="venituri" fill="#0D6B5E" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="cheltuieli" fill="#EF4444" radius={[4, 4, 0, 0]} opacity={0.6} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Cash Flow — Area Chart</p>
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={[
+              { month: "Ian", cash: 234, creante: 89, datorii: 156 },
+              { month: "Feb", cash: 248, creante: 95, datorii: 148 },
+              { month: "Mar", cash: 225, creante: 110, datorii: 162 },
+              { month: "Apr", cash: 268, creante: 85, datorii: 145 },
+              { month: "Mai", cash: 290, creante: 78, datorii: 138 },
+              { month: "Iun", cash: 310, creante: 92, datorii: 155 },
+              { month: "Iul", cash: 285, creante: 105, datorii: 168 },
+              { month: "Aug", cash: 325, creante: 88, datorii: 142 },
+              { month: "Sep", cash: 348, creante: 95, datorii: 135 },
+              { month: "Oct", cash: 335, creante: 102, datorii: 148 },
+              { month: "Nov", cash: 362, creante: 78, datorii: 130 },
+              { month: "Dec", cash: 395, creante: 72, datorii: 125 },
+            ]}>
+              <defs>
+                <linearGradient id="gradCash" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0D6B5E" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#0D6B5E" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gradCreante" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
+              <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} itemStyle={{ color: "#C5C3BC" }} formatter={(v: number) => `${v}K RON`} />
+              <Area type="monotone" dataKey="cash" stroke="#0D6B5E" strokeWidth={2} fill="url(#gradCash)" />
+              <Area type="monotone" dataKey="creante" stroke="#3B82F6" strokeWidth={1.5} fill="url(#gradCreante)" />
+              <Area type="monotone" dataKey="datorii" stroke="#EF4444" strokeWidth={1.5} fill="none" strokeDasharray="4 4" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <p className="font-mono text-[0.65rem] text-gray mb-4">Structura Cheltuieli — Pie Chart</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: "Salarii", value: 87654 },
+                    { name: "Furnizori", value: 45890 },
+                    { name: "Utilitati", value: 12345 },
+                    { name: "Amortizare", value: 8900 },
+                    { name: "Alte chelt.", value: 15678 },
+                  ]}
+                  cx="50%" cy="50%"
+                  innerRadius={55} outerRadius={85}
+                  paddingAngle={3}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {["#0D6B5E", "#3B82F6", "#F59E0B", "#6366F1", "#8A877F"].map((color, i) => (
+                    <Cell key={i} fill={color} />
+                  ))}
+                </Pie>
+                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} formatter={(v: number) => `${(v / 1000).toFixed(1)}K RON`} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#8A877F" }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card>
+            <p className="font-mono text-[0.65rem] text-gray mb-4">Profit Net — Line Chart</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={[
+                { month: "Ian", actual: 23, buget: 20 },
+                { month: "Feb", actual: 14, buget: 22 },
+                { month: "Mar", actual: 27, buget: 24 },
+                { month: "Apr", actual: 25, buget: 26 },
+                { month: "Mai", actual: 17, buget: 25 },
+                { month: "Iun", actual: 28, buget: 27 },
+                { month: "Iul", actual: -7, buget: 20 },
+                { month: "Aug", actual: 23, buget: 22 },
+                { month: "Sep", actual: 42, buget: 30 },
+                { month: "Oct", actual: 25, buget: 28 },
+                { month: "Nov", actual: 45, buget: 32 },
+                { month: "Dec", actual: 53, buget: 35 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#21262D" vertical={false} />
+                <XAxis dataKey="month" tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#8A877F", fontSize: 11, fontFamily: "var(--font-mono)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}K`} />
+                <RTooltip contentStyle={{ backgroundColor: "#161B22", border: "1px solid #21262D", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-mono)" }} labelStyle={{ color: "#E9E8E3" }} formatter={(v: number) => `${v}K RON`} />
+                <Line type="monotone" dataKey="actual" stroke="#34D3A0" strokeWidth={2.5} dot={{ fill: "#34D3A0", r: 3 }} activeDot={{ r: 5 }} />
+                <Line type="monotone" dataKey="buget" stroke="#8A877F" strokeWidth={1.5} strokeDasharray="6 4" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">KPI Gauges — Radial Bar</p>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { name: "Lichiditate", value: 78, target: 100, color: "#0D6B5E" },
+              { name: "Solvabilitate", value: 92, target: 100, color: "#34D3A0" },
+              { name: "Grad Indatorare", value: 45, target: 100, color: "#F59E0B" },
+            ].map((kpi) => (
+              <div key={kpi.name} className="flex flex-col items-center">
+                <ResponsiveContainer width={120} height={120}>
+                  <RadialBarChart cx="50%" cy="50%" innerRadius="65%" outerRadius="90%" startAngle={210} endAngle={-30} data={[{ value: kpi.value, fill: kpi.color }]}>
+                    <RadialBar background={{ fill: "#21262D" }} dataKey="value" cornerRadius={6} />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <div className="-mt-4 text-center">
+                  <p className="font-mono text-[18px] font-bold text-white">{kpi.value}%</p>
+                  <p className="font-mono text-[10px] text-gray uppercase" style={{ letterSpacing: "-0.04em" }}>{kpi.name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Empty States */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Empty States</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-3 py-10">
+              <Building2 size={40} className="mb-3 text-gray/30" />
+              <p className="text-[14px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Niciun client</p>
+              <p className="mt-1 text-[13px] text-gray">Adauga primul tau client</p>
+              <Button className="mt-4">
+                <Plus size={14} /> Adauga Client
+              </Button>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dark-3 py-10">
+              <Upload size={40} className="mb-3 text-gray/30" />
+              <p className="text-[14px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Niciun import</p>
+              <p className="mt-1 text-[13px] text-gray">Incarca un fisier XLSX cu jurnalul contabil</p>
+              <Button variant="ghost" className="mt-4">
+                <Upload size={14} /> Importa Date
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Pagination */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Pagination</p>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] text-gray">Afisez 1-20 din 847 inregistrari</span>
+            <div className="flex gap-1">
+              {["<", "1", "2", "3", "...", "42", "43", ">"].map((p, i) => (
+                <button
+                  key={`${p}-${i}`}
+                  className={`min-w-[32px] rounded-md px-2.5 py-1.5 font-mono text-[12px] font-medium transition-colors ${
+                    p === "1"
+                      ? "bg-primary text-[#E9E8E3]"
+                      : "text-gray hover:bg-dark-3/50 hover:text-white"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Search */}
+        <Card>
+          <p className="font-mono text-[0.65rem] text-gray mb-4">Search</p>
+          <div className="max-w-sm relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray" />
+            <input
+              type="text"
+              placeholder="Cauta cont, client, partener..."
+              className="w-full rounded-lg border border-dark-3 bg-dark-2 pl-10 pr-3.5 py-2.5 text-[14px] text-gray-light placeholder:text-gray/60 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/30"
+            />
+          </div>
+        </Card>
+
       </Section>
 
       {/* ─── VOICE & TONE ─── */}
