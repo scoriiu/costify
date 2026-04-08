@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "re
 import { cn } from "@/lib/utils";
 import { CostiMascot, type CostiState } from "./costi-mascot";
 import { CostiMarkdown } from "./costi-markdown";
-import { Send, Sparkles, RotateCcw, ArrowDown } from "lucide-react";
+import { Send, Sparkles, RotateCcw, ArrowDown, Square } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -57,6 +57,7 @@ export function CostiFullChat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const isNearBottomRef = useRef(true);
 
   useEffect(() => {
     const restored = loadMessages();
@@ -72,14 +73,17 @@ export function CostiFullChat() {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [messages]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
     const onScroll = () => {
       const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      isNearBottomRef.current = distFromBottom < 80;
       setShowScrollDown(distFromBottom > 120);
     };
     el.addEventListener("scroll", onScroll, { passive: true });
@@ -171,6 +175,13 @@ export function CostiFullChat() {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  function handleStop() {
+    if (abortRef.current) abortRef.current.abort();
+    setStreaming(false);
+    setCostiState("success");
+    setMessages((prev) => { saveMessages(prev); return prev; });
   }
 
   function handleReset() {
@@ -287,18 +298,27 @@ export function CostiFullChat() {
                 el.style.height = Math.min(el.scrollHeight, 128) + "px";
               }}
             />
-            <button
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || streaming}
-              className={cn(
-                "shrink-0 rounded-xl p-2.5 transition-all",
-                input.trim() && !streaming
-                  ? "bg-primary text-[#E9E8E3] hover:bg-primary-dark shadow-[0_4px_16px_rgba(13,107,94,0.3)]"
-                  : "text-gray/30 cursor-not-allowed"
-              )}
-            >
-              <Send size={16} />
-            </button>
+            {streaming ? (
+              <button
+                onClick={handleStop}
+                className="shrink-0 rounded-xl p-2.5 bg-danger/20 text-danger hover:bg-danger/30 transition-all"
+              >
+                <Square size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => sendMessage()}
+                disabled={!input.trim()}
+                className={cn(
+                  "shrink-0 rounded-xl p-2.5 transition-all",
+                  input.trim()
+                    ? "bg-primary text-[#E9E8E3] hover:bg-primary-dark shadow-[0_4px_16px_rgba(13,107,94,0.3)]"
+                    : "text-gray/30 cursor-not-allowed"
+                )}
+              >
+                <Send size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>
