@@ -323,10 +323,25 @@ function Teaching() {
         <Brows />
         <path d="M72 76 Q80 80 90 76" stroke={MOUTH} strokeWidth={2} fill="none" strokeLinecap="round" />
       </Head>
-      {/* Right arm — index finger up */}
-      <rect x={112} y={88} width={12} height={30} rx={6} fill={JACKET} />
-      <rect x={114} y={80} width={10} height={14} rx={5} fill={SKIN} />
-      <rect x={117} y={64} width={5} height={20} rx={2.5} fill={SKIN} />
+      {/* Left arm — thumbs up (his left, our right) */}
+      <g>
+        {/* Upper arm sleeve — curves outward from shoulder */}
+        <path d="M110 100 Q122 105 128 92" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
+        {/* Forearm — curves upward */}
+        <path d="M128 92 Q134 78 130 60" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+        {/* Fist — closed, same scale as greeting palm */}
+        <g transform="rotate(-10, 130, 56)">
+          <rect x={123} y={50} width={14} height={11} rx={5} fill={SKIN} />
+          {/* Curled fingers */}
+          <rect x={123} y={56} width={3.2} height={5} rx={1.6} fill={SKIN_DARK} opacity={0.25} />
+          <rect x={127} y={57} width={3.2} height={5} rx={1.6} fill={SKIN_DARK} opacity={0.25} />
+          <rect x={131} y={57} width={3.2} height={5} rx={1.6} fill={SKIN_DARK} opacity={0.25} />
+          <rect x={135} y={56} width={3.2} height={4} rx={1.6} fill={SKIN_DARK} opacity={0.25} />
+          {/* Thumb — pointing up, snug against fist */}
+          <rect x={124} y={46} width={5} height={8} rx={2.5} fill={SKIN} />
+          <ellipse cx={126.5} cy={46} rx={3} ry={2.2} fill={SKIN} />
+        </g>
+      </g>
       {/* Left arm — sleeve from shoulder, curving to clipboard */}
       <path d="M42 100 Q42 118 30 120" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
       <path d="M42 100 Q42 118 30 120" stroke={JACKET_SHADOW} strokeWidth={14} fill="none" strokeLinecap="round" opacity={0.15} />
