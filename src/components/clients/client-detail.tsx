@@ -1,14 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DatasetPeriod } from "@/modules/balances";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
+import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 
 type Tab = "jurnal" | "balanta" | "cpp";
 
@@ -48,6 +50,7 @@ export function ClientDetail({
   selectedMonth,
 }: Props) {
   const router = useRouter();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const tab = (TABS.find((t) => t.key === activeTab) ? activeTab : "jurnal") as Tab;
 
   function navigate(params: { tab?: string; year?: number; month?: number }) {
@@ -89,6 +92,11 @@ export function ClientDetail({
               onChange={(y, m) => navigate({ year: y, month: m })}
             />
           )}
+          {entryCount > 0 && (
+            <Button variant="ghost" onClick={() => setDeleteOpen(true)}>
+              <Trash2 size={14} /> <span className="hidden sm:inline">Corecteaza date</span>
+            </Button>
+          )}
           <Link href={`/clients/${client.slug}/import`}>
             <Button variant="primary">
               <Upload size={14} /> <span className="hidden sm:inline">Upload</span> Jurnal
@@ -113,6 +121,14 @@ export function ClientDetail({
           <EmptyState message="Nu exista date. Uploadeaza un registru jurnal." />
         )}
       </div>
+
+      <DeleteJournalModal
+        clientId={client.id}
+        clientName={client.name}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onComplete={() => router.refresh()}
+      />
     </div>
   );
 }
