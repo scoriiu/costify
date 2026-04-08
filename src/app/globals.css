@@ -10,29 +10,29 @@
   --surface-1: #161B22;
   --surface-2: #21262D;
   --surface-3: #30363D;
-  --text-primary: #F0F6FC;
-  --text-secondary: #C9D1D9;
-  --text-muted: #8B949E;
+  --text-primary: #E9E8E3;
+  --text-secondary: #C5C3BC;
+  --text-muted: #8A877F;
   --overlay: rgba(0, 0, 0, 0.6);
   --autofill-bg: #161B22;
   --autofill-text: #C9D1D9;
-  --selection-bg: rgba(108, 92, 231, 0.3);
+  --selection-bg: rgba(13, 107, 94, 0.3);
 }
 
 html.light,
 html.light *,
 .light {
-  --surface-0: #F8FAFC !important;
-  --surface-1: #FFFFFF !important;
-  --surface-2: #F1F5F9 !important;
-  --surface-3: #E2E8F0 !important;
-  --text-primary: #0F172A !important;
-  --text-secondary: #334155 !important;
-  --text-muted: #64748B !important;
+  --surface-0: #F0EFEA !important;
+  --surface-1: #F7F6F2 !important;
+  --surface-2: #E6E4DE !important;
+  --surface-3: #D9D7D0 !important;
+  --text-primary: #1A1918 !important;
+  --text-secondary: #44413C !important;
+  --text-muted: #7A766E !important;
   --overlay: rgba(0, 0, 0, 0.3) !important;
-  --autofill-bg: #FFFFFF !important;
-  --autofill-text: #334155 !important;
-  --selection-bg: rgba(108, 92, 231, 0.2) !important;
+  --autofill-bg: #F7F6F2 !important;
+  --autofill-text: #44413C !important;
+  --selection-bg: rgba(13, 107, 94, 0.2) !important;
 }
 
 @theme inline {
@@ -45,12 +45,12 @@ html.light *,
   --color-gray-light: var(--text-secondary);
   --color-gray: var(--text-muted);
 
-  --color-primary: #6C5CE7;
-  --color-primary-dark: #5A4BD1;
-  --color-primary-light: #A29BFE;
+  --color-primary: #0D6B5E;
+  --color-primary-dark: #0A5A4F;
+  --color-primary-light: #34D3A0;
 
-  --color-accent: #00B894;
-  --color-accent-light: #55EFC4;
+  --color-accent: #6366F1;
+  --color-accent-light: #818CF8;
 
   --color-danger: #E63946;
   --color-warn: #FDCB6E;
@@ -60,7 +60,7 @@ html.light *,
   --color-purple: #BC8CFF;
   --color-warm: #FD79A8;
 
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-altform);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -68,6 +68,11 @@ body {
   background: var(--surface-0);
   color: var(--text-secondary);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.04em;
 }
 
 ::selection {

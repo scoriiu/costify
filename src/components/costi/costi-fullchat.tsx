@@ -4,8 +4,7 @@ import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "re
 import { cn } from "@/lib/utils";
 import { CostiMascot, type CostiState } from "./costi-mascot";
 import { CostiMarkdown } from "./costi-markdown";
-import { Send, Sparkles, RotateCcw, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Send, Sparkles, RotateCcw, ArrowDown } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -23,14 +22,35 @@ const SUGGESTIONS = [
   "Ce e taxarea inversa si cand se aplica?",
 ];
 
+const STORAGE_KEY = "costify-costi-chat";
+const API_CONTEXT_LIMIT = 8;
+
+function loadMessages(): Message[] {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as Message[];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(msgs: Message[]) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export function CostiFullChat() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => loadMessages());
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [costiState, setCostiState] = useState<CostiState>("greeting");
+  const [costiState, setCostiState] = useState<CostiState>(() => loadMessages().length > 0 ? "success" : "greeting");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,6 +59,17 @@ export function CostiFullChat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollDown(distFromBottom > 120);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -63,7 +94,7 @@ export function CostiFullChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages.slice(-API_CONTEXT_LIMIT) }),
         signal: abortRef.current.signal,
       });
 
@@ -116,6 +147,7 @@ export function CostiFullChat() {
     } finally {
       setStreaming(false);
       abortRef.current = null;
+      setMessages((prev) => { saveMessages(prev); return prev; });
     }
   }
 
@@ -132,34 +164,13 @@ export function CostiFullChat() {
     setCostiState("greeting");
     setStreaming(false);
     setInput("");
+    sessionStorage.removeItem(STORAGE_KEY);
   }
 
   return (
-    <div className="flex h-[calc(100vh)] flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 border-b border-dark-3 bg-dark-2/80 backdrop-blur-xl px-6 py-4">
-        <Link
-          href="/clients"
-          className="rounded-lg p-2 text-gray transition-colors hover:bg-dark-3 hover:text-white"
-        >
-          <ArrowLeft size={18} />
-        </Link>
-        <CostiMascot state={costiState} size={72} />
-        <div className="flex-1">
-          <div className="text-base font-bold text-white">Costica</div>
-          <div className="text-xs text-gray">Expert contabil Costify — intreaba orice despre contabilitate, fiscalitate sau Saga C</div>
-        </div>
-        <button
-          onClick={handleReset}
-          className="flex items-center gap-1.5 rounded-lg border border-dark-3 px-3 py-1.5 text-xs text-gray transition-colors hover:border-primary/30 hover:text-white"
-        >
-          <RotateCcw size={13} />
-          Conversatie noua
-        </button>
-      </div>
-
+    <div className="flex h-[calc(100vh-56px)] flex-col">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="relative flex-1 overflow-y-auto" ref={scrollContainerRef}>
         <div className="mx-auto max-w-5xl px-6 py-6 space-y-4">
           {messages.length === 0 && (
             <div className="flex flex-col items-center pt-12 pb-6">
@@ -199,7 +210,7 @@ export function CostiFullChat() {
                 <div className="shrink-0 mt-1">
                   <CostiMascot
                     state={i === messages.length - 1 ? costiState : "success"}
-                    size={32}
+                    size={72}
                   />
                 </div>
               )}
@@ -225,6 +236,17 @@ export function CostiFullChat() {
           ))}
           <div ref={messagesEndRef} />
         </div>
+        {showScrollDown && (
+          <div className="sticky bottom-4 flex justify-center pointer-events-none">
+            <button
+              onClick={scrollToBottom}
+              className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-dark-3 bg-dark-2/90 px-3 py-1.5 text-[12px] font-semibold text-gray-light shadow-lg backdrop-blur-sm transition-all hover:bg-dark-3 hover:text-white cursor-pointer"
+              style={{ letterSpacing: "-0.04em" }}
+            >
+              <ArrowDown size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Input */}
@@ -255,7 +277,7 @@ export function CostiFullChat() {
               className={cn(
                 "shrink-0 rounded-xl p-2.5 transition-all",
                 input.trim() && !streaming
-                  ? "bg-primary text-white hover:bg-primary-dark shadow-[0_4px_16px_rgba(108,92,231,0.3)]"
+                  ? "bg-primary text-[#E9E8E3] hover:bg-primary-dark shadow-[0_4px_16px_rgba(13,107,94,0.3)]"
                   : "text-gray/30 cursor-not-allowed"
               )}
             >

@@ -1,0 +1,31 @@
+import { getSessionUser } from "@/modules/auth/session";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { ClientList } from "@/components/clients/client-list";
+
+export default async function ClientsPage() {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+
+  const clients = await prisma.client.findMany({
+    where: { userId: user.id, active: true },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { datasets: true } } },
+  });
+
+  const items = clients.map((c) => ({
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    cui: c.cui,
+    caen: c.caen,
+    datasetCount: c._count.datasets,
+    createdAt: c.createdAt.toISOString(),
+  }));
+
+  return (
+    <div className="mx-auto max-w-7xl px-8 py-10">
+      <ClientList clients={items} />
+    </div>
+  );
+}

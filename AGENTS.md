@@ -1,5 +1,52 @@
 # Costify — Engineering Standards & Architecture Guide
 
+## Design System Rules
+
+### Palette
+- **Primary:** Evergreen Teal `#0D6B5E` (dark: `#0A5A4F`, light: `#34D3A0`)
+- **Accent:** Indigo `#6366F1` (light: `#818CF8`)
+- **Danger:** `#EF4444` · **Warning:** `#F59E0B` · **Green:** `#3FB950`
+- **Text on dark primary buttons:** `#E9E8E3` (warm off-white, never pure `#FFFFFF`)
+- **Dark theme text:** primary `#E9E8E3`, secondary `#C5C3BC`, muted `#8A877F`
+- **Light theme background:** `#F0EFEA` (warm cream, inspired by Danubian)
+- **Light theme text:** primary `#1A1918`, secondary `#44413C`, muted `#7A766E`
+
+### Typography
+- **Font:** Altform (regular 400, semibold 600, bold 700). Geist Mono for numbers, labels, data.
+- **Heading tracking:** `-0.04em` on all headings and semibold/bold text
+- **Body tracking:** `-0.02em` on body text (set globally)
+- **Type scale:** Hero 48px, Page title 28px, Section title 20px, Card title 16px, Body 14px, Label (mono) 11px uppercase
+- **Financial numbers:** Always Geist Mono, right-aligned in tables
+
+### Buttons
+- Flat solid color, no gradients. Shadow glow for depth (`rgba(13,107,94,0.25)`).
+- Primary: `bg-primary text-[#E9E8E3]`. Ghost: transparent + border. Danger: red tint.
+- Border radius: `rounded-[10px]`. Padding: `px-5 py-2.5`. Font: 14px semibold.
+- Never use gradients on buttons — keep the UI calm, Costi provides personality.
+
+### Layout
+- Top navigation (no sidebar) — accountants need full width for data tables.
+- Nav: logo left, links center-left, user dropdown right.
+- No secondary Topbar — page titles are inline in content.
+- Max content width: `max-w-7xl` for data pages, `max-w-5xl` for reading pages, `max-w-2xl` for forms.
+
+### Design Principles
+- **Data density over whitespace** — accountants want to see more, not less.
+- **Conservative color** — reserve strong color for meaning (green=positive, red=attention, teal=actions).
+- **Familiar patterns, modern execution** — keep mental models they know (chart of accounts, trial balance) but render them with modern typography and spacing.
+- **Progressive disclosure** — summary KPIs first, drill into details.
+- **No icons in navigation** — pure typographic, clean.
+- **Monospace for all data** — labels, values, numbers always in Geist Mono.
+- **No emojis** — unless user explicitly requests.
+
+### Component Rules
+- Cards: `rounded-xl border border-dark-3 bg-dark-2 p-5`
+- Tables: compact, monospaced numbers, right-aligned financial columns, `text-[0.6rem]` uppercase tracking headers
+- Status messages: semantic border + tinted background (green/red/yellow/blue at 5% + 20% border)
+- Input labels: `font-mono text-[11px] font-medium uppercase` with `-0.04em` tracking
+
+---
+
 ## Product Vision
 
 Costify is a multi-tenant financial control platform. Each **user** (typically an accountant or finance manager) operates **thousands of clients**. Each client has their own bank accounts, transactions, budgets, and reports — fully isolated.

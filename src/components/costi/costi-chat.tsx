@@ -148,7 +148,7 @@ export function CostiChat() {
         className={cn(
           "fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full p-2.5 transition-all duration-300",
           "bg-dark-2 border border-dark-3 text-gray-light shadow-[0_4px_16px_rgba(0,0,0,0.3)]",
-          "hover:border-primary/40 hover:shadow-[0_8px_24px_rgba(108,92,231,0.2)] hover:text-white",
+          "hover:border-primary/40 hover:shadow-[0_8px_24px_rgba(13,107,94,0.2)] hover:text-white",
           "active:scale-95",
           open && "scale-0 opacity-0 pointer-events-none"
         )}
