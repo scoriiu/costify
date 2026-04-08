@@ -1,0 +1,114 @@
+{
+  "app": {
+    "name": "Costify",
+    "description": "Platforma de control financiar pentru contabili si manageri financiari din Romania",
+    "url": "https://costify.ro",
+    "version": "0.1.0"
+  },
+  "architecture": {
+    "source_of_truth": "Registru Jurnal (format Saga C)",
+    "computation": "Balanta si CPP se calculeaza live din jurnal, nu sunt stocate pre-calculate",
+    "format_standard": "Saga C (intern), cu adaptoare pentru alte formate in viitor",
+    "data_model": "User -> Client -> JournalLine (un singur jurnal per client, creste in timp)"
+  },
+  "features": {
+    "registru_jurnal": {
+      "description": "Vizualizare Excel-like a intrarilor din jurnal cu scroll virtual si filtre",
+      "capabilities": [
+        "Scroll virtual pentru 10K+ randuri",
+        "Filtrare pe cont, explicatie, data, NDP",
+        "Coloane redimensionabile prin drag",
+        "Format data romanesc (DD.MM.YYYY)"
+      ]
+    },
+    "balanta_de_verificare": {
+      "description": "Balanta calculata live din intrarile active din jurnal",
+      "capabilities": [
+        "Toggle Analitice / Toate conturile",
+        "Cautare pe cont sau denumire",
+        "Coloane: Sold initial D/C, Rulaj D/C, Total D/C, Sold final D/C",
+        "Indicatori vizuali pentru conturi nemapate (triunghi galben)",
+        "Sectiune expandabila cu lista conturilor nemapate",
+        "Selector de perioada (an + luna)"
+      ]
+    },
+    "cont_profit_si_pierdere": {
+      "description": "CPP calculat din balanta, structurat pe OMFP 1802",
+      "sections": [
+        "Venituri din exploatare (clasa 7: 701-758)",
+        "Cheltuieli din exploatare (clasa 6: 601-6812)",
+        "Rezultat din exploatare",
+        "Venituri financiare (765-768)",
+        "Cheltuieli financiare (665-668)",
+        "Rezultat financiar",
+        "Rezultat brut",
+        "Impozit pe profit (691)",
+        "Rezultat net"
+      ]
+    },
+    "kpi_cards": {
+      "description": "Indicatori financiari calculati din balanta",
+      "indicators": [
+        "Cash & Banca (5121 + 5124 + 5311 + 5314)",
+        "Creante clienti (4111)",
+        "Datorii furnizori (401 + 404)",
+        "TVA de plata (4427.finC - 4426.finD)",
+        "Venituri totale (clasa 7 rulajTC)",
+        "Cheltuieli totale (clasa 6 rulajTD)",
+        "Rezultat (venituri - cheltuieli)",
+        "Marja operationala (%)"
+      ]
+    },
+    "upload_jurnal": {
+      "description": "Import XLSX din Saga C cu deduplicare automata",
+      "flow": [
+        "Userul uploadeaza XLSX exportat din Saga C",
+        "Sistemul parseaza toate intrarile",
+        "Compara cu intrarile existente prin hash de deduplicare",
+        "Arata numarul de intrari noi si intervalul de date",
+        "Userul confirma, intrarile noi se adauga la jurnal",
+        "Balanta si CPP se recalculeaza automat"
+      ],
+      "dedup_hash": "MD5(data + contD + contC + suma + explicatie)"
+    },
+    "sterge_date": {
+      "description": "Corectare date istorice prin soft-delete",
+      "flow": [
+        "Userul selecteaza data de la care vrea sa stearga",
+        "Sistemul arata numarul de intrari afectate",
+        "Userul trebuie sa scrie STERGE manual (fara copy-paste)",
+        "Intrarile sunt soft-deleted (deletedAt), nu sterse fizic",
+        "Eveniment de audit creat cu snapshot-ul datelor sterse",
+        "Userul face upload cu jurnalul corectat"
+      ]
+    },
+    "costi_chat": {
+      "description": "Expert contabil AI integrat in platforma",
+      "capabilities": [
+        "Raspunde la intrebari de contabilitate romaneasca",
+        "Cunoaste legislatia fiscala, Codul Fiscal, OMFP 1802",
+        "Instructiuni pas cu pas pentru Saga C",
+        "Calcule salariale si contributii",
+        "Calendar fiscal si termene"
+      ]
+    }
+  },
+  "client_detail_page": {
+    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere"],
+    "header": {
+      "info": "Numele clientului, CUI, CAEN, numar intrari",
+      "actions": ["Upload Jurnal", "Sterge date (din meniul ...)"]
+    },
+    "period_selector": "Vizibil pe tab-urile Balanta si CPP, permite selectie an + luna"
+  },
+  "accounts": {
+    "unmapped_detection": "Conturile care apar ca 'Cont XXX' nu au denumire in planul de conturi standard",
+    "indicator": "Triunghi galben pe rand + sectiune expandabila deasupra tabelului",
+    "impact": "Nu afecteaza calculele, doar vizualizarea. Contabilul trebuie sa verifice daca sunt conturi analitice specifice companiei."
+  },
+  "multi_tenant": {
+    "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",
+    "isolation": "JournalLine are clientId direct, izolare la nivel de serviciu",
+    "audit": "Fiecare actiune (import, stergere) creeaza un AuditEvent cu checksum SHA-256"
+  }
+}

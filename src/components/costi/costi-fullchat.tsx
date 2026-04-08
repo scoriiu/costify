@@ -12,14 +12,10 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  "Care e TVA-ul standard in 2026?",
-  "Cum fac inchidere de luna in Saga?",
+  "Cum import un registru jurnal in Costify?",
   "Ce contributii platesc la un salariu de 5000 RON?",
-  "Cand depun D112?",
-  "Cum inregistrez o factura de intrare in Saga?",
   "Care sunt cotele de impozit pe dividende?",
-  "Cum configurez o societate noua in Saga C?",
-  "Ce e taxarea inversa si cand se aplica?",
+  "Ce inseamna conturile nemapate din balanta?",
 ];
 
 const STORAGE_KEY = "costify-costi-chat";

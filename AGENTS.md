@@ -991,9 +991,21 @@ These templates use the same CSS variables and component patterns as the pitch. 
 
 ---
 
-## Romanian Accounting Knowledge (Contabil AI)
+## Costi AI — Knowledge Architecture
+
+Costi's knowledge is split into two domains, loaded independently:
+
+### Domain 1: Costify Platform (always loaded)
+
+`training/contabil/structured/costify-app.json` — the app's features, workflows, UI structure. Always in Costi's system prompt because he IS the platform's assistant. **Update this file whenever we add/change functionality.**
+
+### Domain 2: Romanian Accounting (loaded on demand)
 
 Romanian accounting training lives in `training/contabil/`. **Do NOT load these files automatically.** Only read them when the user explicitly asks an accounting question or says to consult the contabil (e.g. "ask the contabil", "check the accounting rules", "how does TVA work", etc.).
+
+**Structured data (always loaded):** `tax-rates.json`, `payroll.json`, `corporate.json`, `penalties.json`, `tax-calendar.json` — quick reference values.
+
+**Deep knowledge (keyword-triggered):** `saga-c.md` loads when user mentions Saga-related terms.
 
 When asked, start by reading `training/contabil/SKILL.md`, then load the specific file relevant to the question:
 
