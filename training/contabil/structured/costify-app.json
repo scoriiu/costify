@@ -91,6 +91,24 @@
         "Calcule salariale si contributii",
         "Calendar fiscal si termene"
       ]
+    },
+    "landing_page": {
+      "description": "Pagina publica la / pentru vizitatori neautentificati",
+      "url": "https://costify.ro/",
+      "sections": [
+        "Nav cu logo si buton Autentificare",
+        "Hero cu titlu, descriere si mockup al balantei de verificare",
+        "Social proof strip (Saga C, acoperire audit, firme per utilizator, teste automate)",
+        "Features grid cu 6 carduri (import Saga, balanta, CPP, KPI, Costi AI, audit)",
+        "Two faces section (Contabil vs Antreprenor)",
+        "How it works (3 pasi: export Saga, upload, vezi rapoarte)",
+        "Testimoniale",
+        "Pricing (3 planuri: Start 19 EUR, Profesional 49 EUR, Enterprise 99 EUR)",
+        "Integrari (Saga C, XLSX, e-Factura, SAF-T)",
+        "CTA final",
+        "Footer"
+      ],
+      "behavior": "Useri autentificati sunt redirectati la /clients. Pentru preview intern se poate folosi /?preview=1"
     }
   },
   "client_detail_page": {
