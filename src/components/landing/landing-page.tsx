@@ -102,18 +102,18 @@ function HeroArtifact() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-light" />
-              <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray">
+              <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-light">
                 Sincronizat · acum
               </span>
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray">
+            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-light">
               Dec 2025
             </span>
           </div>
 
           {/* Main KPI */}
           <div className="mt-10">
-            <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray">
+            <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-light">
               Rezultat net
             </div>
             <div className="mt-3 flex items-baseline gap-2">
@@ -123,7 +123,7 @@ function HeroArtifact() {
               >
                 247,318
               </span>
-              <span className="font-mono text-[18px] text-gray">RON</span>
+              <span className="font-mono text-[18px] text-gray-light">RON</span>
             </div>
             <div className="mt-3 flex items-center gap-2 font-mono text-[11px] text-primary-light">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -144,7 +144,7 @@ function HeroArtifact() {
               { label: "Marja", value: "18.4%" },
             ].map((stat) => (
               <div key={stat.label}>
-                <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray">
+                <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-light">
                   {stat.label}
                 </div>
                 <div
@@ -174,13 +174,14 @@ function HeroArtifact() {
 
       {/* Floating tag */}
       <div
-        className="absolute -right-4 top-8 rotate-3 rounded-lg border border-white/10 bg-[rgba(11,21,20,0.9)] px-3 py-2 backdrop-blur-sm shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+        className="absolute -right-4 top-8 rotate-3 overflow-hidden rounded-lg border border-white/[0.08] bg-[rgba(17,31,30,0.6)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
       >
-        <div className="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D3A0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="h-px bg-gradient-to-r from-transparent via-primary-light/60 to-transparent" />
+        <div className="flex items-center gap-2 px-3.5 py-2.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D3A0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-white">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-light">
             Balanta verificata
           </span>
         </div>
