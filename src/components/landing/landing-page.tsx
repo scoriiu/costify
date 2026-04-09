@@ -92,18 +92,27 @@ function HeroArtifact() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-light" />
-              <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-light">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.15em]"
+                style={{ color: "rgba(212,208,196,0.9)" }}
+              >
                 Sincronizat · acum
               </span>
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-gray-light">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.15em]"
+              style={{ color: "rgba(212,208,196,0.9)" }}
+            >
               Dec 2025
             </span>
           </div>
 
           {/* Main KPI */}
           <div className="mt-10">
-            <div className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-light">
+            <div
+              className="font-mono text-[11px] uppercase tracking-[0.15em]"
+              style={{ color: "rgba(212,208,196,0.9)" }}
+            >
               Rezultat net
             </div>
             <div className="mt-3 flex items-baseline gap-2">
@@ -113,7 +122,12 @@ function HeroArtifact() {
               >
                 247,318
               </span>
-              <span className="font-mono text-[18px] text-gray-light">RON</span>
+              <span
+                className="font-mono text-[18px]"
+                style={{ color: "rgba(212,208,196,0.9)" }}
+              >
+                RON
+              </span>
             </div>
             <div className="mt-3 flex items-center gap-2 font-mono text-[11px] text-primary-light">
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -134,7 +148,10 @@ function HeroArtifact() {
               { label: "Marja", value: "18.4%" },
             ].map((stat) => (
               <div key={stat.label}>
-                <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-gray-light">
+                <div
+                  className="font-mono text-[9px] uppercase tracking-[0.15em]"
+                  style={{ color: "rgba(212,208,196,0.9)" }}
+                >
                   {stat.label}
                 </div>
                 <div
