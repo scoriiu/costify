@@ -73,19 +73,9 @@ function Nav() {
   );
 }
 
-function MetaLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-gray">
-      <span className="h-px w-8 bg-gradient-to-r from-transparent to-primary/40" />
-      {children}
-      <span className="h-px w-8 bg-gradient-to-l from-transparent to-primary/40" />
-    </div>
-  );
-}
-
 function HeroArtifact() {
   return (
-    <div className="relative mx-auto mt-20 max-w-xl">
+    <div className="relative w-full max-w-md">
       {/* Glow behind card */}
       <div
         className="absolute inset-0 -z-10 rounded-3xl opacity-60 blur-2xl"
@@ -209,55 +199,66 @@ function StatusFooter() {
 
 export function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-dark">
+    <div className="relative h-screen min-h-[700px] overflow-hidden bg-dark">
       <GridBackdrop />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex h-full flex-col">
         <Nav />
 
-        <main className="relative flex flex-1 flex-col items-center px-8 pb-16 pt-24">
-          <MetaLabel>Control financiar pentru contabili</MetaLabel>
+        <main className="relative flex flex-1 items-center px-8 py-8">
+          <div className="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+            {/* Left column: text */}
+            <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+              <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-gray">
+                <span className="h-px w-8 bg-gradient-to-r from-transparent to-primary/40" />
+                Control financiar pentru contabili
+              </div>
 
-          <h1
-            className="mt-10 max-w-5xl text-center font-bold text-white"
-            style={{
-              fontSize: "clamp(2.75rem, 7vw, 6rem)",
-              lineHeight: "0.95",
-              letterSpacing: "-0.05em",
-            }}
-          >
-            Vezi unde se duce<br />
-            <span className="text-white/40">fiecare </span>
-            <span className="italic text-primary-light" style={{ fontFamily: "var(--font-mono)" }}>leu</span>
-            <span className="text-white">.</span>
-          </h1>
+              <h1
+                className="mt-8 font-bold text-white"
+                style={{
+                  fontSize: "clamp(2.5rem, 6vw, 5.5rem)",
+                  lineHeight: "0.95",
+                  letterSpacing: "-0.05em",
+                }}
+              >
+                Vezi unde se duce<br />
+                <span className="text-white/40">fiecare </span>
+                <span className="italic text-primary-light" style={{ fontFamily: "var(--font-mono)" }}>leu</span>
+                <span className="text-white">.</span>
+              </h1>
 
-          <p
-            className="mt-10 max-w-xl text-center text-[17px] leading-[1.65] text-gray-light"
-            style={{ letterSpacing: "-0.015em" }}
-          >
-            Import jurnal Saga, balanta de verificare si cont de profit si pierdere — calculate in timp real. Costi, asistentul AI, stie contabilitatea romaneasca pe dinafara.
-          </p>
+              <p
+                className="mt-8 max-w-xl text-[16px] leading-[1.65] text-gray-light"
+                style={{ letterSpacing: "-0.015em" }}
+              >
+                Import jurnal Saga, balanta de verificare si cont de profit si pierdere — calculate in timp real. Costi, asistentul AI, stie contabilitatea romaneasca pe dinafara.
+              </p>
 
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/login"
-              className="group inline-flex items-center gap-2.5 rounded-[12px] bg-primary px-7 py-4 text-[14px] font-semibold text-[#E9E8E3] shadow-[0_8px_32px_rgba(13,107,94,0.35)] transition-all hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(13,107,94,0.5)]"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              Intra in platforma
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="transition-transform group-hover:translate-x-0.5">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
+              <div className="mt-10 flex flex-wrap items-center gap-4">
+                <Link
+                  href="/login"
+                  className="group inline-flex items-center gap-2.5 rounded-[12px] bg-primary px-7 py-4 text-[14px] font-semibold text-[#E9E8E3] shadow-[0_8px_32px_rgba(13,107,94,0.35)] transition-all hover:bg-primary-dark hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(13,107,94,0.5)]"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  Intra in platforma
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="transition-transform group-hover:translate-x-0.5">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
 
-            <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-gray">
-              <span className="h-1 w-1 rounded-full bg-gray" />
-              Invitatie necesara
+                <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-gray">
+                  <span className="h-1 w-1 rounded-full bg-gray" />
+                  Invitatie necesara
+                </div>
+              </div>
+            </div>
+
+            {/* Right column: KPI artifact */}
+            <div className="flex justify-center lg:justify-end">
+              <HeroArtifact />
             </div>
           </div>
-
-          <HeroArtifact />
         </main>
 
         <StatusFooter />
