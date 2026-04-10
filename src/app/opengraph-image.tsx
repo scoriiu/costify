@@ -91,8 +91,8 @@ export default async function Image() {
               flexDirection: "column",
             }}
           >
-            <div>Vezi unde se duce</div>
-            <div>
+            <div style={{ display: "flex" }}>Vezi unde se duce</div>
+            <div style={{ display: "flex" }}>
               <span style={{ color: "rgba(233,232,227,0.4)" }}>fiecare </span>
               <span
                 style={{
