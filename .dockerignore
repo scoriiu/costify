@@ -5,9 +5,11 @@ node_modules
 temp
 reference
 training
-docs
+docs/*
+!docs/ro
 tests
 *.md
 !README.md
+!docs/ro/*.md
 .env
 .env.*
