@@ -24,6 +24,7 @@ export function LoginForm({ error }: Props) {
         required
         autoComplete="email"
         autoFocus
+        className="py-3"
       />
 
       <Input
@@ -34,9 +35,10 @@ export function LoginForm({ error }: Props) {
         placeholder="Introdu parola"
         required
         autoComplete="current-password"
+        className="py-3"
       />
 
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full py-3">
         Autentificare
       </Button>
     </form>

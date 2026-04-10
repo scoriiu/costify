@@ -75,7 +75,7 @@ function Nav() {
 
 function HeroArtifact() {
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative mx-auto w-full max-w-md">
       {/* Glow behind card */}
       <div
         className="absolute inset-0 -z-10 rounded-3xl opacity-60 blur-2xl"
@@ -181,9 +181,9 @@ function HeroArtifact() {
         </div>
       </div>
 
-      {/* Floating tag */}
+      {/* Floating tag — hidden on mobile to prevent overflow clipping */}
       <div
-        className="absolute -right-4 top-8 rotate-3 overflow-hidden rounded-lg border border-white/[0.08] bg-[rgba(17,31,30,0.6)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
+        className="absolute -right-4 top-8 hidden rotate-3 overflow-hidden rounded-lg border border-white/[0.08] bg-[rgba(17,31,30,0.6)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] sm:block"
       >
         <div className="h-px bg-gradient-to-r from-transparent via-[#34D3A0]/60 to-transparent" />
         <div className="flex items-center gap-2 px-3.5 py-2.5">
@@ -218,13 +218,13 @@ function StatusFooter() {
 
 export function LandingPage() {
   return (
-    <div className="relative h-screen min-h-[700px] overflow-hidden bg-dark">
+    <div className="relative min-h-screen overflow-x-hidden bg-dark lg:h-screen lg:min-h-[700px] lg:overflow-hidden">
       <GridBackdrop />
 
-      <div className="relative z-10 flex h-full flex-col">
+      <div className="relative z-10 flex min-h-screen flex-col lg:h-full lg:min-h-0">
         <Nav />
 
-        <main className="relative flex flex-1 items-center px-8 py-8">
+        <main className="relative flex flex-1 items-center px-6 py-12 sm:px-8 lg:py-8">
           <div className="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
             {/* Left column: text */}
             <div className="flex flex-col items-center text-center lg:items-start lg:text-left">

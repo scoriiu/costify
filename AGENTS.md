@@ -9,11 +9,11 @@
 - **Primary:** Evergreen Teal `#0D6B5E` (dark: `#0A5A4F`, light: `#34D3A0`)
 - **Accent:** Indigo `#6366F1` (light: `#818CF8`)
 - **Danger:** `#EF4444` · **Warning:** `#F59E0B` · **Green:** `#3FB950`
-- **Dark theme surfaces:** teal-tinted, not neutral gray. `surface-0: #0B1514`, `surface-1: #111F1E`, `surface-2: #182A28`, `surface-3: #223633`. No pure blacks — every surface carries a subtle teal undertone from the primary.
-- **Text on dark primary buttons:** `#E9E8E3` (warm off-white, never pure `#FFFFFF`)
-- **Dark theme text:** primary `#E9E8E3`, secondary `#C5C3BC`, muted `#8A877F`
-- **Light theme background:** `#F0EFEA` (warm cream, inspired by Danubian)
+- **Light theme surfaces (primary experience):** warm, cream-based. `surface-0: #F0EFEA`, `surface-1: #F7F6F2`, `surface-2: #E6E4DE`, `surface-3: #D9D7D0`. Inspired by Danubian — paper-like, calm, never stark white.
 - **Light theme text:** primary `#1A1918`, secondary `#44413C`, muted `#7A766E`
+- **Text on light primary buttons:** `#E9E8E3` (warm off-white, never pure `#FFFFFF`)
+- **Dark theme surfaces (secondary mode):** teal-tinted, not neutral gray. `surface-0: #0B1514`, `surface-1: #111F1E`, `surface-2: #182A28`, `surface-3: #223633`. No pure blacks — every surface carries a subtle teal undertone from the primary.
+- **Dark theme text:** primary `#E9E8E3`, secondary `#C5C3BC`, muted `#8A877F`
 
 ### Typography
 - **Font:** Altform (regular 400, semibold 600, bold 700). Geist Mono for numbers, labels, data.
@@ -949,9 +949,9 @@ The definitive design reference is `docs/costify-pitch.html`. All UI work must a
 - **Timeline**: Left vertical gradient line, circular dots with color-coded borders, indented content.
 - **Pipeline/flow**: Horizontal flex with colored boxes (source=blue, process=purple, data=green, output=orange) connected by arrows.
 
-### Dark Theme First
+### Light Theme First
 
-Costify is dark-theme-first. The dark palette (`#0D1117` base) is the primary experience. Light theme is a secondary mode that inverts the scale. All designs must look excellent in dark mode before considering light.
+Costify is light-theme-first. The warm cream palette (`#F0EFEA` base) is the primary experience — paper-like, calm, professional. Accountants spend hours inside the app, so the default experience is quiet and low-contrast, inspired by Danubian. Dark theme is a secondary mode for users who prefer it. All designs must look excellent in light mode before considering dark, and every new component must ship with both themes working — never ship a light-first feature that breaks in dark mode.
 
 ### Responsive Breakpoints
 
