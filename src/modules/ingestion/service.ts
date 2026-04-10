@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { createHash } from "crypto";
 import { parseJournalXLSX } from "./journal-parser";
 import { buildPartnerMappings } from "./partner-extractor";
+import { bulkUpsertFromImport } from "@/modules/accounts";
 import { recordAuditEvent } from "@/modules/audit";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
@@ -73,6 +74,7 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
 
   await storeJournalLines(input.clientId, importEvent.id, newEntries);
   await updatePartnerMappings(input.clientId, parseResult.entries);
+  await bulkUpsertFromImport(input.clientId, parseResult.accountNames);
 
   await recordAuditEvent({
     tenantId: input.clientId,

@@ -53,6 +53,7 @@ model Client {
   journalLines    JournalLine[]
   importEvents    ImportEvent[]
   journalPartners JournalPartner[]
+  clientAccounts  ClientAccount[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -147,4 +148,38 @@ model AuditEvent {
   @@index([tenantId, pipelineStage, createdAt])
   @@index([actorId, createdAt])
   @@index([tenantId, createdAt])
+}
+
+model AccountCatalog {
+  code       String   @id
+  name       String
+  type       String
+  classDigit Int
+  cppGroup   String?
+  cppLabel   String?
+  special    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([classDigit])
+  @@index([cppGroup])
+}
+
+model ClientAccount {
+  id          String   @id @default(cuid())
+  clientId    String
+  code        String
+  customName  String
+  source      String
+  partnerCode String?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, code])
+  @@index([clientId])
+  @@index([clientId, source])
 }

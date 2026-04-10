@@ -1,88 +1,56 @@
 import type { BalanceRowView } from "@/modules/balances";
+import { loadCatalogSync } from "@/modules/accounts";
+import type { CatalogAccount, CppGroup } from "@/modules/accounts";
 import type { CppData, CppLine } from "./types";
 
-interface AccountGroup {
-  prefix: string;
+interface GroupedAccount {
+  code: string;
   label: string;
+  value: number;
 }
 
-const VENITURI_EXPLOATARE: AccountGroup[] = [
-  { prefix: "701", label: "Vanzari de produse finite" },
-  { prefix: "704", label: "Venituri din servicii prestate" },
-  { prefix: "706", label: "Venituri din chirii" },
-  { prefix: "707", label: "Venituri din vanzarea marfurilor" },
-  { prefix: "708", label: "Venituri din activitati diverse" },
-  { prefix: "711", label: "Variatia stocurilor" },
-  { prefix: "721", label: "Venituri din productia de imobilizari necorporale" },
-  { prefix: "722", label: "Venituri din productia de imobilizari corporale" },
-  { prefix: "725", label: "Venituri din productia de imobilizari" },
-  { prefix: "741", label: "Venituri din subventii" },
-  { prefix: "758", label: "Alte venituri din exploatare" },
-];
+const SECTION_HEADERS: Record<CppGroup, string> = {
+  VENITURI_EXPLOATARE: "VENITURI DIN EXPLOATARE",
+  CHELTUIELI_EXPLOATARE: "CHELTUIELI DIN EXPLOATARE",
+  VENITURI_FINANCIARE: "VENITURI FINANCIARE",
+  CHELTUIELI_FINANCIARE: "CHELTUIELI FINANCIARE",
+};
 
-const CHELTUIELI_EXPLOATARE: AccountGroup[] = [
-  { prefix: "601", label: "Cheltuieli materii prime" },
-  { prefix: "602", label: "Cheltuieli materiale consumabile" },
-  { prefix: "603", label: "Cheltuieli cu obiectele de inventar" },
-  { prefix: "604", label: "Cheltuieli materiale nestocate" },
-  { prefix: "605", label: "Cheltuieli cu energia si apa" },
-  { prefix: "607", label: "Cheltuieli cu marfurile" },
-  { prefix: "611", label: "Cheltuieli intretinere si reparatii" },
-  { prefix: "612", label: "Cheltuieli cu chiriile" },
-  { prefix: "613", label: "Cheltuieli cu asigurarile" },
-  { prefix: "621", label: "Cheltuieli cu colaboratorii" },
-  { prefix: "622", label: "Cheltuieli comisioane si onorarii" },
-  { prefix: "623", label: "Cheltuieli protocol si reclama" },
-  { prefix: "624", label: "Cheltuieli cu transportul" },
-  { prefix: "625", label: "Cheltuieli cu deplasari" },
-  { prefix: "626", label: "Cheltuieli postale si telecom" },
-  { prefix: "627", label: "Cheltuieli servicii bancare" },
-  { prefix: "628", label: "Alte cheltuieli cu servicii" },
-  { prefix: "635", label: "Cheltuieli impozite si taxe" },
-  { prefix: "641", label: "Cheltuieli cu salariile" },
-  { prefix: "645", label: "Cheltuieli asigurari sociale" },
-  { prefix: "646", label: "Cheltuieli tichete de masa" },
-  { prefix: "654", label: "Pierderi din creante" },
-  { prefix: "658", label: "Alte cheltuieli de exploatare" },
-  { prefix: "6811", label: "Cheltuieli cu amortizarea" },
-  { prefix: "6812", label: "Cheltuieli cu provizioanele" },
-];
+const DEBIT_SIDE_GROUPS = new Set<CppGroup>(["CHELTUIELI_EXPLOATARE", "CHELTUIELI_FINANCIARE"]);
 
-const VENITURI_FINANCIARE: AccountGroup[] = [
-  { prefix: "765", label: "Venituri diferente curs valutar" },
-  { prefix: "766", label: "Venituri din dobanzi" },
-  { prefix: "767", label: "Venituri din sconturi obtinute" },
-  { prefix: "768", label: "Alte venituri financiare" },
-];
-
-const CHELTUIELI_FINANCIARE: AccountGroup[] = [
-  { prefix: "665", label: "Cheltuieli diferente curs valutar" },
-  { prefix: "666", label: "Cheltuieli cu dobanzile" },
-  { prefix: "668", label: "Alte cheltuieli financiare" },
-];
-
-export function computeCpp(rows: BalanceRowView[]): CppData {
+export function computeCpp(
+  rows: BalanceRowView[],
+  catalog?: Map<string, CatalogAccount>
+): CppData {
+  const cat = catalog ?? loadCatalogSync();
   const leafRows = rows.filter((r) => r.isLeaf);
   const lines: CppLine[] = [];
 
-  const venExpl = buildSection(leafRows, VENITURI_EXPLOATARE, "credit", lines, "VENITURI DIN EXPLOATARE", 0);
-  const chelExpl = buildSection(leafRows, CHELTUIELI_EXPLOATARE, "debit", lines, "CHELTUIELI DIN EXPLOATARE", 0);
-  const rezultatExploatare = round2(venExpl - chelExpl);
+  const grouped = groupByCppSection(leafRows, cat);
 
+  const venExpl = buildSection(grouped.VENITURI_EXPLOATARE, lines, "VENITURI_EXPLOATARE");
+  const chelExpl = buildSection(grouped.CHELTUIELI_EXPLOATARE, lines, "CHELTUIELI_EXPLOATARE");
+  const rezultatExploatare = round2(venExpl - chelExpl);
   lines.push(totalLine("REZULTAT DIN EXPLOATARE", rezultatExploatare));
 
-  const venFin = buildSection(leafRows, VENITURI_FINANCIARE, "credit", lines, "VENITURI FINANCIARE", 0);
-  const chelFin = buildSection(leafRows, CHELTUIELI_FINANCIARE, "debit", lines, "CHELTUIELI FINANCIARE", 0);
+  const venFin = buildSection(grouped.VENITURI_FINANCIARE, lines, "VENITURI_FINANCIARE");
+  const chelFin = buildSection(grouped.CHELTUIELI_FINANCIARE, lines, "CHELTUIELI_FINANCIARE");
   const rezultatFinanciar = round2(venFin - chelFin);
-
   lines.push(totalLine("REZULTAT FINANCIAR", rezultatFinanciar));
 
   const rezultatBrut = round2(rezultatExploatare + rezultatFinanciar);
   lines.push(totalLine("REZULTAT BRUT", rezultatBrut));
 
-  const impozitProfit = sumByPrefix(leafRows, "691", "debit");
+  const impozitProfit = sumProfitTax(leafRows, cat);
   if (impozitProfit > 0) {
-    lines.push({ cont: "691", denumire: "Impozit pe profit", indent: 0, isHeader: false, isTotal: false, value: impozitProfit });
+    lines.push({
+      cont: "691",
+      denumire: "Impozit pe profit",
+      indent: 0,
+      isHeader: false,
+      isTotal: false,
+      value: impozitProfit,
+    });
   }
 
   const rezultatNet = round2(rezultatBrut - impozitProfit);
@@ -101,44 +69,98 @@ export function computeCpp(rows: BalanceRowView[]): CppData {
   };
 }
 
-function buildSection(
+function groupByCppSection(
   rows: BalanceRowView[],
-  groups: AccountGroup[],
-  side: "debit" | "credit",
-  lines: CppLine[],
-  headerLabel: string,
-  indent: number
-): number {
-  lines.push({ cont: "", denumire: headerLabel, indent, isHeader: true, isTotal: false, value: 0 });
+  catalog: Map<string, CatalogAccount>
+): Record<CppGroup, Map<string, GroupedAccount>> {
+  const buckets: Record<CppGroup, Map<string, GroupedAccount>> = {
+    VENITURI_EXPLOATARE: new Map(),
+    CHELTUIELI_EXPLOATARE: new Map(),
+    VENITURI_FINANCIARE: new Map(),
+    CHELTUIELI_FINANCIARE: new Map(),
+  };
 
-  let sectionTotal = 0;
-  for (const group of groups) {
-    const value = sumByPrefix(rows, group.prefix, side);
-    if (value === 0) continue;
+  for (const row of rows) {
+    if (row.contBase === "121") continue;
+    const meta = resolveCatalogForRow(row, catalog);
+    if (!meta || !meta.cppGroup) continue;
+    if (meta.special === "profit_tax" || meta.special === "micro_tax") continue;
 
-    lines.push({
-      cont: group.prefix,
-      denumire: group.label,
-      indent: indent + 1,
-      isHeader: false,
-      isTotal: false,
-      value: round2(value),
-    });
-    sectionTotal += value;
+    const side = DEBIT_SIDE_GROUPS.has(meta.cppGroup) ? row.rulajTD : row.rulajTC;
+    if (side === 0) continue;
+
+    const bucket = buckets[meta.cppGroup];
+    const key = meta.code;
+    const existing = bucket.get(key);
+    const label = meta.cppLabel ?? meta.name;
+
+    if (existing) {
+      existing.value += side;
+    } else {
+      bucket.set(key, { code: key, label, value: side });
+    }
   }
 
-  lines.push(totalLine(`Total ${headerLabel.toLowerCase()}`, round2(sectionTotal)));
-  return sectionTotal;
+  return buckets;
 }
 
-function sumByPrefix(rows: BalanceRowView[], prefix: string, side: "debit" | "credit"): number {
-  let total = 0;
-  for (const r of rows) {
-    if (!r.contBase.startsWith(prefix)) continue;
-    if (r.contBase.startsWith("121")) continue;
-    total += side === "debit" ? r.rulajTD : r.rulajTC;
+function resolveCatalogForRow(
+  row: BalanceRowView,
+  catalog: Map<string, CatalogAccount>
+): CatalogAccount | null {
+  const direct = catalog.get(row.contBase);
+  if (direct) return direct;
+
+  for (let len = row.contBase.length - 1; len >= 2; len--) {
+    const prefix = row.contBase.slice(0, len);
+    const match = catalog.get(prefix);
+    if (match && match.cppGroup) return match;
   }
+  return null;
+}
+
+function buildSection(
+  bucket: Map<string, GroupedAccount>,
+  lines: CppLine[],
+  group: CppGroup
+): number {
+  lines.push({
+    cont: "",
+    denumire: SECTION_HEADERS[group],
+    indent: 0,
+    isHeader: true,
+    isTotal: false,
+    value: 0,
+  });
+
+  let total = 0;
+  const sorted = [...bucket.values()].sort((a, b) => a.code.localeCompare(b.code));
+
+  for (const item of sorted) {
+    lines.push({
+      cont: item.code,
+      denumire: item.label,
+      indent: 1,
+      isHeader: false,
+      isTotal: false,
+      value: round2(item.value),
+    });
+    total += item.value;
+  }
+
+  lines.push(totalLine(`Total ${SECTION_HEADERS[group].toLowerCase()}`, round2(total)));
   return total;
+}
+
+function sumProfitTax(rows: BalanceRowView[], catalog: Map<string, CatalogAccount>): number {
+  let total = 0;
+  for (const row of rows) {
+    const meta = catalog.get(row.contBase);
+    if (!meta) continue;
+    if (meta.special !== "profit_tax" && meta.special !== "micro_tax") continue;
+    total += row.rulajTD;
+  }
+  return round2(total);
 }
 
 function totalLine(label: string, value: number): CppLine {

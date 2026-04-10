@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { computeBalanceFromJournal } from "./compute-balance";
-import { getAccountName } from "@/lib/account-names";
+import { getCatalogMap, getClientAccounts, resolveFromMaps } from "@/modules/accounts";
 import type { Result } from "@/shared/errors";
 import { ok, err, notFound } from "@/shared/errors";
 import type { BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";
@@ -16,7 +16,7 @@ export async function getBalanceRows(
     return err(notFound("Journal entries", clientId));
   }
 
-  const accountNames = buildAccountNames(entries);
+  const accountNames = await buildAccountNames(clientId, entries);
   const rows = computeBalanceFromJournal(entries, year, month, accountNames);
 
   return ok(rows.map(toBalanceRowView));
@@ -100,11 +100,23 @@ async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
   }));
 }
 
-function buildAccountNames(entries: JournalEntry[]): Map<string, string> {
+async function buildAccountNames(
+  clientId: string,
+  entries: JournalEntry[]
+): Promise<Map<string, string>> {
+  const [clientAccounts, catalog] = await Promise.all([
+    getClientAccounts(clientId),
+    getCatalogMap(),
+  ]);
+
   const names = new Map<string, string>();
   for (const e of entries) {
-    if (!names.has(e.contD)) names.set(e.contD, getAccountName(e.contDBase));
-    if (!names.has(e.contC)) names.set(e.contC, getAccountName(e.contCBase));
+    if (!names.has(e.contD)) {
+      names.set(e.contD, resolveFromMaps(e.contD, clientAccounts, catalog).name);
+    }
+    if (!names.has(e.contC)) {
+      names.set(e.contC, resolveFromMaps(e.contC, clientAccounts, catalog).name);
+    }
   }
   return names;
 }

@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use @/modules/accounts instead.
+ * The canonical source is now seeds/omfp-1802.json + AccountCatalog table.
+ * This file is kept only for legacy compatibility and will be removed.
+ */
 const ACCOUNT_NAMES: Record<string, string> = {
   "101": "Capital social", "1011": "Capital subscris nevarsat", "1012": "Capital subscris varsat",
   "104": "Prime de capital", "105": "Rezerve din reevaluare",

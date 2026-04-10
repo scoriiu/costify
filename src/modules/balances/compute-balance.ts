@@ -1,5 +1,4 @@
 import { getContBase, isPnlAccount, getAccountType, computeLeafFlags } from "@/lib/accounts";
-import { getAccountName } from "@/lib/account-names";
 import { round2 } from "@/lib/money";
 import type { JournalEntry, BalanceRowData } from "@/modules/ingestion/types";
 
@@ -128,7 +127,7 @@ function buildRawRows(
 
     rows.push({
       cont,
-      denumire: accountNames?.get(cont) ?? getAccountName(contBase),
+      denumire: accountNames?.get(cont) ?? `Cont ${contBase}`,
       tip: getAccountType(contBase),
       debInit: round2(debInit), credInit: round2(credInit),
       soldInD: round2(soldInD), soldInC: round2(soldInC),
