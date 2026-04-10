@@ -1,18 +1,17 @@
-"use client";
-
-import { useActionState } from "react";
-import { loginAction } from "@/modules/auth/actions";
+import { loginFormAction } from "@/modules/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function LoginForm() {
-  const [state, action, pending] = useActionState(loginAction, {});
+interface Props {
+  error?: string;
+}
 
+export function LoginForm({ error }: Props) {
   return (
-    <form action={action} className="space-y-5">
-      {state.error && (
+    <form action={loginFormAction} className="space-y-5">
+      {error && (
         <div className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
-          {state.error}
+          {error}
         </div>
       )}
 
@@ -37,8 +36,8 @@ export function LoginForm() {
         autoComplete="current-password"
       />
 
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Se autentifica..." : "Autentificare"}
+      <Button type="submit" className="w-full">
+        Autentificare
       </Button>
     </form>
   );
