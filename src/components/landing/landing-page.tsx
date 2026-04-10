@@ -85,13 +85,13 @@ function HeroArtifact() {
       {/* Card */}
       <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(17,31,30,0.6)] backdrop-blur-xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)]">
         {/* Top accent line */}
-        <div className="h-px bg-gradient-to-r from-transparent via-primary-light/60 to-transparent" />
+        <div className="h-px bg-gradient-to-r from-transparent via-[#34D3A0]/60 to-transparent" />
 
         <div className="p-8">
           {/* Header row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-light" />
+              <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#34D3A0]" />
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.15em]"
                 style={{ color: "rgba(212,208,196,0.9)" }}
@@ -129,9 +129,9 @@ function HeroArtifact() {
                 RON
               </span>
             </div>
-            <div className="mt-3 flex items-center gap-2 font-mono text-[11px] text-primary-light">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M2 7L5 3L8 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <div className="mt-4 flex items-center gap-2 font-mono text-[12px] font-semibold text-[#34D3A0]">
+              <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+                <path d="M2 7L5 3L8 7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               +18.4% fata de luna trecuta
             </div>
@@ -149,13 +149,13 @@ function HeroArtifact() {
             ].map((stat) => (
               <div key={stat.label}>
                 <div
-                  className="font-mono text-[9px] uppercase tracking-[0.15em]"
+                  className="font-mono text-[10px] uppercase tracking-[0.12em]"
                   style={{ color: "rgba(212,208,196,0.9)" }}
                 >
                   {stat.label}
                 </div>
                 <div
-                  className="mt-1.5 font-mono text-[18px] font-semibold text-white tabular-nums"
+                  className="mt-2 font-mono text-[20px] font-semibold text-white tabular-nums"
                   style={{ letterSpacing: "-0.03em" }}
                 >
                   {stat.value}
@@ -171,11 +171,13 @@ function HeroArtifact() {
             {[30, 42, 38, 55, 48, 62, 58, 70, 65, 78, 72, 85, 80, 92, 88].map((h, i) => (
               <div
                 key={i}
-                className="flex-1 rounded-t-sm bg-gradient-to-t from-primary/20 to-primary-light/60"
+                className="flex-1 rounded-t-sm bg-gradient-to-t from-[#0D6B5E] to-[#34D3A0]"
                 style={{ height: `${h}%` }}
               />
             ))}
           </div>
+          {/* Baseline glow */}
+          <div className="absolute bottom-4 left-8 right-8 h-px bg-gradient-to-r from-transparent via-[#34D3A0]/40 to-transparent" />
         </div>
       </div>
 
@@ -183,12 +185,12 @@ function HeroArtifact() {
       <div
         className="absolute -right-4 top-8 rotate-3 overflow-hidden rounded-lg border border-white/[0.08] bg-[rgba(17,31,30,0.6)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
       >
-        <div className="h-px bg-gradient-to-r from-transparent via-primary-light/60 to-transparent" />
+        <div className="h-px bg-gradient-to-r from-transparent via-[#34D3A0]/60 to-transparent" />
         <div className="flex items-center gap-2 px-3.5 py-2.5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D3A0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-primary-light">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#34D3A0]">
             Balanta verificata
           </span>
         </div>
