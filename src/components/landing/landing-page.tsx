@@ -251,7 +251,7 @@ export function LandingPage() {
                 className="mt-8 max-w-xl text-[16px] leading-[1.65] text-gray-light"
                 style={{ letterSpacing: "-0.015em" }}
               >
-                Import jurnal Saga, balanta de verificare si cont de profit si pierdere — calculate in timp real. Costi, asistentul AI, stie contabilitatea romaneasca pe dinafara.
+                Importa jurnalul din software-ul tau contabil — Saga, SmartBill, Ciel — si vezi balanta, cont de profit si pierdere si KPI-urile calculate in timp real. Costi, asistentul AI, stie contabilitatea romaneasca pe dinafara.
               </p>
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
