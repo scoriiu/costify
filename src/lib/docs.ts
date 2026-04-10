@@ -51,10 +51,14 @@ export async function getDoc(slug: string): Promise<DocWithContent | null> {
 }
 
 async function readMarkdownFile(slug: string): Promise<string | null> {
+  const filePath = path.join(DOCS_DIR, `${slug}.md`);
   try {
-    const filePath = path.join(DOCS_DIR, `${slug}.md`);
     return await fs.readFile(filePath, "utf-8");
-  } catch {
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      console.warn(`[docs] failed to read ${filePath}: ${code}`);
+    }
     return null;
   }
 }

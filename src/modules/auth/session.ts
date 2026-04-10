@@ -34,23 +34,34 @@ export async function createSession(
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_EXPIRY_DAYS * 24 * 60 * 60,
+    expires: expiresAt,
   });
 
+  console.log(`[session] created sid=${token.slice(0, 8)} user=${userId} expires=${expiresAt.toISOString()}`);
   return session;
 }
 
 export async function getSessionUser() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  if (!token) {
+    console.log(`[session] no cookie present`);
+    return null;
+  }
 
   const session = await prisma.session.findUnique({
     where: { token },
     include: { user: true },
   });
 
-  if (!session || session.expiresAt < new Date()) {
-    if (session) await prisma.session.delete({ where: { id: session.id } });
+  if (!session) {
+    console.log(`[session] token ${token.slice(0, 8)} not found in DB`);
+    return null;
+  }
+
+  if (session.expiresAt < new Date()) {
+    console.log(`[session] token ${token.slice(0, 8)} expired at ${session.expiresAt.toISOString()}`);
+    await prisma.session.delete({ where: { id: session.id } });
     return null;
   }
 

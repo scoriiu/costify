@@ -28,6 +28,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/seeds ./seeds
+COPY --from=builder /app/docs ./docs
 
 USER nextjs
 EXPOSE 3000

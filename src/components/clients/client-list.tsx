@@ -60,6 +60,7 @@ function ClientCard({ client }: { client: ClientItem }) {
   return (
     <Link
       href={`/clients/${client.slug}`}
+      prefetch={false}
       className="group rounded-xl border border-dark-3 bg-dark-2 p-5 transition-all hover:border-primary/20 hover:-translate-y-0.5"
     >
       <div className="mb-3 flex items-center gap-3">

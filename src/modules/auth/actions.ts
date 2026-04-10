@@ -34,12 +34,12 @@ export async function loginAction(
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active) {
-    return { error: "Invalid email or password" };
+    return { error: "Email sau parola invalida" };
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
-    return { error: "Invalid email or password" };
+    return { error: "Email sau parola invalida" };
   }
 
   await prisma.user.update({
