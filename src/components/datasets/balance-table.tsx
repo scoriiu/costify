@@ -12,17 +12,13 @@ interface Props {
 
 type ViewMode = "full" | "leaf";
 
-function isUnmapped(denumire: string): boolean {
-  return denumire.startsWith("Cont ");
-}
-
 export function BalanceTable({ rows }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("leaf");
   const [search, setSearch] = useState("");
   const [showUnmapped, setShowUnmapped] = useState(false);
 
   const filtered = filterRows(rows, viewMode, search);
-  const unmappedRows = filtered.filter((r) => isUnmapped(r.denumire));
+  const unmappedRows = filtered.filter((r) => r.unmapped);
   const unmappedCount = unmappedRows.length;
 
   return (
@@ -58,7 +54,7 @@ export function BalanceTable({ rows }: Props) {
       <div className="overflow-x-auto rounded-xl border border-dark-3">
         <table className="w-full border-separate border-spacing-0">
           <thead>
-            <tr className="bg-dark-2 border-b border-dark-3">
+            <tr className="bg-dark-2">
               <Th align="left" first>Cont</Th>
               <Th align="left">Denumire</Th>
               <Th>Sold in D</Th>
@@ -114,17 +110,18 @@ function UnmappedSection({
           <div className="space-y-1">
             {rows.map((r) => (
               <div key={r.cont} className="flex items-center gap-3 font-mono text-xs">
-                <span className="text-warn">{r.cont}</span>
-                <span className="text-gray">—</span>
-                <span className="text-gray-light">
-                  Sold fin D: {formatNum(r.finD)} | Sold fin C: {formatNum(r.finC)}
+                <span className="text-warn w-20 shrink-0">{r.cont}</span>
+                <span className="text-gray-light truncate flex-1">{r.denumire}</span>
+                <span className="text-gray shrink-0">
+                  D: {formatNum(r.finD)} · C: {formatNum(r.finC)}
                 </span>
               </div>
             ))}
           </div>
           <p className="mt-2 text-[0.65rem] text-gray">
-            Aceste conturi nu au denumire in planul de conturi standard.
-            Verificati daca sunt conturi analitice specifice sau conturi lipsa.
+            Aceste conturi nu sunt coduri standard in planul OMFP 1802.
+            Denumirea afisata este cea din import sau din contul parinte.
+            Verificati daca sunt conturi analitice specifice sau conturi lipsa din catalog.
           </p>
         </div>
       )}
@@ -134,16 +131,15 @@ function UnmappedSection({
 
 function BalanceRow({ row }: { row: BalanceRowView }) {
   const isParent = row.hasChild;
-  const unmapped = isUnmapped(row.denumire);
 
   return (
-    <tr className={`border-b border-dark-3/50 hover:bg-dark-2/40 ${isParent ? "text-white font-semibold" : "text-gray-light"}`}>
+    <tr className={`hover:bg-dark-2/40 ${isParent ? "text-white font-semibold" : "text-gray-light"}`}>
       <Td align="left" first>
         <span className="font-mono text-xs">{row.cont}</span>
       </Td>
       <Td align="left">
-        <span className={`text-xs truncate max-w-[250px] inline-flex items-center gap-1.5 ${unmapped ? "text-warn/70" : ""}`}>
-          {unmapped && <AlertTriangle size={10} className="shrink-0 text-warn" />}
+        <span className={`text-xs truncate max-w-[250px] inline-flex items-center gap-1.5 ${row.unmapped ? "text-warn/70" : ""}`}>
+          {row.unmapped && <AlertTriangle size={10} className="shrink-0 text-warn" />}
           {row.denumire}
         </span>
       </Td>
@@ -176,17 +172,17 @@ function TotalRow({ rows }: { rows: BalanceRowView[] }) {
   );
 
   return (
-    <tr className="border-t-2 border-dark-3 bg-dark-2 font-bold text-white">
-      <Td align="left" first><span className="font-mono text-xs">TOTAL</span></Td>
-      <Td align="left" />
-      <Td><Num value={totals.soldInD} /></Td>
-      <Td><Num value={totals.soldInC} /></Td>
-      <Td><Num value={totals.rulajD} /></Td>
-      <Td><Num value={totals.rulajC} /></Td>
-      <Td><Num value={totals.totalDeb} /></Td>
-      <Td><Num value={totals.totalCred} /></Td>
-      <Td><Num value={totals.finD} highlight /></Td>
-      <Td last><Num value={totals.finC} highlight /></Td>
+    <tr className="bg-dark-2 font-bold text-white">
+      <Td align="left" first variant="total"><span className="font-mono text-xs">TOTAL</span></Td>
+      <Td align="left" variant="total" />
+      <Td variant="total"><Num value={totals.soldInD} /></Td>
+      <Td variant="total"><Num value={totals.soldInC} /></Td>
+      <Td variant="total"><Num value={totals.rulajD} /></Td>
+      <Td variant="total"><Num value={totals.rulajC} /></Td>
+      <Td variant="total"><Num value={totals.totalDeb} /></Td>
+      <Td variant="total"><Num value={totals.totalCred} /></Td>
+      <Td variant="total"><Num value={totals.finD} highlight /></Td>
+      <Td last variant="total"><Num value={totals.finC} highlight /></Td>
     </tr>
   );
 }
@@ -204,9 +200,9 @@ function Th({
 }) {
   return (
     <th
-      className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${
+      className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray border-b border-b-dark-3 ${
         align === "right" ? "text-right" : "text-left"
-      } ${!last ? "border-r border-white/[0.04]" : ""} ${first ? "min-w-[80px]" : ""}`}
+      } ${!last ? "border-r border-r-white/[0.04]" : ""} ${first ? "min-w-[80px]" : ""}`}
     >
       {children}
     </th>
@@ -218,16 +214,23 @@ function Td({
   align = "right",
   first,
   last,
+  variant = "data",
 }: {
   children?: React.ReactNode;
   align?: "left" | "right";
   first?: boolean;
   last?: boolean;
+  variant?: "data" | "total";
 }) {
+  const borderB =
+    variant === "total"
+      ? "border-t-2 border-t-dark-3 border-b border-b-dark-3/50"
+      : "border-b border-b-dark-3/50";
+
   return (
     <td
-      className={`px-3 py-1.5 ${align === "right" ? "text-right" : "text-left"} ${
-        !last ? "border-r border-white/[0.04]" : ""
+      className={`px-3 py-1.5 ${align === "right" ? "text-right" : "text-left"} ${borderB} ${
+        !last ? "border-r border-r-white/[0.04]" : ""
       } ${first ? "min-w-[80px]" : ""}`}
     >
       {children}

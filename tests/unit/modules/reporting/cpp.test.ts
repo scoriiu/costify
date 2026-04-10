@@ -6,6 +6,7 @@ function makeRow(overrides: Partial<BalanceRowView> & Pick<BalanceRowView, "cont
   return {
     denumire: "",
     tip: "A",
+    unmapped: false,
     isLeaf: true,
     hasChild: false,
     debInit: 0,

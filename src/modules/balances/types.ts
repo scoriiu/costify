@@ -20,6 +20,7 @@ export interface BalanceRowView {
   contBase: string;
   denumire: string;
   tip: string;
+  unmapped: boolean;
   isLeaf: boolean;
   hasChild: boolean;
   debInit: number;

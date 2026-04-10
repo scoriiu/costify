@@ -34,6 +34,7 @@ export interface BalanceRowData {
   cont: string;
   denumire: string;
   tip: string;
+  unmapped: boolean;
   debInit: number;
   credInit: number;
   soldInD: number;

@@ -15,12 +15,13 @@ export function computeBalanceFromJournal(
   entries: JournalEntry[],
   year: number,
   month?: number,
-  accountNames?: Map<string, string>
+  accountNames?: Map<string, string>,
+  unmappedBases?: Set<string>
 ): (BalanceRowData & { contBase: string; isLeaf: boolean; hasChild: boolean })[] {
   const periodMonth = month ?? findLastMonth(entries, year);
   const openingBal = computeOpeningBalances(entries, year);
   const accounts = buildAccountAggregations(entries, year, periodMonth, openingBal);
-  const rawRows = buildRawRows(accounts, openingBal, accountNames);
+  const rawRows = buildRawRows(accounts, openingBal, accountNames, unmappedBases);
 
   rawRows.sort((a, b) => a.cont.localeCompare(b.cont, undefined, { numeric: true }));
   return computeLeafFlags(rawRows);
@@ -108,7 +109,8 @@ function buildAccountAggregations(
 function buildRawRows(
   accounts: Map<string, AccountAgg>,
   _openingBal: Map<string, { d: number; c: number }>,
-  accountNames?: Map<string, string>
+  accountNames?: Map<string, string>,
+  unmappedBases?: Set<string>
 ): BalanceRowData[] {
   const rows: BalanceRowData[] = [];
 
@@ -129,6 +131,7 @@ function buildRawRows(
       cont,
       denumire: accountNames?.get(cont) ?? `Cont ${contBase}`,
       tip: getAccountType(contBase),
+      unmapped: unmappedBases?.has(contBase) ?? false,
       debInit: round2(debInit), credInit: round2(credInit),
       soldInD: round2(soldInD), soldInC: round2(soldInC),
       debPrec: round2(debPrecTotal), credPrec: round2(credPrecTotal),

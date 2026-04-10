@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getContBase } from "@/lib/accounts";
 import { computeBalanceFromJournal } from "./compute-balance";
 import { getCatalogMap, getClientAccounts, resolveFromMaps } from "@/modules/accounts";
 import type { Result } from "@/shared/errors";
@@ -16,8 +17,8 @@ export async function getBalanceRows(
     return err(notFound("Journal entries", clientId));
   }
 
-  const accountNames = await buildAccountNames(clientId, entries);
-  const rows = computeBalanceFromJournal(entries, year, month, accountNames);
+  const { accountNames, unmappedBases } = await buildAccountMetadata(clientId, entries);
+  const rows = computeBalanceFromJournal(entries, year, month, accountNames, unmappedBases);
 
   return ok(rows.map(toBalanceRowView));
 }
@@ -100,25 +101,35 @@ async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
   }));
 }
 
-async function buildAccountNames(
+async function buildAccountMetadata(
   clientId: string,
   entries: JournalEntry[]
-): Promise<Map<string, string>> {
+): Promise<{ accountNames: Map<string, string>; unmappedBases: Set<string> }> {
   const [clientAccounts, catalog] = await Promise.all([
     getClientAccounts(clientId),
     getCatalogMap(),
   ]);
 
   const names = new Map<string, string>();
+  const unmappedBases = new Set<string>();
+
+  const checkUnmapped = (cont: string) => {
+    const base = getContBase(cont);
+    if (!catalog.has(base)) unmappedBases.add(base);
+  };
+
   for (const e of entries) {
     if (!names.has(e.contD)) {
       names.set(e.contD, resolveFromMaps(e.contD, clientAccounts, catalog).name);
+      checkUnmapped(e.contD);
     }
     if (!names.has(e.contC)) {
       names.set(e.contC, resolveFromMaps(e.contC, clientAccounts, catalog).name);
+      checkUnmapped(e.contC);
     }
   }
-  return names;
+
+  return { accountNames: names, unmappedBases };
 }
 
 function toBalanceRowView(row: {
@@ -126,6 +137,7 @@ function toBalanceRowView(row: {
   contBase: string;
   denumire: string;
   tip: string;
+  unmapped: boolean;
   isLeaf: boolean;
   hasChild: boolean;
   debInit: number;

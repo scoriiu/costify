@@ -6,6 +6,7 @@ export function makeBalanceRow(
   return {
     denumire: "",
     tip: "A",
+    unmapped: false,
     isLeaf: true,
     hasChild: false,
     debInit: 0,

@@ -86,3 +86,77 @@ describe("computeBalanceFromJournal", () => {
     expect(Math.abs(totalFinD - totalFinC)).toBeLessThan(0.01);
   });
 });
+
+describe("computeBalanceFromJournal — unmapped flag", () => {
+  const baseEntries: JournalEntry[] = [
+    entry({ contD: "5121", contC: "4111", suma: 1000 }),
+    entry({ contD: "6052", contC: "5121", suma: 50 }),
+    entry({ contD: "9999", contC: "5121", suma: 20 }),
+  ];
+
+  it("defaults unmapped to false when no set is provided", () => {
+    const rows = computeBalanceFromJournal(baseEntries, 2024, 1);
+    for (const row of rows) {
+      expect(row.unmapped).toBe(false);
+    }
+  });
+
+  it("flags bases present in the unmapped set", () => {
+    const unmappedBases = new Set(["6052", "9999"]);
+    const rows = computeBalanceFromJournal(baseEntries, 2024, 1, undefined, unmappedBases);
+    const byCont = Object.fromEntries(rows.map((r) => [r.cont, r]));
+
+    expect(byCont["5121"].unmapped).toBe(false);
+    expect(byCont["4111"].unmapped).toBe(false);
+    expect(byCont["6052"].unmapped).toBe(true);
+    expect(byCont["9999"].unmapped).toBe(true);
+  });
+
+  it("flags analytic codes by their base, not the full code", () => {
+    const entries: JournalEntry[] = [
+      entry({ contD: "6052.001", contC: "5121.BT", suma: 100 }),
+      entry({ contD: "6052.002", contC: "5121.BT", suma: 200 }),
+    ];
+    const unmappedBases = new Set(["6052"]);
+
+    const rows = computeBalanceFromJournal(entries, 2024, 1, undefined, unmappedBases);
+    const byCont = Object.fromEntries(rows.map((r) => [r.cont, r]));
+
+    expect(byCont["6052.001"].unmapped).toBe(true);
+    expect(byCont["6052.002"].unmapped).toBe(true);
+    expect(byCont["5121.BT"].unmapped).toBe(false);
+  });
+
+  it("does not flag bases that are not in the set", () => {
+    const unmappedBases = new Set(["9999"]);
+    const rows = computeBalanceFromJournal(baseEntries, 2024, 1, undefined, unmappedBases);
+    const byCont = Object.fromEntries(rows.map((r) => [r.cont, r]));
+
+    expect(byCont["5121"].unmapped).toBe(false);
+    expect(byCont["6052"].unmapped).toBe(false);
+    expect(byCont["9999"].unmapped).toBe(true);
+  });
+
+  it("empty unmapped set flags nothing", () => {
+    const rows = computeBalanceFromJournal(baseEntries, 2024, 1, undefined, new Set());
+    for (const row of rows) {
+      expect(row.unmapped).toBe(false);
+    }
+  });
+
+  it("unmapped flag survives leaf/parent computation for hierarchical accounts", () => {
+    const entries: JournalEntry[] = [
+      entry({ contD: "6052.001", contC: "4111", suma: 500 }),
+      entry({ contD: "6052.002", contC: "4111", suma: 300 }),
+    ];
+    const unmappedBases = new Set(["6052"]);
+
+    const rows = computeBalanceFromJournal(entries, 2024, 1, undefined, unmappedBases);
+    const leafRows = rows.filter((r) => r.contBase === "6052" && r.isLeaf);
+
+    expect(leafRows.length).toBe(2);
+    for (const leaf of leafRows) {
+      expect(leaf.unmapped).toBe(true);
+    }
+  });
+});
