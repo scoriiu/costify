@@ -13,6 +13,28 @@ spec:
           ingress:
             ingressClassName: traefik
 ---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: costify
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: costify
+spec:
+  headers:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    stsPreload: true
+    forceSTSHeader: true
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -20,12 +42,46 @@ metadata:
   namespace: costify
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: costify-security-headers@kubernetescrd
 spec:
   tls:
     - hosts:
         - costify.ro
         - www.costify.ro
       secretName: costify-tls
+  rules:
+    - host: costify.ro
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: costify
+                port:
+                  number: 80
+    - host: www.costify.ro
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: costify
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: costify-ingress-http
+  namespace: costify
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: costify-https-redirect@kubernetescrd
+spec:
   rules:
     - host: costify.ro
       http:
