@@ -183,7 +183,7 @@ export function TopNav({ userName, userEmail }: TopNavProps) {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "rounded-lg px-3 py-1.5 text-[14px] font-semibold transition-colors",
+                      "flex items-center justify-center min-w-[5.5rem] rounded-lg px-3 py-1.5 text-[14px] font-semibold transition-colors",
                       active
                         ? "bg-primary/[0.08] text-white"
                         : "text-gray-light hover:bg-dark-3/50 hover:text-white"
@@ -198,7 +198,7 @@ export function TopNav({ userName, userEmail }: TopNavProps) {
                 <Link
                   href="/internal"
                   className={cn(
-                    "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[14px] font-semibold transition-colors",
+                    "flex items-center justify-center gap-1.5 min-w-[5.5rem] rounded-lg px-3 py-1.5 text-[14px] font-semibold transition-colors",
                     pathname.startsWith("/internal") || pathname.startsWith("/design") || pathname.startsWith("/marketing") || pathname.startsWith("/debug")
                       ? "bg-primary/[0.08] text-white"
                       : "text-gray-light hover:bg-dark-3/50 hover:text-white"
