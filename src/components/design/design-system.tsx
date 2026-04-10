@@ -625,6 +625,60 @@ export function DesignSystem() {
         </Card>
       </Section>
 
+      {/* ─── SCROLLBARS ─── */}
+      <Section title="Scrollbars" description="Refined, subtle scrollbars for scrollable regions. Use the scrollbar-thin utility class on any overflow container.">
+        <Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray">scrollbar-thin (recommended)</h3>
+              <p className="mb-3 text-[12px] text-gray-light">
+                6px wide, teal-tinted thumb, transparent track. Visible while scrolling, respects dark/light theme via CSS variables. Used on docs sidebar, long tables, modal content.
+              </p>
+              <div className="scrollbar-thin h-48 overflow-y-auto rounded-lg border border-dark-3 bg-dark-2 p-4">
+                <div className="space-y-2 font-mono text-[11px] text-gray-light">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span>Line item {i + 1}</span>
+                      <span className="text-primary-light">{(Math.random() * 10000).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-[10px] text-gray">className=&quot;scrollbar-thin overflow-y-auto&quot;</p>
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray">Default browser scrollbar</h3>
+              <p className="mb-3 text-[12px] text-gray-light">
+                For comparison. The default is wider (~15px), has a solid track, and feels heavier. Avoid for sidebars, popovers, and tight layouts.
+              </p>
+              <div className="h-48 overflow-y-auto rounded-lg border border-dark-3 bg-dark-2 p-4">
+                <div className="space-y-2 font-mono text-[11px] text-gray-light">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span>Line item {i + 1}</span>
+                      <span className="text-primary-light">{(Math.random() * 10000).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-[10px] text-gray">className=&quot;overflow-y-auto&quot;</p>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-light">When to use</h3>
+            <ul className="space-y-1 text-[12px] text-gray-light">
+              <li>✓ Sidebars with many items (docs sidebar, client list panel)</li>
+              <li>✓ Modal content that can overflow (long forms, lists)</li>
+              <li>✓ Chat panels, Costi conversation history</li>
+              <li>✓ Any overflow container narrower than ~400px where the default scrollbar dominates visually</li>
+              <li className="mt-2 text-gray">✗ Not needed on main page scroll (body) — keep native scrollbar for the document itself</li>
+            </ul>
+          </div>
+        </Card>
+      </Section>
+
       {/* ─── BUTTONS ─── */}
       <Section title="Buttons" description="Three variants: primary for main actions, ghost for secondary, danger for destructive.">
         <Card>
