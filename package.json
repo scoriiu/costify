@@ -10,7 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "node prisma/seed.mjs",
     "postinstall": "prisma generate",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",

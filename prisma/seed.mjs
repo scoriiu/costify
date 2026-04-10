@@ -1,18 +1,19 @@
+/**
+ * Production-safe seed script. Pure JS, no tsx/ts-node dependency.
+ * Loads seeds/omfp-1802.json into AccountCatalog via upsert (idempotent).
+ * Runs in the init container on every deploy.
+ */
+
 import { PrismaClient } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { OmfpSeedFile } from "../src/modules/accounts/types";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  await seedAccountCatalog();
-}
-
-async function seedAccountCatalog() {
   const seedPath = join(process.cwd(), "seeds", "omfp-1802.json");
   const raw = readFileSync(seedPath, "utf-8");
-  const data = JSON.parse(raw) as OmfpSeedFile;
+  const data = JSON.parse(raw);
 
   console.log(`Loading ${data.version} — ${data.accounts.length} accounts`);
 
@@ -29,25 +30,20 @@ async function seedAccountCatalog() {
       continue;
     }
 
+    const payload = {
+      code: a.code,
+      name: a.name,
+      type: a.type,
+      classDigit,
+      cppGroup: a.cppGroup ?? null,
+      cppLabel: a.cppLabel ?? null,
+      special: a.special ?? null,
+    };
+
     const result = await prisma.accountCatalog.upsert({
       where: { code: a.code },
-      create: {
-        code: a.code,
-        name: a.name,
-        type: a.type,
-        classDigit,
-        cppGroup: a.cppGroup ?? null,
-        cppLabel: a.cppLabel ?? null,
-        special: a.special ?? null,
-      },
-      update: {
-        name: a.name,
-        type: a.type,
-        classDigit,
-        cppGroup: a.cppGroup ?? null,
-        cppLabel: a.cppLabel ?? null,
-        special: a.special ?? null,
-      },
+      create: payload,
+      update: payload,
     });
 
     if (result.createdAt.getTime() === result.updatedAt.getTime()) {

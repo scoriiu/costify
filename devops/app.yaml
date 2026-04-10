@@ -17,7 +17,15 @@ spec:
         - name: prisma-migrate
           image: registry.costify.ro/costify:latest
           imagePullPolicy: Always
-          command: ["npx", "prisma", "db", "push", "--skip-generate", "--schema", "./prisma/schema.prisma"]
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "==> Running prisma db push..."
+              npx prisma db push --skip-generate --schema ./prisma/schema.prisma
+              echo "==> Seeding AccountCatalog..."
+              node prisma/seed.mjs
+              echo "==> Init complete"
           env:
             - name: DATABASE_URL
               valueFrom:
