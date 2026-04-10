@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
 import { computeKpis, computeCpp } from "@/modules/reporting";
+import { getCatalogMap } from "@/modules/accounts";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -37,6 +38,10 @@ export async function handleToolCall(
       return handleGetJournalEntries(userId, input);
     case "get_available_periods":
       return handleGetPeriods(userId, input);
+    case "get_unmapped_accounts":
+      return handleGetUnmappedAccounts(userId, input);
+    case "get_account_catalog":
+      return handleGetAccountCatalog(input);
     default:
       return JSON.stringify({ error: `Tool necunoscut: ${toolName}` });
   }
@@ -86,6 +91,7 @@ async function handleGetBalance(userId: string, input: Record<string, unknown>):
   const summary = rows.map((r) => ({
     cont: r.cont,
     denumire: r.denumire,
+    unmapped: r.unmapped,
     soldInD: r.soldInD,
     soldInC: r.soldInC,
     rulajD: r.rulajD,
@@ -94,11 +100,14 @@ async function handleGetBalance(userId: string, input: Record<string, unknown>):
     finC: r.finC,
   }));
 
+  const unmappedCount = summary.filter((r) => r.unmapped).length;
+
   return JSON.stringify({
     client: resolved.client.name,
     year: input.year,
     month: input.month,
     accounts: summary.length,
+    unmappedCount,
     rows: summary,
   });
 }
@@ -204,5 +213,101 @@ async function handleGetPeriods(userId: string, input: Record<string, unknown>):
   return JSON.stringify({
     client: resolved.client.name,
     periods: periods.map((p) => ({ year: p.year, month: p.month })),
+  });
+}
+
+async function handleGetUnmappedAccounts(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const result = await getBalanceRows(
+    resolved.client.id,
+    input.year as number,
+    input.month as number
+  );
+  if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
+
+  const unmapped = result.data
+    .filter((r) => r.isLeaf && r.unmapped)
+    .map((r) => ({
+      cont: r.cont,
+      contBase: r.contBase,
+      denumire: r.denumire,
+      soldInD: r.soldInD,
+      soldInC: r.soldInC,
+      rulajD: r.rulajD,
+      rulajC: r.rulajC,
+      finD: r.finD,
+      finC: r.finC,
+    }));
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    year: input.year,
+    month: input.month,
+    total: unmapped.length,
+    explanation:
+      "Aceste conturi nu au cod exact in catalogul OMFP 1802. " +
+      "Denumirea afisata vine din import (Saga) sau din contul parinte prin fallback prefix. " +
+      "Contabilul trebuie sa verifice daca sunt conturi analitice legitime sau coduri lipsa din catalog.",
+    rows: unmapped,
+  });
+}
+
+async function handleGetAccountCatalog(input: Record<string, unknown>): Promise<string> {
+  const catalog = await getCatalogMap();
+  const code = input.code as string | undefined;
+  const prefix = input.prefix as string | undefined;
+  const cppGroup = input.cpp_group as string | undefined;
+
+  let entries = Array.from(catalog.values());
+
+  if (code) {
+    const exact = catalog.get(code);
+    return JSON.stringify({
+      query: { code },
+      found: !!exact,
+      result: exact
+        ? {
+            code: exact.code,
+            name: exact.name,
+            type: exact.type,
+            classDigit: exact.classDigit,
+            cppGroup: exact.cppGroup,
+            cppLabel: exact.cppLabel,
+            special: exact.special,
+          }
+        : null,
+    });
+  }
+
+  if (prefix) {
+    entries = entries.filter((e) => e.code.startsWith(prefix));
+  }
+
+  if (cppGroup) {
+    entries = entries.filter((e) => e.cppGroup === cppGroup);
+  }
+
+  entries.sort((a, b) => a.code.localeCompare(b.code));
+
+  const MAX = 50;
+  const truncated = entries.length > MAX;
+
+  return JSON.stringify({
+    query: { prefix, cppGroup },
+    total: entries.length,
+    showing: Math.min(entries.length, MAX),
+    truncated,
+    results: entries.slice(0, MAX).map((e) => ({
+      code: e.code,
+      name: e.name,
+      type: e.type,
+      cppGroup: e.cppGroup,
+      special: e.special,
+    })),
   });
 }

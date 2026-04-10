@@ -22,28 +22,29 @@
       ]
     },
     "balanta_de_verificare": {
-      "description": "Balanta calculata live din intrarile active din jurnal",
+      "description": "Balanta calculata live din intrarile active din jurnal. Nu e pre-stocata.",
       "capabilities": [
         "Toggle Analitice / Toate conturile",
         "Cautare pe cont sau denumire",
         "Coloane: Sold initial D/C, Rulaj D/C, Total D/C, Sold final D/C",
-        "Indicatori vizuali pentru conturi nemapate (triunghi galben)",
-        "Sectiune expandabila cu lista conturilor nemapate",
+        "Denumiri rezolvate prin: ClientAccount analitic → AccountCatalog OMFP standard → prefix parinte → fallback",
+        "Indicator unmapped (triunghi galben) pentru conturile ale caror contBase NU e cod exact in AccountCatalog",
+        "Sectiune expandabila deasupra tabelului care listeaza toate conturile nemapate cu sold D si sold C",
         "Selector de perioada (an + luna)"
       ]
     },
     "cont_profit_si_pierdere": {
-      "description": "CPP calculat din balanta, structurat pe OMFP 1802",
+      "description": "CPP calculat din balanta, structurat pe OMFP 1802. Gruparile vin direct din AccountCatalog.cppGroup (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE), nu din prefixe hardcodate. Conturile cu flag special pl_closing (121) sunt excluse din CPP pentru a evita dublul calcul.",
       "sections": [
-        "Venituri din exploatare (clasa 7: 701-758)",
-        "Cheltuieli din exploatare (clasa 6: 601-6812)",
-        "Rezultat din exploatare",
-        "Venituri financiare (765-768)",
-        "Cheltuieli financiare (665-668)",
+        "Venituri din exploatare (toate conturile clasa 7 cu cppGroup=VENITURI_EXPLOATARE)",
+        "Cheltuieli din exploatare (toate conturile clasa 6 cu cppGroup=CHELTUIELI_EXPLOATARE)",
+        "Rezultat din exploatare = venituri - cheltuieli",
+        "Venituri financiare (cppGroup=VENITURI_FINANCIARE, tipic 765-769)",
+        "Cheltuieli financiare (cppGroup=CHELTUIELI_FINANCIARE, tipic 665-668)",
         "Rezultat financiar",
-        "Rezultat brut",
-        "Impozit pe profit (691)",
-        "Rezultat net"
+        "Rezultat brut = rezultat exploatare + rezultat financiar",
+        "Impozit pe profit (conturi cu special=profit_tax sau micro_tax)",
+        "Rezultat net = rezultat brut - impozit"
       ]
     },
     "kpi_cards": {
@@ -120,9 +121,34 @@
     "period_selector": "Vizibil pe tab-urile Balanta si CPP, permite selectie an + luna"
   },
   "accounts": {
-    "unmapped_detection": "Conturile care apar ca 'Cont XXX' nu au denumire in planul de conturi standard",
-    "indicator": "Triunghi galben pe rand + sectiune expandabila deasupra tabelului",
-    "impact": "Nu afecteaza calculele, doar vizualizarea. Contabilul trebuie sa verifice daca sunt conturi analitice specifice companiei."
+    "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu ~321 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",
+    "tier_1_catalog": {
+      "description": "AccountCatalog — tabel global seed-at din seeds/omfp-1802.json",
+      "content": "Conturi sintetice standard OMFP 1802 (clase 1-8), cu tip A/P/B, grupa CPP, flag special (pl_closing=121, profit_distribution=129, profit_tax=691, micro_tax=698)",
+      "count": "~321 conturi, 98 cu cppGroup setat, 4 cu flag special",
+      "source": "seeds/omfp-1802.json, incarcat in init container pe fiecare deploy (idempotent upsert)"
+    },
+    "tier_2_client_accounts": {
+      "description": "ClientAccount — tabel per client cu denumiri analitice si override-uri",
+      "populated_by": "Automat la import XLSX din coloanele denumire_d/denumire_c ale Saga",
+      "source_field": "saga_import (sticky: importurile urmatoare nu suprascriu user_edit)",
+      "use_cases": "5121.BT = 'BT Cont curent', 411.ORANGE = 'Orange Romania SA', etc"
+    },
+    "resolution_algorithm": [
+      "1. ClientAccount exact match pentru (clientId, cont)",
+      "2. AccountCatalog exact match pentru cont complet",
+      "3. AccountCatalog pentru getContBase(cont) (ex: 5121.BT → 5121)",
+      "4. AccountCatalog prefix fallback (ex: 6052 → 605 daca exista)",
+      "5. Fallback final: 'Cont {cont}' cu flag unmapped=true"
+    ],
+    "unmapped_detection": "Un cont e marcat unmapped=true cand contBase NU este cod exact in AccountCatalog. Subconturile (ex: 6052) sunt unmapped chiar daca resolver afiseaza numele parintelui 605. Asta ofera vizibilitate maxima contabilului despre ce nu e standard OMFP.",
+    "indicator": "Triunghi galben pe rand in balanta + sectiune expandabila deasupra tabelului cu cont, denumire, sold D, sold C",
+    "impact": "Conturile nemapate IAU parte la calculele de sold (vin din jurnal), dar pot sa nu apara in CPP daca subcodul nu mosteneste o grupa CPP. Contabilul trebuie sa verifice daca sunt conturi analitice legitime sau lipsa din catalog.",
+    "tools_available_for_costi": [
+      "get_unmapped_accounts(client_name, year, month) → lista conturilor nemapate cu solduri",
+      "get_account_catalog(code | prefix | cpp_group) → cauta in catalogul OMFP standard",
+      "get_balance returneaza acum si unmappedCount si flag unmapped per rand"
+    ]
   },
   "multi_tenant": {
     "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",

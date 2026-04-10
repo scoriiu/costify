@@ -77,4 +77,30 @@ export const COSTI_TOOLS: Tool[] = [
       required: ["client_name"],
     },
   },
+  {
+    name: "get_unmapped_accounts",
+    description: "Listeaza conturile dintr-un client care nu sunt in planul standard OMFP 1802 (marcate cu triunghi galben in UI). Util cand contabilul intreaba 'ce conturi am nemapate?' sau 'de ce apare warning la contul X?'. Returneaza codul, denumirea curenta (din Saga sau prefix parinte), soldurile si numarul de intrari in jurnal.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        year: { type: "number", description: "Anul perioadei analizate" },
+        month: { type: "number", description: "Luna perioadei (1-12)" },
+      },
+      required: ["client_name", "year", "month"],
+    },
+  },
+  {
+    name: "get_account_catalog",
+    description: "Cauta in catalogul standard OMFP 1802 (~321 conturi). Util pentru a verifica daca un cod exista oficial, ce denumire oficiala are, ce tip (A/P/B) si ce grupa CPP. Poate cauta dupa cod exact sau dupa prefix (ex '60' pentru toate conturile de cheltuieli).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string", description: "Codul cautat (ex: '401', '6052'). Daca exista match exact returneaza un singur rand." },
+        prefix: { type: "string", description: "Prefix pentru cautare multipla (ex: '401' returneaza 401, 4011, 4012 daca exista). Alternativ la `code`." },
+        cpp_group: { type: "string", description: "Filtreaza pe grupa CPP: VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE" },
+      },
+      required: [],
+    },
+  },
 ];

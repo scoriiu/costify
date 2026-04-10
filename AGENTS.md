@@ -995,6 +995,25 @@ These templates use the same CSS variables and component patterns as the pitch. 
 
 Costi's knowledge is split into two domains, loaded independently:
 
+### Costi Is a First-Class Citizen — Never Let Him Fall Behind
+
+Costi is the contabil's primary interface to the data. Every time we add or change a feature, Costi must be updated in lock-step — same PR, same deploy. Treat Costi like any other top-level surface of the app: if it breaks or lies, the user loses trust in the whole platform.
+
+**Every feature PR that touches data, workflows, or UI affordances must also:**
+
+1. **Update the tool definitions** in `src/modules/costi/tools.ts` — add new tools for new capabilities, or extend existing ones if the surface changed.
+2. **Update the tool handlers** in `src/modules/costi/tool-handlers.ts` — make sure the response shape reflects any new fields (e.g. when we added `unmapped` to `BalanceRowView`, `get_balance` had to return it too).
+3. **Update `training/contabil/structured/costify-app.json`** — this is Costi's system-prompt reference for the platform. If a feature isn't described here, Costi doesn't know about it. Include: architecture notes, resolution algorithms, UI indicators, what tools are available to introspect it.
+4. **Update tests in `tests/unit/modules/costi/tools.test.ts`** — the tool count, required params, and unique name assertions must match reality. Add new tool-definition tests whenever you add a tool.
+5. **Never ship a user-facing feature Costi cannot explain or query.** If the contabil can click something in the UI, Costi must be able to answer questions about it.
+
+**Examples of things that historically broke Costi and must never happen again:**
+- Adding the three-tier chart-of-accounts system without giving Costi `get_unmapped_accounts` or `get_account_catalog` tools → Costi couldn't answer "ce conturi am nemapate?".
+- Changing CPP grouping from hardcoded prefixes to catalog-driven without updating `costify-app.json` → Costi's description of CPP was stale for weeks.
+- Adding the `unmapped` flag to `BalanceRowView` without threading it through `handleGetBalance` → Costi saw balance rows but couldn't tell which were flagged in the UI.
+
+**When in doubt: grep for `costi`, `COSTI_TOOLS`, `handleToolCall`, and `costify-app.json` before finalizing any PR that touches the data pipeline or UI.**
+
 ### Domain 1: Costify Platform (always loaded)
 
 `training/contabil/structured/costify-app.json` — the app's features, workflows, UI structure. Always in Costi's system prompt because he IS the platform's assistant. **Update this file whenever we add/change functionality.**
