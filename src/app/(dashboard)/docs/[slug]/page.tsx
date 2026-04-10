@@ -1,12 +1,58 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
 import { getDoc, extractHeadings } from "@/lib/docs";
 import { DocMarkdown } from "@/components/docs/doc-markdown";
 import { DocsToc } from "@/components/docs/docs-toc";
+import { DOC_NAVIGATION } from "@/lib/docs-navigation";
+import { pageTitle, absoluteUrl } from "@/lib/seo";
+
+// Docs are currently behind auth. When they become public, flip this
+// flag to true so search engines can index the articles. Also remove
+// /docs from the disallow list in src/app/robots.ts and turn on the
+// doc URLs in src/app/sitemap.ts.
+const DOCS_PUBLIC = false;
 
 interface Props {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+
+  let title = "Docs";
+  let description: string | undefined;
+  for (const category of DOC_NAVIGATION) {
+    const page = category.pages.find((p) => p.slug === slug);
+    if (page) {
+      title = page.title;
+      description = page.description;
+      break;
+    }
+  }
+
+  const canonical = `/docs/${slug}`;
+
+  return {
+    title: pageTitle(title),
+    description,
+    alternates: { canonical },
+    robots: DOCS_PUBLIC
+      ? { index: true, follow: true }
+      : { index: false, follow: false, nocache: true },
+    openGraph: {
+      title: pageTitle(title),
+      description,
+      url: absoluteUrl(canonical),
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pageTitle(title),
+      description,
+    },
+  };
 }
 
 export default async function DocPage({ params }: Props) {

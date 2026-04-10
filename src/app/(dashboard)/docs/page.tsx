@@ -1,5 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { DOC_NAVIGATION } from "@/lib/docs-navigation";
+import { pageTitle } from "@/lib/seo";
+
+// Docs are currently behind auth. Flip this to true when docs go public.
+const DOCS_PUBLIC = false;
+
+export const metadata: Metadata = {
+  title: pageTitle("Documentatie"),
+  description:
+    "Ghid complet Costify: import jurnal, balanta, CPP, KPI, arhitectura platformei si bazele contabilitatii romanesti.",
+  alternates: { canonical: "/docs" },
+  robots: DOCS_PUBLIC
+    ? { index: true, follow: true }
+    : { index: false, follow: false, nocache: true },
+};
 
 export default function DocsIndexPage() {
   return (
