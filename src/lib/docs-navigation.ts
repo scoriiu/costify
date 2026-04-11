@@ -8,6 +8,7 @@ export interface DocPage {
   title: string;
   description?: string;
   tbd?: boolean;
+  interactive?: boolean;
 }
 
 export interface DocCategory {
@@ -63,7 +64,15 @@ export const DOC_NAVIGATION: DocCategory[] = [
     label: "FAQ & Clarificari",
     description: "Intrebari frecvente si discutii deschise",
     pages: [
-      { slug: "intrebari-contabil-plan-conturi", title: "Intrebari pentru contabil: plan de conturi", description: "Clarificari necesare pentru refactorizarea maparii conturilor" },
+      { slug: "intrebari-contabil-plan-conturi", title: "Intrebari pentru contabil: plan de conturi", description: "Clarificari necesare pentru refactorizarea maparii conturilor", interactive: true },
+    ],
+  },
+  {
+    id: "competitori",
+    label: "Competitori",
+    description: "Analiza platformelor similare din piata romaneasca",
+    pages: [
+      { slug: "finlight", title: "Finlight.ro", description: "Platforma de raportare financiara pentru manageri si antreprenori" },
     ],
   },
   {

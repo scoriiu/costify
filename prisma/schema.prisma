@@ -183,3 +183,17 @@ model ClientAccount {
   @@index([clientId])
   @@index([clientId, source])
 }
+
+model DocAnswer {
+  id          String   @id @default(cuid())
+  docSlug     String
+  sectionId   String
+  sectionText String
+  content     String
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([docSlug, sectionId])
+  @@index([docSlug])
+}

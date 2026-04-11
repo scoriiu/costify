@@ -1,9 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
+import { AnswerBlock, type DocAnswerData } from "./answer-block";
 
 interface Props {
   content: string;
+  interactive?: boolean;
+  docSlug?: string;
+  initialAnswers?: Record<string, DocAnswerData>;
 }
 
 function slugify(text: string): string {
@@ -96,12 +100,33 @@ function isList(line: string) { return /^[-*] /.test(line); }
 function isOrdered(line: string) { return /^\d+\. /.test(line); }
 function isContinuation(line: string) { return line.startsWith("  ") && !isList(line) && !isOrdered(line); }
 
-export function DocMarkdown({ content }: Props) {
+export function DocMarkdown({
+  content,
+  interactive = false,
+  docSlug,
+  initialAnswers,
+}: Props) {
   const elements = useMemo(() => {
     const lines = content.split("\n");
     const result: React.ReactNode[] = [];
     let i = 0;
     let key = 0;
+
+    let pendingSection: { id: string; text: string } | null = null;
+
+    function flushPendingAnswer() {
+      if (!interactive || !pendingSection || !docSlug) return;
+      result.push(
+        <AnswerBlock
+          key={`answer-${pendingSection.id}`}
+          docSlug={docSlug}
+          sectionId={pendingSection.id}
+          sectionText={pendingSection.text}
+          initial={initialAnswers?.[pendingSection.id]}
+        />
+      );
+      pendingSection = null;
+    }
 
     while (i < lines.length) {
       const line = lines[i];
@@ -136,6 +161,7 @@ export function DocMarkdown({ content }: Props) {
       }
       const h2 = line.match(/^## (.+)/);
       if (h2) {
+        flushPendingAnswer();
         const id = slugify(h2[1]);
         result.push(
           <h2
@@ -151,6 +177,7 @@ export function DocMarkdown({ content }: Props) {
       }
       const h3 = line.match(/^### (.+)/);
       if (h3) {
+        flushPendingAnswer();
         const id = slugify(h3[1]);
         result.push(
           <h3
@@ -162,6 +189,9 @@ export function DocMarkdown({ content }: Props) {
             <InlineText text={h3[1]} />
           </h3>
         );
+        if (interactive) {
+          pendingSection = { id, text: h3[1] };
+        }
         i++; continue;
       }
       const h4 = line.match(/^#### (.+)/);
@@ -297,8 +327,10 @@ export function DocMarkdown({ content }: Props) {
       );
     }
 
+    flushPendingAnswer();
+
     return result;
-  }, [content]);
+  }, [content, interactive, docSlug, initialAnswers]);
 
   return <div className="max-w-none">{elements}</div>;
 }

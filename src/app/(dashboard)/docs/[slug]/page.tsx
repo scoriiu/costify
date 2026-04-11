@@ -7,6 +7,8 @@ import { DocMarkdown } from "@/components/docs/doc-markdown";
 import { DocsToc } from "@/components/docs/docs-toc";
 import { DOC_NAVIGATION } from "@/lib/docs-navigation";
 import { pageTitle, absoluteUrl } from "@/lib/seo";
+import { prisma } from "@/lib/db";
+import type { DocAnswerData } from "@/components/docs/answer-block";
 
 // Docs are currently behind auth. When they become public, flip this
 // flag to true so search engines can index the articles. Also remove
@@ -55,12 +57,46 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+function findPage(slug: string) {
+  for (const category of DOC_NAVIGATION) {
+    const page = category.pages.find((p) => p.slug === slug);
+    if (page) return page;
+  }
+  return null;
+}
+
 export default async function DocPage({ params }: Props) {
   const { slug } = await params;
   const doc = await getDoc(slug);
   if (!doc) notFound();
 
   const headings = extractHeadings(doc.content);
+  const page = findPage(slug);
+  const isInteractive = page?.interactive === true;
+
+  let initialAnswers: Record<string, DocAnswerData> = {};
+  if (isInteractive) {
+    const rows = await prisma.docAnswer.findMany({
+      where: { docSlug: slug },
+      orderBy: { updatedAt: "desc" },
+    });
+    const authorIds = [...new Set(rows.map((r) => r.authorId))];
+    const authors = await prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, name: true, email: true },
+    });
+    const authorById = new Map(authors.map((u) => [u.id, u]));
+    initialAnswers = Object.fromEntries(
+      rows.map((r) => [
+        r.sectionId,
+        {
+          content: r.content,
+          updatedAt: r.updatedAt.toISOString(),
+          author: authorById.get(r.authorId) ?? null,
+        },
+      ])
+    );
+  }
 
   return (
     <div className="flex gap-12">
@@ -79,7 +115,12 @@ export default async function DocPage({ params }: Props) {
         {/* Content */}
         {doc.exists ? (
           <article>
-            <DocMarkdown content={doc.content} />
+            <DocMarkdown
+              content={doc.content}
+              interactive={isInteractive}
+              docSlug={slug}
+              initialAnswers={initialAnswers}
+            />
           </article>
         ) : (
           <StubArticle title={doc.title} description={doc.description} slug={doc.slug} />
