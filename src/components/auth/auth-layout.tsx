@@ -9,7 +9,7 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ title, description, children }: AuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-dark px-4 py-16">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-dark px-4">
       {/* Backdrop ambience — teal glow + subtle grid, matching landing vocabulary */}
       <div className="pointer-events-none absolute inset-0">
         <div
@@ -37,54 +37,55 @@ export function AuthLayout({ title, description, children }: AuthLayoutProps) {
         />
       </div>
 
-      <div className="relative w-full max-w-md">
-        {/* Header */}
-        <div className="flex flex-col items-center text-center">
-          <div
-            className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-gray"
-          >
-            <span className="h-px w-6 bg-gradient-to-r from-transparent to-primary/40" />
-            Acces cont
-            <span className="h-px w-6 bg-gradient-to-l from-transparent to-primary/40" />
+      {/* Main — header + card centered in the available space above the footer */}
+      <main className="relative flex flex-1 items-center justify-center py-12">
+        <div className="w-full max-w-md">
+          {/* Header */}
+          <div className="flex flex-col items-center text-center">
+            <div
+              className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-gray"
+            >
+              <span className="h-px w-6 bg-gradient-to-r from-transparent to-primary/40" />
+              Acces cont
+              <span className="h-px w-6 bg-gradient-to-l from-transparent to-primary/40" />
+            </div>
+
+            <Link href="/" className="mt-6 inline-block">
+              <Logo size="lg" />
+            </Link>
+
+            <h1
+              className="mt-10 text-[34px] font-bold leading-[1.05] text-white"
+              style={{ letterSpacing: "-0.04em" }}
+            >
+              {title}
+            </h1>
+            <p
+              className="mt-3 text-[14px] leading-[1.55] text-gray-light"
+              style={{ letterSpacing: "-0.01em" }}
+            >
+              {description}
+            </p>
           </div>
 
-          <Link href="/" className="mt-6 inline-block">
-            <Logo size="lg" />
-          </Link>
-
-          <h1
-            className="mt-10 text-[34px] font-bold leading-[1.05] text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            {title}
-          </h1>
-          <p
-            className="mt-3 text-[14px] leading-[1.55] text-gray-light"
-            style={{ letterSpacing: "-0.01em" }}
-          >
-            {description}
-          </p>
+          {/* Form card */}
+          <div className="relative mt-7 overflow-hidden rounded-2xl border border-dark-3 bg-dark-2 p-8 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)]">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#34D3A0]/60 to-transparent" />
+            {children}
+          </div>
         </div>
+      </main>
 
-        {/* Form card */}
-        <div className="relative mt-7 overflow-hidden rounded-2xl border border-dark-3 bg-dark-2 p-8 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)]">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#34D3A0]/60 to-transparent" />
-          {children}
-        </div>
-
-        {/* Footer meta */}
-        <div
-          className="mt-8 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.15em] text-gray"
+      {/* Footer meta — anchored to viewport bottom */}
+      <footer className="relative z-10 flex items-center justify-between px-2 py-6 font-mono text-[10px] uppercase tracking-[0.15em] text-gray">
+        <Link
+          href="/"
+          className="transition-colors hover:text-white"
         >
-          <Link
-            href="/"
-            className="transition-colors hover:text-white"
-          >
-            ← costify.ro
-          </Link>
-          <span>cookie httponly · tls 1.3</span>
-        </div>
-      </div>
+          ← costify.ro
+        </Link>
+        <span>cookie httponly · tls 1.3</span>
+      </footer>
     </div>
   );
 }
