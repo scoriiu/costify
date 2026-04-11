@@ -63,6 +63,42 @@ Costify is a multi-tenant financial control platform. Each **user** (typically a
 
 The system must scale horizontally to support thousands of concurrent users, each managing 1000+ client organizations.
 
+### Distribution model — through the accountant, not around them
+
+The Romanian entrepreneur rarely buys a financial SaaS directly. They already pay an accountant and expect "to see how the firm is doing" to come from that accountant. This is both a constraint and an opportunity.
+
+- **The paying customer is the accountant.** Costify is priced, packaged and designed for someone who manages a portfolio of clients daily. The accountant is the primary user and decision-maker.
+- **The entrepreneur is a guest on the platform.** When the accountant invites them, they get free read-only access to their own firm's data. Never a separate sale, never a separate price tier, never friction beyond accepting an invitation.
+- **The accountant is our distribution channel.** Every happy accountant brings N entrepreneurs onto the platform. Every entrepreneur who sees a clear, useful Costify report recommends the accountant to others. That recommendation loop is our growth engine, not marketing spend.
+- **Design consequence:** any feature that makes the accountant look good in front of their client is high priority. Inviting an entrepreneur must take two clicks. The report the entrepreneur sees must reinforce "my accountant is a professional" every single time.
+
+### The bilingual product — two languages, one source of truth
+
+Costify serves two very different people from the same data:
+
+- **Contabilul** — the accountant, who works in the official OMFP 1802 vocabulary: jurnal, balanta, cont de profit si pierdere, cont 5121, plan de conturi, debit, credit, analitic, rulaj. This is the language of the profession and we must never water it down. The accountant needs precision and will reject a product that hides the primitives of their craft.
+- **Antreprenorul** — the entrepreneur, who does not speak that language and never will. They think in: "cat am in banca", "cat imi datoreaza clientii", "cat trebuie sa platesc saptamana asta", "pot scoate salariul luna asta", "cat am castigat sau pierdut". Zero jargon. Zero numeric account codes. Zero OMFP terminology. If we have to explain what a word means, the word is wrong for them.
+
+Both languages describe **the same underlying journal**. Nothing is fabricated, nothing is simplified into dishonesty. The CPP the accountant sees and the "cat ai castigat luna asta" the entrepreneur sees are the same number — the sentence around it is different. We are not hiding the truth, we are translating it.
+
+**The rule for every new feature:**
+
+1. Every surface (KPI card, table column, chart label, error message, empty state, export, email) must have a concrete form in **both** languages before the feature is considered shipped.
+2. If you write a label in only one language, the feature is incomplete. The PR is not ready for merge.
+3. If the "entrepreneur version" of a label is identical to the "accountant version" because you could not think of a translation — that is a design bug, not a shortcut. Ask, iterate, find the translation. A literal copy across modes is a failure.
+4. The entrepreneur mode must work for someone who has never read a balance sheet in their life. Test with a non-accountant before merging anything entrepreneur-facing.
+5. Plan de conturi, cont numeric, debit/credit, rulaj, analitic and other OMFP primitives must never appear in entrepreneur mode. They are translated into entities the entrepreneur already understands: banks, customers, suppliers, the state, employees, the owner themselves.
+
+**The rule for process design:**
+
+Both languages must arrive at the answer with the **same small number of steps**. If the accountant flow has three clicks and the entrepreneur flow has ten, the entrepreneur flow is wrong. Simple and well-defined processes are not a nice-to-have — they are the reason a Romanian entrepreneur would trust software at all. Every flow must pass the test: could I describe this to someone on the phone in one sentence?
+
+- Import: upload a file, see the result. No column mapping, no manual recalculation, no "confirm processing" step the user doesn't understand.
+- View: open a page, see numbers. No wizard, no filters to configure before the data appears.
+- Share: invite by email, done. No role configuration, no permission matrix, no "set up your workspace first".
+
+If a process needs documentation to use, the process is too complex. Documentation exists to explain **why** something is the way it is, not to operate the product.
+
 ---
 
 ## Journal-Centric Architecture
