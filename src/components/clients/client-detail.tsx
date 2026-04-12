@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, MoreVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { DatasetPeriod } from "@/modules/balances";
+import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
+import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
 type Tab = "jurnal" | "balanta" | "cpp";
 
@@ -51,6 +52,7 @@ export function ClientDetail({
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [unmappedRows, setUnmappedRows] = useState<BalanceRowView[]>([]);
   const tab = (TABS.find((t) => t.key === activeTab) ? activeTab : "jurnal") as Tab;
 
   function navigate(params: { tab?: string; year?: number; month?: number }) {
@@ -105,15 +107,21 @@ export function ClientDetail({
 
       <TabBar active={tab} onTabChange={(t) => navigate({ tab: t, year: selectedYear, month: selectedMonth })} />
 
+      {unmappedRows.length > 0 && (
+        <div className="mt-4">
+          <UnmappedBanner rows={unmappedRows} />
+        </div>
+      )}
+
       <div className="mt-4">
         {tab === "jurnal" && (
           <JournalGrid clientId={client.id} />
         )}
         {tab === "balanta" && selectedYear && selectedMonth && (
-          <BalantaTab clientId={client.id} year={selectedYear} month={selectedMonth} />
+          <BalantaTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
         )}
         {tab === "cpp" && selectedYear && selectedMonth && (
-          <CppTab clientId={client.id} year={selectedYear} month={selectedMonth} />
+          <CppTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (
           <EmptyState message="Nu exista date. Uploadeaza un registru jurnal." />

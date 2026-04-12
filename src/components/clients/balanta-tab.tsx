@@ -10,9 +10,10 @@ interface Props {
   clientId: string;
   year: number;
   month: number;
+  onUnmappedFound?: (rows: BalanceRowView[]) => void;
 }
 
-export function BalantaTab({ clientId, year, month }: Props) {
+export function BalantaTab({ clientId, year, month, onUnmappedFound }: Props) {
   const [rows, setRows] = useState<BalanceRowView[] | null>(null);
   const [kpis, setKpis] = useState<KpiSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,9 +25,11 @@ export function BalantaTab({ clientId, year, month }: Props) {
       .then((data) => {
         setRows(data.rows);
         setKpis(data.kpis);
+        const unmapped = (data.rows as BalanceRowView[]).filter((r) => r.unmapped);
+        onUnmappedFound?.(unmapped);
       })
       .finally(() => setLoading(false));
-  }, [clientId, year, month]);
+  }, [clientId, year, month]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <div className="flex items-center justify-center py-16 text-sm text-gray">Se calculeaza balanta...</div>;
