@@ -283,6 +283,7 @@ export function MarketingStrategy() {
                 { vs: "Oblio", lacks: "Motor contabil, management, analytics, payroll", delivers: "Contabilitate + management din acelasi sistem" },
                 { vs: "Keez", lacks: "Self-serve (e serviciu obligatoriu), bugete, forecasts", delivers: "Platforma software, orice contabil, pret/luna nu pret/ora" },
                 { vs: "FGO", lacks: "Motor contabil, dashboards, analytics, intelligence", delivers: "Bank data folosit pt intelligence, nu doar matching" },
+                { vs: "Finlight", lacks: "Multi-tenant pt contabili, adapter per soft, AI, pret per-portofoliu, simplitate", delivers: "Contabilul gestioneaza 1000+ clienti, import automat Saga/SmartBill/Ciel, Costi AI, UX simplu pentru antreprenor" },
               ].map((row) => (
                 <tr key={row.vs} className="hover:bg-dark-3/20 transition-colors">
                   <td className="px-4 py-3 font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>{row.vs}</td>
@@ -292,6 +293,62 @@ export function MarketingStrategy() {
               ))}
             </tbody>
           </table>
+        </Card>
+      </Section>
+
+      {/* ─── SIMPLICITY ─── */}
+      <Section title="Simplitate ca avantaj competitiv" description="Finlight e chineza pentru antreprenori. Costify nu va fi.">
+        <Card>
+          <p className="font-mono text-[11px] font-medium uppercase text-danger mb-4" style={{ letterSpacing: "-0.04em" }}>Problema reala</p>
+          <p className="text-[14px] leading-relaxed text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+            Un antreprenor care a testat Finlight a spus: &ldquo;e chineza&rdquo;. Zeci de indicatori financiari,
+            Index Financiar, solvabilitate, lichiditate, rezultat operational — vocabular care suna profesionist
+            dar pe care un om care conduce o firma cu 5 angajati nu il recunoaste. Finlight a facut o versiune
+            mai frumoasa a aceluiasi jargon. Jargonul nu a disparut — doar a primit fonturi mai mari.
+          </p>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="border-danger/20">
+            <p className="font-mono text-[11px] font-medium uppercase text-danger mb-4" style={{ letterSpacing: "-0.04em" }}>Finlight — complexitate vizibila</p>
+            <ul className="space-y-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              <li>Mapare manuala de coloane la fiecare import</li>
+              <li>Buton &ldquo;Calculeaza indicatori&rdquo; apasat manual</li>
+              <li>3 etape pentru un singur import (upload → map → confirm → calculate)</li>
+              <li>Vocabular OMFP pe interfata antreprenorului</li>
+              <li>Zeci de indicatori afisati simultan, fara prioritizare</li>
+              <li>Pret per firma — contabilul cu 50 clienti plateste x50</li>
+            </ul>
+          </Card>
+          <Card className="border-primary/20">
+            <p className="font-mono text-[11px] font-medium uppercase text-primary mb-4" style={{ letterSpacing: "-0.04em" }}>Costify — simplitate ca principiu</p>
+            <ul className="space-y-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              <li>Adapter per soft contabil — incarci fisierul, merge direct</li>
+              <li>Calcul instant din jurnal, fara buton &ldquo;recalculeaza&rdquo;</li>
+              <li>Import in 2 pasi: upload → vezi rezultatul</li>
+              <li>Doua limbi: contabilul vede OMFP, antreprenorul vede &ldquo;cat am in banca&rdquo;</li>
+              <li>KPI-uri cu sens, nu zeci de indicatori — doar ce conteaza acum</li>
+              <li>Pret per portofoliu — contabilul plateste o data pentru toti clientii</li>
+            </ul>
+          </Card>
+        </div>
+
+        <Card className="border-primary/30 bg-primary/5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <Eye size={16} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Regula de design</p>
+              <p className="mt-2 text-[14px] text-gray-light leading-relaxed" style={{ letterSpacing: "-0.02em" }}>
+                Daca un ecran necesita explicatie, ecranul e gresit. Daca un flux are mai mult de 3 pasi, fluxul e gresit.
+                Daca un label foloseste un cuvant pe care utilizatorul trebuie sa-l caute pe Google, label-ul e gresit.
+                Costify trebuie sa fie folosibil de un antreprenor care n-a deschis niciodata o aplicatie de contabilitate.
+                Barul nostru: un contabil cu 100 clienti adauga un client nou in sub 60 secunde, iar un antreprenor
+                vede cum sta firma lui fara documentatie.
+              </p>
+            </div>
+          </div>
         </Card>
       </Section>
 

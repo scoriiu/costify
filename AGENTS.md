@@ -35,6 +35,7 @@
 - Max content width: `max-w-7xl` for data pages, `max-w-5xl` for reading pages, `max-w-2xl` for forms.
 
 ### Design Principles
+- **Simplicity is the product.** Costify must be usable by an entrepreneur who has never opened an accounting app. If a screen needs explanation, the screen is wrong. If a flow has more than three steps, the flow is wrong. If a label uses a word the user has to Google, the label is wrong. Finlight tried to make accounting dashboards friendly and ended up with dozens of indicators, manual column-mapping, and a "calculate" button the user must remember to press. That is the cautionary tale. Our bar: a contabil with 100 clients can onboard a new one in under 60 seconds, and an antreprenor can see how their firm is doing without reading documentation.
 - **Data density over whitespace** — accountants want to see more, not less.
 - **Conservative color** — reserve strong color for meaning (green=positive, red=attention, teal=actions).
 - **Familiar patterns, modern execution** — keep mental models they know (chart of accounts, trial balance) but render them with modern typography and spacing.
