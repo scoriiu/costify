@@ -85,62 +85,11 @@ function KpiCard({ label, value, change, positive }: { label: string; value: str
 const TEXT_ON_DARK = "#E9E8E3";
 
 const PALETTES = [
-  // ─── RECOMMENDED ───
   {
-    name: "Evergreen Teal ★",
-    desc: "RECOMMENDED — Money-coded, unique in RO market, premium on warm cream, institutional trust",
+    name: "Evergreen Teal",
+    desc: "Money-coded, unique in RO market, premium on warm cream, institutional trust",
     primary: "#0D6B5E", primaryDark: "#0A5A4F", primaryLight: "#34D3A0",
-    accent: "#6366F1", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Forest Finance",
-    desc: "Deeper green — earthy, premium, pairs naturally with warm #F0EFEA like leather on wood",
-    primary: "#1B5E4B", primaryDark: "#154D3E", primaryLight: "#4ADE80",
-    accent: "#818CF8", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Warm Slate",
-    desc: "Muted blue with warmth — sophisticated, neither cold nor trendy, a grown-up blue",
-    primary: "#3D5A80", primaryDark: "#2F4A6B", primaryLight: "#7DA2CC",
-    accent: "#10B981", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  // ─── ALTERNATIVES ───
-  {
-    name: "Deep Teal",
-    desc: "Brighter teal — fresh, modern fintech energy, strong on both themes",
-    primary: "#0F766E", primaryDark: "#0D6560", primaryLight: "#2DD4BF",
-    accent: "#6366F1", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Deep Indigo",
-    desc: "Serious blue-purple — Revolut-adjacent, strong but leans startup",
-    primary: "#4338CA", primaryDark: "#3730A3", primaryLight: "#6366F1",
-    accent: "#10B981", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Midnight Blue",
-    desc: "Classic with warm undertone — banks love it but this one doesn't feel generic",
-    primary: "#1A365D", primaryDark: "#142B4D", primaryLight: "#4A90D9",
-    accent: "#10B981", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Rich Navy",
-    desc: "Institutional trust — conservative, safe, accountants won't question it",
-    primary: "#1E3A5F", primaryDark: "#162D4D", primaryLight: "#3B82F6",
-    accent: "#10B981", warn: "#F59E0B", danger: "#EF4444",
-    textOnPrimary: TEXT_ON_DARK,
-  },
-  {
-    name: "Dark Copper",
-    desc: "Bold and warm — unusual for finance, very premium, matches warm palette perfectly",
-    primary: "#7C4A2D", primaryDark: "#6B3E24", primaryLight: "#C68B5B",
-    accent: "#10B981", warn: "#F59E0B", danger: "#EF4444",
+    accent: "#3FB950", warn: "#F59E0B", danger: "#EF4444",
     textOnPrimary: TEXT_ON_DARK,
   },
 ];
@@ -350,7 +299,7 @@ export function DesignSystem() {
       </div>
 
       {/* ─── COLOR EXPLORATION ─── */}
-      <Section title="Primary Color Exploration" description="6 palette options — each with gradient banner, full swatch row, buttons, badges, KPI cards, tables, and navigation previewed on both dark and light themes.">
+      <Section title="Evergreen Teal — Paleta principala" description="Vizualizare completa: banner gradient, swatches, butoane, badge-uri, KPI cards, tabele si navigare pe ambele teme.">
         <PaletteExplorer />
       </Section>
 
@@ -361,57 +310,57 @@ export function DesignSystem() {
             <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
               <CheckCircle2 size={18} className="text-primary" />
             </div>
-            <h3 className="text-sm font-bold text-white">Clarity First</h3>
+            <h3 className="text-sm font-bold text-white">Simplicity is the product</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
-              Financial data demands precision. Every number, label, and action must be
-              instantly readable. No ambiguity — accountants need to trust what they see.
+              If a screen needs explanation, the screen is wrong. If a flow has more than three steps,
+              the flow is wrong. Usable by an entrepreneur who never opened an accounting app.
             </p>
           </Card>
           <Card>
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-              <TrendingUp size={18} className="text-accent" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <TrendingUp size={18} className="text-primary-light" />
             </div>
-            <h3 className="text-sm font-bold text-white">Calm Confidence</h3>
+            <h3 className="text-sm font-bold text-white">Conservative color</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
-              Use restraint with color. Let data breathe on neutral surfaces. Reserve strong color
-              for meaning: green = positive, red = attention, purple = primary actions.
+              Reserve strong color for meaning: green = positive, red = attention, teal = primary actions.
+              Let data breathe on neutral surfaces. Never use a rainbow of colors.
             </p>
           </Card>
           <Card>
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-warm/10">
-              <MessageCircle size={18} className="text-warm" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <MessageCircle size={18} className="text-primary-light" />
             </div>
-            <h3 className="text-sm font-bold text-white">Friendly, Not Childish</h3>
+            <h3 className="text-sm font-bold text-white">Friendly, not childish</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
               Costi the mascot adds warmth and personality. Rounded corners, gentle shadows,
               and micro-interactions make the experience feel human without undermining trust.
             </p>
           </Card>
           <Card>
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-blue/10">
-              <Search size={18} className="text-blue" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <Search size={18} className="text-primary-light" />
             </div>
-            <h3 className="text-sm font-bold text-white">Progressive Disclosure</h3>
+            <h3 className="text-sm font-bold text-white">Progressive disclosure</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
-              Show summary KPIs first. Let users drill into details. Don't overwhelm — accountants
-              juggle 1000+ clients. Surface what matters, hide complexity until needed.
+              Show summary KPIs first. Let users drill into details. Accountants juggle 1000+ clients.
+              Surface what matters, hide complexity until needed.
             </p>
           </Card>
           <Card>
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-orange/10">
-              <FileBarChart size={18} className="text-orange" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <FileBarChart size={18} className="text-primary-light" />
             </div>
-            <h3 className="text-sm font-bold text-white">Data Density Done Right</h3>
+            <h3 className="text-sm font-bold text-white">Data density done right</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
-              Accountants want to see more, not less. Use compact tables, tight spacing in data views,
-              but generous whitespace in navigation and actions.
+              Accountants want to see more, not less. Compact tables, tight spacing in data views,
+              generous whitespace in navigation and actions.
             </p>
           </Card>
           <Card>
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-purple/10">
-              <Settings size={18} className="text-purple" />
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <Settings size={18} className="text-primary-light" />
             </div>
-            <h3 className="text-sm font-bold text-white">Consistent Patterns</h3>
+            <h3 className="text-sm font-bold text-white">Consistent patterns</h3>
             <p className="mt-1 text-xs leading-relaxed text-gray">
               Same border radius, same shadow depth, same spacing scale everywhere.
               Predictability builds muscle memory. Accountants work fast — don't slow them down.
@@ -421,45 +370,38 @@ export function DesignSystem() {
       </Section>
 
       {/* ─── COLOR PALETTE ─── */}
-      <Section title="Color Palette" description="A restrained palette: cool neutrals for surfaces, purple for brand/actions, semantic colors for meaning.">
-        <SwatchRow label="Brand">
-          <Swatch name="Primary" value="#6C5CE7" />
-          <Swatch name="Primary Dark" value="#5A4BD1" />
-          <Swatch name="Primary Light" value="#A29BFE" />
+      <Section title="Color Palette" description="Paleta restrictiva: Evergreen Teal ca brand, culori semantice cu sens, suprafete teal-tinted pe dark, cream pe light.">
+        <SwatchRow label="Brand — Evergreen Teal">
+          <Swatch name="Primary" value="#0D6B5E" />
+          <Swatch name="Primary Dark" value="#0A5A4F" />
+          <Swatch name="Primary Light" value="#34D3A0" />
         </SwatchRow>
         <SwatchRow label="Semantic">
-          <Swatch name="Accent / Success" value="#00B894" />
-          <Swatch name="Danger" value="#E63946" />
-          <Swatch name="Warning" value="#FDCB6E" />
-          <Swatch name="Info / Blue" value="#58A6FF" />
+          <Swatch name="Danger" value="#EF4444" />
+          <Swatch name="Warning" value="#F59E0B" />
+          <Swatch name="Green" value="#3FB950" />
         </SwatchRow>
-        <SwatchRow label="Surfaces — Dark Theme">
-          <Swatch name="Surface 0 (BG)" value="#0D1117" />
-          <Swatch name="Surface 1 (Card)" value="#161B22" />
-          <Swatch name="Surface 2 (Border)" value="#21262D" />
-          <Swatch name="Surface 3 (Subtle)" value="#30363D" />
+        <SwatchRow label="Surfaces — Dark Theme (teal-tinted)">
+          <Swatch name="Surface 0 (BG)" value="#0B1514" />
+          <Swatch name="Surface 1 (Card)" value="#111F1E" />
+          <Swatch name="Surface 2 (Border)" value="#182A28" />
+          <Swatch name="Surface 3 (Subtle)" value="#223633" />
         </SwatchRow>
-        <SwatchRow label="Surfaces — Light Theme">
-          <Swatch name="Surface 0 (BG)" value="#F8FAFC" />
-          <Swatch name="Surface 1 (Card)" value="#FFFFFF" />
-          <Swatch name="Surface 2 (Border)" value="#F1F5F9" />
-          <Swatch name="Surface 3 (Subtle)" value="#E2E8F0" />
+        <SwatchRow label="Surfaces — Light Theme (warm cream)">
+          <Swatch name="Surface 0 (BG)" value="#F0EFEA" />
+          <Swatch name="Surface 1 (Card)" value="#F7F6F2" />
+          <Swatch name="Surface 2 (Border)" value="#E6E4DE" />
+          <Swatch name="Surface 3 (Subtle)" value="#D9D7D0" />
         </SwatchRow>
         <SwatchRow label="Text — Dark Theme">
-          <Swatch name="Primary" value="#F0F6FC" />
-          <Swatch name="Secondary" value="#C9D1D9" />
-          <Swatch name="Muted" value="#8B949E" />
+          <Swatch name="Primary" value="#E9E8E3" />
+          <Swatch name="Secondary" value="#C5C3BC" />
+          <Swatch name="Muted" value="#8A877F" />
         </SwatchRow>
         <SwatchRow label="Text — Light Theme">
-          <Swatch name="Primary" value="#0F172A" />
-          <Swatch name="Secondary" value="#334155" />
-          <Swatch name="Muted" value="#64748B" />
-        </SwatchRow>
-        <SwatchRow label="Extended">
-          <Swatch name="Green" value="#3FB950" />
-          <Swatch name="Orange" value="#F0883E" />
-          <Swatch name="Purple" value="#BC8CFF" />
-          <Swatch name="Warm / Pink" value="#FD79A8" />
+          <Swatch name="Primary" value="#1A1918" />
+          <Swatch name="Secondary" value="#44413C" />
+          <Swatch name="Muted" value="#7A766E" />
         </SwatchRow>
       </Section>
 
@@ -639,7 +581,7 @@ export function DesignSystem() {
                   {Array.from({ length: 30 }).map((_, i) => (
                     <div key={i} className="flex justify-between">
                       <span>Line item {i + 1}</span>
-                      <span className="text-primary-light">{(Math.random() * 10000).toFixed(2)}</span>
+                      <span className="text-primary-light">{((i * 347.83 + 1234.56) % 10000).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -657,7 +599,7 @@ export function DesignSystem() {
                   {Array.from({ length: 30 }).map((_, i) => (
                     <div key={i} className="flex justify-between">
                       <span>Line item {i + 1}</span>
-                      <span className="text-primary-light">{(Math.random() * 10000).toFixed(2)}</span>
+                      <span className="text-primary-light">{((i * 529.17 + 2876.34) % 10000).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -728,8 +670,8 @@ export function DesignSystem() {
             <AlertTriangle size={18} className="text-warn shrink-0" />
             <p className="text-sm text-gray-light">Termen fiscal in <strong className="text-white">3 zile</strong>. Declaratia 300 trebuie depusa.</p>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-blue/20 bg-blue/5 px-4 py-3">
-            <Info size={18} className="text-blue shrink-0" />
+          <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <Info size={18} className="text-primary-light shrink-0" />
             <p className="text-sm text-gray-light">Se proceseaza datele. Aceasta poate dura cateva secunde.</p>
           </div>
         </div>
@@ -1078,7 +1020,7 @@ export function DesignSystem() {
             <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-warn/10 text-warn border border-warn/20">
               <AlertTriangle size={12} /> In asteptare
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-blue/10 text-blue border border-blue/20">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-primary/10 text-primary-light border border-primary/20">
               <Info size={12} /> Procesare
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold bg-primary/10 text-primary-light border border-primary/20">
