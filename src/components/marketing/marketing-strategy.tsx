@@ -85,11 +85,12 @@ export function MarketingStrategy() {
           <p className="font-mono text-[11px] font-medium uppercase text-gray mb-4" style={{ letterSpacing: "-0.04em" }}>Competitia — cote de piata</p>
           <div className="space-y-3">
             {[
-              { name: "SmartBill", users: "170K", type: "Facturare", color: "#3B82F6" },
-              { name: "FGO.ro", users: "170K", type: "Facturare + Banca", color: "#10B981" },
+              { name: "SmartBill", users: "170K", type: "Facturare", color: "#6366F1" },
+              { name: "FGO.ro", users: "170K", type: "Facturare + Banca", color: "#3FB950" },
               { name: "Oblio", users: "150K", type: "Facturare", color: "#F59E0B" },
               { name: "Saga", users: "Majoritate cabinete", type: "Contabilitate", color: "#EF4444" },
-              { name: "Keez", users: "8.5K", type: "Contabilitate ca serviciu", color: "#8B5CF6" },
+              { name: "Keez", users: "8.5K", type: "Contabilitate ca serviciu", color: "#818CF8" },
+              { name: "Finlight", users: "N/A", type: "Raportare financiara management", color: "#F0883E" },
             ].map((c) => (
               <div key={c.name} className="flex items-center gap-3">
                 <div className="h-3 w-3 rounded-full" style={{ backgroundColor: c.color }} />
@@ -178,12 +179,12 @@ export function MarketingStrategy() {
           </Card>
           <Card>
             <div className="flex items-center gap-2 mb-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-                <Building2 size={18} className="text-accent" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 size={18} className="text-primary-light" />
               </div>
               <div>
                 <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Antreprenorul</p>
-                <p className="font-mono text-[11px] text-accent" style={{ letterSpacing: "-0.04em" }}>SECONDARY</p>
+                <p className="font-mono text-[11px] text-primary-light" style={{ letterSpacing: "-0.04em" }}>SECONDARY</p>
               </div>
             </div>
             <ul className="space-y-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
@@ -200,12 +201,12 @@ export function MarketingStrategy() {
           </Card>
           <Card>
             <div className="flex items-center gap-2 mb-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue/10">
-                <BarChart3 size={18} className="text-blue" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                <BarChart3 size={18} className="text-gray-light" />
               </div>
               <div>
                 <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>Finance Manager</p>
-                <p className="font-mono text-[11px] text-blue" style={{ letterSpacing: "-0.04em" }}>EMERGING</p>
+                <p className="font-mono text-[11px] text-gray" style={{ letterSpacing: "-0.04em" }}>EMERGING</p>
               </div>
             </div>
             <ul className="space-y-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
@@ -245,7 +246,7 @@ export function MarketingStrategy() {
             </div>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-medium uppercase text-accent mb-4" style={{ letterSpacing: "-0.04em" }}>Pt. Contabil</p>
+            <p className="font-mono text-[11px] font-medium uppercase text-primary-light mb-4" style={{ letterSpacing: "-0.04em" }}>Pt. Contabil</p>
             <div className="space-y-3">
               {[
                 { icon: Globe, text: "Cloud-native, nu port de desktop" },
@@ -256,7 +257,7 @@ export function MarketingStrategy() {
                 { icon: DollarSign, text: "Revenue share program referral" },
               ].map((item) => (
                 <div key={item.text} className="flex items-center gap-2.5">
-                  <item.icon size={14} className="text-accent shrink-0" />
+                  <item.icon size={14} className="text-primary-light shrink-0" />
                   <span className="text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>{item.text}</span>
                 </div>
               ))}
@@ -288,7 +289,7 @@ export function MarketingStrategy() {
                 <tr key={row.vs} className="hover:bg-dark-3/20 transition-colors">
                   <td className="px-4 py-3 font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>{row.vs}</td>
                   <td className="px-4 py-3 text-gray-light" style={{ letterSpacing: "-0.02em" }}>{row.lacks}</td>
-                  <td className="px-4 py-3 text-accent" style={{ letterSpacing: "-0.02em" }}>{row.delivers}</td>
+                  <td className="px-4 py-3 text-primary-light" style={{ letterSpacing: "-0.02em" }}>{row.delivers}</td>
                 </tr>
               ))}
             </tbody>
@@ -379,7 +380,7 @@ export function MarketingStrategy() {
           </Card>
           <Card>
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 font-mono text-[16px] font-bold text-accent">2</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-[16px] font-bold text-primary-light">2</div>
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>The Accountant</p>
@@ -401,7 +402,7 @@ export function MarketingStrategy() {
           </Card>
           <Card>
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue/10 font-mono text-[16px] font-bold text-blue">3</div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green/10 font-mono text-[16px] font-bold text-green">3</div>
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>The Market</p>
@@ -425,25 +426,70 @@ export function MarketingStrategy() {
       </Section>
 
       {/* ─── PRICING ─── */}
-      <Section title="Pricing Strategy" description="Context: contabilitatea costa 300-6000 RON/luna. Costify e o fractiune.">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { name: "Starter", price: "15", period: "/luna", target: "PFA / Micro-SRL", features: ["1 companie", "Dashboard + KPI", "Import jurnal", "Rapoarte de baza"] },
-            { name: "Business", price: "39", period: "/luna", target: "SRL cu 5-50 angajati", features: ["3 companii", "Bank feeds", "Budget vs Actual", "Export PDF/Excel"] },
-            { name: "Enterprise", price: "99", period: "/luna", target: "Grupuri + multi-vertical", features: ["Companii nelimitate", "Multi-vertical P&L", "Forecasting", "API access"] },
-            { name: "Accountant", price: "149-399", period: "/luna", target: "Cabinete contabile", features: ["50-500+ companii", "Client portal", "White-label optional", "Revenue share"] },
-          ].map((tier) => (
-            <Card key={tier.name}>
+      <Section title="Pricing Strategy" description="Contabilul plateste, antreprenorul primeste acces gratuit. Pretul reflecta portofoliul, nu firma individuala.">
+        <Card className="mb-4 border-primary/20 bg-primary/5">
+          <p className="text-[14px] leading-relaxed text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+            <strong className="text-white">Principiu:</strong> contabilitatea costa 300–6000 RON/luna. Costify e o fractiune din ce plateste
+            antreprenorul deja. Dar antreprenorul nu cumpara Costify direct — contabilul il include in serviciul lui.
+            Fiecare antreprenor invitat de contabil primeste acces read-only gratuit. Contabilul plateste per portofoliu, nu per firma.
+          </p>
+        </Card>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {([
+            {
+              name: "Solo",
+              price: "49",
+              period: "/luna",
+              target: "Contabil independent, PFA",
+              highlight: false,
+              features: [
+                "Pana la 10 clienti",
+                "Import jurnal Saga / SmartBill / Ciel",
+                "Balanta + CPP + KPI-uri",
+                "Costi AI nelimitat",
+                "Antreprenori invitati — gratuit",
+              ],
+            },
+            {
+              name: "Cabinet",
+              price: "149",
+              period: "/luna",
+              target: "Cabinet contabil, 10-100 clienti",
+              highlight: true,
+              features: [
+                "Pana la 100 clienti",
+                "Tot din Solo +",
+                "Portal client pt antreprenori",
+                "Export PDF / Excel branduit",
+                "Suport prioritar",
+              ],
+            },
+            {
+              name: "Enterprise",
+              price: "299+",
+              period: "/luna",
+              target: "Cabinete mari, grupuri, institutii",
+              highlight: false,
+              features: [
+                "Clienti nelimitati",
+                "Tot din Cabinet +",
+                "API access",
+                "White-label optional",
+                "Revenue share la referral",
+              ],
+            },
+          ] as const).map((tier) => (
+            <Card key={tier.name} className={tier.highlight ? "border-primary/30 ring-1 ring-primary/20" : ""}>
               <p className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>{tier.name}</p>
               <p className="mt-1 font-mono text-[11px] text-gray">{tier.target}</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="font-mono text-[28px] font-bold text-white" style={{ letterSpacing: "-0.04em" }}>{tier.price}</span>
+              <div className="mt-4 flex items-baseline gap-1">
+                <span className="font-mono text-[32px] font-bold text-white" style={{ letterSpacing: "-0.04em" }}>{tier.price}</span>
                 <span className="font-mono text-[11px] text-gray">EUR{tier.period}</span>
               </div>
-              <ul className="mt-4 space-y-2">
+              <ul className="mt-5 space-y-2.5 border-t border-dark-3 pt-5">
                 {tier.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-                    <CheckCircle2 size={12} className="text-accent shrink-0" />
+                  <li key={f} className="flex items-start gap-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+                    <CheckCircle2 size={12} className="mt-0.5 shrink-0 text-green" />
                     {f}
                   </li>
                 ))}
@@ -451,6 +497,27 @@ export function MarketingStrategy() {
             </Card>
           ))}
         </div>
+        <Card>
+          <p className="font-mono text-[11px] font-medium uppercase text-gray mb-3" style={{ letterSpacing: "-0.04em" }}>Comparatie cu Finlight</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-[13px] font-semibold text-white mb-2" style={{ letterSpacing: "-0.02em" }}>Finlight — per firma</p>
+              <ul className="space-y-1.5 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+                <li>99–499 EUR/luna per firma</li>
+                <li>50 firme = 5.000–25.000 EUR/luna</li>
+                <li>SAF-T verificare: inca 200+ EUR/luna</li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-primary-light mb-2" style={{ letterSpacing: "-0.02em" }}>Costify — per portofoliu</p>
+              <ul className="space-y-1.5 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+                <li>149 EUR/luna pt 100 firme</li>
+                <li>50 firme = 149 EUR/luna (acelasi pret)</li>
+                <li>Antreprenorii primesc acces gratuit</li>
+              </ul>
+            </div>
+          </div>
+        </Card>
       </Section>
 
       {/* ─── YEAR 1 TARGETS ─── */}
@@ -481,13 +548,13 @@ export function MarketingStrategy() {
             </p>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-medium uppercase text-accent mb-3" style={{ letterSpacing: "-0.04em" }}>Contabil</p>
+            <p className="font-mono text-[11px] font-medium uppercase text-primary-light mb-3" style={{ letterSpacing: "-0.04em" }}>Contabil</p>
             <p className="text-[16px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.04em" }}>
               &ldquo;Modernizeaza-ti practica fara sa pierzi ce functioneaza.&rdquo;
             </p>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-medium uppercase text-blue mb-3" style={{ letterSpacing: "-0.04em" }}>Finance Manager</p>
+            <p className="font-mono text-[11px] font-medium uppercase text-gray mb-3" style={{ letterSpacing: "-0.04em" }}>Finance Manager</p>
             <p className="text-[16px] font-semibold text-white leading-tight" style={{ letterSpacing: "-0.04em" }}>
               &ldquo;Budget vs Actual nativ. Nu mai reconstrui raportul luna viitoare.&rdquo;
             </p>

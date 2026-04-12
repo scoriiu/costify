@@ -19,7 +19,7 @@ function getInitials(name: string): string {
 export function SidebarUser({ name }: SidebarUserProps) {
   return (
     <div className="flex items-center gap-3 border-t border-dark-3 px-5 py-3.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-dark-4 text-xs font-bold text-gray-light">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.07] font-mono text-[11px] font-semibold tracking-wider text-white/90 backdrop-blur-sm">
         {getInitials(name)}
       </div>
       <div className="min-w-0 flex-1">

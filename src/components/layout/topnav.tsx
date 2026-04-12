@@ -64,7 +64,7 @@ function UserMenu({ userName, userEmail }: { userName: string; userEmail: string
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-dark-4 text-[11px] font-bold text-gray-light">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.07] font-mono text-[11px] font-semibold tracking-wider text-white/90 backdrop-blur-sm">
           {getInitials(userName)}
         </div>
         <ChevronDown size={14} className={cn("text-gray transition-transform hidden sm:block", open && "rotate-180")} />
