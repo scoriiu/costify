@@ -12,6 +12,32 @@ interface Message {
   content: string;
 }
 
+const STORAGE_KEY = "costify-costi-chat";
+const STORAGE_TS_KEY = "costify-costi-chat-ts";
+
+function saveMessages(msgs: Message[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+    localStorage.setItem(STORAGE_TS_KEY, String(Date.now()));
+  } catch { /* quota exceeded */ }
+}
+
+function loadMessages(): Message[] {
+  try {
+    const ts = localStorage.getItem(STORAGE_TS_KEY);
+    if (ts && Date.now() - Number(ts) > 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_TS_KEY);
+      return [];
+    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as Message[];
+  } catch {
+    return [];
+  }
+}
+
 const SUGGESTIONS = [
   "Care e TVA-ul standard in 2026?",
   "Cum fac inchidere de luna in Saga?",
@@ -31,6 +57,14 @@ export function CostiChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const restored = loadMessages();
+    if (restored.length > 0) {
+      setMessages(restored);
+      setCostiState("success");
+    }
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,6 +114,7 @@ export function CostiChat() {
               ? "Nu ma pot conecta la Ollama. Verifica ca serverul ruleaza: `ollama serve`"
               : `Eroare: ${err.error ?? "necunoscuta"}`,
           };
+          saveMessages(updated);
           return updated;
         });
         setStreaming(false);
@@ -103,6 +138,7 @@ export function CostiChat() {
       }
 
       setCostiState("success");
+      setMessages((prev) => { saveMessages(prev); return prev; });
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         setCostiState("greeting");
@@ -114,6 +150,7 @@ export function CostiChat() {
             role: "assistant",
             content: "Eroare de conexiune. Incearca din nou.",
           };
+          saveMessages(updated);
           return updated;
         });
       }
@@ -136,6 +173,7 @@ export function CostiChat() {
     setCostiState("greeting");
     setStreaming(false);
     setInput("");
+    saveMessages([]);
   }
 
   if (onCostiPage) return null;
