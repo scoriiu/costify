@@ -6,7 +6,8 @@ import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import { computeKpis } from "./kpi";
 import { computeCpp } from "./cpp";
-import type { KpiSnapshot, CppData } from "./types";
+import { computeCppF20 } from "./cpp-f20";
+import type { KpiSnapshot, CppData, CppF20Data } from "./types";
 
 export async function getClientKpis(
   clientId: string,
@@ -45,4 +46,26 @@ export async function getClientCpp(
   }
 
   return ok(cpp);
+}
+
+export async function getClientCppF20(
+  clientId: string,
+  year: number,
+  month: number
+): Promise<Result<CppF20Data>> {
+  const [balanceResult, catalog, client] = await Promise.all([
+    getBalanceRows(clientId, year, month),
+    getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { taxRegime: true },
+    }),
+  ]);
+  if (!balanceResult.ok) return balanceResult;
+
+  const cppF20 = computeCppF20(balanceResult.data, catalog, {
+    taxRegime: (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard",
+  });
+
+  return ok(cppF20);
 }

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { getBalanceRows } from "@/modules/balances";
-import { computeKpis, computeCpp } from "@/modules/reporting";
+import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import type { TaxRegime } from "@/modules/accounts";
 
@@ -33,17 +33,25 @@ export async function GET(request: Request) {
   ]);
 
   if (!balanceResult.ok) {
-    return NextResponse.json({ rows: [], kpis: null, cpp: null, taxRegime: null });
+    return NextResponse.json({
+      rows: [],
+      kpis: null,
+      cpp: null,
+      cppF20: null,
+      taxRegime: null,
+    });
   }
 
   const taxRegime = (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard";
   const kpis = computeKpis(balanceResult.data, catalog);
   const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
+  const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });
 
   return NextResponse.json({
     rows: balanceResult.data,
     kpis,
     cpp,
+    cppF20,
     taxRegime,
   });
 }

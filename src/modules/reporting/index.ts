@@ -1,4 +1,4 @@
-export { getClientKpis, getClientCpp } from "./service";
+export { getClientKpis, getClientCpp, getClientCppF20 } from "./service";
 export { computeKpis } from "./kpi";
 export { computeCpp } from "./cpp";
 export { computeCppF20, evaluateFormula } from "./cpp-f20";
