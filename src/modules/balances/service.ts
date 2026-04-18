@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getContBase } from "@/lib/accounts";
 import { computeBalanceFromJournal } from "./compute-balance";
-import { getCatalogMap, getClientAccounts, resolveFromMaps } from "@/modules/accounts";
+import { getCatalogMap, getClientAccounts, getPartnerNames, resolveFromMaps } from "@/modules/accounts";
 import { isExtraBilantierCode } from "@/modules/accounts/flags";
 import type { Result } from "@/shared/errors";
 import { ok, err, notFound } from "@/shared/errors";
@@ -108,9 +108,10 @@ async function buildAccountMetadata(
   clientId: string,
   entries: JournalEntry[]
 ): Promise<{ accountNames: Map<string, string>; unmappedBases: Set<string> }> {
-  const [clientAccounts, catalog] = await Promise.all([
+  const [clientAccounts, catalog, partnerNames] = await Promise.all([
     getClientAccounts(clientId),
     getCatalogMap(),
+    getPartnerNames(clientId),
   ]);
 
   const names = new Map<string, string>();
@@ -123,11 +124,11 @@ async function buildAccountMetadata(
 
   for (const e of entries) {
     if (!names.has(e.contD)) {
-      names.set(e.contD, resolveFromMaps(e.contD, clientAccounts, catalog).name);
+      names.set(e.contD, resolveFromMaps(e.contD, clientAccounts, catalog, partnerNames).name);
       checkUnmapped(e.contD);
     }
     if (!names.has(e.contC)) {
-      names.set(e.contC, resolveFromMaps(e.contC, clientAccounts, catalog).name);
+      names.set(e.contC, resolveFromMaps(e.contC, clientAccounts, catalog, partnerNames).name);
       checkUnmapped(e.contC);
     }
   }

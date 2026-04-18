@@ -23,7 +23,12 @@ export interface PlanRow {
   cont: string;
   contBase: string;
   name: string;
-  nameSource: "client_edit" | "client_import" | "omfp_catalog" | "fallback";
+  nameSource:
+    | "client_edit"
+    | "client_import"
+    | "partner_extract"
+    | "omfp_catalog"
+    | "fallback";
   type: AccountType | null;
   classDigit: number | null;
   /** "standard" means the code itself is in AccountCatalog (no dot, ≤4 digits, OMFP list). */
@@ -59,6 +64,8 @@ export interface BuildPlanInput {
   catalog: Map<string, CatalogAccount>;
   clientAccounts: Map<string, ClientAccountRecord>;
   usage: Map<string, PlanUsageStats>;
+  /** Map from analytic cont -> extracted partner name (from JournalPartner). */
+  partnerNames?: Map<string, string>;
   balanceRows?: PlanBalanceRow[];
 }
 
@@ -91,9 +98,9 @@ function buildRow(
   input: BuildPlanInput,
   balanceMap: Map<string, PlanBalanceRow>
 ): PlanRow {
-  const { catalog, clientAccounts, usage } = input;
+  const { catalog, clientAccounts, usage, partnerNames } = input;
 
-  const resolved = resolveFromMaps(cont, clientAccounts, catalog);
+  const resolved = resolveFromMaps(cont, clientAccounts, catalog, partnerNames);
   const contBase = getContBase(cont);
   const catalogHit = catalog.get(cont);
   const isInCatalog = !!(catalog.get(contBase) || catalogHit);

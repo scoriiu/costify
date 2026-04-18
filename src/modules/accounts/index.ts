@@ -3,6 +3,7 @@ export {
   getCatalogByBase,
   getCatalogMap,
   getClientAccounts,
+  getPartnerNames,
   resolveAccountName,
   resolveFromMaps,
   upsertClientAccount,

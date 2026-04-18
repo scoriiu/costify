@@ -67,7 +67,12 @@ export interface ClientAccountRecord {
 export interface ResolvedAccountName {
   name: string;
   unmapped: boolean;
-  source: "client_edit" | "client_import" | "omfp_catalog" | "fallback";
+  source:
+    | "client_edit"
+    | "client_import"
+    | "partner_extract"
+    | "omfp_catalog"
+    | "fallback";
 }
 
 export interface OmfpSeedFile {

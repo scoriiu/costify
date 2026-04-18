@@ -8,7 +8,7 @@
 
 import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
-import { getCatalogMap, getClientAccounts } from "./service";
+import { getCatalogMap, getClientAccounts, getPartnerNames } from "./service";
 import { buildPlan } from "./plan";
 import type { PlanRow, PlanUsageStats } from "./plan";
 
@@ -21,14 +21,15 @@ export async function getClientPlan(
   clientId: string,
   options: GetPlanOptions = {}
 ): Promise<PlanRow[]> {
-  const [catalog, clientAccounts, usage, balanceRows] = await Promise.all([
+  const [catalog, clientAccounts, partnerNames, usage, balanceRows] = await Promise.all([
     getCatalogMap(),
     getClientAccounts(clientId),
+    getPartnerNames(clientId),
     loadUsageStats(clientId),
     loadBalanceForPeriod(clientId, options.period),
   ]);
 
-  return buildPlan({ catalog, clientAccounts, usage, balanceRows });
+  return buildPlan({ catalog, clientAccounts, partnerNames, usage, balanceRows });
 }
 
 /**

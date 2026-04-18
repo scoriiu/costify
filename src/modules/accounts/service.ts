@@ -28,6 +28,28 @@ export async function getCatalogMap(): Promise<Map<string, CatalogAccount>> {
   return loadCatalog();
 }
 
+/**
+ * Returns a Map from analytic cont (e.g. "401.00023") to the extracted
+ * partner name ("Orange Romania") stored in JournalPartner.
+ *
+ * These are the frequency-extracted names from explicatie during import —
+ * distinct from ClientAccount.customName (which comes from Saga's denumire
+ * columns or user edits). Partner names win for analytics per D10 + 3.4.
+ */
+export async function getPartnerNames(clientId: string): Promise<Map<string, string>> {
+  const rows = await prisma.journalPartner.findMany({
+    where: { clientId },
+    select: { analyticAccount: true, partnerName: true },
+  });
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    if (r.partnerName && r.partnerName.trim().length > 0) {
+      map.set(r.analyticAccount, r.partnerName.trim());
+    }
+  }
+  return map;
+}
+
 export async function getClientAccounts(clientId: string): Promise<Map<string, ClientAccountRecord>> {
   const rows = await prisma.clientAccount.findMany({
     where: { clientId },
@@ -51,32 +73,59 @@ export async function resolveAccountName(
   clientId: string,
   cont: string
 ): Promise<ResolvedAccountName> {
-  const [clientAccounts, catalog] = await Promise.all([
+  const [clientAccounts, catalog, partnerNames] = await Promise.all([
     getClientAccounts(clientId),
     loadCatalog(),
+    getPartnerNames(clientId),
   ]);
-  return resolveFromMaps(cont, clientAccounts, catalog);
+  return resolveFromMaps(cont, clientAccounts, catalog, partnerNames);
 }
 
 export function resolveFromMaps(
   cont: string,
   clientAccounts: Map<string, ClientAccountRecord>,
-  catalog: Map<string, CatalogAccount>
+  catalog: Map<string, CatalogAccount>,
+  partnerNames?: Map<string, string>
 ): ResolvedAccountName {
   const clientExact = clientAccounts.get(cont);
+
+  // 1. Sticky user edit wins over everything
+  if (clientExact?.source === "user_edit") {
+    return {
+      name: clientExact.customName,
+      unmapped: false,
+      source: "client_edit",
+    };
+  }
+
+  // 2. For analytic accounts, prefer extracted partner name over catalog/saga base.
+  //    A partner ("Orange Romania") is more informative than "Furnizori" even
+  //    if Saga already set the customName to "Furnizori".
+  const partnerName = partnerNames?.get(cont);
+  if (partnerName) {
+    return {
+      name: partnerName,
+      unmapped: false,
+      source: "partner_extract",
+    };
+  }
+
+  // 3. Client-imported name (Saga's `denumire_d`/`denumire_c` or similar)
   if (clientExact) {
     return {
       name: clientExact.customName,
       unmapped: false,
-      source: clientExact.source === "user_edit" ? "client_edit" : "client_import",
+      source: "client_import",
     };
   }
 
+  // 4. Direct catalog hit (the full code itself, no dot)
   const catalogExact = catalog.get(cont);
   if (catalogExact) {
     return { name: catalogExact.name, unmapped: false, source: "omfp_catalog" };
   }
 
+  // 5. Catalog via contBase
   const base = getContBase(cont);
   if (base !== cont) {
     const catalogBase = catalog.get(base);
@@ -85,6 +134,7 @@ export function resolveFromMaps(
     }
   }
 
+  // 6. Progressively shorter prefix (rare — for weird non-standard codes)
   for (let len = base.length - 1; len >= 2; len--) {
     const prefix = base.slice(0, len);
     const prefixMatch = catalog.get(prefix);

@@ -111,3 +111,52 @@ describe("resolveFromMaps", () => {
     expect(result.source).toBe("client_edit");
   });
 });
+
+describe("resolveFromMaps — partner name priority (3.4 + D10)", () => {
+  it("uses partner name for analytic when no ClientAccount exists", () => {
+    const partners = new Map([["401.00023", "Orange Romania"]]);
+    const catalog = new Map([["401", catalogEntry("401", "Furnizori")]]);
+
+    const result = resolveFromMaps("401.00023", new Map(), catalog, partners);
+    expect(result.name).toBe("Orange Romania");
+    expect(result.source).toBe("partner_extract");
+  });
+
+  it("partner name wins over Saga-imported ClientAccount name", () => {
+    // Saga set "Furnizori" (base), partner extraction found "Orange Romania"
+    const clients = new Map([["401.00023", clientEntry("401.00023", "Furnizori", "saga_import")]]);
+    const partners = new Map([["401.00023", "Orange Romania"]]);
+    const catalog = new Map([["401", catalogEntry("401", "Furnizori")]]);
+
+    const result = resolveFromMaps("401.00023", clients, catalog, partners);
+    expect(result.name).toBe("Orange Romania");
+    expect(result.source).toBe("partner_extract");
+  });
+
+  it("user_edit still beats partner — sticky edits are sacred", () => {
+    const clients = new Map([["401.00023", clientEntry("401.00023", "Orange RO Principal", "user_edit")]]);
+    const partners = new Map([["401.00023", "Orange Romania"]]);
+    const catalog = new Map([["401", catalogEntry("401", "Furnizori")]]);
+
+    const result = resolveFromMaps("401.00023", clients, catalog, partners);
+    expect(result.name).toBe("Orange RO Principal");
+    expect(result.source).toBe("client_edit");
+  });
+
+  it("falls through to Saga ClientAccount when partner missing", () => {
+    const clients = new Map([["401.00023", clientEntry("401.00023", "Custom Saga Name")]]);
+    const catalog = new Map([["401", catalogEntry("401", "Furnizori")]]);
+
+    const result = resolveFromMaps("401.00023", clients, catalog, new Map());
+    expect(result.name).toBe("Custom Saga Name");
+    expect(result.source).toBe("client_import");
+  });
+
+  it("omitted partner map behaves identically to empty map", () => {
+    const catalog = new Map([["401", catalogEntry("401", "Furnizori")]]);
+    // No partnerNames arg at all
+    const result = resolveFromMaps("401.00023", new Map(), catalog);
+    expect(result.name).toBe("Furnizori");
+    expect(result.source).toBe("omfp_catalog");
+  });
+});
