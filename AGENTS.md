@@ -56,6 +56,21 @@
 - Status messages: semantic border + tinted background (green/red/yellow/blue at 5% + 20% border)
 - Input labels: `font-mono text-[11px] font-medium uppercase` with `-0.04em` tracking
 
+### Shared UI Primitives — ALWAYS use these, never reinvent
+Every form control in the app must use the shared primitives below. If a new variant is needed, extend the primitive — do **not** write a one-off. Filter bars, toolbars, and settings screens must all share the same heights, radii, and typography so the interface feels calm.
+
+- **`<Button />`** (`src/components/ui/button.tsx`) — primary/ghost/danger. Height 36px, `rounded-[10px]`, `px-5`, `text-sm font-semibold`.
+- **`<SearchInput />`** (`src/components/ui/search-input.tsx`) — height **40px**, `rounded-[10px] border border-dark-3 bg-dark-2`, `font-mono text-sm`, Search icon left at `size={14}`.
+- **`<Select />`** (`src/components/ui/select.tsx`) — height **40px**, matching radius/border/typography. ChevronDown indicator. Custom popover (not a native `<select>`).
+- **`<ToggleGroup />`** (`src/components/ui/toggle-group.tsx`) — height **32px** per button inside a `rounded-[10px] bg-dark-2 p-1` track, `px-4 font-mono text-sm`. Active button is `bg-primary text-[#E9E8E3]`. Supports optional `count` + `countTone: "neutral" | "danger"` badge.
+- **`<Input />`** (`src/components/ui/input.tsx`) — same height/radius/typography as SearchInput/Select for form fields.
+
+Height cheatsheet for a row of controls:
+- Filter/toolbar row: `SearchInput` + `Select` (h-10) sit next to `ToggleGroup` (h-8). This 10/8 pairing is intentional — the ToggleGroup sits inside a padded track so the visual heights feel matched. Use `items-center` on the row.
+- Gap between controls: `gap-3`. Never `gap-1` or `gap-2` in the main toolbar.
+
+Never build a raw `<select>`, raw `<input type="text">`, or hand-rolled pill toggle in a feature. If you find yourself typing `className="rounded-lg border border-dark-3 bg-dark-2..."`, stop and import one of the primitives above.
+
 ---
 
 ## Product Vision

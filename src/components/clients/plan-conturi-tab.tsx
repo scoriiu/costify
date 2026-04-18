@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, Pencil, RotateCcw, Search, X } from "lucide-react";
+import { AlertTriangle, Check, Pencil, RotateCcw, X } from "lucide-react";
 import type { PlanRow } from "@/modules/accounts";
 import {
   toggleClientAccountReviewAction,
   updateClientAccountNameAction,
 } from "@/modules/clients/actions";
+import { SearchInput } from "@/components/ui/search-input";
+import { Select } from "@/components/ui/select";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 
 interface Props {
   clientId: string;
@@ -132,6 +135,19 @@ export function PlanConturiTab({ clientId, year, month }: Props) {
   );
 }
 
+const CLASS_OPTIONS: { value: ClassFilter; label: string }[] = [
+  { value: "all", label: "Toate clasele" },
+  { value: "1", label: "Clasa 1 — Capitaluri" },
+  { value: "2", label: "Clasa 2 — Imobilizari" },
+  { value: "3", label: "Clasa 3 — Stocuri" },
+  { value: "4", label: "Clasa 4 — Terti" },
+  { value: "5", label: "Clasa 5 — Trezorerie" },
+  { value: "6", label: "Clasa 6 — Cheltuieli" },
+  { value: "7", label: "Clasa 7 — Venituri" },
+  { value: "8", label: "Clasa 8 — Extra-bilant" },
+  { value: "9", label: "Clasa 9 — Gestiune" },
+];
+
 function FilterBar({
   kindFilter,
   onKindFilter,
@@ -154,92 +170,32 @@ function FilterBar({
   reviewCount: number;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <KindToggle value={kindFilter} onChange={onKindFilter} reviewCount={reviewCount} />
-      <ClassSelect value={classFilter} onChange={onClassFilter} />
-      <div className="relative flex-1 min-w-[200px]">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray pointer-events-none"
-        />
-        <input
-          type="text"
-          placeholder="Cauta cont sau denumire..."
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-          className="w-full rounded-lg border border-dark-3 bg-dark-2 pl-9 pr-3 py-1.5 font-mono text-xs text-white placeholder:text-gray focus:border-primary focus:outline-none"
-        />
-      </div>
-      <span className="ml-auto font-mono text-[0.6rem] text-gray">
+    <div className="flex flex-wrap items-center gap-3">
+      <ToggleGroup<KindFilter>
+        value={kindFilter}
+        onChange={onKindFilter}
+        options={[
+          { value: "all", label: "Toate" },
+          { value: "standard", label: "Standard" },
+          { value: "analytic", label: "Analitice" },
+          { value: "review", label: "De revizuit", count: reviewCount, countTone: "danger" },
+        ]}
+      />
+      <Select
+        value={classFilter}
+        onChange={(v) => onClassFilter(v as ClassFilter)}
+        options={CLASS_OPTIONS}
+      />
+      <SearchInput
+        value={search}
+        onChange={onSearch}
+        placeholder="Cauta cont sau denumire..."
+        className="flex-1 min-w-[240px] max-w-md"
+      />
+      <span className="ml-auto font-mono text-xs text-gray">
         {filtered} / {total} conturi
       </span>
     </div>
-  );
-}
-
-function KindToggle({
-  value,
-  onChange,
-  reviewCount,
-}: {
-  value: KindFilter;
-  onChange: (v: KindFilter) => void;
-  reviewCount: number;
-}) {
-  const options: { key: KindFilter; label: string; count?: number }[] = [
-    { key: "all", label: "Toate" },
-    { key: "standard", label: "Standard" },
-    { key: "analytic", label: "Analitice" },
-    { key: "review", label: "De revizuit", count: reviewCount },
-  ];
-  return (
-    <div className="flex gap-1 rounded-lg bg-dark-2 p-0.5">
-      {options.map((opt) => (
-        <button
-          key={opt.key}
-          onClick={() => onChange(opt.key)}
-          className={`rounded-md px-3 py-1 font-mono text-[0.65rem] font-medium transition-colors ${
-            value === opt.key
-              ? "bg-primary text-[#E9E8E3]"
-              : "text-gray hover:text-white"
-          }`}
-        >
-          {opt.label}
-          {opt.count !== undefined && opt.count > 0 && (
-            <span className="ml-1.5 rounded bg-danger/20 px-1 text-[0.55rem] text-danger">
-              {opt.count}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ClassSelect({
-  value,
-  onChange,
-}: {
-  value: ClassFilter;
-  onChange: (v: ClassFilter) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as ClassFilter)}
-      className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-[0.65rem] text-white focus:border-primary focus:outline-none"
-    >
-      <option value="all">Toate clasele</option>
-      <option value="1">Clasa 1 — Capitaluri</option>
-      <option value="2">Clasa 2 — Imobilizari</option>
-      <option value="3">Clasa 3 — Stocuri</option>
-      <option value="4">Clasa 4 — Terti</option>
-      <option value="5">Clasa 5 — Trezorerie</option>
-      <option value="6">Clasa 6 — Cheltuieli</option>
-      <option value="7">Clasa 7 — Venituri</option>
-      <option value="8">Clasa 8 — Extra-bilant</option>
-      <option value="9">Clasa 9 — Gestiune</option>
-    </select>
   );
 }
 
