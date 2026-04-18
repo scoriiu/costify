@@ -34,18 +34,25 @@
       ]
     },
     "cont_profit_si_pierdere": {
-      "description": "CPP calculat din balanta, structurat pe OMFP 1802. Gruparile vin direct din AccountCatalog.cppGroup (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE), nu din prefixe hardcodate. Conturile cu flag special pl_closing (121) sunt excluse din CPP pentru a evita dublul calcul.",
-      "sections": [
-        "Venituri din exploatare (toate conturile clasa 7 cu cppGroup=VENITURI_EXPLOATARE)",
-        "Cheltuieli din exploatare (toate conturile clasa 6 cu cppGroup=CHELTUIELI_EXPLOATARE)",
+      "description": "CPP calculat din balanta, cu doua moduri de afisare selectabile printr-un toggle: 'Simplificat' (o linie per cont contribuabil, grupat pe cele 4 sectiuni CPP) si 'F20 detaliat' (formatul oficial ANAF cu 35 de randuri si sub-randuri 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b, conform OMFP 1802 Anexa 3). Ambele moduri reconciliaza: F20.rezultatBrut === Simplificat.rezultatBrut, garantat de un test de invariant. Conturile cu flag isClosing (121, 1211, 1212) sunt excluse din CPP pentru a evita dublul calcul.",
+      "view_modes": {
+        "simplified": "Daily view. Grupari din AccountCatalog.cppGroup (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE). O linie per cont contribuabil, sortata alfabetic. Util pentru analiza curenta.",
+        "f20": "Format oficial ANAF F20 depus cu situatiile financiare anuale. Randuri rd.01-35 din OMFP 1802 Anexa 3, cu sub-randuri literale (ex: rd.13a cheltuieli cu materii prime, rd.13b alte materiale, rd.14a salarii, rd.14b asigurari sociale). Fiecare cont OMFP are coloana cppLine care mapeaza la un rand F20. 711/712 (variatia stocurilor) se splita la calcul in rd.07 (crestere) sau rd.08 (reducere) in functie de semn. Impozitul din rd.34 respecta Client.taxRegime (D13)."
+      },
+      "sections_simplified": [
+        "Venituri din exploatare (cppGroup=VENITURI_EXPLOATARE, clasa 7 cu exceptii)",
+        "Cheltuieli din exploatare (cppGroup=CHELTUIELI_EXPLOATARE, clasa 6 cu exceptii)",
         "Rezultat din exploatare = venituri - cheltuieli",
-        "Venituri financiare (cppGroup=VENITURI_FINANCIARE, tipic 765-769)",
-        "Cheltuieli financiare (cppGroup=CHELTUIELI_FINANCIARE, tipic 665-668)",
+        "Venituri financiare (cppGroup=VENITURI_FINANCIARE)",
+        "Cheltuieli financiare (cppGroup=CHELTUIELI_FINANCIARE)",
         "Rezultat financiar",
         "Rezultat brut = rezultat exploatare + rezultat financiar",
-        "Impozit pe profit (conturi cu special=profit_tax sau micro_tax)",
+        "Impozit (cont conform regimului fiscal: 691 standard / 698 micro / 697 IMCA / 695 specific)",
         "Rezultat net = rezultat brut - impozit"
-      ]
+      ],
+      "tax_regime_selector": "Dropdown Regim fiscal in header-ul tab-ului CPP. Valori: profit_standard (691, 16%), profit_micro_1 (698, 1%), profit_micro_3 (698, 3%), imca (697), profit_specific (695, HoReCa), deferred (698). Alegerea afecteaza doar contul folosit la linia Impozit; NU calculeaza valoarea datorata — valoarea vine din balanta.",
+      "f20_structure_source": "seeds/f20-structure.json — 35 de randuri cu formule simbolice ('rd.12 - rd.19') pentru subtotale/totaluri si liste explicite de conturi contribuabile pentru randurile de detaliu. Mapa cppLine per cont este stocata in AccountCatalog.",
+      "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
     },
     "kpi_cards": {
       "description": "Indicatori financiari calculati din balanta",
@@ -113,7 +120,7 @@
     }
   },
   "client_detail_page": {
-    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere"],
+    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere", "Plan de Conturi"],
     "header": {
       "info": "Numele clientului, CUI, CAEN, numar intrari",
       "actions": ["Upload Jurnal", "Sterge date (din meniul ...)"]

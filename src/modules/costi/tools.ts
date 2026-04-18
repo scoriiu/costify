@@ -39,13 +39,18 @@ export const COSTI_TOOLS: Tool[] = [
   },
   {
     name: "get_cpp",
-    description: "Obtine Contul de Profit si Pierdere pentru un client: venituri/cheltuieli exploatare, financiare, rezultat brut/net",
+    description: "Obtine Contul de Profit si Pierdere pentru un client. Default 'simplified' returneaza o linie per cont contribuabil, grupat pe cele 4 sectiuni CPP (venituri/cheltuieli exploatare/financiare). 'f20' returneaza randurile formularului oficial F20 (rd.01-35, cu sub-randuri 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b) conform OMFP 1802 Anexa 3 — util cand contabilul intreaba cum arata CPP-ul la depunere sau vrea sa verifice suma unui rand specific din declaratie.",
     input_schema: {
       type: "object" as const,
       properties: {
         client_name: { type: "string", description: "Numele clientului" },
         year: { type: "number", description: "Anul" },
         month: { type: "number", description: "Luna (1-12)" },
+        mode: {
+          type: "string",
+          description: "Modul de afisare: 'simplified' (default) sau 'f20' pentru formatul detaliat ANAF",
+          enum: ["simplified", "f20"],
+        },
       },
       required: ["client_name", "year", "month"],
     },

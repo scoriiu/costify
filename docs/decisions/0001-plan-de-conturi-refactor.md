@@ -96,6 +96,8 @@ Family flags (`receivables_family`, `payables_family`, etc.) from the accountant
 
 ### D7 — We ship **one** CPP display mode ("Simplificat") for v1
 
+**Status**: Superseded by D17.
+
 **Decision**: The CPP view renders at the account-line level with F20 groupings as section headers. We do not ship the "Detaliat F20" mode (62 rows mirroring the ANAF declaration) in v1.
 
 **Why**: 
@@ -104,6 +106,8 @@ Family flags (`receivables_family`, `payables_family`, etc.) from the accountant
 - Users (accountants) read CPP daily for analysis; they file F20 annually. Ship the daily tool first.
 
 **Divergence from accountant**: Section 2.2 recommends both modes. We ship only simplified; F20 export is deferred to v2.
+
+**Supersession**: D17 reverses this — we now ship both modes. The underlying reasoning of D7 (two code paths is risky) was addressed by keeping the compute layers in lock-step via a shared reconciliation test: `F20.rezultatBrut === Simplificat.rezultatBrut` for any input, enforced in `cpp-f20.test.ts`.
 
 ---
 
@@ -235,12 +239,40 @@ The field controls *which account* the impozit line in CPP displays. It does **n
 
 ---
 
+### D17 — Ship "Detaliat F20" CPP mode alongside "Simplificat" (supersedes D7)
+
+**Decision**: The CPP tab offers two view modes, switchable with a toggle in the page header:
+- **Simplificat** — one line per contributing account, grouped under 4 CPP sections. Used for daily analysis.
+- **F20 detaliat** — 35 rows matching OMFP 1802 Anexa 3 exactly (rd. 01 … rd. 35), with sub-rows 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b. Used for annual filing and reconciliation with the declared form.
+
+Both views compute from the same `BalanceRowView[]` in parallel inside `/api/balance`. Switching modes is a local UI state flip — no extra request.
+
+**Why reverse D7?**
+- The accountant explicitly asked for F20 conformity in section 2.2 of the questions doc.
+- The latent concern in D7 (two code paths risk disagreement with Saga) is mitigated by an invariant test: `computeCppF20(rows).rezultatBrut === computeCpp(rows).rezultatBrut` for any input. Enforced in `tests/unit/modules/reporting/cpp-f20.test.ts` ("reconciliation with simplified CPP").
+- F20 detaliat mode surfaces the sub-row decomposition (e.g. salarii 14a vs. asigurari 14b) that the simplified view doesn't — useful for audit/review, not just filing.
+- The extra implementation cost is bounded: ~35 rows of seed data + one pure function (~220 lines with full provenance) + one presentational component. The Plan de Conturi and balanta layers are untouched.
+
+**Architecture**:
+- `seeds/f20-structure.json` — the authoritative 35-row form structure per OMFP 1802 Anexa 3 (with amendments OMFP 85/2022, OMFP 2048/2022). Every detail row declares its contributing accounts and their side (D or C); every subtotal/total declares a symbolic formula ("rd.12 - rd.19") evaluated by a tiny safe parser.
+- `AccountCatalog.cppLine` + `cppLineLabel` — the F20 row each account maps to (e.g. 641 → "14a"). Populated from the structure seed via `scripts/backfill-cpp-line.mjs`. Accounts appearing on two rows (711/712 positive vs. negative stocks variation; 786 on rd.24 and rd.26b) use the *primary* row in the column; the compute layer handles the split at runtime based on sign.
+- `src/modules/reporting/cpp-f20.ts` — pure `computeCppF20()`. Aggregates by contBase, evaluates rows in document order, applies `taxRegime` to rd.34 per D13.
+- `src/components/datasets/cpp-f20-view.tsx` — 4-column table (Rand / Denumire / Conturi / Valoare), section banding A-G, tooltips showing the formula on subtotals/totals.
+- `src/components/clients/cpp-tab.tsx` — rewritten to use `ToggleGroup` (view mode) + `Select` (tax regime), replacing the raw `<select>` that violated the shared-primitives rule.
+
+**Out of scope for D17**:
+- XML/PDF export of the F20 form (filing itself). The data is filed-ready; emitting the declaration file is a separate deliverable.
+- Prior-period column ("exercitiul precedent") that appears on the annual paper form alongside the current period. Adds complexity without clear daily-use value.
+
+---
+
 ## Out of scope for v1
 
 Captured here so they don't get rediscovered later:
 
-- **F20 detailed CPP display** — groupings exist in data via D6, UI renders simplified only (D7).
-- **SAF-T export** — structure is F20-aware via D6, but no XML emitter ships.
+- **SAF-T export** — structure is F20-aware via D6/D17, but no XML emitter ships.
+- **F20 filing emitter (XML/PDF)** — the F20 detailed mode shipped in D17 surfaces the filing-shape data in the app; emitting the canonical declaration file is a separate deliverable.
+- **Prior-period F20 column ("exercitiul precedent")** — the current-period column ships in D17; the comparison column is deferred.
 - **Tax amount calculation** — `taxRegime` maps display accounts (D13), does not compute expected liability.
 - **Bulk CSV import of analytic names** — accountant section 5.4 marks this P1. Export CSV and auto-map are P0.
 - **Global template of plan de conturi** (section 5.1 option B) — per-client only for v1.
@@ -254,7 +286,7 @@ When we have them on a call — not blocking progress:
 2. **`581` and `5125` excluded from cash KPI** — confirm our reasoning.
 3. **TVA KPI uses computed formula** (`4427 − 4426 − 4424 − 4428`), not `4423 finC` — confirm.
 4. **Analytic name priority** — `denumire_d` before `explicatie`-extraction — confirm.
-5. **F20 detailed mode deferred** — confirm this is ok.
+5. **F20 detailed mode shipped** (per D17) — confirm row labels, sub-row allocations (13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b), and account mappings match what you'd file.
 6. **QHM21 cont 121 diff** — we bring concrete numbers from our verify script.
 7. **QHM21 cont 421 diff** — same.
 

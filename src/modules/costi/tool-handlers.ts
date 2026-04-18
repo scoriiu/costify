@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
-import { computeKpis, computeCpp } from "@/modules/reporting";
+import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
+import type { TaxRegime } from "@/modules/accounts";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -116,14 +117,50 @@ async function handleGetCpp(userId: string, input: Record<string, unknown>): Pro
   const resolved = await resolveClient(userId, input.client_name as string);
   if ("error" in resolved) return JSON.stringify(resolved);
 
-  const result = await getBalanceRows(resolved.client.id, input.year as number, input.month as number);
+  const [result, catalog, client] = await Promise.all([
+    getBalanceRows(resolved.client.id, input.year as number, input.month as number),
+    getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: resolved.client.id },
+      select: { taxRegime: true },
+    }),
+  ]);
   if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
 
-  const cpp = computeCpp(result.data);
+  const taxRegime = (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard";
+  const mode = (input.mode as string | undefined) === "f20" ? "f20" : "simplified";
+
+  if (mode === "f20") {
+    const cpp = computeCppF20(result.data, catalog, { taxRegime });
+    return JSON.stringify({
+      client: resolved.client.name,
+      year: input.year,
+      month: input.month,
+      mode: "f20",
+      taxRegime,
+      version: cpp.version,
+      venituriExploatare: cpp.venituriExploatare,
+      cheltuieliExploatare: cpp.cheltuieliExploatare,
+      rezultatExploatare: cpp.rezultatExploatare,
+      venituriFinanciare: cpp.venituriFinanciare,
+      cheltuieliFinanciare: cpp.cheltuieliFinanciare,
+      rezultatFinanciar: cpp.rezultatFinanciar,
+      venituriTotale: cpp.venituriTotale,
+      cheltuieliTotale: cpp.cheltuieliTotale,
+      rezultatBrut: cpp.rezultatBrut,
+      rezultatNet: cpp.rezultatNet,
+      // Only non-zero rows — keeps Costi's context tight.
+      rows: cpp.lines.filter((l) => l.value !== 0),
+    });
+  }
+
+  const cpp = computeCpp(result.data, catalog, { taxRegime });
   return JSON.stringify({
     client: resolved.client.name,
     year: input.year,
     month: input.month,
+    mode: "simplified",
+    taxRegime,
     venituriExploatare: cpp.venituriExploatare,
     cheltuieliExploatare: cpp.cheltuieliExploatare,
     rezultatExploatare: cpp.rezultatExploatare,
