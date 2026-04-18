@@ -128,6 +128,7 @@ export function ClientDetail({
         {tab === "plan" && (
           <PlanConturiTab
             clientId={client.id}
+            clientSlug={client.slug}
             year={selectedYear}
             month={selectedMonth}
           />

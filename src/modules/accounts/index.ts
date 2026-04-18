@@ -19,6 +19,8 @@ export type { PlanRow, PlanUsageStats, PlanBalanceRow, BuildPlanInput } from "./
 export { getClientPlan } from "./plan-repo";
 export type { GetPlanOptions } from "./plan-repo";
 
+export { planRowsToCsv, planCsvFilename } from "./plan-csv";
+
 export { loadCatalog, invalidateCatalog } from "./catalog-cache";
 export { loadCatalogSync, resetSyncCache } from "./catalog-sync";
 

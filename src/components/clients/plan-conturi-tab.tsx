@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, HelpCircle, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, Check, Download, HelpCircle, Pencil, RotateCcw, X } from "lucide-react";
 import type { PlanRow } from "@/modules/accounts";
+import { planCsvFilename, planRowsToCsv } from "@/modules/accounts";
 import {
   toggleClientAccountReviewAction,
   updateClientAccountNameAction,
 } from "@/modules/clients/actions";
+import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -14,6 +16,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 
 interface Props {
   clientId: string;
+  clientSlug: string;
   year?: number;
   month?: number;
 }
@@ -38,7 +41,7 @@ const TYPE_LEGEND = (
   </span>
 );
 
-export function PlanConturiTab({ clientId, year, month }: Props) {
+export function PlanConturiTab({ clientId, clientSlug, year, month }: Props) {
   const [rows, setRows] = useState<PlanRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
@@ -97,6 +100,28 @@ export function PlanConturiTab({ clientId, year, month }: Props) {
 
   const reviewCount = rows.filter((r) => r.needsReview).length;
 
+  function handleExport() {
+    const csv = planRowsToCsv(filtered);
+    const filename = planCsvFilename(
+      clientSlug,
+      year && month ? { year, month } : undefined
+    );
+    downloadCsv(csv, filename);
+  }
+
+  function downloadCsv(content: string, filename: string) {
+    // UTF-8 BOM so Excel opens Romanian diacritics correctly
+    const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-4">
       <FilterBar
@@ -109,6 +134,7 @@ export function PlanConturiTab({ clientId, year, month }: Props) {
         total={rows.length}
         filtered={filtered.length}
         reviewCount={reviewCount}
+        onExport={handleExport}
       />
 
       <div className="overflow-hidden rounded-xl border border-dark-3">
@@ -183,6 +209,7 @@ function FilterBar({
   total,
   filtered,
   reviewCount,
+  onExport,
 }: {
   kindFilter: KindFilter;
   onKindFilter: (k: KindFilter) => void;
@@ -193,6 +220,7 @@ function FilterBar({
   total: number;
   filtered: number;
   reviewCount: number;
+  onExport: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -217,9 +245,16 @@ function FilterBar({
         placeholder="Cauta cont sau denumire..."
         className="flex-1 min-w-[240px] max-w-md"
       />
-      <span className="ml-auto font-mono text-xs text-gray">
+      <span className="font-mono text-xs text-gray">
         {filtered} / {total} conturi
       </span>
+      <Button
+        variant="ghost"
+        onClick={onExport}
+        title="Exporta randurile filtrate ca CSV"
+      >
+        <Download size={14} /> Exporta CSV
+      </Button>
     </div>
   );
 }
