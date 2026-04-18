@@ -64,6 +64,7 @@ Every form control in the app must use the shared primitives below. If a new var
 - **`<Select />`** (`src/components/ui/select.tsx`) — height **40px**, matching radius/border/typography. ChevronDown indicator. Custom popover (not a native `<select>`).
 - **`<ToggleGroup />`** (`src/components/ui/toggle-group.tsx`) — height **32px** per button inside a `rounded-[10px] bg-dark-2 p-1` track, `px-4 font-mono text-sm`. Active button is `bg-primary text-[#E9E8E3]`. Supports optional `count` + `countTone: "neutral" | "danger"` badge.
 - **`<Input />`** (`src/components/ui/input.tsx`) — same height/radius/typography as SearchInput/Select for form fields.
+- **`<Tooltip />`** (`src/components/ui/tooltip.tsx`) — hover/focus-triggered, `rounded-lg border border-dark-3 bg-dark-2`, `font-mono text-[11px] text-gray-light`, max-width 280px. Used for explaining column abbreviations (A/P/B), icons, or any UI that a non-accountant wouldn't understand. Never use native `title=""` attributes for contextual help — they're unstyled and invisible to keyboard users.
 
 Height cheatsheet for a row of controls:
 - Filter/toolbar row: `SearchInput` + `Select` (h-10) sit next to `ToggleGroup` (h-8). This 10/8 pairing is intentional — the ToggleGroup sits inside a padded track so the visual heights feel matched. Use `items-center` on the row.

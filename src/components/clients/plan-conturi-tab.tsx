@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, Check, HelpCircle, Pencil, RotateCcw, X } from "lucide-react";
 import type { PlanRow } from "@/modules/accounts";
 import {
   toggleClientAccountReviewAction,
@@ -10,6 +10,7 @@ import {
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Props {
   clientId: string;
@@ -100,7 +101,14 @@ export function PlanConturiTab({ clientId, year, month }: Props) {
               <tr className="bg-dark-2 border-b border-dark-3">
                 <Th align="left" first>Cont</Th>
                 <Th align="left">Denumire</Th>
-                <Th align="center">Tip</Th>
+                <Th align="center">
+                  <Tooltip content={<TypeLegend />}>
+                    <span className="inline-flex items-center gap-1">
+                      Tip
+                      <HelpCircle size={10} className="text-gray/60" />
+                    </span>
+                  </Tooltip>
+                </Th>
                 <Th align="right">Sold Final D</Th>
                 <Th align="right">Sold Final C</Th>
                 <Th align="right">Intrari</Th>
@@ -315,7 +323,15 @@ function InlineNameEditor({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    inputRef.current?.focus();
     inputRef.current?.select();
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function save() {
@@ -348,10 +364,10 @@ function InlineNameEditor({
           if (e.key === "Escape") onCancel();
         }}
         disabled={pending}
-        className={`flex-1 rounded border px-2 py-1 text-xs text-white focus:outline-none ${
+        className={`h-8 flex-1 min-w-0 rounded-[10px] border bg-dark-2 px-3 text-xs text-white transition-colors focus:outline-none ${
           error
-            ? "border-danger/40 bg-danger/5"
-            : "border-primary/40 bg-dark-2 focus:border-primary"
+            ? "border-danger/50 bg-danger/5"
+            : "border-primary/40 focus:border-primary"
         }`}
       />
       <button
@@ -497,6 +513,25 @@ function Td({
     >
       {children}
     </td>
+  );
+}
+
+function TypeLegend() {
+  return (
+    <span className="block space-y-1 text-left normal-case">
+      <span className="block">
+        <span className="font-bold text-white">A</span>{" "}
+        <span className="text-gray">Activ — cont de disponibil sau creante (sold debitor)</span>
+      </span>
+      <span className="block">
+        <span className="font-bold text-white">P</span>{" "}
+        <span className="text-gray">Pasiv — cont de capital sau datorii (sold creditor)</span>
+      </span>
+      <span className="block">
+        <span className="font-bold text-white">B</span>{" "}
+        <span className="text-gray">Bifunctional — poate avea sold pe ambele parti</span>
+      </span>
+    </span>
   );
 }
 
