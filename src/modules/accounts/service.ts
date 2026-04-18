@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getContBase } from "@/lib/accounts";
 import { loadCatalog } from "./catalog-cache";
+import { decideImportUpsert, filterImportableNames } from "./import-upsert";
 import type {
   CatalogAccount,
   ClientAccountRecord,
@@ -132,53 +133,89 @@ export async function upsertClientAccount(
   });
 }
 
+export interface BulkUpsertResult {
+  created: number;
+  createdNeedingReview: number;
+  updated: number;
+  skipped: number;
+}
+
 export async function bulkUpsertFromImport(
   clientId: string,
   names: Map<string, string>
-): Promise<{ created: number; updated: number; skipped: number }> {
-  const existing = await prisma.clientAccount.findMany({
-    where: { clientId, code: { in: [...names.keys()] } },
-  });
-  const existingMap = new Map(existing.map((e) => [e.code, e]));
+): Promise<BulkUpsertResult> {
+  const filtered = filterImportableNames(names);
+  if (filtered.size === 0) {
+    return { created: 0, createdNeedingReview: 0, updated: 0, skipped: 0 };
+  }
+
+  const [existing, catalog] = await Promise.all([
+    prisma.clientAccount.findMany({
+      where: { clientId, code: { in: [...filtered.keys()] } },
+    }),
+    loadCatalog(),
+  ]);
+  const existingMap = new Map<string, ClientAccountRecord>();
+  for (const r of existing) {
+    existingMap.set(r.code, {
+      code: r.code,
+      customName: r.customName,
+      source: r.source as AccountSource,
+      partnerCode: r.partnerCode ?? null,
+      needsReview: r.needsReview ?? false,
+      firstSeenAt: r.firstSeenAt,
+      lastSeenAt: r.lastSeenAt,
+    });
+  }
 
   let created = 0;
+  let createdNeedingReview = 0;
   let updated = 0;
   let skipped = 0;
+  const now = new Date();
 
-  for (const [code, name] of names.entries()) {
-    if (!name || name.trim() === "") continue;
-    const row = existingMap.get(code);
+  for (const [code, name] of filtered.entries()) {
+    const decision = decideImportUpsert(code, name, existingMap.get(code) ?? null, catalog);
 
-    if (!row) {
-      await prisma.clientAccount.create({
-        data: { clientId, code, customName: name, source: "saga_import" },
-      });
-      created++;
-      continue;
-    }
+    switch (decision.action) {
+      case "create":
+        await prisma.clientAccount.create({
+          data: {
+            clientId,
+            code: decision.code,
+            customName: decision.customName!,
+            source: decision.source!,
+            needsReview: decision.needsReview!,
+          },
+        });
+        created++;
+        if (decision.needsReview) createdNeedingReview++;
+        break;
 
-    if (row.source === "user_edit") {
-      await prisma.clientAccount.update({
-        where: { id: row.id },
-        data: { lastSeenAt: new Date() },
-      });
-      skipped++;
-      continue;
-    }
+      case "update_name":
+        await prisma.clientAccount.update({
+          where: { clientId_code: { clientId, code: decision.code } },
+          data: { customName: decision.customName!, lastSeenAt: now },
+        });
+        updated++;
+        break;
 
-    if (row.customName !== name) {
-      await prisma.clientAccount.update({
-        where: { id: row.id },
-        data: { customName: name, lastSeenAt: new Date() },
-      });
-      updated++;
-    } else {
-      await prisma.clientAccount.update({
-        where: { id: row.id },
-        data: { lastSeenAt: new Date() },
-      });
+      case "touch_last_seen":
+        await prisma.clientAccount.update({
+          where: { clientId_code: { clientId, code: decision.code } },
+          data: { lastSeenAt: now },
+        });
+        break;
+
+      case "skip_sticky_edit":
+        await prisma.clientAccount.update({
+          where: { clientId_code: { clientId, code: decision.code } },
+          data: { lastSeenAt: now },
+        });
+        skipped++;
+        break;
     }
   }
 
-  return { created, updated, skipped };
+  return { created, createdNeedingReview, updated, skipped };
 }

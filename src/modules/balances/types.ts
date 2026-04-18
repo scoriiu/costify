@@ -21,6 +21,12 @@ export interface BalanceRowView {
   denumire: string;
   tip: string;
   unmapped: boolean;
+  /**
+   * D11: true when the account is in class 8 or 9 (memorandum / extra-bilantier).
+   * These rows are VISIBLE in Balanta de Verificare but must be excluded from
+   * Bilant, CPP, KPIs, and any balance totals. The UI should display a flag.
+   */
+  isExtraBilantier: boolean;
   isLeaf: boolean;
   hasChild: boolean;
   debInit: number;

@@ -9,6 +9,9 @@ export {
   bulkUpsertFromImport,
 } from "./service";
 
+export { decideImportUpsert, filterImportableNames } from "./import-upsert";
+export type { ImportUpsertDecision } from "./import-upsert";
+
 export { loadCatalog, invalidateCatalog } from "./catalog-cache";
 export { loadCatalogSync, resetSyncCache } from "./catalog-sync";
 

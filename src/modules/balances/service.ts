@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getContBase } from "@/lib/accounts";
 import { computeBalanceFromJournal } from "./compute-balance";
 import { getCatalogMap, getClientAccounts, resolveFromMaps } from "@/modules/accounts";
+import { isExtraBilantierCode } from "@/modules/accounts/flags";
 import type { Result } from "@/shared/errors";
 import { ok, err, notFound } from "@/shared/errors";
 import type { BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";
@@ -31,7 +32,9 @@ export async function getBalanceSummary(
   const result = await getBalanceRows(clientId, year, month);
   if (!result.ok) return result;
 
-  const leafRows = result.data.filter((r) => r.isLeaf);
+  // D11: totals exclude extra-bilantier rows (class 8/9 memorandum accounts).
+  // They show in the table for visibility but do NOT affect the "is balanced" check.
+  const leafRows = result.data.filter((r) => r.isLeaf && !r.isExtraBilantier);
   let totalFinD = 0;
   let totalFinC = 0;
   let totalRulajD = 0;
@@ -155,7 +158,7 @@ function toBalanceRowView(row: {
   finD: number;
   finC: number;
 }): BalanceRowView {
-  return { ...row };
+  return { ...row, isExtraBilantier: isExtraBilantierCode(row.contBase) };
 }
 
 function round2(n: number): number {
