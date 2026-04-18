@@ -3,373 +3,2020 @@
   "source": "OMFP 1802/2014 + modifications through 2025",
   "description": "Standard Romanian Chart of Accounts. Complete classes 1-8. CPP groupings based on OMFP 1802 Annex for Cont Profit si Pierdere. Special flags: pl_closing (121), profit_distribution (129), profit_tax (691), micro_tax (698). Tier 1 of the 3-tier mapping architecture — read-only, shared across all tenants. Pending accountant review (see docs/ro/intrebari-contabil-plan-conturi.md).",
   "accounts": [
-    { "code": "101", "name": "Capital social", "type": "P" },
-    { "code": "1011", "name": "Capital subscris nevarsat", "type": "P" },
-    { "code": "1012", "name": "Capital subscris varsat", "type": "P" },
-    { "code": "104", "name": "Prime de capital", "type": "P" },
-    { "code": "1041", "name": "Prime de emisiune", "type": "P" },
-    { "code": "1042", "name": "Prime de fuziune/divizare", "type": "P" },
-    { "code": "1043", "name": "Prime de aport", "type": "P" },
-    { "code": "1044", "name": "Prime de conversie a obligatiunilor in actiuni", "type": "P" },
-    { "code": "105", "name": "Rezerve din reevaluare", "type": "P" },
-    { "code": "106", "name": "Rezerve", "type": "P" },
-    { "code": "1061", "name": "Rezerve legale", "type": "P" },
-    { "code": "1063", "name": "Rezerve statutare sau contractuale", "type": "P" },
-    { "code": "1068", "name": "Alte rezerve", "type": "P" },
-    { "code": "107", "name": "Rezerve din conversie", "type": "B" },
-    { "code": "108", "name": "Interese care nu controleaza", "type": "P" },
-    { "code": "109", "name": "Actiuni proprii", "type": "A" },
-    { "code": "1091", "name": "Actiuni proprii detinute pe termen scurt", "type": "A" },
-    { "code": "1092", "name": "Actiuni proprii detinute pe termen lung", "type": "A" },
-
-    { "code": "117", "name": "Rezultatul reportat", "type": "B" },
-    { "code": "1171", "name": "Rezultatul reportat reprezentand profitul nerepartizat sau pierderea neacoperita", "type": "B" },
-    { "code": "1174", "name": "Rezultatul reportat provenit din corectarea erorilor contabile", "type": "B" },
-    { "code": "1175", "name": "Rezultatul reportat reprezentand surplusul realizat din rezerve din reevaluare", "type": "P" },
-    { "code": "1176", "name": "Rezultatul reportat provenit din trecerea la aplicarea reglementarilor contabile", "type": "B" },
-
-    { "code": "121", "name": "Profit sau pierdere", "type": "B", "special": "pl_closing" },
-    { "code": "129", "name": "Repartizarea profitului", "type": "A", "special": "profit_distribution" },
-
-    { "code": "151", "name": "Provizioane", "type": "P" },
-    { "code": "1511", "name": "Provizioane pentru litigii", "type": "P" },
-    { "code": "1512", "name": "Provizioane pentru garantii acordate clientilor", "type": "P" },
-    { "code": "1513", "name": "Provizioane pentru dezafectare imobilizari corporale", "type": "P" },
-    { "code": "1514", "name": "Provizioane pentru restructurare", "type": "P" },
-    { "code": "1515", "name": "Provizioane pentru pensii si obligatii similare", "type": "P" },
-    { "code": "1516", "name": "Provizioane pentru impozite", "type": "P" },
-    { "code": "1518", "name": "Alte provizioane", "type": "P" },
-
-    { "code": "161", "name": "Imprumuturi din emisiuni de obligatiuni", "type": "P" },
-    { "code": "162", "name": "Credite bancare pe termen lung", "type": "P" },
-    { "code": "1621", "name": "Credite bancare pe termen lung", "type": "P" },
-    { "code": "166", "name": "Datorii ce privesc imobilizarile financiare", "type": "P" },
-    { "code": "167", "name": "Alte imprumuturi si datorii asimilate", "type": "P" },
-    { "code": "168", "name": "Dobanzi aferente imprumuturilor si datoriilor asimilate", "type": "P" },
-    { "code": "169", "name": "Prime privind rambursarea obligatiunilor", "type": "A" },
-
-    { "code": "201", "name": "Cheltuieli de constituire", "type": "A" },
-    { "code": "203", "name": "Cheltuieli de dezvoltare", "type": "A" },
-    { "code": "205", "name": "Concesiuni, brevete, licente, marci comerciale", "type": "A" },
-    { "code": "2051", "name": "Concesiuni, brevete, licente, marci comerciale si alte drepturi", "type": "A" },
-    { "code": "2052", "name": "Programe informatice / Software", "type": "A" },
-    { "code": "207", "name": "Fond comercial", "type": "A" },
-    { "code": "208", "name": "Alte imobilizari necorporale", "type": "A" },
-
-    { "code": "211", "name": "Terenuri si amenajari de terenuri", "type": "A" },
-    { "code": "2111", "name": "Terenuri", "type": "A" },
-    { "code": "2112", "name": "Amenajari de terenuri", "type": "A" },
-    { "code": "212", "name": "Constructii", "type": "A" },
-    { "code": "213", "name": "Instalatii tehnice si masini", "type": "A" },
-    { "code": "2131", "name": "Echipamente tehnologice", "type": "A" },
-    { "code": "2132", "name": "Aparate si instalatii de masurare", "type": "A" },
-    { "code": "2133", "name": "Mijloace de transport", "type": "A" },
-    { "code": "214", "name": "Mobilier, aparatura birotica", "type": "A" },
-    { "code": "215", "name": "Investitii imobiliare", "type": "A" },
-    { "code": "216", "name": "Active biologice productive", "type": "A" },
-    { "code": "217", "name": "Imobilizari corporale in curs de aprovizionare", "type": "A" },
-    { "code": "223", "name": "Imobilizari in curs", "type": "A" },
-    { "code": "224", "name": "Avansuri acordate pentru imobilizari corporale", "type": "A" },
-    { "code": "231", "name": "Imobilizari corporale in curs", "type": "A" },
-
-    { "code": "261", "name": "Actiuni detinute la entitatile afiliate", "type": "A" },
-    { "code": "263", "name": "Actiuni detinute la entitatile asociate si entitatile controlate in comun", "type": "A" },
-    { "code": "265", "name": "Alte titluri imobilizate", "type": "A" },
-    { "code": "267", "name": "Creante imobilizate", "type": "A" },
-    { "code": "269", "name": "Varsaminte de efectuat pentru imobilizari financiare", "type": "A" },
-
-    { "code": "280", "name": "Amortizari privind imobilizarile necorporale", "type": "P" },
-    { "code": "2801", "name": "Amortizarea cheltuielilor de constituire", "type": "P" },
-    { "code": "2803", "name": "Amortizarea cheltuielilor de dezvoltare", "type": "P" },
-    { "code": "2805", "name": "Amortizarea concesiunilor, brevetelor, licentelor", "type": "P" },
-    { "code": "2807", "name": "Amortizarea fondului comercial", "type": "P" },
-    { "code": "2808", "name": "Amortizarea altor imobilizari necorporale", "type": "P" },
-    { "code": "281", "name": "Amortizari privind imobilizarile corporale", "type": "P" },
-    { "code": "2811", "name": "Amortizarea amenajarilor de terenuri", "type": "P" },
-    { "code": "2812", "name": "Amortizarea constructiilor", "type": "P" },
-    { "code": "2813", "name": "Amortizarea instalatiilor si masinilor", "type": "P" },
-    { "code": "2814", "name": "Amortizarea altor imobilizari corporale", "type": "P" },
-
-    { "code": "290", "name": "Ajustari pentru deprecierea imobilizarilor necorporale", "type": "P" },
-    { "code": "291", "name": "Ajustari pentru deprecierea imobilizarilor corporale", "type": "P" },
-    { "code": "293", "name": "Ajustari pentru deprecierea imobilizarilor in curs", "type": "P" },
-    { "code": "296", "name": "Ajustari pentru pierderea de valoare a imobilizarilor financiare", "type": "P" },
-
-    { "code": "301", "name": "Materii prime", "type": "A" },
-    { "code": "302", "name": "Materiale consumabile", "type": "A" },
-    { "code": "3021", "name": "Materiale auxiliare", "type": "A" },
-    { "code": "3022", "name": "Combustibili", "type": "A" },
-    { "code": "3023", "name": "Materiale pentru ambalat", "type": "A" },
-    { "code": "3024", "name": "Piese de schimb", "type": "A" },
-    { "code": "3025", "name": "Seminte si materiale de plantat", "type": "A" },
-    { "code": "3028", "name": "Alte materiale consumabile", "type": "A" },
-    { "code": "303", "name": "Materiale de natura obiectelor de inventar", "type": "A" },
-    { "code": "308", "name": "Diferente de pret la materii prime si materiale", "type": "B" },
-
-    { "code": "331", "name": "Produse in curs de executie", "type": "A" },
-    { "code": "332", "name": "Lucrari si servicii in curs de executie", "type": "A" },
-
-    { "code": "341", "name": "Semifabricate", "type": "A" },
-    { "code": "345", "name": "Produse finite", "type": "A" },
-    { "code": "346", "name": "Produse reziduale", "type": "A" },
-    { "code": "348", "name": "Diferente de pret la produse", "type": "B" },
-    { "code": "351", "name": "Materii prime si materiale aflate la terti", "type": "A" },
-    { "code": "354", "name": "Produse aflate la terti", "type": "A" },
-    { "code": "356", "name": "Animale aflate la terti", "type": "A" },
-    { "code": "357", "name": "Marfuri aflate la terti", "type": "A" },
-    { "code": "358", "name": "Ambalaje aflate la terti", "type": "A" },
-    { "code": "361", "name": "Animale si pasari", "type": "A" },
-    { "code": "371", "name": "Marfuri", "type": "A" },
-    { "code": "378", "name": "Diferente de pret la marfuri", "type": "B" },
-    { "code": "381", "name": "Ambalaje", "type": "A" },
-    { "code": "388", "name": "Diferente de pret la ambalaje", "type": "B" },
-
-    { "code": "391", "name": "Ajustari pentru deprecierea materiilor prime", "type": "P" },
-    { "code": "392", "name": "Ajustari pentru deprecierea materialelor", "type": "P" },
-    { "code": "393", "name": "Ajustari pentru deprecierea productiei in curs", "type": "P" },
-    { "code": "394", "name": "Ajustari pentru deprecierea produselor", "type": "P" },
-    { "code": "395", "name": "Ajustari pentru deprecierea stocurilor aflate la terti", "type": "P" },
-    { "code": "396", "name": "Ajustari pentru deprecierea animalelor", "type": "P" },
-    { "code": "397", "name": "Ajustari pentru deprecierea marfurilor", "type": "P" },
-    { "code": "398", "name": "Ajustari pentru deprecierea ambalajelor", "type": "P" },
-
-    { "code": "401", "name": "Furnizori", "type": "B" },
-    { "code": "403", "name": "Efecte de platit", "type": "P" },
-    { "code": "404", "name": "Furnizori de imobilizari", "type": "P" },
-    { "code": "405", "name": "Efecte de platit pentru imobilizari", "type": "P" },
-    { "code": "408", "name": "Furnizori - facturi nesosite", "type": "P" },
-    { "code": "409", "name": "Furnizori - debitori", "type": "A" },
-    { "code": "4091", "name": "Furnizori - debitori pentru cumparari de bunuri si servicii", "type": "A" },
-    { "code": "4092", "name": "Furnizori - debitori pentru prestari de servicii", "type": "A" },
-
-    { "code": "411", "name": "Clienti", "type": "A" },
-    { "code": "4111", "name": "Clienti", "type": "A" },
-    { "code": "4118", "name": "Clienti incerti sau in litigiu", "type": "A" },
-    { "code": "413", "name": "Efecte de primit de la clienti", "type": "A" },
-    { "code": "418", "name": "Clienti - facturi de intocmit", "type": "A" },
-    { "code": "419", "name": "Clienti - creditori", "type": "P" },
-
-    { "code": "421", "name": "Personal - salarii datorate", "type": "P" },
-    { "code": "423", "name": "Personal - ajutoare materiale datorate", "type": "P" },
-    { "code": "424", "name": "Prime reprezentand participarea personalului la profit", "type": "P" },
-    { "code": "425", "name": "Avansuri acordate personalului", "type": "A" },
-    { "code": "426", "name": "Drepturi de personal neridicate", "type": "P" },
-    { "code": "427", "name": "Retineri din salarii datorate tertilor", "type": "P" },
-    { "code": "428", "name": "Alte datorii si creante in legatura cu personalul", "type": "B" },
-
-    { "code": "431", "name": "Asigurari sociale", "type": "P" },
-    { "code": "4311", "name": "Contributia unitatii la asigurarile sociale (CAM)", "type": "P" },
-    { "code": "4312", "name": "Contributia personalului la asigurarile sociale (CAS)", "type": "P" },
-    { "code": "4313", "name": "Contributia angajatorului pentru asigurari sociale de sanatate", "type": "P" },
-    { "code": "4314", "name": "Contributia angajatilor pentru asigurari sociale de sanatate (CASS)", "type": "P" },
-    { "code": "4315", "name": "Contributia de asigurari sociale", "type": "P" },
-    { "code": "4316", "name": "Contributia de asigurari sociale de sanatate", "type": "P" },
-    { "code": "4318", "name": "Alte contributii sociale", "type": "P" },
-    { "code": "437", "name": "Ajutor de somaj", "type": "P" },
-    { "code": "438", "name": "Alte datorii si creante sociale", "type": "B" },
-
-    { "code": "441", "name": "Impozitul pe profit / venit", "type": "P" },
-    { "code": "4411", "name": "Impozitul pe profit", "type": "P" },
-    { "code": "4418", "name": "Impozitul pe venit microintreprinderi", "type": "P" },
-    { "code": "442", "name": "Taxa pe valoarea adaugata", "type": "B" },
-    { "code": "4423", "name": "TVA de plata", "type": "P" },
-    { "code": "4424", "name": "TVA de recuperat", "type": "A" },
-    { "code": "4426", "name": "TVA deductibila", "type": "A" },
-    { "code": "4427", "name": "TVA colectata", "type": "P" },
-    { "code": "4428", "name": "TVA neexigibila", "type": "B" },
-    { "code": "444", "name": "Impozitul pe venituri de natura salariilor", "type": "P" },
-    { "code": "445", "name": "Subventii", "type": "A" },
-    { "code": "446", "name": "Alte impozite, taxe si varsaminte asimilate", "type": "P" },
-    { "code": "447", "name": "Fonduri speciale - taxe si varsaminte asimilate", "type": "P" },
-    { "code": "448", "name": "Alte datorii si creante cu bugetul statului", "type": "B" },
-    { "code": "4481", "name": "Alte datorii fata de bugetul statului", "type": "P" },
-    { "code": "4482", "name": "Alte creante privind bugetul statului", "type": "A" },
-
-    { "code": "451", "name": "Decontari intre entitatile afiliate", "type": "B" },
-    { "code": "453", "name": "Decontari privind interesele de participare", "type": "B" },
-    { "code": "455", "name": "Sume datorate asociatilor", "type": "P" },
-    { "code": "4551", "name": "Asociati - conturi curente", "type": "P" },
-    { "code": "456", "name": "Decontari cu asociatii privind capitalul", "type": "B" },
-    { "code": "457", "name": "Dividende de plata", "type": "P" },
-    { "code": "458", "name": "Decontari din operatiuni in participatie", "type": "B" },
-
-    { "code": "461", "name": "Debitori diversi", "type": "A" },
-    { "code": "462", "name": "Creditori diversi", "type": "P" },
-    { "code": "471", "name": "Cheltuieli inregistrate in avans", "type": "A" },
-    { "code": "472", "name": "Venituri inregistrate in avans", "type": "P" },
-    { "code": "473", "name": "Decontari din operatii in curs de clarificare", "type": "B" },
-
-    { "code": "491", "name": "Ajustari pentru deprecierea creantelor - clienti", "type": "P" },
-    { "code": "495", "name": "Ajustari pentru deprecierea creantelor - decontari in grup", "type": "P" },
-    { "code": "496", "name": "Ajustari pentru deprecierea creantelor - debitori diversi", "type": "P" },
-
-    { "code": "501", "name": "Actiuni detinute la entitatile afiliate", "type": "A" },
-    { "code": "505", "name": "Obligatiuni emise si rascumparate", "type": "A" },
-    { "code": "506", "name": "Obligatiuni", "type": "A" },
-    { "code": "508", "name": "Alte investitii pe termen scurt si creante asimilate", "type": "A" },
-    { "code": "509", "name": "Varsaminte de efectuat pentru investitii pe termen scurt", "type": "A" },
-
-    { "code": "511", "name": "Valori de incasat", "type": "A" },
-    { "code": "5112", "name": "Cecuri de incasat", "type": "A" },
-    { "code": "5113", "name": "Efecte de incasat", "type": "A" },
-    { "code": "5114", "name": "Efecte remise spre scontare", "type": "A" },
-    { "code": "512", "name": "Conturi curente la banci", "type": "A" },
-    { "code": "5121", "name": "Conturi la banci in lei", "type": "A" },
-    { "code": "5124", "name": "Conturi la banci in valuta", "type": "A" },
-    { "code": "5125", "name": "Sume in curs de decontare", "type": "A" },
-    { "code": "519", "name": "Credite bancare pe termen scurt", "type": "P" },
-    { "code": "5191", "name": "Credite bancare pe termen scurt", "type": "P" },
-    { "code": "5192", "name": "Credite bancare pe termen scurt nerambursate la scadenta", "type": "P" },
-    { "code": "5198", "name": "Dobanzi aferente creditelor bancare pe termen scurt", "type": "P" },
-
-    { "code": "531", "name": "Casa", "type": "A" },
-    { "code": "5311", "name": "Casa in lei", "type": "A" },
-    { "code": "5314", "name": "Casa in valuta", "type": "A" },
-    { "code": "532", "name": "Alte valori", "type": "A" },
-    { "code": "5321", "name": "Timbre fiscale si postale", "type": "A" },
-    { "code": "5322", "name": "Bilete de tratament si odihna", "type": "A" },
-    { "code": "5323", "name": "Tichete si bilete de calatorie", "type": "A" },
-    { "code": "5328", "name": "Alte valori", "type": "A" },
-
-    { "code": "541", "name": "Acreditive", "type": "A" },
-    { "code": "5411", "name": "Acreditive in lei", "type": "A" },
-    { "code": "5414", "name": "Acreditive in valuta", "type": "A" },
-    { "code": "542", "name": "Avansuri de trezorerie", "type": "A" },
-
-    { "code": "581", "name": "Viramente interne", "type": "A" },
-
-    { "code": "591", "name": "Ajustari pentru pierderea de valoare a actiunilor", "type": "P" },
-    { "code": "595", "name": "Ajustari pentru pierderea de valoare a obligatiunilor", "type": "P" },
-    { "code": "596", "name": "Ajustari pentru pierderea de valoare a altor investitii pe termen scurt", "type": "P" },
-
-    { "code": "601", "name": "Cheltuieli cu materiile prime", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu materiile prime" },
-    { "code": "602", "name": "Cheltuieli cu materialele consumabile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu materialele consumabile" },
-    { "code": "6021", "name": "Cheltuieli cu materialele auxiliare", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu materialele auxiliare" },
-    { "code": "6022", "name": "Cheltuieli privind combustibilul", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli privind combustibilul" },
-    { "code": "6023", "name": "Cheltuieli privind materialele pentru ambalat", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli privind materialele pentru ambalat" },
-    { "code": "6024", "name": "Cheltuieli privind piesele de schimb", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli privind piesele de schimb" },
-    { "code": "6025", "name": "Cheltuieli privind semintele", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli privind semintele" },
-    { "code": "6028", "name": "Cheltuieli privind alte materiale consumabile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Alte materiale consumabile" },
-    { "code": "603", "name": "Cheltuieli privind materialele de natura obiectelor de inventar", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu obiectele de inventar" },
-    { "code": "604", "name": "Cheltuieli privind materialele nestocate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Materiale nestocate" },
-    { "code": "605", "name": "Cheltuieli privind energia si apa", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu energia si apa" },
-    { "code": "606", "name": "Cheltuieli privind animalele si pasarile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu animalele" },
-    { "code": "607", "name": "Cheltuieli privind marfurile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu marfurile" },
-    { "code": "608", "name": "Cheltuieli privind ambalajele", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu ambalajele" },
-    { "code": "609", "name": "Reduceri comerciale primite", "type": "P", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Reduceri comerciale primite" },
-
-    { "code": "611", "name": "Cheltuieli cu intretinerea si reparatiile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu intretinerea si reparatiile" },
-    { "code": "612", "name": "Cheltuieli cu redeventele, locatiile de gestiune si chiriile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu chiriile" },
-    { "code": "613", "name": "Cheltuieli cu primele de asigurare", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu asigurarile" },
-    { "code": "614", "name": "Cheltuieli cu studiile si cercetarile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu studiile" },
-
-    { "code": "621", "name": "Cheltuieli cu colaboratorii", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu colaboratorii" },
-    { "code": "622", "name": "Cheltuieli privind comisioanele si onorariile", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu comisioane si onorarii" },
-    { "code": "623", "name": "Cheltuieli de protocol, reclama si publicitate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli protocol si reclama" },
-    { "code": "624", "name": "Cheltuieli cu transportul de bunuri si personal", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu transportul" },
-    { "code": "625", "name": "Cheltuieli cu deplasari, detasari si transferari", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu deplasari" },
-    { "code": "626", "name": "Cheltuieli postale si taxe de telecomunicatii", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli postale si telecom" },
-    { "code": "627", "name": "Cheltuieli cu serviciile bancare si asimilate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli servicii bancare" },
-    { "code": "628", "name": "Alte cheltuieli cu serviciile executate de terti", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Alte cheltuieli cu servicii" },
-
-    { "code": "635", "name": "Cheltuieli cu alte impozite, taxe si varsaminte asimilate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu impozite si taxe" },
-
-    { "code": "641", "name": "Cheltuieli cu salariile personalului", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu salariile" },
-    { "code": "642", "name": "Cheltuieli cu tichetele de masa acordate salariatilor", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu tichetele de masa" },
-    { "code": "643", "name": "Cheltuieli cu primele datorate de angajator", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Prime angajator" },
-    { "code": "644", "name": "Cheltuieli cu remunerarea in instrumente de capitaluri proprii", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Remunerare in capital" },
-    { "code": "645", "name": "Cheltuieli privind asigurarile si protectia sociala", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli asigurari sociale" },
-    { "code": "6451", "name": "Cheltuieli privind contributia unitatii la asigurarile sociale", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Contributia unitatii CAS" },
-    { "code": "6452", "name": "Cheltuieli privind contributia unitatii la ajutor de somaj", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Contributia somaj" },
-    { "code": "6453", "name": "Cheltuieli privind contributia angajatorului pentru asigurari sociale de sanatate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Contributia CASS angajator" },
-    { "code": "6458", "name": "Alte cheltuieli privind asigurarile si protectia sociala", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Alte cheltuieli sociale" },
-    { "code": "646", "name": "Cheltuieli cu contributia asiguratorie pentru munca (CAM)", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu CAM" },
-
-    { "code": "652", "name": "Cheltuieli cu protectia mediului inconjurator", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli protectia mediului" },
-    { "code": "654", "name": "Pierderi din creante si debitori diversi", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Pierderi din creante" },
-    { "code": "658", "name": "Alte cheltuieli de exploatare", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Alte cheltuieli de exploatare" },
-    { "code": "6581", "name": "Despagubiri, amenzi si penalitati", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Amenzi si penalitati" },
-    { "code": "6582", "name": "Donatii acordate", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Donatii acordate" },
-    { "code": "6583", "name": "Cheltuieli privind activele cedate si alte operatii de capital", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli active cedate" },
-    { "code": "6588", "name": "Alte cheltuieli de exploatare", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Alte cheltuieli de exploatare" },
-
-    { "code": "663", "name": "Pierderi din creante legate de participatii", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Pierderi din creante participatii" },
-    { "code": "664", "name": "Cheltuieli privind investitiile financiare cedate", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Cheltuieli investitii cedate" },
-    { "code": "665", "name": "Cheltuieli din diferente de curs valutar", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Cheltuieli diferente curs valutar" },
-    { "code": "666", "name": "Cheltuieli privind dobanzile", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Cheltuieli cu dobanzile" },
-    { "code": "667", "name": "Cheltuieli privind sconturile acordate", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Cheltuieli sconturi acordate" },
-    { "code": "668", "name": "Alte cheltuieli financiare", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Alte cheltuieli financiare" },
-
-    { "code": "681", "name": "Cheltuieli de exploatare privind amortizarile, provizioanele si ajustarile pentru depreciere", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Amortizari si ajustari" },
-    { "code": "6811", "name": "Cheltuieli de exploatare privind amortizarea imobilizarilor", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu amortizarea" },
-    { "code": "6812", "name": "Cheltuieli de exploatare privind provizioanele", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Cheltuieli cu provizioanele" },
-    { "code": "6813", "name": "Cheltuieli de exploatare privind ajustarile pentru deprecierea imobilizarilor", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Ajustari depreciere imobilizari" },
-    { "code": "6814", "name": "Cheltuieli de exploatare privind ajustarile pentru deprecierea activelor circulante", "type": "A", "cppGroup": "CHELTUIELI_EXPLOATARE", "cppLabel": "Ajustari active circulante" },
-    { "code": "686", "name": "Cheltuieli financiare privind amortizarile si ajustarile pentru pierderea de valoare", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Amortizari financiare" },
-
-    { "code": "691", "name": "Cheltuieli cu impozitul pe profit", "type": "A", "special": "profit_tax" },
-    { "code": "694", "name": "Cheltuieli cu impozitul pe profit din filiale", "type": "A", "special": "profit_tax" },
-    { "code": "695", "name": "Cheltuieli cu impozitul specific (HoReCa, istoric)", "type": "A", "special": "profit_tax" },
-    { "code": "697", "name": "Cheltuieli cu impozitul minim pe cifra de afaceri (IMCA)", "type": "A", "special": "profit_tax" },
-    { "code": "698", "name": "Cheltuieli cu impozitul pe venit al microintreprinderii", "type": "A", "special": "micro_tax" },
-
-    { "code": "701", "name": "Venituri din vanzarea produselor finite", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Vanzari produse finite" },
-    { "code": "702", "name": "Venituri din vanzarea semifabricatelor", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Vanzari semifabricate" },
-    { "code": "703", "name": "Venituri din vanzarea produselor reziduale", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Vanzari produse reziduale" },
-    { "code": "704", "name": "Venituri din lucrari executate si servicii prestate", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din servicii prestate" },
-    { "code": "705", "name": "Venituri din studii si cercetari", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din studii si cercetari" },
-    { "code": "706", "name": "Venituri din redevente, locatii de gestiune si chirii", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din chirii" },
-    { "code": "707", "name": "Venituri din vanzarea marfurilor", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din vanzarea marfurilor" },
-    { "code": "708", "name": "Venituri din activitati diverse", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din activitati diverse" },
-    { "code": "709", "name": "Reduceri comerciale acordate", "type": "A", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Reduceri comerciale acordate" },
-
-    { "code": "711", "name": "Variatia stocurilor", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Variatia stocurilor" },
-    { "code": "712", "name": "Venituri aferente costurilor serviciilor in curs de executie", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Servicii in curs de executie" },
-
-    { "code": "721", "name": "Venituri din productia de imobilizari necorporale", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Productia de imobilizari necorporale" },
-    { "code": "722", "name": "Venituri din productia de imobilizari corporale", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Productia de imobilizari corporale" },
-    { "code": "725", "name": "Venituri din productia de investitii imobiliare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Productia de investitii imobiliare" },
-
-    { "code": "741", "name": "Venituri din subventii de exploatare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din subventii" },
-    { "code": "7411", "name": "Venituri din subventii de exploatare aferente cifrei de afaceri", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii aferente cifrei de afaceri" },
-    { "code": "7412", "name": "Venituri din subventii de exploatare aferente materiilor prime si materialelor", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii materiale" },
-    { "code": "7413", "name": "Venituri din subventii de exploatare aferente altor cheltuieli externe", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii cheltuieli externe" },
-    { "code": "7414", "name": "Venituri din subventii de exploatare aferente cheltuielilor cu personalul", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii personal" },
-    { "code": "7415", "name": "Venituri din subventii de exploatare aferente asigurarilor si protectiei sociale", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii asigurari sociale" },
-    { "code": "7416", "name": "Venituri din subventii de exploatare aferente altor cheltuieli de exploatare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii alte cheltuieli" },
-    { "code": "7417", "name": "Venituri din subventii de exploatare in caz de calamitati", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii calamitati" },
-    { "code": "7418", "name": "Venituri din subventii de exploatare pentru dobanda cuvenita", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii dobanda" },
-    { "code": "7419", "name": "Venituri din subventii de exploatare aferente altor venituri", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii alte venituri" },
-
-    { "code": "754", "name": "Venituri din creante reactivate si debitori diversi", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din creante reactivate" },
-    { "code": "758", "name": "Alte venituri din exploatare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Alte venituri din exploatare" },
-    { "code": "7581", "name": "Venituri din despagubiri, amenzi si penalitati", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Despagubiri si penalitati" },
-    { "code": "7582", "name": "Venituri din donatii primite", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Donatii primite" },
-    { "code": "7583", "name": "Venituri din vanzarea activelor si alte operatii de capital", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din vanzarea activelor" },
-    { "code": "7584", "name": "Venituri din subventii pentru investitii", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Subventii pentru investitii" },
-    { "code": "7588", "name": "Alte venituri din exploatare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Alte venituri din exploatare" },
-
-    { "code": "761", "name": "Venituri din imobilizari financiare", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri din imobilizari financiare" },
-    { "code": "762", "name": "Venituri din investitii financiare pe termen scurt", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri investitii termen scurt" },
-    { "code": "763", "name": "Venituri din creante imobilizate", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri creante imobilizate" },
-    { "code": "764", "name": "Venituri din investitii financiare cedate", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri investitii cedate" },
-    { "code": "765", "name": "Venituri din diferente de curs valutar", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri diferente curs valutar" },
-    { "code": "766", "name": "Venituri din dobanzi", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri din dobanzi" },
-    { "code": "767", "name": "Venituri din sconturi obtinute", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri sconturi obtinute" },
-    { "code": "768", "name": "Alte venituri financiare", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Alte venituri financiare" },
-
-    { "code": "781", "name": "Venituri din provizioane si ajustari pentru depreciere privind activitatea de exploatare", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Venituri din provizioane" },
-    { "code": "786", "name": "Venituri financiare din ajustari pentru pierderea de valoare", "type": "P", "cppGroup": "VENITURI_FINANCIARE", "cppLabel": "Venituri ajustari financiare" },
-
-    { "code": "801", "name": "Angajamente acordate", "type": "A" },
-    { "code": "802", "name": "Angajamente primite", "type": "A" },
-    { "code": "8031", "name": "Imobilizari corporale luate cu chirie", "type": "A" },
-    { "code": "8032", "name": "Valori materiale primite in custodie", "type": "A" },
-    { "code": "8033", "name": "Valori materiale primite in prelucrare", "type": "A" },
-    { "code": "8034", "name": "Debitori scosi din activ", "type": "A" },
-    { "code": "8035", "name": "Stocuri de natura obiectelor de inventar date in folosinta", "type": "A" },
-    { "code": "8036", "name": "Redevente, locatii de gestiune, chirii si alte datorii asimilate", "type": "A" },
-    { "code": "8038", "name": "Alte valori in afara bilantului", "type": "A" },
-    { "code": "8039", "name": "Credite restante", "type": "A" }
+    {
+      "code": "101",
+      "name": "Capital social",
+      "type": "P"
+    },
+    {
+      "code": "1011",
+      "name": "Capital subscris nevarsat",
+      "type": "P"
+    },
+    {
+      "code": "1012",
+      "name": "Capital subscris varsat",
+      "type": "P"
+    },
+    {
+      "code": "104",
+      "name": "Prime de capital",
+      "type": "P"
+    },
+    {
+      "code": "1041",
+      "name": "Prime de emisiune",
+      "type": "P"
+    },
+    {
+      "code": "1042",
+      "name": "Prime de fuziune/divizare",
+      "type": "P"
+    },
+    {
+      "code": "1043",
+      "name": "Prime de aport",
+      "type": "P"
+    },
+    {
+      "code": "1044",
+      "name": "Prime de conversie a obligatiunilor in actiuni",
+      "type": "P"
+    },
+    {
+      "code": "105",
+      "name": "Rezerve din reevaluare",
+      "type": "P"
+    },
+    {
+      "code": "106",
+      "name": "Rezerve",
+      "type": "P"
+    },
+    {
+      "code": "1061",
+      "name": "Rezerve legale",
+      "type": "P"
+    },
+    {
+      "code": "1063",
+      "name": "Rezerve statutare sau contractuale",
+      "type": "P"
+    },
+    {
+      "code": "1068",
+      "name": "Alte rezerve",
+      "type": "P"
+    },
+    {
+      "code": "107",
+      "name": "Rezerve din conversie",
+      "type": "B"
+    },
+    {
+      "code": "108",
+      "name": "Interese care nu controleaza",
+      "type": "P"
+    },
+    {
+      "code": "109",
+      "name": "Actiuni proprii",
+      "type": "A"
+    },
+    {
+      "code": "1091",
+      "name": "Actiuni proprii detinute pe termen scurt",
+      "type": "A"
+    },
+    {
+      "code": "1092",
+      "name": "Actiuni proprii detinute pe termen lung",
+      "type": "A"
+    },
+    {
+      "code": "117",
+      "name": "Rezultatul reportat",
+      "type": "B"
+    },
+    {
+      "code": "1171",
+      "name": "Rezultatul reportat reprezentand profitul nerepartizat sau pierderea neacoperita",
+      "type": "B"
+    },
+    {
+      "code": "1174",
+      "name": "Rezultatul reportat provenit din corectarea erorilor contabile",
+      "type": "B"
+    },
+    {
+      "code": "1175",
+      "name": "Rezultatul reportat reprezentand surplusul realizat din rezerve din reevaluare",
+      "type": "P"
+    },
+    {
+      "code": "1176",
+      "name": "Rezultatul reportat provenit din trecerea la aplicarea reglementarilor contabile",
+      "type": "B"
+    },
+    {
+      "code": "121",
+      "name": "Profit sau pierdere",
+      "type": "B",
+      "special": "pl_closing"
+    },
+    {
+      "code": "129",
+      "name": "Repartizarea profitului",
+      "type": "A",
+      "special": "profit_distribution"
+    },
+    {
+      "code": "151",
+      "name": "Provizioane",
+      "type": "P"
+    },
+    {
+      "code": "1511",
+      "name": "Provizioane pentru litigii",
+      "type": "P"
+    },
+    {
+      "code": "1512",
+      "name": "Provizioane pentru garantii acordate clientilor",
+      "type": "P"
+    },
+    {
+      "code": "1513",
+      "name": "Provizioane pentru dezafectare imobilizari corporale",
+      "type": "P"
+    },
+    {
+      "code": "1514",
+      "name": "Provizioane pentru restructurare",
+      "type": "P"
+    },
+    {
+      "code": "1515",
+      "name": "Provizioane pentru pensii si obligatii similare",
+      "type": "P"
+    },
+    {
+      "code": "1516",
+      "name": "Provizioane pentru impozite",
+      "type": "P"
+    },
+    {
+      "code": "1518",
+      "name": "Alte provizioane",
+      "type": "P"
+    },
+    {
+      "code": "161",
+      "name": "Imprumuturi din emisiuni de obligatiuni",
+      "type": "P"
+    },
+    {
+      "code": "162",
+      "name": "Credite bancare pe termen lung",
+      "type": "P"
+    },
+    {
+      "code": "1621",
+      "name": "Credite bancare pe termen lung",
+      "type": "P"
+    },
+    {
+      "code": "166",
+      "name": "Datorii ce privesc imobilizarile financiare",
+      "type": "P"
+    },
+    {
+      "code": "167",
+      "name": "Alte imprumuturi si datorii asimilate",
+      "type": "P"
+    },
+    {
+      "code": "168",
+      "name": "Dobanzi aferente imprumuturilor si datoriilor asimilate",
+      "type": "P"
+    },
+    {
+      "code": "169",
+      "name": "Prime privind rambursarea obligatiunilor",
+      "type": "A"
+    },
+    {
+      "code": "201",
+      "name": "Cheltuieli de constituire",
+      "type": "A"
+    },
+    {
+      "code": "203",
+      "name": "Cheltuieli de dezvoltare",
+      "type": "A"
+    },
+    {
+      "code": "205",
+      "name": "Concesiuni, brevete, licente, marci comerciale",
+      "type": "A"
+    },
+    {
+      "code": "2051",
+      "name": "Concesiuni, brevete, licente, marci comerciale si alte drepturi",
+      "type": "A"
+    },
+    {
+      "code": "2052",
+      "name": "Programe informatice / Software",
+      "type": "A"
+    },
+    {
+      "code": "207",
+      "name": "Fond comercial",
+      "type": "A"
+    },
+    {
+      "code": "208",
+      "name": "Alte imobilizari necorporale",
+      "type": "A"
+    },
+    {
+      "code": "211",
+      "name": "Terenuri si amenajari de terenuri",
+      "type": "A"
+    },
+    {
+      "code": "2111",
+      "name": "Terenuri",
+      "type": "A"
+    },
+    {
+      "code": "2112",
+      "name": "Amenajari de terenuri",
+      "type": "A"
+    },
+    {
+      "code": "212",
+      "name": "Constructii",
+      "type": "A"
+    },
+    {
+      "code": "213",
+      "name": "Instalatii tehnice si masini",
+      "type": "A"
+    },
+    {
+      "code": "2131",
+      "name": "Echipamente tehnologice",
+      "type": "A"
+    },
+    {
+      "code": "2132",
+      "name": "Aparate si instalatii de masurare",
+      "type": "A"
+    },
+    {
+      "code": "2133",
+      "name": "Mijloace de transport",
+      "type": "A"
+    },
+    {
+      "code": "214",
+      "name": "Mobilier, aparatura birotica",
+      "type": "A"
+    },
+    {
+      "code": "215",
+      "name": "Investitii imobiliare",
+      "type": "A"
+    },
+    {
+      "code": "216",
+      "name": "Active biologice productive",
+      "type": "A"
+    },
+    {
+      "code": "217",
+      "name": "Imobilizari corporale in curs de aprovizionare",
+      "type": "A"
+    },
+    {
+      "code": "223",
+      "name": "Imobilizari in curs",
+      "type": "A"
+    },
+    {
+      "code": "224",
+      "name": "Avansuri acordate pentru imobilizari corporale",
+      "type": "A"
+    },
+    {
+      "code": "231",
+      "name": "Imobilizari corporale in curs",
+      "type": "A"
+    },
+    {
+      "code": "261",
+      "name": "Actiuni detinute la entitatile afiliate",
+      "type": "A"
+    },
+    {
+      "code": "263",
+      "name": "Actiuni detinute la entitatile asociate si entitatile controlate in comun",
+      "type": "A"
+    },
+    {
+      "code": "265",
+      "name": "Alte titluri imobilizate",
+      "type": "A"
+    },
+    {
+      "code": "267",
+      "name": "Creante imobilizate",
+      "type": "A"
+    },
+    {
+      "code": "269",
+      "name": "Varsaminte de efectuat pentru imobilizari financiare",
+      "type": "A"
+    },
+    {
+      "code": "280",
+      "name": "Amortizari privind imobilizarile necorporale",
+      "type": "P"
+    },
+    {
+      "code": "2801",
+      "name": "Amortizarea cheltuielilor de constituire",
+      "type": "P"
+    },
+    {
+      "code": "2803",
+      "name": "Amortizarea cheltuielilor de dezvoltare",
+      "type": "P"
+    },
+    {
+      "code": "2805",
+      "name": "Amortizarea concesiunilor, brevetelor, licentelor",
+      "type": "P"
+    },
+    {
+      "code": "2807",
+      "name": "Amortizarea fondului comercial",
+      "type": "P"
+    },
+    {
+      "code": "2808",
+      "name": "Amortizarea altor imobilizari necorporale",
+      "type": "P"
+    },
+    {
+      "code": "281",
+      "name": "Amortizari privind imobilizarile corporale",
+      "type": "P"
+    },
+    {
+      "code": "2811",
+      "name": "Amortizarea amenajarilor de terenuri",
+      "type": "P"
+    },
+    {
+      "code": "2812",
+      "name": "Amortizarea constructiilor",
+      "type": "P"
+    },
+    {
+      "code": "2813",
+      "name": "Amortizarea instalatiilor si masinilor",
+      "type": "P"
+    },
+    {
+      "code": "2814",
+      "name": "Amortizarea altor imobilizari corporale",
+      "type": "P"
+    },
+    {
+      "code": "290",
+      "name": "Ajustari pentru deprecierea imobilizarilor necorporale",
+      "type": "P"
+    },
+    {
+      "code": "291",
+      "name": "Ajustari pentru deprecierea imobilizarilor corporale",
+      "type": "P"
+    },
+    {
+      "code": "293",
+      "name": "Ajustari pentru deprecierea imobilizarilor in curs",
+      "type": "P"
+    },
+    {
+      "code": "296",
+      "name": "Ajustari pentru pierderea de valoare a imobilizarilor financiare",
+      "type": "P"
+    },
+    {
+      "code": "301",
+      "name": "Materii prime",
+      "type": "A"
+    },
+    {
+      "code": "302",
+      "name": "Materiale consumabile",
+      "type": "A"
+    },
+    {
+      "code": "3021",
+      "name": "Materiale auxiliare",
+      "type": "A"
+    },
+    {
+      "code": "3022",
+      "name": "Combustibili",
+      "type": "A"
+    },
+    {
+      "code": "3023",
+      "name": "Materiale pentru ambalat",
+      "type": "A"
+    },
+    {
+      "code": "3024",
+      "name": "Piese de schimb",
+      "type": "A"
+    },
+    {
+      "code": "3025",
+      "name": "Seminte si materiale de plantat",
+      "type": "A"
+    },
+    {
+      "code": "3028",
+      "name": "Alte materiale consumabile",
+      "type": "A"
+    },
+    {
+      "code": "303",
+      "name": "Materiale de natura obiectelor de inventar",
+      "type": "A"
+    },
+    {
+      "code": "308",
+      "name": "Diferente de pret la materii prime si materiale",
+      "type": "B"
+    },
+    {
+      "code": "331",
+      "name": "Produse in curs de executie",
+      "type": "A"
+    },
+    {
+      "code": "332",
+      "name": "Lucrari si servicii in curs de executie",
+      "type": "A"
+    },
+    {
+      "code": "341",
+      "name": "Semifabricate",
+      "type": "A"
+    },
+    {
+      "code": "345",
+      "name": "Produse finite",
+      "type": "A"
+    },
+    {
+      "code": "346",
+      "name": "Produse reziduale",
+      "type": "A"
+    },
+    {
+      "code": "348",
+      "name": "Diferente de pret la produse",
+      "type": "B"
+    },
+    {
+      "code": "351",
+      "name": "Materii prime si materiale aflate la terti",
+      "type": "A"
+    },
+    {
+      "code": "354",
+      "name": "Produse aflate la terti",
+      "type": "A"
+    },
+    {
+      "code": "356",
+      "name": "Animale aflate la terti",
+      "type": "A"
+    },
+    {
+      "code": "357",
+      "name": "Marfuri aflate la terti",
+      "type": "A"
+    },
+    {
+      "code": "358",
+      "name": "Ambalaje aflate la terti",
+      "type": "A"
+    },
+    {
+      "code": "361",
+      "name": "Animale si pasari",
+      "type": "A"
+    },
+    {
+      "code": "371",
+      "name": "Marfuri",
+      "type": "A"
+    },
+    {
+      "code": "378",
+      "name": "Diferente de pret la marfuri",
+      "type": "B"
+    },
+    {
+      "code": "381",
+      "name": "Ambalaje",
+      "type": "A"
+    },
+    {
+      "code": "388",
+      "name": "Diferente de pret la ambalaje",
+      "type": "B"
+    },
+    {
+      "code": "391",
+      "name": "Ajustari pentru deprecierea materiilor prime",
+      "type": "P"
+    },
+    {
+      "code": "392",
+      "name": "Ajustari pentru deprecierea materialelor",
+      "type": "P"
+    },
+    {
+      "code": "393",
+      "name": "Ajustari pentru deprecierea productiei in curs",
+      "type": "P"
+    },
+    {
+      "code": "394",
+      "name": "Ajustari pentru deprecierea produselor",
+      "type": "P"
+    },
+    {
+      "code": "395",
+      "name": "Ajustari pentru deprecierea stocurilor aflate la terti",
+      "type": "P"
+    },
+    {
+      "code": "396",
+      "name": "Ajustari pentru deprecierea animalelor",
+      "type": "P"
+    },
+    {
+      "code": "397",
+      "name": "Ajustari pentru deprecierea marfurilor",
+      "type": "P"
+    },
+    {
+      "code": "398",
+      "name": "Ajustari pentru deprecierea ambalajelor",
+      "type": "P"
+    },
+    {
+      "code": "401",
+      "name": "Furnizori",
+      "type": "B"
+    },
+    {
+      "code": "403",
+      "name": "Efecte de platit",
+      "type": "P"
+    },
+    {
+      "code": "404",
+      "name": "Furnizori de imobilizari",
+      "type": "P"
+    },
+    {
+      "code": "405",
+      "name": "Efecte de platit pentru imobilizari",
+      "type": "P"
+    },
+    {
+      "code": "408",
+      "name": "Furnizori - facturi nesosite",
+      "type": "P"
+    },
+    {
+      "code": "409",
+      "name": "Furnizori - debitori",
+      "type": "A"
+    },
+    {
+      "code": "4091",
+      "name": "Furnizori - debitori pentru cumparari de bunuri si servicii",
+      "type": "A"
+    },
+    {
+      "code": "4092",
+      "name": "Furnizori - debitori pentru prestari de servicii",
+      "type": "A"
+    },
+    {
+      "code": "411",
+      "name": "Clienti",
+      "type": "A"
+    },
+    {
+      "code": "4111",
+      "name": "Clienti",
+      "type": "A"
+    },
+    {
+      "code": "4118",
+      "name": "Clienti incerti sau in litigiu",
+      "type": "A"
+    },
+    {
+      "code": "413",
+      "name": "Efecte de primit de la clienti",
+      "type": "A"
+    },
+    {
+      "code": "418",
+      "name": "Clienti - facturi de intocmit",
+      "type": "A"
+    },
+    {
+      "code": "419",
+      "name": "Clienti - creditori",
+      "type": "P"
+    },
+    {
+      "code": "421",
+      "name": "Personal - salarii datorate",
+      "type": "P"
+    },
+    {
+      "code": "423",
+      "name": "Personal - ajutoare materiale datorate",
+      "type": "P"
+    },
+    {
+      "code": "424",
+      "name": "Prime reprezentand participarea personalului la profit",
+      "type": "P"
+    },
+    {
+      "code": "425",
+      "name": "Avansuri acordate personalului",
+      "type": "A"
+    },
+    {
+      "code": "426",
+      "name": "Drepturi de personal neridicate",
+      "type": "P"
+    },
+    {
+      "code": "427",
+      "name": "Retineri din salarii datorate tertilor",
+      "type": "P"
+    },
+    {
+      "code": "428",
+      "name": "Alte datorii si creante in legatura cu personalul",
+      "type": "B"
+    },
+    {
+      "code": "431",
+      "name": "Asigurari sociale",
+      "type": "P"
+    },
+    {
+      "code": "4311",
+      "name": "Contributia unitatii la asigurarile sociale (CAM)",
+      "type": "P"
+    },
+    {
+      "code": "4312",
+      "name": "Contributia personalului la asigurarile sociale (CAS)",
+      "type": "P"
+    },
+    {
+      "code": "4313",
+      "name": "Contributia angajatorului pentru asigurari sociale de sanatate",
+      "type": "P"
+    },
+    {
+      "code": "4314",
+      "name": "Contributia angajatilor pentru asigurari sociale de sanatate (CASS)",
+      "type": "P"
+    },
+    {
+      "code": "4315",
+      "name": "Contributia de asigurari sociale",
+      "type": "P"
+    },
+    {
+      "code": "4316",
+      "name": "Contributia de asigurari sociale de sanatate",
+      "type": "P"
+    },
+    {
+      "code": "4318",
+      "name": "Alte contributii sociale",
+      "type": "P"
+    },
+    {
+      "code": "437",
+      "name": "Ajutor de somaj",
+      "type": "P"
+    },
+    {
+      "code": "438",
+      "name": "Alte datorii si creante sociale",
+      "type": "B"
+    },
+    {
+      "code": "441",
+      "name": "Impozitul pe profit / venit",
+      "type": "P"
+    },
+    {
+      "code": "4411",
+      "name": "Impozitul pe profit",
+      "type": "P"
+    },
+    {
+      "code": "4418",
+      "name": "Impozitul pe venit microintreprinderi",
+      "type": "P"
+    },
+    {
+      "code": "442",
+      "name": "Taxa pe valoarea adaugata",
+      "type": "B"
+    },
+    {
+      "code": "4423",
+      "name": "TVA de plata",
+      "type": "P"
+    },
+    {
+      "code": "4424",
+      "name": "TVA de recuperat",
+      "type": "A"
+    },
+    {
+      "code": "4426",
+      "name": "TVA deductibila",
+      "type": "A"
+    },
+    {
+      "code": "4427",
+      "name": "TVA colectata",
+      "type": "P"
+    },
+    {
+      "code": "4428",
+      "name": "TVA neexigibila",
+      "type": "B"
+    },
+    {
+      "code": "444",
+      "name": "Impozitul pe venituri de natura salariilor",
+      "type": "P"
+    },
+    {
+      "code": "445",
+      "name": "Subventii",
+      "type": "A"
+    },
+    {
+      "code": "446",
+      "name": "Alte impozite, taxe si varsaminte asimilate",
+      "type": "P"
+    },
+    {
+      "code": "447",
+      "name": "Fonduri speciale - taxe si varsaminte asimilate",
+      "type": "P"
+    },
+    {
+      "code": "448",
+      "name": "Alte datorii si creante cu bugetul statului",
+      "type": "B"
+    },
+    {
+      "code": "4481",
+      "name": "Alte datorii fata de bugetul statului",
+      "type": "P"
+    },
+    {
+      "code": "4482",
+      "name": "Alte creante privind bugetul statului",
+      "type": "A"
+    },
+    {
+      "code": "451",
+      "name": "Decontari intre entitatile afiliate",
+      "type": "B"
+    },
+    {
+      "code": "453",
+      "name": "Decontari privind interesele de participare",
+      "type": "B"
+    },
+    {
+      "code": "455",
+      "name": "Sume datorate asociatilor",
+      "type": "P"
+    },
+    {
+      "code": "4551",
+      "name": "Asociati - conturi curente",
+      "type": "P"
+    },
+    {
+      "code": "456",
+      "name": "Decontari cu asociatii privind capitalul",
+      "type": "B"
+    },
+    {
+      "code": "457",
+      "name": "Dividende de plata",
+      "type": "P"
+    },
+    {
+      "code": "458",
+      "name": "Decontari din operatiuni in participatie",
+      "type": "B"
+    },
+    {
+      "code": "461",
+      "name": "Debitori diversi",
+      "type": "A"
+    },
+    {
+      "code": "462",
+      "name": "Creditori diversi",
+      "type": "P"
+    },
+    {
+      "code": "471",
+      "name": "Cheltuieli inregistrate in avans",
+      "type": "A"
+    },
+    {
+      "code": "472",
+      "name": "Venituri inregistrate in avans",
+      "type": "P"
+    },
+    {
+      "code": "473",
+      "name": "Decontari din operatii in curs de clarificare",
+      "type": "B"
+    },
+    {
+      "code": "491",
+      "name": "Ajustari pentru deprecierea creantelor - clienti",
+      "type": "P"
+    },
+    {
+      "code": "495",
+      "name": "Ajustari pentru deprecierea creantelor - decontari in grup",
+      "type": "P"
+    },
+    {
+      "code": "496",
+      "name": "Ajustari pentru deprecierea creantelor - debitori diversi",
+      "type": "P"
+    },
+    {
+      "code": "501",
+      "name": "Actiuni detinute la entitatile afiliate",
+      "type": "A"
+    },
+    {
+      "code": "505",
+      "name": "Obligatiuni emise si rascumparate",
+      "type": "A"
+    },
+    {
+      "code": "506",
+      "name": "Obligatiuni",
+      "type": "A"
+    },
+    {
+      "code": "508",
+      "name": "Alte investitii pe termen scurt si creante asimilate",
+      "type": "A"
+    },
+    {
+      "code": "509",
+      "name": "Varsaminte de efectuat pentru investitii pe termen scurt",
+      "type": "A"
+    },
+    {
+      "code": "511",
+      "name": "Valori de incasat",
+      "type": "A"
+    },
+    {
+      "code": "5112",
+      "name": "Cecuri de incasat",
+      "type": "A"
+    },
+    {
+      "code": "5113",
+      "name": "Efecte de incasat",
+      "type": "A"
+    },
+    {
+      "code": "5114",
+      "name": "Efecte remise spre scontare",
+      "type": "A"
+    },
+    {
+      "code": "512",
+      "name": "Conturi curente la banci",
+      "type": "A"
+    },
+    {
+      "code": "5121",
+      "name": "Conturi la banci in lei",
+      "type": "A"
+    },
+    {
+      "code": "5124",
+      "name": "Conturi la banci in valuta",
+      "type": "A"
+    },
+    {
+      "code": "5125",
+      "name": "Sume in curs de decontare",
+      "type": "A"
+    },
+    {
+      "code": "519",
+      "name": "Credite bancare pe termen scurt",
+      "type": "P"
+    },
+    {
+      "code": "5191",
+      "name": "Credite bancare pe termen scurt",
+      "type": "P"
+    },
+    {
+      "code": "5192",
+      "name": "Credite bancare pe termen scurt nerambursate la scadenta",
+      "type": "P"
+    },
+    {
+      "code": "5198",
+      "name": "Dobanzi aferente creditelor bancare pe termen scurt",
+      "type": "P"
+    },
+    {
+      "code": "531",
+      "name": "Casa",
+      "type": "A"
+    },
+    {
+      "code": "5311",
+      "name": "Casa in lei",
+      "type": "A"
+    },
+    {
+      "code": "5314",
+      "name": "Casa in valuta",
+      "type": "A"
+    },
+    {
+      "code": "532",
+      "name": "Alte valori",
+      "type": "A"
+    },
+    {
+      "code": "5321",
+      "name": "Timbre fiscale si postale",
+      "type": "A"
+    },
+    {
+      "code": "5322",
+      "name": "Bilete de tratament si odihna",
+      "type": "A"
+    },
+    {
+      "code": "5323",
+      "name": "Tichete si bilete de calatorie",
+      "type": "A"
+    },
+    {
+      "code": "5328",
+      "name": "Alte valori",
+      "type": "A"
+    },
+    {
+      "code": "541",
+      "name": "Acreditive",
+      "type": "A"
+    },
+    {
+      "code": "5411",
+      "name": "Acreditive in lei",
+      "type": "A"
+    },
+    {
+      "code": "5414",
+      "name": "Acreditive in valuta",
+      "type": "A"
+    },
+    {
+      "code": "542",
+      "name": "Avansuri de trezorerie",
+      "type": "A"
+    },
+    {
+      "code": "581",
+      "name": "Viramente interne",
+      "type": "A"
+    },
+    {
+      "code": "591",
+      "name": "Ajustari pentru pierderea de valoare a actiunilor",
+      "type": "P"
+    },
+    {
+      "code": "595",
+      "name": "Ajustari pentru pierderea de valoare a obligatiunilor",
+      "type": "P"
+    },
+    {
+      "code": "596",
+      "name": "Ajustari pentru pierderea de valoare a altor investitii pe termen scurt",
+      "type": "P"
+    },
+    {
+      "code": "601",
+      "name": "Cheltuieli cu materiile prime",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu materiile prime",
+      "cppLine": "13a",
+      "cppLineLabel": "a) Cheltuieli cu materiile prime si materialele consumabile"
+    },
+    {
+      "code": "602",
+      "name": "Cheltuieli cu materialele consumabile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu materialele consumabile",
+      "cppLine": "13a",
+      "cppLineLabel": "a) Cheltuieli cu materiile prime si materialele consumabile"
+    },
+    {
+      "code": "6021",
+      "name": "Cheltuieli cu materialele auxiliare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu materialele auxiliare"
+    },
+    {
+      "code": "6022",
+      "name": "Cheltuieli privind combustibilul",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli privind combustibilul"
+    },
+    {
+      "code": "6023",
+      "name": "Cheltuieli privind materialele pentru ambalat",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli privind materialele pentru ambalat"
+    },
+    {
+      "code": "6024",
+      "name": "Cheltuieli privind piesele de schimb",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli privind piesele de schimb"
+    },
+    {
+      "code": "6025",
+      "name": "Cheltuieli privind semintele",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli privind semintele"
+    },
+    {
+      "code": "6028",
+      "name": "Cheltuieli privind alte materiale consumabile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Alte materiale consumabile"
+    },
+    {
+      "code": "603",
+      "name": "Cheltuieli privind materialele de natura obiectelor de inventar",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu obiectele de inventar",
+      "cppLine": "13b",
+      "cppLineLabel": "Alte cheltuieli materiale"
+    },
+    {
+      "code": "604",
+      "name": "Cheltuieli privind materialele nestocate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Materiale nestocate",
+      "cppLine": "13b",
+      "cppLineLabel": "Alte cheltuieli materiale"
+    },
+    {
+      "code": "605",
+      "name": "Cheltuieli privind energia si apa",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu energia si apa",
+      "cppLine": "13c",
+      "cppLineLabel": "Alte cheltuieli externe (cu energia si apa)"
+    },
+    {
+      "code": "606",
+      "name": "Cheltuieli privind animalele si pasarile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu animalele",
+      "cppLine": "13b",
+      "cppLineLabel": "Alte cheltuieli materiale"
+    },
+    {
+      "code": "607",
+      "name": "Cheltuieli privind marfurile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu marfurile",
+      "cppLine": "13d",
+      "cppLineLabel": "Cheltuieli privind marfurile"
+    },
+    {
+      "code": "608",
+      "name": "Cheltuieli privind ambalajele",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu ambalajele",
+      "cppLine": "13b",
+      "cppLineLabel": "Alte cheltuieli materiale"
+    },
+    {
+      "code": "609",
+      "name": "Reduceri comerciale primite",
+      "type": "P",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Reduceri comerciale primite",
+      "cppLine": "13e",
+      "cppLineLabel": "Reduceri comerciale primite"
+    },
+    {
+      "code": "611",
+      "name": "Cheltuieli cu intretinerea si reparatiile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu intretinerea si reparatiile",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "612",
+      "name": "Cheltuieli cu redeventele, locatiile de gestiune si chiriile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu chiriile",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "613",
+      "name": "Cheltuieli cu primele de asigurare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu asigurarile",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "614",
+      "name": "Cheltuieli cu studiile si cercetarile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu studiile",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "621",
+      "name": "Cheltuieli cu colaboratorii",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu colaboratorii",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "622",
+      "name": "Cheltuieli privind comisioanele si onorariile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu comisioane si onorarii",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "623",
+      "name": "Cheltuieli de protocol, reclama si publicitate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli protocol si reclama",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "624",
+      "name": "Cheltuieli cu transportul de bunuri si personal",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu transportul",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "625",
+      "name": "Cheltuieli cu deplasari, detasari si transferari",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu deplasari",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "626",
+      "name": "Cheltuieli postale si taxe de telecomunicatii",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli postale si telecom",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "627",
+      "name": "Cheltuieli cu serviciile bancare si asimilate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli servicii bancare",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "628",
+      "name": "Alte cheltuieli cu serviciile executate de terti",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Alte cheltuieli cu servicii",
+      "cppLine": "17a",
+      "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
+    },
+    {
+      "code": "635",
+      "name": "Cheltuieli cu alte impozite, taxe si varsaminte asimilate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu impozite si taxe",
+      "cppLine": "17b",
+      "cppLineLabel": "b) Cheltuieli cu alte impozite, taxe si varsaminte asimilate"
+    },
+    {
+      "code": "641",
+      "name": "Cheltuieli cu salariile personalului",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu salariile",
+      "cppLine": "14a",
+      "cppLineLabel": "a) Salarii si indemnizatii"
+    },
+    {
+      "code": "642",
+      "name": "Cheltuieli cu tichetele de masa acordate salariatilor",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu tichetele de masa",
+      "cppLine": "14a",
+      "cppLineLabel": "a) Salarii si indemnizatii"
+    },
+    {
+      "code": "643",
+      "name": "Cheltuieli cu primele datorate de angajator",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Prime angajator",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "644",
+      "name": "Cheltuieli cu remunerarea in instrumente de capitaluri proprii",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Remunerare in capital",
+      "cppLine": "14a",
+      "cppLineLabel": "a) Salarii si indemnizatii"
+    },
+    {
+      "code": "645",
+      "name": "Cheltuieli privind asigurarile si protectia sociala",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli asigurari sociale",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "6451",
+      "name": "Cheltuieli privind contributia unitatii la asigurarile sociale",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Contributia unitatii CAS",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "6452",
+      "name": "Cheltuieli privind contributia unitatii la ajutor de somaj",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Contributia somaj",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "6453",
+      "name": "Cheltuieli privind contributia angajatorului pentru asigurari sociale de sanatate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Contributia CASS angajator",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "6458",
+      "name": "Alte cheltuieli privind asigurarile si protectia sociala",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Alte cheltuieli sociale",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "646",
+      "name": "Cheltuieli cu contributia asiguratorie pentru munca (CAM)",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu CAM",
+      "cppLine": "14b",
+      "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "652",
+      "name": "Cheltuieli cu protectia mediului inconjurator",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli protectia mediului",
+      "cppLine": "17c",
+      "cppLineLabel": "c) Cheltuieli cu protectia mediului inconjurator"
+    },
+    {
+      "code": "654",
+      "name": "Pierderi din creante si debitori diversi",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Pierderi din creante",
+      "cppLine": "16a",
+      "cppLineLabel": "a) Cheltuieli cu ajustarile pentru deprecierea activelor circulante"
+    },
+    {
+      "code": "658",
+      "name": "Alte cheltuieli de exploatare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Alte cheltuieli de exploatare",
+      "cppLine": "17d",
+      "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "6581",
+      "name": "Despagubiri, amenzi si penalitati",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Amenzi si penalitati",
+      "cppLine": "17d",
+      "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "6582",
+      "name": "Donatii acordate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Donatii acordate",
+      "cppLine": "17d",
+      "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "6583",
+      "name": "Cheltuieli privind activele cedate si alte operatii de capital",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli active cedate",
+      "cppLine": "17d",
+      "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "6588",
+      "name": "Alte cheltuieli de exploatare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Alte cheltuieli de exploatare",
+      "cppLine": "17d",
+      "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "663",
+      "name": "Pierderi din creante legate de participatii",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Pierderi din creante participatii",
+      "cppLine": "28",
+      "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "664",
+      "name": "Cheltuieli privind investitiile financiare cedate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Cheltuieli investitii cedate",
+      "cppLine": "28",
+      "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "665",
+      "name": "Cheltuieli din diferente de curs valutar",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Cheltuieli diferente curs valutar",
+      "cppLine": "28",
+      "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "666",
+      "name": "Cheltuieli privind dobanzile",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Cheltuieli cu dobanzile",
+      "cppLine": "27",
+      "cppLineLabel": "Cheltuieli privind dobanzile"
+    },
+    {
+      "code": "667",
+      "name": "Cheltuieli privind sconturile acordate",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Cheltuieli sconturi acordate",
+      "cppLine": "28",
+      "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "668",
+      "name": "Alte cheltuieli financiare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Alte cheltuieli financiare",
+      "cppLine": "28",
+      "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "681",
+      "name": "Cheltuieli de exploatare privind amortizarile, provizioanele si ajustarile pentru depreciere",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Amortizari si ajustari"
+    },
+    {
+      "code": "6811",
+      "name": "Cheltuieli de exploatare privind amortizarea imobilizarilor",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu amortizarea",
+      "cppLine": "15a",
+      "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
+    },
+    {
+      "code": "6812",
+      "name": "Cheltuieli de exploatare privind provizioanele",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Cheltuieli cu provizioanele",
+      "cppLine": "18a",
+      "cppLineLabel": "a) Cheltuieli cu provizioanele"
+    },
+    {
+      "code": "6813",
+      "name": "Cheltuieli de exploatare privind ajustarile pentru deprecierea imobilizarilor",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Ajustari depreciere imobilizari",
+      "cppLine": "15a",
+      "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
+    },
+    {
+      "code": "6814",
+      "name": "Cheltuieli de exploatare privind ajustarile pentru deprecierea activelor circulante",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLabel": "Ajustari active circulante",
+      "cppLine": "16a",
+      "cppLineLabel": "a) Cheltuieli cu ajustarile pentru deprecierea activelor circulante"
+    },
+    {
+      "code": "686",
+      "name": "Cheltuieli financiare privind amortizarile si ajustarile pentru pierderea de valoare",
+      "type": "A",
+      "cppGroup": "CHELTUIELI_FINANCIARE",
+      "cppLabel": "Amortizari financiare",
+      "cppLine": "26a",
+      "cppLineLabel": "a) Cheltuieli"
+    },
+    {
+      "code": "691",
+      "name": "Cheltuieli cu impozitul pe profit",
+      "type": "A",
+      "special": "profit_tax",
+      "cppLine": "34",
+      "cppLineLabel": "Impozitul pe profit / venit"
+    },
+    {
+      "code": "694",
+      "name": "Cheltuieli cu impozitul pe profit din filiale",
+      "type": "A",
+      "special": "profit_tax",
+      "cppLine": "34",
+      "cppLineLabel": "Impozitul pe profit / venit"
+    },
+    {
+      "code": "695",
+      "name": "Cheltuieli cu impozitul specific (HoReCa, istoric)",
+      "type": "A",
+      "special": "profit_tax",
+      "cppLine": "34",
+      "cppLineLabel": "Impozitul pe profit / venit"
+    },
+    {
+      "code": "697",
+      "name": "Cheltuieli cu impozitul minim pe cifra de afaceri (IMCA)",
+      "type": "A",
+      "special": "profit_tax",
+      "cppLine": "34",
+      "cppLineLabel": "Impozitul pe profit / venit"
+    },
+    {
+      "code": "698",
+      "name": "Cheltuieli cu impozitul pe venit al microintreprinderii",
+      "type": "A",
+      "special": "micro_tax",
+      "cppLine": "34",
+      "cppLineLabel": "Impozitul pe profit / venit"
+    },
+    {
+      "code": "701",
+      "name": "Venituri din vanzarea produselor finite",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Vanzari produse finite",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "702",
+      "name": "Venituri din vanzarea semifabricatelor",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Vanzari semifabricate",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "703",
+      "name": "Venituri din vanzarea produselor reziduale",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Vanzari produse reziduale",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "704",
+      "name": "Venituri din lucrari executate si servicii prestate",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din servicii prestate",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "705",
+      "name": "Venituri din studii si cercetari",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din studii si cercetari",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "706",
+      "name": "Venituri din redevente, locatii de gestiune si chirii",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din chirii",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "707",
+      "name": "Venituri din vanzarea marfurilor",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din vanzarea marfurilor",
+      "cppLine": "03",
+      "cppLineLabel": "Venituri din vanzarea marfurilor"
+    },
+    {
+      "code": "708",
+      "name": "Venituri din activitati diverse",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din activitati diverse",
+      "cppLine": "02",
+      "cppLineLabel": "Productia vanduta"
+    },
+    {
+      "code": "709",
+      "name": "Reduceri comerciale acordate",
+      "type": "A",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Reduceri comerciale acordate",
+      "cppLine": "04",
+      "cppLineLabel": "Reduceri comerciale acordate"
+    },
+    {
+      "code": "711",
+      "name": "Variatia stocurilor",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Variatia stocurilor",
+      "cppLine": "07",
+      "cppLineLabel": "Variatia stocurilor de produse finite si a productiei in curs de executie — sold C (crestere)"
+    },
+    {
+      "code": "712",
+      "name": "Venituri aferente costurilor serviciilor in curs de executie",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Servicii in curs de executie",
+      "cppLine": "07",
+      "cppLineLabel": "Variatia stocurilor de produse finite si a productiei in curs de executie — sold C (crestere)"
+    },
+    {
+      "code": "721",
+      "name": "Venituri din productia de imobilizari necorporale",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Productia de imobilizari necorporale",
+      "cppLine": "09",
+      "cppLineLabel": "Productia realizata de entitate pentru scopurile sale proprii si capitalizata"
+    },
+    {
+      "code": "722",
+      "name": "Venituri din productia de imobilizari corporale",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Productia de imobilizari corporale",
+      "cppLine": "09",
+      "cppLineLabel": "Productia realizata de entitate pentru scopurile sale proprii si capitalizata"
+    },
+    {
+      "code": "725",
+      "name": "Venituri din productia de investitii imobiliare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Productia de investitii imobiliare",
+      "cppLine": "09",
+      "cppLineLabel": "Productia realizata de entitate pentru scopurile sale proprii si capitalizata"
+    },
+    {
+      "code": "741",
+      "name": "Venituri din subventii de exploatare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din subventii",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7411",
+      "name": "Venituri din subventii de exploatare aferente cifrei de afaceri",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii aferente cifrei de afaceri",
+      "cppLine": "06",
+      "cppLineLabel": "Venituri din subventii de exploatare aferente cifrei de afaceri nete"
+    },
+    {
+      "code": "7412",
+      "name": "Venituri din subventii de exploatare aferente materiilor prime si materialelor",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii materiale",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7413",
+      "name": "Venituri din subventii de exploatare aferente altor cheltuieli externe",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii cheltuieli externe",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7414",
+      "name": "Venituri din subventii de exploatare aferente cheltuielilor cu personalul",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii personal",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7415",
+      "name": "Venituri din subventii de exploatare aferente asigurarilor si protectiei sociale",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii asigurari sociale",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7416",
+      "name": "Venituri din subventii de exploatare aferente altor cheltuieli de exploatare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii alte cheltuieli",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7417",
+      "name": "Venituri din subventii de exploatare in caz de calamitati",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii calamitati",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7418",
+      "name": "Venituri din subventii de exploatare pentru dobanda cuvenita",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii dobanda",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7419",
+      "name": "Venituri din subventii de exploatare aferente altor venituri",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii alte venituri",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "754",
+      "name": "Venituri din creante reactivate si debitori diversi",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din creante reactivate",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "758",
+      "name": "Alte venituri din exploatare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Alte venituri din exploatare",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7581",
+      "name": "Venituri din despagubiri, amenzi si penalitati",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Despagubiri si penalitati",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7582",
+      "name": "Venituri din donatii primite",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Donatii primite",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7583",
+      "name": "Venituri din vanzarea activelor si alte operatii de capital",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din vanzarea activelor",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7584",
+      "name": "Venituri din subventii pentru investitii",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Subventii pentru investitii",
+      "cppLine": "10",
+      "cppLineLabel": "Venituri din subventii de exploatare pentru investitii"
+    },
+    {
+      "code": "7588",
+      "name": "Alte venituri din exploatare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Alte venituri din exploatare",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "761",
+      "name": "Venituri din imobilizari financiare",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri din imobilizari financiare",
+      "cppLine": "21",
+      "cppLineLabel": "Venituri din interese de participare"
+    },
+    {
+      "code": "762",
+      "name": "Venituri din investitii financiare pe termen scurt",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri investitii termen scurt",
+      "cppLine": "22",
+      "cppLineLabel": "Venituri din alte investitii financiare si creante care fac parte din activele imobilizate"
+    },
+    {
+      "code": "763",
+      "name": "Venituri din creante imobilizate",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri creante imobilizate",
+      "cppLine": "22",
+      "cppLineLabel": "Venituri din alte investitii financiare si creante care fac parte din activele imobilizate"
+    },
+    {
+      "code": "764",
+      "name": "Venituri din investitii financiare cedate",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri investitii cedate",
+      "cppLine": "24",
+      "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "765",
+      "name": "Venituri din diferente de curs valutar",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri diferente curs valutar",
+      "cppLine": "24",
+      "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "766",
+      "name": "Venituri din dobanzi",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri din dobanzi",
+      "cppLine": "23",
+      "cppLineLabel": "Venituri din dobanzi"
+    },
+    {
+      "code": "767",
+      "name": "Venituri din sconturi obtinute",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri sconturi obtinute",
+      "cppLine": "24",
+      "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "768",
+      "name": "Alte venituri financiare",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Alte venituri financiare",
+      "cppLine": "24",
+      "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "781",
+      "name": "Venituri din provizioane si ajustari pentru depreciere privind activitatea de exploatare",
+      "type": "P",
+      "cppGroup": "VENITURI_EXPLOATARE",
+      "cppLabel": "Venituri din provizioane",
+      "cppLine": "11",
+      "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "786",
+      "name": "Venituri financiare din ajustari pentru pierderea de valoare",
+      "type": "P",
+      "cppGroup": "VENITURI_FINANCIARE",
+      "cppLabel": "Venituri ajustari financiare",
+      "cppLine": "24",
+      "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "801",
+      "name": "Angajamente acordate",
+      "type": "A"
+    },
+    {
+      "code": "802",
+      "name": "Angajamente primite",
+      "type": "A"
+    },
+    {
+      "code": "8031",
+      "name": "Imobilizari corporale luate cu chirie",
+      "type": "A"
+    },
+    {
+      "code": "8032",
+      "name": "Valori materiale primite in custodie",
+      "type": "A"
+    },
+    {
+      "code": "8033",
+      "name": "Valori materiale primite in prelucrare",
+      "type": "A"
+    },
+    {
+      "code": "8034",
+      "name": "Debitori scosi din activ",
+      "type": "A"
+    },
+    {
+      "code": "8035",
+      "name": "Stocuri de natura obiectelor de inventar date in folosinta",
+      "type": "A"
+    },
+    {
+      "code": "8036",
+      "name": "Redevente, locatii de gestiune, chirii si alte datorii asimilate",
+      "type": "A"
+    },
+    {
+      "code": "8038",
+      "name": "Alte valori in afara bilantului",
+      "type": "A"
+    },
+    {
+      "code": "8039",
+      "name": "Credite restante",
+      "type": "A"
+    }
   ]
 }
