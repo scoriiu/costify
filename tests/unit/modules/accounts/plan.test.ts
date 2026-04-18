@@ -17,6 +17,8 @@ function catalogEntry(
     classDigit: parseInt(code[0], 10),
     cppGroup: null,
     cppLabel: null,
+    cppLine: null,
+    cppLineLabel: null,
     special: null,
     isClosing: false,
     isProfitTax: false,

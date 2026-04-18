@@ -36,6 +36,10 @@ export interface CatalogAccount {
   classDigit: number;
   cppGroup: CppGroup | null;
   cppLabel: string | null;
+  /** D6/D17 — F20 line number (e.g. "01", "05a", "58"). See seeds/f20-structure.json. */
+  cppLine: string | null;
+  /** Short human label for the F20 row this account feeds. */
+  cppLineLabel: string | null;
   /** @deprecated Use boolean flags below. */
   special: AccountSpecial | null;
 
@@ -88,6 +92,11 @@ export interface OmfpSeedAccount {
   type: AccountType;
   cppGroup?: CppGroup;
   cppLabel?: string;
+  /** D17 — F20 row number (e.g. "01", "05a"). */
+  cppLine?: string;
+  cppLineLabel?: string;
+  /** Free-text note about why this F20 mapping was chosen (for audit/review). */
+  cppLineNote?: string;
   special?: AccountSpecial;
 
   // New optional fields (backward-compatible with existing seed)

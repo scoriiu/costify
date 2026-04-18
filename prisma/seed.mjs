@@ -134,6 +134,8 @@ async function main() {
       classDigit,
       cppGroup: a.cppGroup ?? null,
       cppLabel: a.cppLabel ?? null,
+      cppLine: a.cppLine ?? null,
+      cppLineLabel: a.cppLineLabel ?? null,
       special,
 
       // D5 booleans

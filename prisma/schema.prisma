@@ -159,7 +159,13 @@ model AccountCatalog {
 
   cppGroup String? // "VENITURI_EXPLOATARE" | "CHELTUIELI_EXPLOATARE" | "VENITURI_FINANCIARE" | "CHELTUIELI_FINANCIARE"
   cppLabel String?
-  special  String? // legacy: "pl_closing" | "profit_distribution" | "profit_tax" | "micro_tax" — kept for compat
+
+  // D6 / D17 — F20 detailed mapping (OMFP 1802 Anexa 3, rd. 01–62)
+  // Row number as string to preserve sub-rows like "05a", "05b", ... and leading zeros
+  cppLine      String?
+  cppLineLabel String?
+
+  special String? // legacy: "pl_closing" | "profit_distribution" | "profit_tax" | "micro_tax" — kept for compat
 
   // D5 — explicit behavioral flags (replace `special`)
   isClosing            Boolean @default(false) // 121, 1211, 1212 — excluded from CPP
@@ -186,6 +192,7 @@ model AccountCatalog {
 
   @@index([classDigit])
   @@index([cppGroup])
+  @@index([cppLine])
   @@index([isProfitTax])
   @@index([isExtraBilantier])
 }

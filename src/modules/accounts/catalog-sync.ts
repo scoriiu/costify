@@ -45,6 +45,8 @@ export function loadCatalogSync(): Map<string, CatalogAccount> {
       classDigit,
       cppGroup: (a.cppGroup as CppGroup | undefined) ?? null,
       cppLabel: a.cppLabel ?? null,
+      cppLine: a.cppLine ?? null,
+      cppLineLabel: a.cppLineLabel ?? null,
       special,
 
       isClosing: a.isClosing ?? derived.isClosing,

@@ -38,6 +38,8 @@ async function fetchCatalog(): Promise<Map<string, CatalogAccount>> {
       classDigit: r.classDigit,
       cppGroup: (r.cppGroup as CppGroup | null) ?? null,
       cppLabel: r.cppLabel ?? null,
+      cppLine: r.cppLine ?? null,
+      cppLineLabel: r.cppLineLabel ?? null,
       special,
 
       isClosing: r.isClosing ?? derived.isClosing,
