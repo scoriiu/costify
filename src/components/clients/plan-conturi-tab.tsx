@@ -357,6 +357,10 @@ function InlineNameEditor({
       setError("Denumirea nu poate fi goala");
       return;
     }
+    if (trimmed === initial) {
+      onCancel();
+      return;
+    }
     startTransition(async () => {
       const result = await updateClientAccountNameAction(clientId, code, trimmed);
       if (!result.ok) {
