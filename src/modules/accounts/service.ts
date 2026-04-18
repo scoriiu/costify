@@ -38,6 +38,7 @@ export async function getClientAccounts(clientId: string): Promise<Map<string, C
       customName: r.customName,
       source: r.source as AccountSource,
       partnerCode: r.partnerCode ?? null,
+      needsReview: r.needsReview ?? false,
       firstSeenAt: r.firstSeenAt,
       lastSeenAt: r.lastSeenAt,
     });

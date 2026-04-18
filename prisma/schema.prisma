@@ -39,15 +39,16 @@ model Session {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  slug      String
-  cui       String?
-  caen      String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  slug       String
+  cui        String?
+  caen       String?
+  taxRegime  String   @default("profit_standard") // profit_standard | profit_micro_1 | profit_micro_3 | profit_specific | imca | deferred
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   journalLines    JournalLine[]
@@ -151,18 +152,42 @@ model AuditEvent {
 }
 
 model AccountCatalog {
-  code       String   @id
+  code       String  @id
   name       String
-  type       String
+  type       String // "A" | "P" | "B"
   classDigit Int
-  cppGroup   String?
-  cppLabel   String?
-  special    String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+
+  cppGroup String? // "VENITURI_EXPLOATARE" | "CHELTUIELI_EXPLOATARE" | "VENITURI_FINANCIARE" | "CHELTUIELI_FINANCIARE"
+  cppLabel String?
+  special  String? // legacy: "pl_closing" | "profit_distribution" | "profit_tax" | "micro_tax" — kept for compat
+
+  // D5 — explicit behavioral flags (replace `special`)
+  isClosing            Boolean @default(false) // 121, 1211, 1212 — excluded from CPP
+  isProfitTax          Boolean @default(false) // 691, 694, 697, 698 — separate CPP line
+  isProfitDistribution Boolean @default(false) // 129
+  isExtraBilantier     Boolean @default(false) // class 8/9 — visible in balanta, hidden from bilant/CPP/KPI
+  isIfrsOnly           Boolean @default(false) // OMFP 2844 only — hidden for OMFP 1802 clients by default
+
+  // D8 — cash KPI membership
+  cashRole String? // "cash_direct" (5121, 5311, etc) | "cash_advance" (542) | "transit" (581, 5125) — transit is excluded from KPI
+
+  // D8 — receivables/payables roles
+  arRole String? // "ar_primary" (4111) | "ar_doubtful" (4118) | "ar_pending" (418) | "customer_advance" (419, subtract)
+  apRole String? // "ap_primary" (401, 404) | "ap_pending" (408) | "supplier_advance" (409, subtract)
+
+  // D9 — VAT family
+  vatRole String? // "vat_collected" (4427) | "vat_deductible" (4426) | "vat_payable" (4423) | "vat_receivable" (4424) | "vat_pending" (4428)
+
+  // Grouping families (future KPIs)
+  payrollRole String? // "salary" | "social_contrib" | null
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([classDigit])
   @@index([cppGroup])
+  @@index([isProfitTax])
+  @@index([isExtraBilantier])
 }
 
 model ClientAccount {
@@ -170,8 +195,9 @@ model ClientAccount {
   clientId    String
   code        String
   customName  String
-  source      String
+  source      String   // "saga_import" | "user_edit" | "saga_explicatie" | "auto_created"
   partnerCode String?
+  needsReview Boolean  @default(false) // D14: contBase not in AccountCatalog
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -182,6 +208,7 @@ model ClientAccount {
   @@unique([clientId, code])
   @@index([clientId])
   @@index([clientId, source])
+  @@index([clientId, needsReview])
 }
 
 model DocAnswer {
