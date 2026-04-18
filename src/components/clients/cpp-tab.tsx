@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { CppView } from "@/components/datasets/cpp-view";
+import { CppF20View } from "@/components/datasets/cpp-f20-view";
+import { Select } from "@/components/ui/select";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { updateTaxRegimeAction } from "@/modules/clients/actions";
-import type { CppData } from "@/modules/reporting";
+import type { CppData, CppF20Data } from "@/modules/reporting";
 import type { BalanceRowView } from "@/modules/balances";
 
 interface Props {
@@ -12,6 +15,13 @@ interface Props {
   month: number;
   onUnmappedFound?: (rows: BalanceRowView[]) => void;
 }
+
+type ViewMode = "simplified" | "f20";
+
+const VIEW_OPTIONS = [
+  { value: "simplified" as const, label: "Simplificat" },
+  { value: "f20" as const, label: "F20 detaliat" },
+];
 
 const REGIME_OPTIONS = [
   { value: "profit_standard", label: "Impozit pe profit (16%)" },
@@ -24,7 +34,9 @@ const REGIME_OPTIONS = [
 
 export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
   const [cpp, setCpp] = useState<CppData | null>(null);
+  const [cppF20, setCppF20] = useState<CppF20Data | null>(null);
   const [taxRegime, setTaxRegime] = useState<string>("profit_standard");
+  const [viewMode, setViewMode] = useState<ViewMode>("simplified");
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
 
@@ -34,6 +46,7 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
       .then((r) => r.json())
       .then((data) => {
         setCpp(data.cpp);
+        setCppF20(data.cppF20);
         if (data.taxRegime) setTaxRegime(data.taxRegime);
         const unmapped = ((data.rows as BalanceRowView[]) ?? []).filter(
           (r) => r.unmapped
@@ -69,39 +82,46 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
     );
   }
 
-  if (!cpp || cpp.lines.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16 text-sm text-gray">
-        Nu exista date P&L pentru aceasta perioada.
-      </div>
-    );
-  }
+  const hasData =
+    viewMode === "simplified"
+      ? cpp && cpp.lines.length > 0
+      : cppF20 && cppF20.lines.length > 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-3">
-        <label
-          htmlFor="tax-regime"
-          className="font-mono text-[11px] font-medium uppercase tracking-widest text-gray"
-          style={{ letterSpacing: "-0.04em" }}
-        >
-          Regim fiscal
-        </label>
-        <select
-          id="tax-regime"
-          value={taxRegime}
-          onChange={(e) => onRegimeChange(e.target.value)}
-          disabled={isPending}
-          className="rounded-lg border border-dark-3 bg-dark-2 px-3 py-1.5 font-mono text-xs text-white focus:border-primary focus:outline-none disabled:opacity-50"
-        >
-          {REGIME_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap items-center gap-3">
+        <ToggleGroup
+          value={viewMode}
+          options={VIEW_OPTIONS}
+          onChange={(v) => setViewMode(v)}
+        />
+        <div className="ml-auto flex items-center gap-3">
+          <span
+            className="font-mono text-[11px] font-medium uppercase tracking-widest text-gray"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            Regim fiscal
+          </span>
+          <Select
+            value={taxRegime}
+            options={REGIME_OPTIONS}
+            onChange={onRegimeChange}
+          />
+          {isPending && (
+            <span className="font-mono text-[11px] text-gray/60">Se actualizeaza...</span>
+          )}
+        </div>
       </div>
-      <CppView cpp={cpp} />
+
+      {!hasData ? (
+        <div className="flex items-center justify-center py-16 text-sm text-gray">
+          Nu exista date P&L pentru aceasta perioada.
+        </div>
+      ) : viewMode === "simplified" && cpp ? (
+        <CppView cpp={cpp} />
+      ) : viewMode === "f20" && cppF20 ? (
+        <CppF20View cpp={cppF20} />
+      ) : null}
     </div>
   );
 }
