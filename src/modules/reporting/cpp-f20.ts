@@ -5,12 +5,16 @@
  * simplified view), but groups by F20 row number from seeds/f20-structure.json
  * instead of by the coarse 4-bucket CppGroup.
  *
- * Structure source: seeds/f20-structure.json (loaded via loadF20Structure).
- * Catalog source: AccountCatalog (same as simplified view).
- *
  * This runs alongside computeCpp — one pipeline, two presentations.
  * Totals reconcile: the F20 rezultat brut/net equals the simplified
- * rezultat brut/net (modulo routing edge cases documented inline).
+ * rezultat brut/net (enforced by a reconciliation test).
+ *
+ * Resolution priority for "which F20 row does a balance row feed":
+ *   1. catalog[contBase].cppLine (direct).
+ *   2. Walk up catalog prefixes until one has cppLine (e.g. 6022 → 602 → rd.13a).
+ *   3. If the contBase is referenced explicitly in the F20 structure's
+ *      detail accounts (legacy path for codes not in the catalog), use that.
+ *   4. Otherwise, ignored.
  */
 
 import type { BalanceRowView } from "@/modules/balances";
@@ -22,8 +26,8 @@ import {
 import {
   loadF20Structure,
   isDetailRow,
-  type F20Row,
   type F20DetailRow,
+  type F20Structure,
 } from "./f20-structure";
 import type { CppF20Data, CppF20Line } from "./types";
 
@@ -33,7 +37,12 @@ const DUAL_ROW_ACCOUNTS: Record<string, { positive: string; negative: string }> 
   "712": { positive: "07", negative: "08" },
 };
 
-/** Per-regime allowed accounts for rd.34 Impozit (mirrors D13 simplified view). */
+const DUAL_CODES = new Set(Object.keys(DUAL_ROW_ACCOUNTS));
+const DUAL_TARGET_ROWS = new Set<string>(
+  Object.values(DUAL_ROW_ACCOUNTS).flatMap((s) => [s.positive, s.negative])
+);
+
+/** Per-regime allowed accounts for rd.34 Impozit (mirrors D13). */
 const TAX_REGIME_ACCOUNTS: Record<TaxRegime, string[]> = {
   profit_standard: ["691"],
   profit_micro_1: ["698"],
@@ -47,6 +56,11 @@ export interface CppF20Options {
   taxRegime?: TaxRegime;
 }
 
+interface PerCodeAgg {
+  td: number;
+  tc: number;
+}
+
 export function computeCppF20(
   rows: BalanceRowView[],
   catalog?: Map<string, CatalogAccount>,
@@ -56,31 +70,33 @@ export function computeCppF20(
   const structure = loadF20Structure();
   const leafRows = rows.filter((r) => r.isLeaf);
 
-  // Aggregate per base code: D = rulajTD, C = rulajTC.
-  const perCode = aggregateByContBase(leafRows, cat);
+  // Per catalog code, accumulate rulajTD/TC across all balance rows that
+  // resolve to it. This lets us split dual-row accounts and filter by tax
+  // regime without re-reading the balance.
+  const perCode = aggregatePerCatalogCode(leafRows, cat);
 
-  // Sum each F20 detail row's value.
+  // Map: catalog code -> F20 row. Walks prefix chain for codes without
+  // their own cppLine (e.g. 6022 inherits 602's "13a").
+  const codeToRow = buildCodeToRowMap(structure, cat);
+
+  // Compute detail rows.
   const rowValues = new Map<string, number>();
   const rowAccounts = new Map<string, Set<string>>();
 
   for (const row of structure.rows) {
     if (!isDetailRow(row)) continue;
-    const { value, accounts } = sumDetailRow(row, perCode, options.taxRegime);
+    const { value, accounts } = computeDetailRow(row, perCode, codeToRow, options.taxRegime);
     rowValues.set(row.rowNumber, value);
     rowAccounts.set(row.rowNumber, accounts);
   }
 
-  // Now evaluate subtotals/totals in document order.
+  // Evaluate subtotals/totals in document order.
   for (const row of structure.rows) {
     if (isDetailRow(row)) continue;
-    const value = evaluateFormula(row.formula, rowValues);
-    rowValues.set(row.rowNumber, value);
+    rowValues.set(row.rowNumber, evaluateFormula(row.formula, rowValues));
   }
 
-  // Build the user-facing line list, hiding zero-valued detail rows for
-  // tidiness, but always keeping subtotals/totals visible.
   const lines: CppF20Line[] = structure.rows.map((row) => buildLine(row, rowValues, rowAccounts));
-
   const val = (rn: string): number => round2(rowValues.get(rn) ?? 0);
 
   return {
@@ -99,93 +115,153 @@ export function computeCppF20(
   };
 }
 
-interface PerCodeAgg {
-  rulajTD: number;
-  rulajTC: number;
-}
-
-function aggregateByContBase(
+/**
+ * For each leaf balance row, resolve its contBase to a catalog code
+ * (following the prefix chain), then accumulate rulajTD/TC under that
+ * code. If no catalog code matches, the row is ignored.
+ *
+ * Excludes 121, 1211, 1212 (closing accounts).
+ */
+function aggregatePerCatalogCode(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>
 ): Map<string, PerCodeAgg> {
   const agg = new Map<string, PerCodeAgg>();
   for (const row of rows) {
     if (row.contBase === "121" || row.contBase === "1211" || row.contBase === "1212") continue;
-    const base = resolveMappedBase(row, catalog);
-    if (!base) continue;
-    const prev = agg.get(base) ?? { rulajTD: 0, rulajTC: 0 };
-    prev.rulajTD += row.rulajTD;
-    prev.rulajTC += row.rulajTC;
-    agg.set(base, prev);
+    const code = resolveCatalogCode(row.contBase, catalog);
+    if (!code) continue;
+    const prev = agg.get(code) ?? { td: 0, tc: 0 };
+    prev.td += row.rulajTD;
+    prev.tc += row.rulajTC;
+    agg.set(code, prev);
   }
   return agg;
 }
 
-/**
- * Follow the same logic as the simplified CPP: try the row's own contBase
- * first, then progressively shorter prefixes until we find a catalog entry.
- * Returns the mapped catalog code (not the raw contBase) so aggregation
- * rolls analytics into their synthetic parent.
- */
-function resolveMappedBase(
-  row: BalanceRowView,
+function resolveCatalogCode(
+  contBase: string,
   catalog: Map<string, CatalogAccount>
 ): string | null {
-  const direct = catalog.get(row.contBase);
-  if (direct) return direct.code;
-  for (let len = row.contBase.length - 1; len >= 2; len--) {
-    const prefix = row.contBase.slice(0, len);
-    const match = catalog.get(prefix);
-    if (match) return match.code;
+  if (catalog.has(contBase)) return contBase;
+  for (let len = contBase.length - 1; len >= 2; len--) {
+    const prefix = contBase.slice(0, len);
+    if (catalog.has(prefix)) return prefix;
   }
   return null;
 }
 
-function sumDetailRow(
+/**
+ * Build catalog code -> F20 row mapping.
+ *   1. Start with direct catalog.cppLine.
+ *   2. For codes without cppLine, inherit from the nearest prefix that has one.
+ *   3. Accounts in the F20 structure that are not in the catalog at all
+ *      still resolve (legacy fallback).
+ */
+function buildCodeToRowMap(
+  structure: F20Structure,
+  catalog: Map<string, CatalogAccount>
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [code, cat] of catalog) {
+    if (cat.cppLine) map.set(code, cat.cppLine);
+  }
+  for (const [code, cat] of catalog) {
+    if (cat.cppLine) continue;
+    for (let len = code.length - 1; len >= 2; len--) {
+      const prefix = code.slice(0, len);
+      const ancestor = catalog.get(prefix);
+      if (ancestor?.cppLine) {
+        map.set(code, ancestor.cppLine);
+        break;
+      }
+    }
+  }
+  for (const row of structure.rows) {
+    if (!isDetailRow(row)) continue;
+    for (const acc of row.accounts) {
+      if (!map.has(acc)) map.set(acc, row.rowNumber);
+    }
+  }
+  return map;
+}
+
+function computeDetailRow(
   row: F20DetailRow,
   perCode: Map<string, PerCodeAgg>,
-  regime?: TaxRegime
+  codeToRow: Map<string, string>,
+  regime: TaxRegime | undefined
 ): { value: number; accounts: Set<string> } {
-  // rd.34 (impozit) honors tax regime: only the regime's accounts contribute.
-  const filterByRegime = row.rowNumber === "34" && regime
-    ? new Set(TAX_REGIME_ACCOUNTS[regime])
-    : null;
+  // Dual target rows: sum by sign over the dual codes only.
+  if (DUAL_TARGET_ROWS.has(row.rowNumber)) {
+    return computeDualTargetRow(row.rowNumber, perCode);
+  }
 
-  let total = 0;
+  // rd.34 Impozit with regime filter.
+  if (row.rowNumber === "34" && regime) {
+    return computeTaxRowForRegime(regime, perCode);
+  }
+
+  // Standard: find every catalog code that maps to this row and sum.
   const contributing = new Set<string>();
-
-  for (const code of row.accounts) {
-    if (filterByRegime && !filterByRegime.has(code)) continue;
+  let total = 0;
+  for (const [code, mappedRow] of codeToRow) {
+    if (mappedRow !== row.rowNumber) continue;
+    // Dual codes are handled by DUAL_TARGET_ROWS branch above.
+    if (DUAL_CODES.has(code)) continue;
     const agg = perCode.get(code);
     if (!agg) continue;
-
-    const split = DUAL_ROW_ACCOUNTS[code];
-    if (split) {
-      const net = agg.rulajTC - agg.rulajTD;
-      if (row.rowNumber === split.positive) {
-        if (net <= 0) continue;
-        total += net;
-        contributing.add(code);
-      } else if (row.rowNumber === split.negative) {
-        if (net >= 0) continue;
-        total += -net; // positive magnitude on the reducere row
-        contributing.add(code);
-      }
-      continue;
-    }
-
-    const amount = row.side === "D" ? agg.rulajTD : agg.rulajTC;
+    const amount = row.side === "D" ? agg.td : agg.tc;
     if (amount === 0) continue;
     total += amount;
     contributing.add(code);
   }
+  return { value: round2(total), accounts: contributing };
+}
 
+function computeDualTargetRow(
+  rowNumber: string,
+  perCode: Map<string, PerCodeAgg>
+): { value: number; accounts: Set<string> } {
+  const contributing = new Set<string>();
+  let total = 0;
+  for (const [code, split] of Object.entries(DUAL_ROW_ACCOUNTS)) {
+    const agg = perCode.get(code);
+    if (!agg) continue;
+    const net = agg.tc - agg.td;
+    if (rowNumber === split.positive && net > 0) {
+      total += net;
+      contributing.add(code);
+    } else if (rowNumber === split.negative && net < 0) {
+      total += -net;
+      contributing.add(code);
+    }
+  }
+  return { value: round2(total), accounts: contributing };
+}
+
+function computeTaxRowForRegime(
+  regime: TaxRegime,
+  perCode: Map<string, PerCodeAgg>
+): { value: number; accounts: Set<string> } {
+  const allowed = TAX_REGIME_ACCOUNTS[regime];
+  const contributing = new Set<string>();
+  let total = 0;
+  for (const code of allowed) {
+    const agg = perCode.get(code);
+    if (!agg) continue;
+    // Impozit uses debit-side rulaj (rulajTD − rulajTC to net reversals).
+    const net = agg.td - agg.tc;
+    if (net <= 0) continue;
+    total += net;
+    contributing.add(code);
+  }
   return { value: round2(total), accounts: contributing };
 }
 
 /**
  * Evaluate a formula string like "rd.13a + rd.13b - rd.13e" against the
- * accumulated row values. Intentionally a tiny parser — no eval, no risk.
+ * accumulated row values. Tiny safe parser — no eval.
  */
 export function evaluateFormula(
   formula: string,
@@ -204,7 +280,7 @@ export function evaluateFormula(
 }
 
 function buildLine(
-  row: F20Row,
+  row: F20Structure["rows"][number],
   rowValues: Map<string, number>,
   rowAccounts: Map<string, Set<string>>
 ): CppF20Line {

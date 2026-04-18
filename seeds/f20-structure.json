@@ -227,8 +227,9 @@
       "kind": "detail",
       "side": "C",
       "sign": "-",
-      "accounts": ["7813"],
-      "note": "Se scade. Venituri din anularea ajustarilor de depreciere a imobilizarilor.",
+      "accounts": [],
+      "pendingAccountantReview": true,
+      "note": "Venituri din anularea ajustarilor de depreciere a imobilizarilor. Sub-codul uzual este 7813, dar acesta nu este inclus in seeds/omfp-1802.json pana la confirmarea contabilului (vezi docs/ro/intrebari-contabil-f20-detaliat.md sectiunea 5.3).",
       "source": "OMFP 1802 Anexa 3 rd.15 litera a2."
     },
     {
@@ -258,7 +259,9 @@
       "kind": "detail",
       "side": "C",
       "sign": "-",
-      "accounts": ["7814"],
+      "accounts": [],
+      "pendingAccountantReview": true,
+      "note": "Sub-codul uzual este 7814, dar acesta nu este inclus in seeds/omfp-1802.json pana la confirmarea contabilului (vezi docs/ro/intrebari-contabil-f20-detaliat.md sectiunea 5.3).",
       "source": "OMFP 1802 Anexa 3 rd.16 litera b."
     },
     {
@@ -339,7 +342,9 @@
       "kind": "detail",
       "side": "C",
       "sign": "-",
-      "accounts": ["7812"],
+      "accounts": [],
+      "pendingAccountantReview": true,
+      "note": "Sub-codul uzual este 7812, dar acesta nu este inclus in seeds/omfp-1802.json pana la confirmarea contabilului (vezi docs/ro/intrebari-contabil-f20-detaliat.md sectiunea 5.3).",
       "source": "OMFP 1802 Anexa 3 rd.18 litera b."
     },
     {

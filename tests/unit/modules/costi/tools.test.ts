@@ -83,6 +83,26 @@ describe("Costi tool definitions", () => {
     expect(tool).toBeDefined();
     expect(tool!.description).toContain("OMFP 1802");
   });
+
+  it("get_cpp exposes an optional 'mode' param with simplified / f20 enum (D17)", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_cpp");
+    expect(tool).toBeDefined();
+
+    const props = (tool!.input_schema as { properties: Record<string, { type?: string; enum?: string[] }> }).properties;
+    expect(props.mode).toBeDefined();
+    expect(props.mode.type).toBe("string");
+    expect(props.mode.enum).toEqual(["simplified", "f20"]);
+
+    // mode is NOT required — default is simplified.
+    const required = (tool!.input_schema as { required?: string[] }).required ?? [];
+    expect(required).not.toContain("mode");
+  });
+
+  it("get_cpp description references F20 detaliat mode", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_cpp");
+    expect(tool).toBeDefined();
+    expect(tool!.description.toLowerCase()).toContain("f20");
+  });
 });
 
 describe("Costi tool handler dispatch", () => {

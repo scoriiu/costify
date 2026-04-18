@@ -30,6 +30,13 @@ export interface F20DetailRow {
   sign?: "-";
   /** OMFP base codes that feed this row. Analytics match via contBase. */
   accounts: string[];
+  /**
+   * When true, the accounts list is intentionally incomplete pending
+   * accountant confirmation. The row will render with value = 0 until
+   * explicit account codes are added. See
+   * docs/ro/intrebari-contabil-f20-detaliat.md for the open questions.
+   */
+  pendingAccountantReview?: boolean;
   note?: string;
   source?: string;
 }
