@@ -1,0 +1,531 @@
+{
+  "version": "f20-omfp1802-2024-v1",
+  "source": "OMFP 1802/2014 Anexa 3 (Formularul 20 — Contul de profit si pierdere), cu amendamentele OMFP 85/2022 si OMFP 2048/2022. Numerele de rand corespund formularului oficial ANAF depus cu situatiile financiare anuale.",
+  "description": "Structura formularului F20 — Cont de Profit si Pierdere detaliat, ordonat exact ca in formularul oficial. Fiecare rand declara conturile OMFP care contribuie, semnul (D pentru rulaj debit / C pentru rulaj credit), si tipul randului (detail | subtotal | total). Sub-randurile de tip '5a', '5b', ... pastreaza gruparea alfabetica din formular. Randurile care nu se mapeaza automat (ex. rezultatul final) au kind = 'total' si sunt calculate dupa formula.",
+  "rows": [
+    {
+      "rowNumber": "01",
+      "label": "Cifra de afaceri neta",
+      "section": "A",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.02 + rd.03 - rd.04 + rd.05 + rd.06",
+      "note": "Subtotal — nu contine conturi direct; suma componentelor de mai jos."
+    },
+    {
+      "rowNumber": "02",
+      "label": "Productia vanduta",
+      "section": "A",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["701", "702", "703", "704", "705", "706", "708"],
+      "source": "OMFP 1802 Anexa 3 rd.02. Include toate veniturile din vanzarea productiei proprii si a serviciilor."
+    },
+    {
+      "rowNumber": "03",
+      "label": "Venituri din vanzarea marfurilor",
+      "section": "A",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["707"],
+      "source": "OMFP 1802 Anexa 3 rd.03."
+    },
+    {
+      "rowNumber": "04",
+      "label": "Reduceri comerciale acordate",
+      "section": "A",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "sign": "-",
+      "accounts": ["709"],
+      "source": "OMFP 1802 Anexa 3 rd.04. Se scade din cifra de afaceri."
+    },
+    {
+      "rowNumber": "05",
+      "label": "Venituri din dobanzi inregistrate de entitatile radiate din Registrul general (creditori IFN)",
+      "section": "A",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "accounts": [],
+      "note": "Rand specific IFN-urilor radiate; conturi analitice specifice. Gol pentru SRL-uri clasice.",
+      "source": "OMFP 1802 Anexa 3 rd.05."
+    },
+    {
+      "rowNumber": "06",
+      "label": "Venituri din subventii de exploatare aferente cifrei de afaceri nete",
+      "section": "A",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["7411"],
+      "source": "OMFP 1802 Anexa 3 rd.06."
+    },
+    {
+      "rowNumber": "07",
+      "label": "Variatia stocurilor de produse finite si a productiei in curs de executie — sold C (crestere)",
+      "section": "A",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["711", "712"],
+      "note": "Doar soldul creditor (crestere). 711/712 sunt bifunctionale — soldul debitor merge pe rd.08.",
+      "source": "OMFP 1802 Anexa 3 rd.07."
+    },
+    {
+      "rowNumber": "08",
+      "label": "Variatia stocurilor de produse finite si a productiei in curs de executie — sold D (reducere)",
+      "section": "A",
+      "indent": 0,
+      "kind": "detail",
+      "side": "D",
+      "sign": "-",
+      "accounts": ["711", "712"],
+      "note": "Doar soldul debitor (reducere). Se scade din total venituri exploatare.",
+      "source": "OMFP 1802 Anexa 3 rd.08."
+    },
+    {
+      "rowNumber": "09",
+      "label": "Productia realizata de entitate pentru scopurile sale proprii si capitalizata",
+      "section": "A",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["721", "722", "725"],
+      "source": "OMFP 1802 Anexa 3 rd.09. Include si 725 (investitii imobiliare)."
+    },
+    {
+      "rowNumber": "10",
+      "label": "Venituri din subventii de exploatare pentru investitii",
+      "section": "A",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["7584"],
+      "source": "OMFP 1802 Anexa 3 rd.10."
+    },
+    {
+      "rowNumber": "11",
+      "label": "Alte venituri din exploatare",
+      "section": "A",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["754", "758", "7581", "7582", "7583", "7588", "7412", "7413", "7414", "7415", "7416", "7417", "7418", "7419", "741", "781"],
+      "note": "Toate celelalte venituri din exploatare: subventii non-CA, 754 creante reactivate, 7581-7588, 781 venituri din provizioane. Exclude 7411 (rd.06) si 7584 (rd.10).",
+      "source": "OMFP 1802 Anexa 3 rd.11."
+    },
+    {
+      "rowNumber": "12",
+      "label": "VENITURI DIN EXPLOATARE — TOTAL",
+      "section": "A",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.01 + rd.07 - rd.08 + rd.09 + rd.10 + rd.11",
+      "source": "OMFP 1802 Anexa 3 rd.12."
+    },
+    {
+      "rowNumber": "13a",
+      "label": "a) Cheltuieli cu materiile prime si materialele consumabile",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["601", "602"],
+      "source": "OMFP 1802 Anexa 3 rd.13 litera a."
+    },
+    {
+      "rowNumber": "13b",
+      "label": "Alte cheltuieli materiale",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["603", "604", "606", "608"],
+      "source": "OMFP 1802 Anexa 3 rd.13 litera b. Include obiecte de inventar, materiale nestocate, animale, ambalaje."
+    },
+    {
+      "rowNumber": "13c",
+      "label": "Alte cheltuieli externe (cu energia si apa)",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["605"],
+      "source": "OMFP 1802 Anexa 3 rd.13 litera c."
+    },
+    {
+      "rowNumber": "13d",
+      "label": "Cheltuieli privind marfurile",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["607"],
+      "source": "OMFP 1802 Anexa 3 rd.13 litera d."
+    },
+    {
+      "rowNumber": "13e",
+      "label": "Reduceri comerciale primite",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "sign": "-",
+      "accounts": ["609"],
+      "note": "Se scade din cheltuieli. Contul 609 are rulaj pe credit (reducere de cheltuiala).",
+      "source": "OMFP 1802 Anexa 3 rd.13 litera e."
+    },
+    {
+      "rowNumber": "14",
+      "label": "Cheltuieli cu personalul",
+      "section": "B",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.14a + rd.14b",
+      "source": "OMFP 1802 Anexa 3 rd.14."
+    },
+    {
+      "rowNumber": "14a",
+      "label": "a) Salarii si indemnizatii",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["641", "642", "644"],
+      "source": "OMFP 1802 Anexa 3 rd.14 litera a. Include 642 tichete de masa si 644 remunerare in instrumente de capital."
+    },
+    {
+      "rowNumber": "14b",
+      "label": "b) Cheltuieli cu asigurarile si protectia sociala",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["643", "645", "6451", "6452", "6453", "6458", "646"],
+      "note": "Include CAM (646), prime angajator (643), contributii sociale (645x).",
+      "source": "OMFP 1802 Anexa 3 rd.14 litera b."
+    },
+    {
+      "rowNumber": "15a",
+      "label": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["6811", "6813"],
+      "source": "OMFP 1802 Anexa 3 rd.15 litera a1. Amortizarea (6811) si ajustarile pentru depreciere (6813)."
+    },
+    {
+      "rowNumber": "15b",
+      "label": "b) Ajustari de valoare privind imobilizarile corporale si necorporale (venituri din anulari)",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "sign": "-",
+      "accounts": ["7813"],
+      "note": "Se scade. Venituri din anularea ajustarilor de depreciere a imobilizarilor.",
+      "source": "OMFP 1802 Anexa 3 rd.15 litera a2."
+    },
+    {
+      "rowNumber": "16",
+      "label": "Ajustari de valoare privind activele circulante",
+      "section": "B",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.16a - rd.16b",
+      "source": "OMFP 1802 Anexa 3 rd.16."
+    },
+    {
+      "rowNumber": "16a",
+      "label": "a) Cheltuieli cu ajustarile pentru deprecierea activelor circulante",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["6814", "654"],
+      "source": "OMFP 1802 Anexa 3 rd.16 litera a. 6814 ajustari stocuri/creante + 654 pierderi din creante."
+    },
+    {
+      "rowNumber": "16b",
+      "label": "b) Venituri din ajustari pentru deprecierea activelor circulante",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "sign": "-",
+      "accounts": ["7814"],
+      "source": "OMFP 1802 Anexa 3 rd.16 litera b."
+    },
+    {
+      "rowNumber": "17",
+      "label": "Alte cheltuieli de exploatare",
+      "section": "B",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.17a + rd.17b + rd.17c + rd.17d",
+      "source": "OMFP 1802 Anexa 3 rd.17."
+    },
+    {
+      "rowNumber": "17a",
+      "label": "a) Cheltuieli cu prestatiile externe",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["611", "612", "613", "614", "621", "622", "623", "624", "625", "626", "627", "628"],
+      "source": "OMFP 1802 Anexa 3 rd.17 litera a. Conturile 611-628 — toate prestatiile externe."
+    },
+    {
+      "rowNumber": "17b",
+      "label": "b) Cheltuieli cu alte impozite, taxe si varsaminte asimilate",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["635"],
+      "note": "Inclusiv impozitul pe venit microintreprindere daca e contabilizat in 635 (practica uzuala Saga). Impozitul pe profit (691/698) merge pe rd.22.",
+      "source": "OMFP 1802 Anexa 3 rd.17 litera b."
+    },
+    {
+      "rowNumber": "17c",
+      "label": "c) Cheltuieli cu protectia mediului inconjurator",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["652"],
+      "source": "OMFP 1802 Anexa 3 rd.17 litera c."
+    },
+    {
+      "rowNumber": "17d",
+      "label": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["658", "6581", "6582", "6583", "6588"],
+      "note": "Toate 658x — amenzi, donatii, active cedate, alte cheltuieli diverse.",
+      "source": "OMFP 1802 Anexa 3 rd.17 litera d."
+    },
+    {
+      "rowNumber": "18",
+      "label": "Ajustari privind provizioanele",
+      "section": "B",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.18a - rd.18b",
+      "source": "OMFP 1802 Anexa 3 rd.18."
+    },
+    {
+      "rowNumber": "18a",
+      "label": "a) Cheltuieli cu provizioanele",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["6812"],
+      "source": "OMFP 1802 Anexa 3 rd.18 litera a."
+    },
+    {
+      "rowNumber": "18b",
+      "label": "b) Venituri din provizioane",
+      "section": "B",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "sign": "-",
+      "accounts": ["7812"],
+      "source": "OMFP 1802 Anexa 3 rd.18 litera b."
+    },
+    {
+      "rowNumber": "19",
+      "label": "CHELTUIELI DIN EXPLOATARE — TOTAL",
+      "section": "B",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.13a + rd.13b + rd.13c + rd.13d - rd.13e + rd.14 + rd.15a - rd.15b + rd.16 + rd.17 + rd.18",
+      "source": "OMFP 1802 Anexa 3 rd.19."
+    },
+    {
+      "rowNumber": "20",
+      "label": "REZULTATUL DIN EXPLOATARE",
+      "section": "C",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.12 - rd.19",
+      "source": "OMFP 1802 Anexa 3 rd.20. Profit (+) sau pierdere (−)."
+    },
+    {
+      "rowNumber": "21",
+      "label": "Venituri din interese de participare",
+      "section": "D",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["761"],
+      "source": "OMFP 1802 Anexa 3 rd.21."
+    },
+    {
+      "rowNumber": "22",
+      "label": "Venituri din alte investitii financiare si creante care fac parte din activele imobilizate",
+      "section": "D",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["762", "763"],
+      "source": "OMFP 1802 Anexa 3 rd.22."
+    },
+    {
+      "rowNumber": "23",
+      "label": "Venituri din dobanzi",
+      "section": "D",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["766"],
+      "source": "OMFP 1802 Anexa 3 rd.23."
+    },
+    {
+      "rowNumber": "24",
+      "label": "Alte venituri financiare",
+      "section": "D",
+      "indent": 0,
+      "kind": "detail",
+      "side": "C",
+      "accounts": ["764", "765", "767", "768", "786"],
+      "note": "Include diferente curs valutar (765), sconturi obtinute (767), alte venituri (768), ajustari financiare (786).",
+      "source": "OMFP 1802 Anexa 3 rd.24."
+    },
+    {
+      "rowNumber": "25",
+      "label": "VENITURI FINANCIARE — TOTAL",
+      "section": "D",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.21 + rd.22 + rd.23 + rd.24",
+      "source": "OMFP 1802 Anexa 3 rd.25."
+    },
+    {
+      "rowNumber": "26",
+      "label": "Ajustari de valoare privind imobilizarile financiare si investitiile financiare detinute ca active circulante",
+      "section": "E",
+      "indent": 0,
+      "kind": "subtotal",
+      "formula": "rd.26a - rd.26b",
+      "source": "OMFP 1802 Anexa 3 rd.26."
+    },
+    {
+      "rowNumber": "26a",
+      "label": "a) Cheltuieli",
+      "section": "E",
+      "indent": 1,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["686"],
+      "source": "OMFP 1802 Anexa 3 rd.26 litera a."
+    },
+    {
+      "rowNumber": "26b",
+      "label": "b) Venituri",
+      "section": "E",
+      "indent": 1,
+      "kind": "detail",
+      "side": "C",
+      "sign": "-",
+      "accounts": ["786"],
+      "note": "786 apare si pe rd.24. Pentru F20 strict, venitul de reversare a ajustarii financiare se scade aici si se mai adauga separat pe rd.24. Practica Saga: totul pe rd.24 — rd.26b ramane 0 pentru clientii fara amortizare financiara separata.",
+      "source": "OMFP 1802 Anexa 3 rd.26 litera b."
+    },
+    {
+      "rowNumber": "27",
+      "label": "Cheltuieli privind dobanzile",
+      "section": "E",
+      "indent": 0,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["666"],
+      "source": "OMFP 1802 Anexa 3 rd.27."
+    },
+    {
+      "rowNumber": "28",
+      "label": "Alte cheltuieli financiare",
+      "section": "E",
+      "indent": 0,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["663", "664", "665", "667", "668"],
+      "note": "Include diferente curs (665), sconturi acordate (667), alte chelt. financiare (668), pierderi investitii (664), pierderi participatii (663).",
+      "source": "OMFP 1802 Anexa 3 rd.28."
+    },
+    {
+      "rowNumber": "29",
+      "label": "CHELTUIELI FINANCIARE — TOTAL",
+      "section": "E",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.26 + rd.27 + rd.28",
+      "source": "OMFP 1802 Anexa 3 rd.29."
+    },
+    {
+      "rowNumber": "30",
+      "label": "REZULTATUL FINANCIAR",
+      "section": "F",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.25 - rd.29",
+      "source": "OMFP 1802 Anexa 3 rd.30."
+    },
+    {
+      "rowNumber": "31",
+      "label": "VENITURI TOTALE",
+      "section": "G",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.12 + rd.25",
+      "source": "OMFP 1802 Anexa 3 rd.31."
+    },
+    {
+      "rowNumber": "32",
+      "label": "CHELTUIELI TOTALE",
+      "section": "G",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.19 + rd.29",
+      "source": "OMFP 1802 Anexa 3 rd.32."
+    },
+    {
+      "rowNumber": "33",
+      "label": "REZULTATUL BRUT",
+      "section": "G",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.31 - rd.32",
+      "source": "OMFP 1802 Anexa 3 rd.33. Profit brut (+) sau pierdere (−) inainte de impozit."
+    },
+    {
+      "rowNumber": "34",
+      "label": "Impozitul pe profit / venit",
+      "section": "G",
+      "indent": 0,
+      "kind": "detail",
+      "side": "D",
+      "accounts": ["691", "694", "695", "697", "698"],
+      "note": "Contul efectiv depinde de regimul fiscal (D13 / ADR-0001). Pentru SRL cu impozit pe profit: 691. Microintreprindere: 698. Impozit minim IMCA: 697. Impozit specific HoReCa: 695.",
+      "source": "OMFP 1802 Anexa 3 rd.34."
+    },
+    {
+      "rowNumber": "35",
+      "label": "REZULTATUL NET",
+      "section": "G",
+      "indent": 0,
+      "kind": "total",
+      "formula": "rd.33 - rd.34",
+      "source": "OMFP 1802 Anexa 3 rd.35. Profit net (+) sau pierdere neta (−) a exercitiului."
+    }
+  ]
+}
