@@ -10,10 +10,11 @@ import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
+import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
-type Tab = "jurnal" | "balanta" | "cpp";
+type Tab = "jurnal" | "balanta" | "cpp" | "plan";
 
 interface ImportEventInfo {
   id: string;
@@ -39,6 +40,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "jurnal", label: "Registru Jurnal" },
   { key: "balanta", label: "Balanta de Verificare" },
   { key: "cpp", label: "Cont Profit si Pierdere" },
+  { key: "plan", label: "Plan de Conturi" },
 ];
 
 export function ClientDetail({
@@ -122,6 +124,13 @@ export function ClientDetail({
         )}
         {tab === "cpp" && selectedYear && selectedMonth && (
           <CppTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
+        )}
+        {tab === "plan" && (
+          <PlanConturiTab
+            clientId={client.id}
+            year={selectedYear}
+            month={selectedMonth}
+          />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (
           <EmptyState message="Nu exista date. Uploadeaza un registru jurnal." />
