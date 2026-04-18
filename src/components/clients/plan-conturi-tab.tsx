@@ -21,6 +21,23 @@ interface Props {
 type KindFilter = "all" | "standard" | "analytic" | "review";
 type ClassFilter = "all" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 
+const TYPE_LEGEND = (
+  <span className="block space-y-1 text-left normal-case">
+    <span className="block">
+      <span className="font-bold text-white">A</span>{" "}
+      <span className="text-gray">Activ — cont de disponibil sau creante (sold debitor)</span>
+    </span>
+    <span className="block">
+      <span className="font-bold text-white">P</span>{" "}
+      <span className="text-gray">Pasiv — cont de capital sau datorii (sold creditor)</span>
+    </span>
+    <span className="block">
+      <span className="font-bold text-white">B</span>{" "}
+      <span className="text-gray">Bifunctional — poate avea sold pe ambele parti</span>
+    </span>
+  </span>
+);
+
 export function PlanConturiTab({ clientId, year, month }: Props) {
   const [rows, setRows] = useState<PlanRow[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,7 +119,7 @@ export function PlanConturiTab({ clientId, year, month }: Props) {
                 <Th align="left" first>Cont</Th>
                 <Th align="left">Denumire</Th>
                 <Th align="center">
-                  <Tooltip content={<TypeLegend />}>
+                  <Tooltip content={TYPE_LEGEND}>
                     <span className="inline-flex items-center gap-1">
                       Tip
                       <HelpCircle size={10} className="text-gray/60" />
@@ -280,7 +297,7 @@ function AccountRow({
       </Td>
       <Td align="right" last>
         <div className="flex items-center justify-end gap-1.5">
-          {!editing && (
+          {!editing && row.kind === "analytic" && (
             <button
               onClick={() => setEditing(true)}
               className="rounded p-1 text-gray hover:bg-dark-3 hover:text-white transition-colors"
@@ -513,25 +530,6 @@ function Td({
     >
       {children}
     </td>
-  );
-}
-
-function TypeLegend() {
-  return (
-    <span className="block space-y-1 text-left normal-case">
-      <span className="block">
-        <span className="font-bold text-white">A</span>{" "}
-        <span className="text-gray">Activ — cont de disponibil sau creante (sold debitor)</span>
-      </span>
-      <span className="block">
-        <span className="font-bold text-white">P</span>{" "}
-        <span className="text-gray">Pasiv — cont de capital sau datorii (sold creditor)</span>
-      </span>
-      <span className="block">
-        <span className="font-bold text-white">B</span>{" "}
-        <span className="text-gray">Bifunctional — poate avea sold pe ambele parti</span>
-      </span>
-    </span>
   );
 }
 
