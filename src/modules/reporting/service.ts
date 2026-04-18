@@ -1,4 +1,7 @@
+import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
+import { getCatalogMap } from "@/modules/accounts";
+import type { TaxRegime } from "@/modules/accounts";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import { computeKpis } from "./kpi";
@@ -10,10 +13,13 @@ export async function getClientKpis(
   year: number,
   month: number
 ): Promise<Result<KpiSnapshot>> {
-  const result = await getBalanceRows(clientId, year, month);
-  if (!result.ok) return result;
+  const [balanceResult, catalog] = await Promise.all([
+    getBalanceRows(clientId, year, month),
+    getCatalogMap(),
+  ]);
+  if (!balanceResult.ok) return balanceResult;
 
-  return ok(computeKpis(result.data));
+  return ok(computeKpis(balanceResult.data, catalog));
 }
 
 export async function getClientCpp(
@@ -21,10 +27,19 @@ export async function getClientCpp(
   year: number,
   month: number
 ): Promise<Result<CppData>> {
-  const result = await getBalanceRows(clientId, year, month);
-  if (!result.ok) return result;
+  const [balanceResult, catalog, client] = await Promise.all([
+    getBalanceRows(clientId, year, month),
+    getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { taxRegime: true },
+    }),
+  ]);
+  if (!balanceResult.ok) return balanceResult;
 
-  const cpp = computeCpp(result.data);
+  const cpp = computeCpp(balanceResult.data, catalog, {
+    taxRegime: (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard",
+  });
   if (cpp.lines.length === 0) {
     return err(appError("NOT_FOUND", "Nu exista date P&L pentru aceasta perioada"));
   }

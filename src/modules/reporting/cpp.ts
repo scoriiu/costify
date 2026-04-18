@@ -1,7 +1,24 @@
 import type { BalanceRowView } from "@/modules/balances";
 import { loadCatalogSync } from "@/modules/accounts";
-import type { CatalogAccount, CppGroup } from "@/modules/accounts";
+import type { CatalogAccount, CppGroup, TaxRegime } from "@/modules/accounts";
 import type { CppData, CppLine } from "./types";
+
+/**
+ * D13: map a tax regime to the primary account(s) that carry the tax charge.
+ * Other profit-tax accounts are ignored for the given regime (but still
+ * excluded from cheltuieli exploatare by isProfitTax=true).
+ *
+ * The arrays allow multiple accounts to contribute (e.g. some micro firms
+ * split between 698 and 697 during transition periods).
+ */
+const TAX_REGIME_ACCOUNTS: Record<TaxRegime, string[]> = {
+  profit_standard: ["691"],
+  profit_micro_1: ["698"],
+  profit_micro_3: ["698"],
+  profit_specific: ["695"],
+  imca: ["697"],
+  deferred: ["698"],
+};
 
 interface GroupedAccount {
   code: string;
@@ -18,9 +35,15 @@ const SECTION_HEADERS: Record<CppGroup, string> = {
 
 const DEBIT_SIDE_GROUPS = new Set<CppGroup>(["CHELTUIELI_EXPLOATARE", "CHELTUIELI_FINANCIARE"]);
 
+export interface CppOptions {
+  /** D13: which accounts map to the impozit line. Defaults to all profit-tax accounts. */
+  taxRegime?: TaxRegime;
+}
+
 export function computeCpp(
   rows: BalanceRowView[],
-  catalog?: Map<string, CatalogAccount>
+  catalog?: Map<string, CatalogAccount>,
+  options: CppOptions = {}
 ): CppData {
   const cat = catalog ?? loadCatalogSync();
   const leafRows = rows.filter((r) => r.isLeaf);
@@ -41,19 +64,19 @@ export function computeCpp(
   const rezultatBrut = round2(rezultatExploatare + rezultatFinanciar);
   lines.push(totalLine("REZULTAT BRUT", rezultatBrut));
 
-  const impozitProfit = sumProfitTax(leafRows, cat);
-  if (impozitProfit > 0) {
+  const taxResult = sumProfitTax(leafRows, cat, options.taxRegime);
+  if (taxResult.total > 0) {
     lines.push({
-      cont: "691",
-      denumire: "Impozit pe profit",
+      cont: taxResult.displayCode,
+      denumire: taxResult.displayLabel,
       indent: 0,
       isHeader: false,
       isTotal: false,
-      value: impozitProfit,
+      value: taxResult.total,
     });
   }
 
-  const rezultatNet = round2(rezultatBrut - impozitProfit);
+  const rezultatNet = round2(rezultatBrut - taxResult.total);
   lines.push(totalLine("REZULTAT NET", rezultatNet));
 
   return {
@@ -152,15 +175,62 @@ function buildSection(
   return total;
 }
 
-function sumProfitTax(rows: BalanceRowView[], catalog: Map<string, CatalogAccount>): number {
+interface TaxSum {
+  total: number;
+  displayCode: string;
+  displayLabel: string;
+}
+
+/**
+ * D13: sum the profit-tax charge for a given tax regime.
+ *
+ * When `regime` is provided, only the accounts mapped to that regime
+ * contribute. When omitted (legacy behavior), any account with isProfitTax
+ * contributes — used for backward compatibility until every Client row has
+ * an explicit taxRegime set.
+ */
+function sumProfitTax(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>,
+  regime?: TaxRegime
+): TaxSum {
+  const allowedCodes = regime ? new Set(TAX_REGIME_ACCOUNTS[regime]) : null;
   let total = 0;
+  const contributingCodes: string[] = [];
+
   for (const row of rows) {
     const meta = catalog.get(row.contBase);
-    if (!meta) continue;
-    if (meta.special !== "profit_tax" && meta.special !== "micro_tax") continue;
-    total += row.rulajTD;
+    if (!meta?.isProfitTax) continue;
+    if (allowedCodes && !allowedCodes.has(row.contBase)) continue;
+
+    const value = row.rulajTD - row.rulajTC; // rulajTC nets out any reversal
+    if (value <= 0) continue;
+
+    total += value;
+    contributingCodes.push(row.contBase);
   }
-  return round2(total);
+
+  const displayCode = contributingCodes[0] ?? (regime ? TAX_REGIME_ACCOUNTS[regime][0] : "691");
+  const displayLabel = getTaxLabel(displayCode);
+
+  return { total: round2(total), displayCode, displayLabel };
+}
+
+function getTaxLabel(code: string): string {
+  switch (code) {
+    case "691":
+      return "Impozit pe profit";
+    case "694":
+      return "Impozit pe profit (grup)";
+    case "695":
+      return "Impozit specific";
+    case "697":
+      return "Impozit minim pe cifra de afaceri (IMCA)";
+    case "698":
+      return "Impozit pe venit microintreprindere";
+    default:
+      return "Impozit";
+  }
 }
 
 function totalLine(label: string, value: number): CppLine {

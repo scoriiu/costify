@@ -22,6 +22,7 @@ function makeRow(
     denumire: "",
     tip: "A",
     unmapped: false,
+    isExtraBilantier: false,
     isLeaf: true,
     hasChild: false,
     debInit: 0,

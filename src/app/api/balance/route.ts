@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { getBalanceRows } from "@/modules/balances";
 import { computeKpis, computeCpp } from "@/modules/reporting";
+import { getCatalogMap } from "@/modules/accounts";
+import type { TaxRegime } from "@/modules/accounts";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -20,13 +23,27 @@ export async function GET(request: Request) {
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
-  const result = await getBalanceRows(clientId, year, month);
-  if (!result.ok) {
-    return NextResponse.json({ rows: [], kpis: null, cpp: null });
+  const [balanceResult, catalog, client] = await Promise.all([
+    getBalanceRows(clientId, year, month),
+    getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { taxRegime: true },
+    }),
+  ]);
+
+  if (!balanceResult.ok) {
+    return NextResponse.json({ rows: [], kpis: null, cpp: null, taxRegime: null });
   }
 
-  const kpis = computeKpis(result.data);
-  const cpp = computeCpp(result.data);
+  const taxRegime = (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard";
+  const kpis = computeKpis(balanceResult.data, catalog);
+  const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
 
-  return NextResponse.json({ rows: result.data, kpis, cpp });
+  return NextResponse.json({
+    rows: balanceResult.data,
+    kpis,
+    cpp,
+    taxRegime,
+  });
 }

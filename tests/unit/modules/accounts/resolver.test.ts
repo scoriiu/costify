@@ -15,6 +15,16 @@ function catalogEntry(
     cppGroup: null,
     cppLabel: null,
     special: null,
+    isClosing: false,
+    isProfitTax: false,
+    isProfitDistribution: false,
+    isExtraBilantier: false,
+    isIfrsOnly: false,
+    cashRole: null,
+    arRole: null,
+    apRole: null,
+    vatRole: null,
+    payrollRole: null,
     ...overrides,
   };
 }
@@ -29,6 +39,7 @@ function clientEntry(
     customName,
     source,
     partnerCode: null,
+    needsReview: false,
     firstSeenAt: new Date(),
     lastSeenAt: new Date(),
   };
