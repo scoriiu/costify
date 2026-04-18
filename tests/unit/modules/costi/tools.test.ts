@@ -101,7 +101,7 @@ describe("Costi tool definitions", () => {
   it("get_cpp description references F20 detaliat mode", () => {
     const tool = COSTI_TOOLS.find((t) => t.name === "get_cpp");
     expect(tool).toBeDefined();
-    expect(tool!.description.toLowerCase()).toContain("f20");
+    expect(tool!.description?.toLowerCase()).toContain("f20");
   });
 });
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { AlertTriangle, Check, Download, HelpCircle, Pencil, RotateCcw, X } from "lucide-react";
-import type { PlanRow } from "@/modules/accounts";
-import { planCsvFilename, planRowsToCsv } from "@/modules/accounts";
+import type { PlanRow } from "@/modules/accounts/plan";
+import { planCsvFilename, planRowsToCsv } from "@/modules/accounts/plan-csv";
 import {
   toggleClientAccountReviewAction,
   updateClientAccountNameAction,
