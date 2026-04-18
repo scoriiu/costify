@@ -308,6 +308,9 @@
     { "code": "686", "name": "Cheltuieli financiare privind amortizarile si ajustarile pentru pierderea de valoare", "type": "A", "cppGroup": "CHELTUIELI_FINANCIARE", "cppLabel": "Amortizari financiare" },
 
     { "code": "691", "name": "Cheltuieli cu impozitul pe profit", "type": "A", "special": "profit_tax" },
+    { "code": "694", "name": "Cheltuieli cu impozitul pe profit din filiale", "type": "A", "special": "profit_tax" },
+    { "code": "695", "name": "Cheltuieli cu impozitul specific (HoReCa, istoric)", "type": "A", "special": "profit_tax" },
+    { "code": "697", "name": "Cheltuieli cu impozitul minim pe cifra de afaceri (IMCA)", "type": "A", "special": "profit_tax" },
     { "code": "698", "name": "Cheltuieli cu impozitul pe venit al microintreprinderii", "type": "A", "special": "micro_tax" },
 
     { "code": "701", "name": "Venituri din vanzarea produselor finite", "type": "P", "cppGroup": "VENITURI_EXPLOATARE", "cppLabel": "Vanzari produse finite" },
