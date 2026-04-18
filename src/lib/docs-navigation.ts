@@ -65,6 +65,8 @@ export const DOC_NAVIGATION: DocCategory[] = [
     description: "Intrebari frecvente si discutii deschise",
     pages: [
       { slug: "intrebari-contabil-plan-conturi", title: "Intrebari pentru contabil: plan de conturi", description: "Clarificari necesare pentru refactorizarea maparii conturilor", interactive: true },
+      { slug: "intrebari-contabil-f20-detaliat", title: "Intrebari pentru contabil: F20 detaliat", description: "Dubii si decizii deschise despre CPP F20 detaliat (D17 din ADR-0001)", interactive: true },
+      { slug: "intrebari-contabil-conturi-nemapate", title: "Intrebari pentru contabil: conturi nemapate", description: "Workflow de investigare si dubii despre conturile analitice care nu sunt in OMFP 1802", interactive: true },
     ],
   },
   {
