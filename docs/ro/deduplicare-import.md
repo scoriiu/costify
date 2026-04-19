@@ -41,31 +41,13 @@ MD5 este mai rapid si nu avem nevoie de securitate criptografica pentru deduplic
 
 ### Procesul de dedup la import
 
-```
 1. Utilizatorul uploadeaza fisier XLSX
-   │
-   ▼
 2. Costify parseaza fisierul si extrage toate intrarile (ex: 1000 intrari)
-   │
-   ▼
 3. Pentru fiecare intrare, calculeaza hash-ul de dedup
-   │
-   ▼
-4. Costify interogheaza baza de date:
-   "Care sunt toate hash-urile existente pentru acest client?"
-   (Rapid — hash-urile sunt indexate)
-   │
-   ▼
-5. Filtreaza intrarile din fisier:
-   - Daca hash-ul exista deja in DB → skip (duplicat)
-   - Daca hash-ul nu exista → keep (nou)
-   │
-   ▼
+4. Costify interogheaza baza de date: "Care sunt toate hash-urile existente pentru acest client?" (rapid — hash-urile sunt indexate)
+5. Filtreaza intrarile din fisier: daca hash-ul exista deja in DB, intrarea e **skip** (duplicat); daca nu exista, e **keep** (noua)
 6. Afiseaza previzualizare cu numarul de intrari noi vs existente
-   │
-   ▼
-7. Utilizatorul confirma → insereaza doar cele noi
-```
+7. Utilizatorul confirma — se insereaza doar cele noi
 
 Rezultatul: **fiecare combinatie unica (data + contD + contC + suma + explicatie) exista o singura data in DB**.
 

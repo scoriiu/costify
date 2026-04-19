@@ -167,6 +167,42 @@ async function main() {
   }
 
   console.log(`Seeded AccountCatalog: ${created} created, ${updated} updated`);
+
+  await seedInceptionTaxRegimePeriods();
+}
+
+/**
+ * For every existing Client that has no TaxRegimePeriod rows yet, insert a
+ * synthetic inception transition dated 1970-01-01 using the legacy
+ * Client.taxRegime value. Idempotent: clients with at least one period are
+ * skipped. Mirrors seedInceptionTransitionsForLegacyClients() in
+ * src/modules/clients/tax-regime.ts.
+ */
+async function seedInceptionTaxRegimePeriods() {
+  const clientsWithoutTimeline = await prisma.client.findMany({
+    where: { taxRegimePeriods: { none: {} } },
+    select: { id: true, taxRegime: true },
+  });
+
+  if (clientsWithoutTimeline.length === 0) {
+    console.log("TaxRegimePeriod: all clients already have a timeline, nothing to seed");
+    return;
+  }
+
+  await prisma.taxRegimePeriod.createMany({
+    data: clientsWithoutTimeline.map((c) => ({
+      clientId: c.id,
+      startDate: new Date("1970-01-01"),
+      taxRegime: c.taxRegime,
+      reason: null,
+      createdBy: null,
+    })),
+    skipDuplicates: true,
+  });
+
+  console.log(
+    `TaxRegimePeriod: seeded inception row for ${clientsWithoutTimeline.length} legacy client(s)`
+  );
 }
 
 main()

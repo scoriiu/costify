@@ -13,33 +13,13 @@ Solutia este mutarea acestor date din cod in baza de date, cu doua tabele noi.
 
 ## Arhitectura in trei nivele
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Nivel 1: AccountCatalog (read-only, global)                 │
-│  Sursa: seeds/omfp-1802.json                                 │
-│  Continut: toate conturile sintetice OMFP (101, 401, 5121…)  │
-│  Folosit de: toti clientii, tot timpul                        │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          │ fallback name resolution
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Nivel 2: ClientAccount (per client, editabil)                │
-│  Sursa: import XLSX + editari manuale                         │
-│  Continut: conturi analitice ale clientului (401.00023,       │
-│           5121.BT, 411.ORANGE, etc)                           │
-│  Folosit de: acel client anume                                │
-└─────────────────────────────────────────────────────────────┘
-                          │
-                          │ flagging pentru UI
-                          ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Nivel 3: Nemapat (computed la afisare)                       │
-│  Orice cod care nu are nume nici in ClientAccount nici in     │
-│  AccountCatalog este marcat ca "nemapat" — triunghi galben,   │
-│  invitatie la clarificare.                                    │
-└─────────────────────────────────────────────────────────────┘
-```
+| Nivel | Denumire | Sursa | Continut | Folosit de |
+|-------|----------|-------|----------|------------|
+| **1** | AccountCatalog (read-only, global) | seeds/omfp-1802.json | Toate conturile sintetice OMFP (101, 401, 5121, etc.) | Toti clientii, tot timpul |
+| **2** | ClientAccount (per client, editabil) | Import XLSX + editari manuale | Conturi analitice ale clientului (401.00023, 5121.BT, 411.ORANGE, etc.) | Acel client anume |
+| **3** | Nemapat (computed la afisare) | Calculat automat | Orice cod care nu are nume nici in ClientAccount nici in AccountCatalog — marcat cu triunghi galben | Invitatie la clarificare |
+
+Rezolvarea numelui parcurge nivelele de sus in jos: prima data cauta in ClientAccount (nivel 2), apoi in AccountCatalog (nivel 1), si daca nu gaseste nicaieri il marcheaza ca nemapat (nivel 3).
 
 ## Algoritmul de rezolvare a numelui
 

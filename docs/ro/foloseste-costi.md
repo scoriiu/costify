@@ -78,19 +78,19 @@ Exemple:
 
 Costi poate combina date din mai multe firme (care iti apartin) pentru analize comparative.
 
-## Cele 6 tools ale lui Costi
+## Cele 9 tools ale lui Costi
 
-Sub capota, Costi are acces la urmatoarele functii:
+Sub capota, Costi are acces la urmatoarele functii. Toate filtreaza dupa user — nu poate vedea date care nu-ti apartin.
 
 ### 1. `list_clients`
 
-Listeaza firmele pe care le ai in portofoliu.
+Listeaza firmele pe care le ai in portofoliu, cu numarul de intrari in jurnal pentru fiecare.
 
 **Cand foloseste**: cand intrebi despre "toate firmele mele", "portofoliul meu", "lista clientilor".
 
-### 2. `get_kpis`
+### 2. `get_client_kpis`
 
-Returneaza cele 8 KPI-uri pentru o firma si o perioada.
+Returneaza cele 8 KPI-uri pentru o firma si o perioada (cash, creante, datorii, TVA, venituri, cheltuieli, rezultat, marja).
 
 **Parametri**: `client_name`, `year`, `month`
 
@@ -98,25 +98,27 @@ Returneaza cele 8 KPI-uri pentru o firma si o perioada.
 
 ### 3. `get_balance`
 
-Returneaza balanta de verificare completa pentru o firma si o perioada.
+Returneaza balanta de verificare completa pentru o firma si o perioada — toate conturile cu solduri si rulaje.
 
-**Parametri**: `client_name`, `year`, `month`, optional `account_prefix` pentru filtrare
+**Parametri**: `client_name`, `year`, `month`, optional `account_prefix` pentru filtrare (ex: "401" pentru furnizori, "5" pentru trezorerie).
 
 **Cand foloseste**: cand intrebi despre conturi specifice, solduri, rulaje.
 
 ### 4. `get_cpp`
 
-Returneaza CPP-ul complet pentru o firma si o perioada.
+Returneaza Contul de Profit si Pierdere pentru o firma si o perioada. Doua moduri: **simplificat** (default) sau **F20 detaliat** (formatul oficial ANAF cu 35 de randuri si sub-randuri 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b).
 
-**Parametri**: `client_name`, `year`, `month`
+**Parametri**: `client_name`, `year`, `month`, optional `mode: "simplified" | "f20"`.
 
-**Cand foloseste**: cand intrebi despre venituri, cheltuieli, rezultat, structura profitului si pierderii.
+**Cand foloseste**: cand intrebi despre venituri, cheltuieli, rezultat, structura profitului si pierderii. Pentru *"cum arata F20-ul lunii decembrie?"* foloseste modul `f20`.
+
+**De stiut**: `get_cpp` rezolva automat regimul fiscal valabil pe perioada ceruta — daca firma a trecut de la micro la profit standard in iunie, intrebarea pe martie returneaza impozit calculat din 698, iar pe decembrie din 691.
 
 ### 5. `get_journal_entries`
 
 Cauta intrari specifice in registrul jurnal.
 
-**Parametri**: `client_name`, `search` (text), optional `year`/`month`, `limit`
+**Parametri**: `client_name`, `search` (text in explicatie), optional `account` (cont D sau C), `year`, `month`, `limit` (default 20, max 50).
 
 **Cand foloseste**: cand intrebi despre tranzactii specifice ("cand s-a platit Orange?", "cate facturi neincasate are clientul X?").
 
@@ -125,6 +127,30 @@ Cauta intrari specifice in registrul jurnal.
 Returneaza perioadele disponibile pentru o firma (anii si lunile in care exista date).
 
 **Cand foloseste**: cand intrebi despre istoric, cand vrei sa stii ce perioade sunt in sistem.
+
+### 7. `get_unmapped_accounts`
+
+Listeaza conturile dintr-o firma care nu sunt in catalogul OMFP 1802 (cele marcate cu triunghi galben in tab-ul Balanta).
+
+**Parametri**: `client_name`, `year`, `month`
+
+**Cand foloseste**: cand intrebi *"ce conturi am nemapate la firma X?"* sau *"de ce apare warning la contul Y?"*.
+
+### 8. `get_tax_regime_timeline`
+
+Istoricul tranzitiilor fiscale ale firmei: cand a fost micro, cand a trecut la profit standard, motivul fiecarei schimbari.
+
+**Parametri**: `client_name`
+
+**Cand foloseste**: cand intrebi *"ce regim fiscal are firma X?"*, *"cand a trecut firma de la micro la profit standard?"*, sau *"care era regimul in iunie 2025?"*.
+
+### 9. `get_account_catalog`
+
+Cauta in catalogul standard OMFP 1802 (~321 conturi platforma-wide).
+
+**Parametri**: optional `code` (cod exact), `prefix` (prefix), `cpp_group` (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, etc.).
+
+**Cand foloseste**: cand intrebi *"exista contul 463 in OMFP?"*, *"care e denumirea oficiala a contului 605?"*, sau *"ce conturi sunt in clasa 7?"*.
 
 ## Securitate
 
@@ -166,6 +192,15 @@ Al doilea e ambiguu — despre ce firma? Ce perioada? Ce despre banca? Costi poa
 > Pentru fiecare din cei 3 clienti din portofoliul meu, arata-mi profitul net pe Q4 2025 intr-un tabel comparativ.
 
 Costi poate face asta — apeleaza `list_clients`, apoi `get_cpp` pentru fiecare, apoi formateaza tabelul.
+
+### Intrebari despre regim fiscal
+
+**Bun**:
+> Cand a trecut 4Walls Studio de la microintreprindere la profit standard?
+
+> Care e regimul fiscal valabil pentru Digital Nomads in iunie 2025?
+
+Costi apeleaza `get_tax_regime_timeline` si raspunde cu istoricul si data exacta a tranzitiei.
 
 ## Cand Costi NU poate ajuta
 

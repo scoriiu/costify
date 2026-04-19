@@ -4,8 +4,8 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 8 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(8);
+  it("defines 9 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(9);
   });
 
   it("all tools have name, description, and input_schema", () => {
@@ -102,6 +102,25 @@ describe("Costi tool definitions", () => {
     const tool = COSTI_TOOLS.find((t) => t.name === "get_cpp");
     expect(tool).toBeDefined();
     expect(tool!.description?.toLowerCase()).toContain("f20");
+  });
+
+  it("exposes get_tax_regime_timeline so Costi can answer regime questions", () => {
+    const names = COSTI_TOOLS.map((t) => t.name);
+    expect(names).toContain("get_tax_regime_timeline");
+  });
+
+  it("get_tax_regime_timeline requires only client_name", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_tax_regime_timeline");
+    expect(tool).toBeDefined();
+    const required = (tool!.input_schema as { required?: string[] }).required ?? [];
+    expect(required).toEqual(["client_name"]);
+  });
+
+  it("get_tax_regime_timeline description mentions timeline / tranzitie", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_tax_regime_timeline");
+    expect(tool).toBeDefined();
+    const desc = tool!.description!.toLowerCase();
+    expect(desc).toMatch(/timeline|tranzitie|istoric/);
   });
 });
 

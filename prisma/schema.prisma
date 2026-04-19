@@ -45,19 +45,45 @@ model Client {
   slug       String
   cui        String?
   caen       String?
-  taxRegime  String   @default("profit_standard") // profit_standard | profit_micro_1 | profit_micro_3 | profit_specific | imca | deferred
+  /// @deprecated Use TaxRegimePeriod timeline instead. Kept as fallback until all clients have at least one TaxRegimePeriod row.
+  taxRegime  String   @default("profit_standard")
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journalLines    JournalLine[]
-  importEvents    ImportEvent[]
-  journalPartners JournalPartner[]
-  clientAccounts  ClientAccount[]
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines     JournalLine[]
+  importEvents     ImportEvent[]
+  journalPartners  JournalPartner[]
+  clientAccounts   ClientAccount[]
+  taxRegimePeriods TaxRegimePeriod[]
 
   @@unique([userId, slug])
   @@index([userId])
+}
+
+/// Timeline of tax regime transitions for a client.
+/// Each row = one transition starting at `startDate` (inclusive). The regime
+/// is valid until the next transition's startDate (exclusive), or forever if
+/// this is the most recent entry.
+///
+/// To find the regime for a period (year Y, month M):
+///   pick the row where startDate <= LAST_DAY(Y,M), ordered by startDate desc, limit 1.
+/// If no rows exist, fall back to Client.taxRegime (legacy).
+model TaxRegimePeriod {
+  id         String   @id @default(cuid())
+  clientId   String
+  startDate  DateTime @db.Date
+  taxRegime  String   // profit_standard | profit_micro_1 | profit_micro_3 | profit_specific | imca | deferred
+  reason     String?  // optional free-text note: "scadere venituri sub 500k EUR"
+  createdBy  String?  // user id who created this transition (null for synthetic/migration)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, startDate])
+  @@index([clientId, startDate])
 }
 
 model ImportEvent {

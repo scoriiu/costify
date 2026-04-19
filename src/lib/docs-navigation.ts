@@ -41,6 +41,7 @@ export const DOC_NAVIGATION: DocCategory[] = [
       { slug: "citeste-balanta", title: "Citeste balanta de verificare", description: "Cum sa folosesti tab-ul Balanta" },
       { slug: "analizeaza-cpp", title: "Analizeaza Cont Profit si Pierdere", description: "Cum sa folosesti tab-ul CPP" },
       { slug: "intelege-kpi", title: "Intelege KPI-urile", description: "Ce semnifica fiecare indicator" },
+      { slug: "setari-client", title: "Setari client", description: "Informatii generale, regim fiscal (timeline), zona periculoasa" },
       { slug: "foloseste-costi", title: "Foloseste asistentul Costi", description: "Cum sa-l intrebi ce vrei si cum raspunde" },
     ],
   },
@@ -65,8 +66,8 @@ export const DOC_NAVIGATION: DocCategory[] = [
     description: "Intrebari frecvente si discutii deschise",
     pages: [
       { slug: "intrebari-contabil-plan-conturi", title: "Intrebari pentru contabil: plan de conturi", description: "Clarificari necesare pentru refactorizarea maparii conturilor", interactive: true },
-      { slug: "intrebari-contabil-f20-detaliat", title: "Intrebari pentru contabil: F20 detaliat", description: "Dubii si decizii deschise despre CPP F20 detaliat (D17 din ADR-0001)", interactive: true },
-      { slug: "intrebari-contabil-conturi-nemapate", title: "Intrebari pentru contabil: conturi nemapate", description: "Workflow de investigare si dubii despre conturile analitice care nu sunt in OMFP 1802", interactive: true },
+      { slug: "intrebari-contabil-f20-detaliat", title: "Intrebari pentru contabil: formularul F20", description: "Confirmari despre mapping-ul conturilor pe randurile F20 si cazuri concrete din practica", interactive: true },
+      { slug: "intrebari-contabil-conturi-nemapate", title: "Intrebari pentru contabil: conturi nemapate", description: "Cazuri concrete de conturi care apar in jurnal dar lipsesc din OMFP 1802 — vrem parerea ta", interactive: true },
     ],
   },
   {

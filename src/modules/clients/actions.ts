@@ -6,6 +6,12 @@ import { uniqueSlug } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
+import {
+  createTransition,
+  updateTransition,
+  deleteTransition,
+} from "./tax-regime";
+import type { TaxRegime } from "@/modules/accounts";
 
 const createClientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
@@ -54,8 +60,20 @@ export async function createClientAction(
     return !!existing;
   });
 
-  await prisma.client.create({
+  const created = await prisma.client.create({
     data: { ...parsed.data, slug, userId: user.id },
+    select: { id: true, taxRegime: true },
+  });
+
+  // Seed inception transition so the resolver always finds a match.
+  await prisma.taxRegimePeriod.create({
+    data: {
+      clientId: created.id,
+      startDate: new Date("1970-01-01T00:00:00.000Z"),
+      taxRegime: created.taxRegime,
+      reason: null,
+      createdBy: user.id,
+    },
   });
 
   redirect("/clients");
@@ -168,6 +186,11 @@ export async function toggleClientAccountReviewAction(
   return { ok: true };
 }
 
+/**
+ * @deprecated Use createTaxRegimeTransitionAction instead. Kept for any remaining
+ * callers until all UI surfaces are migrated. It still updates the legacy
+ * Client.taxRegime column so the resolver's fallback path sees the new value.
+ */
 export async function updateTaxRegimeAction(
   clientId: string,
   taxRegime: string
@@ -189,5 +212,178 @@ export async function updateTaxRegimeAction(
   });
 
   revalidatePath(`/clients/${client.slug}`);
+  return { ok: true };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Tax regime timeline actions (new model)
+// ──────────────────────────────────────────────────────────────────────────
+
+const createTransitionSchema = z.object({
+  clientId: z.string().min(1),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data invalida"),
+  taxRegime: z.enum(TAX_REGIMES),
+  reason: z.string().max(500).optional().nullable(),
+});
+
+const updateTransitionSchema = z.object({
+  clientId: z.string().min(1),
+  transitionId: z.string().min(1),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  taxRegime: z.enum(TAX_REGIMES).optional(),
+  reason: z.string().max(500).optional().nullable(),
+});
+
+const deleteTransitionSchema = z.object({
+  clientId: z.string().min(1),
+  transitionId: z.string().min(1),
+});
+
+function parseLocalDate(iso: string): Date {
+  // Treat YYYY-MM-DD as UTC midnight so it lands on the intended calendar day.
+  return new Date(`${iso}T00:00:00.000Z`);
+}
+
+export async function createTaxRegimeTransitionAction(input: {
+  clientId: string;
+  startDate: string;
+  taxRegime: string;
+  reason?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const parsed = createTransitionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const client = await assertClientOwned(user.id, parsed.data.clientId);
+  if (!client) return { ok: false, error: "Client negasit" };
+
+  try {
+    await createTransition({
+      clientId: parsed.data.clientId,
+      startDate: parseLocalDate(parsed.data.startDate),
+      taxRegime: parsed.data.taxRegime as TaxRegime,
+      reason: parsed.data.reason ?? null,
+      createdBy: user.id,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes("Unique")) {
+      return {
+        ok: false,
+        error: "Exista deja o tranzitie la aceasta data. Sterge-o si adauga una noua sau editeaz-o pe cea existenta.",
+      };
+    }
+    return { ok: false, error: "Nu am putut salva tranzitia" };
+  }
+
+  revalidatePath(`/clients/${client.slug}`);
+  revalidatePath(`/clients/${client.slug}/settings`);
+  return { ok: true };
+}
+
+export async function updateTaxRegimeTransitionAction(input: {
+  clientId: string;
+  transitionId: string;
+  startDate?: string;
+  taxRegime?: string;
+  reason?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const parsed = updateTransitionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const client = await assertClientOwned(user.id, parsed.data.clientId);
+  if (!client) return { ok: false, error: "Client negasit" };
+
+  try {
+    const updated = await updateTransition(parsed.data.clientId, parsed.data.transitionId, {
+      startDate: parsed.data.startDate ? parseLocalDate(parsed.data.startDate) : undefined,
+      taxRegime: parsed.data.taxRegime as TaxRegime | undefined,
+      reason: parsed.data.reason === undefined ? undefined : parsed.data.reason ?? null,
+    });
+    if (!updated) return { ok: false, error: "Tranzitia nu a fost gasita" };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (message.includes("Unique")) {
+      return { ok: false, error: "Exista deja o tranzitie la aceasta data" };
+    }
+    return { ok: false, error: "Nu am putut actualiza tranzitia" };
+  }
+
+  revalidatePath(`/clients/${client.slug}`);
+  revalidatePath(`/clients/${client.slug}/settings`);
+  return { ok: true };
+}
+
+export async function deleteTaxRegimeTransitionAction(input: {
+  clientId: string;
+  transitionId: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const parsed = deleteTransitionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Date invalide" };
+  }
+
+  const client = await assertClientOwned(user.id, parsed.data.clientId);
+  if (!client) return { ok: false, error: "Client negasit" };
+
+  const removed = await deleteTransition(parsed.data.clientId, parsed.data.transitionId);
+  if (!removed) return { ok: false, error: "Tranzitia nu a fost gasita" };
+
+  revalidatePath(`/clients/${client.slug}`);
+  revalidatePath(`/clients/${client.slug}/settings`);
+  return { ok: true };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Informatii generale — edit client name, CUI, CAEN
+// ──────────────────────────────────────────────────────────────────────────
+
+const updateClientInfoSchema = z.object({
+  clientId: z.string().min(1),
+  name: z.string().min(2).max(200),
+  cui: z.string().max(20).optional().nullable(),
+  caen: z.string().max(10).optional().nullable(),
+});
+
+export async function updateClientInfoAction(input: {
+  clientId: string;
+  name: string;
+  cui?: string | null;
+  caen?: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const parsed = updateClientInfoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const client = await assertClientOwned(user.id, parsed.data.clientId);
+  if (!client) return { ok: false, error: "Client negasit" };
+
+  await prisma.client.update({
+    where: { id: parsed.data.clientId },
+    data: {
+      name: parsed.data.name.trim(),
+      cui: parsed.data.cui?.trim() || null,
+      caen: parsed.data.caen?.trim() || null,
+    },
+  });
+
+  revalidatePath(`/clients/${client.slug}`);
+  revalidatePath(`/clients/${client.slug}/settings`);
   return { ok: true };
 }

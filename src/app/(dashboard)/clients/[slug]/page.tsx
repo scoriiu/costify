@@ -2,6 +2,7 @@ import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAvailablePeriods } from "@/modules/balances";
+import { getTransitions } from "@/modules/clients/tax-regime";
 import { ClientDetail } from "@/components/clients/client-detail";
 
 interface Props {
@@ -26,7 +27,10 @@ export default async function ClientDetailPage(props: Props) {
 
   if (!client) notFound();
 
-  const periods = await getAvailablePeriods(client.id);
+  const [periods, transitions] = await Promise.all([
+    getAvailablePeriods(client.id),
+    getTransitions(client.id),
+  ]);
   const tab = searchParams.tab ?? "jurnal";
 
   const lastPeriod = periods[periods.length - 1];
@@ -41,6 +45,7 @@ export default async function ClientDetailPage(props: Props) {
         name: client.name,
         cui: client.cui,
         caen: client.caen,
+        createdAt: client.createdAt.toISOString(),
       }}
       entryCount={client._count.journalLines}
       importEvents={client.importEvents.map((e) => ({
@@ -56,6 +61,12 @@ export default async function ClientDetailPage(props: Props) {
       activeTab={tab}
       selectedYear={year}
       selectedMonth={month}
+      transitions={transitions.map((t) => ({
+        id: t.id,
+        startDate: t.startDate.toISOString(),
+        taxRegime: t.taxRegime,
+        reason: t.reason,
+      }))}
     />
   );
 }

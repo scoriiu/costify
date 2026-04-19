@@ -43,20 +43,18 @@ Iata o balanta simpla pentru o firma in luna decembrie 2025, dupa ce a inregistr
 - Vanzari: 12.000 RON cu TVA inclus
 - Cheltuieli: 5.000 RON facturi furnizori cu TVA inclus
 
-```
-Cont    Denumire                          Sold in D    Sold in C    Rulaj D    Rulaj C    Total D    Total C    Sold final D    Sold final C
-117     Profit reportat                          -            -          -          -          -          -            -                -
-1012    Capital subscris varsat                  -            -          -      50.000          -      50.000           -          50.000
-401     Furnizori                                -            -          -       5.000          -       5.000           -           5.000
-4111    Clienti                                  -            -     12.000          -      12.000          -       12.000              -
-4426    TVA deductibila                          -            -        798          -         798          -          798              -
-4427    TVA colectata                            -            -          -      1.916          -       1.916           -           1.916
-5121    Banca lei                                -            -     50.000          -      50.000          -       50.000              -
-628     Cheltuieli servicii                      -            -      4.202          -       4.202          -        4.202              -
-707     Venituri vanzari                         -            -          -     10.084          -      10.084           -          10.084
-                                              ─────       ──────     ──────     ──────     ──────     ──────       ──────          ──────
-                                                  -            -     67.000     67.000     67.000     67.000      67.000          67.000
-```
+| Cont | Denumire | Sold in D | Sold in C | Rulaj D | Rulaj C | Total D | Total C | Sold fin. D | Sold fin. C |
+|------|----------|----------:|----------:|--------:|--------:|--------:|--------:|------------:|------------:|
+| 117 | Profit reportat | - | - | - | - | - | - | - | - |
+| 1012 | Capital subscris varsat | - | - | - | 50.000 | - | 50.000 | - | 50.000 |
+| 401 | Furnizori | - | - | - | 5.000 | - | 5.000 | - | 5.000 |
+| 4111 | Clienti | - | - | 12.000 | - | 12.000 | - | 12.000 | - |
+| 4426 | TVA deductibila | - | - | 798 | - | 798 | - | 798 | - |
+| 4427 | TVA colectata | - | - | - | 1.916 | - | 1.916 | - | 1.916 |
+| 5121 | Banca lei | - | - | 50.000 | - | 50.000 | - | 50.000 | - |
+| 628 | Cheltuieli servicii | - | - | 4.202 | - | 4.202 | - | 4.202 | - |
+| 707 | Venituri vanzari | - | - | - | 10.084 | - | 10.084 | - | 10.084 |
+| | **TOTAL** | **-** | **-** | **67.000** | **67.000** | **67.000** | **67.000** | **67.000** | **67.000** |
 
 **Verificarile cheie**:
 1. **Total Rulaj D = Total Rulaj C** = 67.000 RON ✓

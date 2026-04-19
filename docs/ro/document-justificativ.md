@@ -75,31 +75,11 @@ Document lunar cu salariile angajatilor. Cat i se cuvine fiecaruia, ce retineri 
 
 ## Ciclul de viata al unui document in contabilitate
 
-```
-1. Generare sau primire
-   ├── Creat de firma (factura emisa, chitanta, bon fiscal)
-   └── Primit de la terti (factura primita, extras, etc.)
-         │
-         ▼
-2. Verificare
-   ├── Validitate legala (date corecte, CUI, TVA, etc.)
-   ├── Corectitudine numerica (sume, totale, TVA)
-   └── Autenticitate (e de la cine zice ca e?)
-         │
-         ▼
-3. Transmitere catre contabil
-   ├── In original (hartie sau scanat)
-   └── Sau via sistem electronic (e-Factura, email)
-         │
-         ▼
-4. Inregistrare in Saga C (sau alt soft)
-   └── Se creeaza o NOTA CONTABILA din document
-         │
-         ▼
-5. Arhivare
-   ├── Hartie: in dosar, pastrat 10 ani
-   └── Electronic: in arhiva digitala
-```
+1. **Generare sau primire** — creat de firma (factura emisa, chitanta, bon fiscal) sau primit de la terti (factura primita, extras, etc.)
+2. **Verificare** — validitate legala (date corecte, CUI, TVA), corectitudine numerica (sume, totale, TVA), autenticitate (e de la cine zice ca e?)
+3. **Transmitere catre contabil** — in original (hartie sau scanat) sau via sistem electronic (e-Factura, email)
+4. **Inregistrare in Saga C** (sau alt soft contabil) — se creeaza o nota contabila din document
+5. **Arhivare** — hartie: in dosar, pastrat 10 ani; electronic: in arhiva digitala
 
 ## De ce este critic
 

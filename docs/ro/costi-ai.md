@@ -6,34 +6,13 @@ Acest articol explica **cum** acceseaza Costi datele, **ce limite** are, si cum 
 
 ## Arhitectura generala
 
-```
-┌──────────┐                ┌──────────────────┐
-│ Browser   │ ── chat ──>    │ /api/chat        │
-│ (chat UI) │                │ Server endpoint  │
-└──────────┘                └────────┬─────────┘
-                                     │
-                                     │ verifica sesiunea
-                                     │ extrage userId
-                                     ▼
-                            ┌──────────────────┐
-                            │ Anthropic Claude  │
-                            │ (API)             │
-                            └────────┬─────────┘
-                                     │
-                                     │ daca vrea date,
-                                     │ apeleaza un tool
-                                     ▼
-                            ┌──────────────────┐
-                            │ handleToolCall   │
-                            │ (server-side)    │
-                            └────────┬─────────┘
-                                     │
-                                     │ filtreaza pe userId
-                                     ▼
-                            ┌──────────────────┐
-                            │ PostgreSQL       │
-                            └──────────────────┘
-```
+1. **Browser** (chat UI) trimite mesajul la `/api/chat`
+2. **Server** verifica sesiunea si extrage `userId`
+3. **Anthropic Claude** (API) analizeaza mesajul si decide daca are nevoie de date
+4. Daca da, Claude apeleaza un **tool** (ex: `get_balance`)
+5. **handleToolCall** (server-side) executa query-ul — filtrat pe `userId`
+6. **PostgreSQL** returneaza doar datele clientilor pe care ii detine acel user
+7. Rezultatul se intoarce la Claude, care formuleaza raspunsul final
 
 **Punctele cheie**:
 
@@ -45,17 +24,18 @@ Acest articol explica **cum** acceseaza Costi datele, **ce limite** are, si cum 
 
 ## Tool definitions
 
-Costi are 8 tool-uri disponibile la momentul scrierii acestui articol:
+Costi are 9 tool-uri disponibile la momentul scrierii acestui articol:
 
 | Tool | Descriere |
 |---|---|
 | `list_clients` | Listeaza clientii utilizatorului cu numarul de intrari |
 | `get_client_kpis` | KPI-uri (cash, creante, datorii, TVA, rezultat, marja) pentru un client |
 | `get_balance` | Balanta de verificare pentru un client si o perioada |
-| `get_cpp` | Cont Profit si Pierdere pentru un client si o perioada |
+| `get_cpp` | Cont Profit si Pierdere pentru un client si o perioada (rezolva automat regimul fiscal) |
 | `get_journal_entries` | Cauta intrari in jurnal cu filtre pe cont, explicatie, perioada |
 | `get_available_periods` | Listeaza perioadele disponibile in jurnalul unui client |
 | `get_unmapped_accounts` | Listeaza conturile nemapate (fara cod exact in OMFP 1802) |
+| `get_tax_regime_timeline` | Istoricul tranzitiilor fiscale ale firmei (cand a trecut de la micro la profit, etc.) |
 | `get_account_catalog` | Cauta in catalogul OMFP 1802 dupa cod, prefix sau grupa CPP |
 
 Definitiile sunt in `src/modules/costi/tools.ts`. Fiecare tool are:
@@ -88,7 +68,7 @@ Cand utilizatorul scrie un mesaj, frontend-ul il trimite la `/api/chat` impreuna
 1. Verifica sesiunea (extrage `userId`).
 2. Construieste un mesaj catre Claude care contine:
    - System prompt (cine e Costi, ce stie despre platforma)
-   - Tool definitions (cele 8 tool-uri descrise mai sus)
+   - Tool definitions (cele 9 tool-uri descrise mai sus)
    - Istoricul conversatiei
 3. Trimite request la Anthropic API.
 

@@ -16,12 +16,8 @@ Scenariile tipice:
 
 Corectarea datelor istorice se face in **doi pasi**:
 
-```
-1. Stergere soft a intrarilor pe perioada afectata
-   │
-   ▼
-2. Reimport cu datele corecte din Saga
-```
+1. **Stergere soft** a intrarilor pe perioada afectata
+2. **Reimport** cu datele corecte din Saga
 
 Costify foloseste **soft-delete** — intrarile nu sunt sterse fizic, doar marcate cu `deletedAt = now`. Ele dispar din calcule (balanta, CPP, KPI) dar raman in baza de date pentru audit. Aceasta abordare garanteaza:
 
@@ -33,7 +29,7 @@ Costify foloseste **soft-delete** — intrarile nu sunt sterse fizic, doar marca
 
 ### Pasul 1: Deschide modalul de stergere
 
-In pagina clientului, apasa pe menu-ul **"..."** (trei puncte) din coltul dreapta sus, langa butonul "Upload Jurnal". Selecteaza **"Sterge date istorice"**.
+In pagina clientului, deschide tab-ul **Setari** (al cincilea tab, langa Plan de Conturi). Scroll-ezi pana jos, la sectiunea **Zona periculoasa** (cu border rosu) si apesi butonul **Sterge date istorice**.
 
 Se deschide un modal cu un formular.
 

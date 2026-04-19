@@ -2,7 +2,12 @@ import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
-import type { TaxRegime } from "@/modules/accounts";
+import {
+  getRegimeForPeriod,
+  getTransitions,
+  taxRegimeLabel,
+  taxRegimeAccount,
+} from "@/modules/clients/tax-regime";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -41,6 +46,8 @@ export async function handleToolCall(
       return handleGetPeriods(userId, input);
     case "get_unmapped_accounts":
       return handleGetUnmappedAccounts(userId, input);
+    case "get_tax_regime_timeline":
+      return handleGetTaxRegimeTimeline(userId, input);
     case "get_account_catalog":
       return handleGetAccountCatalog(input);
     default:
@@ -117,17 +124,13 @@ async function handleGetCpp(userId: string, input: Record<string, unknown>): Pro
   const resolved = await resolveClient(userId, input.client_name as string);
   if ("error" in resolved) return JSON.stringify(resolved);
 
-  const [result, catalog, client] = await Promise.all([
+  const [result, catalog, taxRegime] = await Promise.all([
     getBalanceRows(resolved.client.id, input.year as number, input.month as number),
     getCatalogMap(),
-    prisma.client.findUnique({
-      where: { id: resolved.client.id },
-      select: { taxRegime: true },
-    }),
+    getRegimeForPeriod(resolved.client.id, input.year as number, input.month as number),
   ]);
   if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
 
-  const taxRegime = (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard";
   const mode = (input.mode as string | undefined) === "f20" ? "f20" : "simplified";
 
   if (mode === "f20") {
@@ -291,6 +294,59 @@ async function handleGetUnmappedAccounts(
       "Denumirea afisata vine din import (Saga) sau din contul parinte prin fallback prefix. " +
       "Contabilul trebuie sa verifice daca sunt conturi analitice legitime sau coduri lipsa din catalog.",
     rows: unmapped,
+  });
+}
+
+async function handleGetTaxRegimeTimeline(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const transitions = await getTransitions(resolved.client.id);
+
+  if (transitions.length === 0) {
+    return JSON.stringify({
+      client: resolved.client.name,
+      transitions: [],
+      note: "Acest client nu are niciun rand in TaxRegimePeriod. Pentru perioade fara tranzitie, regimul cade pe Client.taxRegime (legacy) sau pe DEFAULT (profit_standard).",
+    });
+  }
+
+  const sorted = [...transitions].sort(
+    (a, b) => b.startDate.getTime() - a.startDate.getTime()
+  );
+  const current = sorted[0];
+
+  const timeline = transitions
+    .slice()
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .map((t) => {
+      const isInception = t.startDate.getUTCFullYear() <= 1970;
+      return {
+        startDate: isInception ? "de la inceput" : t.startDate.toISOString().slice(0, 10),
+        taxRegime: t.taxRegime,
+        label: taxRegimeLabel(t.taxRegime),
+        cont: taxRegimeAccount(t.taxRegime),
+        reason: t.reason,
+      };
+    });
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    current: {
+      taxRegime: current.taxRegime,
+      label: taxRegimeLabel(current.taxRegime),
+      cont: taxRegimeAccount(current.taxRegime),
+      since:
+        current.startDate.getUTCFullYear() <= 1970
+          ? "de la inceput"
+          : current.startDate.toISOString().slice(0, 10),
+    },
+    transitions: timeline,
+    note:
+      "Pentru un raport CPP pe (year, month), regimul valabil este cea mai recenta tranzitie cu startDate <= ultima zi a lunii.",
   });
 }
 

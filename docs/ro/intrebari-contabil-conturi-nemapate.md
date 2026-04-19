@@ -1,201 +1,101 @@
-# Intrebari pentru contabil — Investigarea conturilor nemapate
+# Intrebari pentru contabil — conturi nemapate
 
-**Context**: In UI, sub-sectiunea "Conturi nemapate" din tab-ul Balanta afiseaza o lista a conturilor analitice al caror `contBase` nu exista in catalogul standard OMFP 1802. Exemplu concret vazut pe clientul **4Walls Kronis SRL**:
+In Costify, pe tab-ul **Balanta**, conturile care nu apar in catalogul standard OMFP 1802 sunt marcate cu un triunghi galben si listate intr-o sectiune separata "Conturi nemapate". Pe clientii 4Walls am intalnit trei cazuri concrete pe care vrem sa le clarificam cu tine inainte sa decidem cum le tratam.
 
-| Cont | Denumire | Sold final D | Sold final C |
-|------|----------|-------------:|-------------:|
-| 235  | Cont 235 | 15.288,43    | —           |
-| 463  | Cont 463 | 134.243,51   | —           |
-| 999  | Cont 999 | —            | 45.753,92   |
-
-Aceste trei cazuri sunt **tipologic diferite**, si gestionarea lor ar trebui sa tina cont de asta.
+Raspunsurile tale ne ajuta sa decidem daca le adaugam in catalogul platformei sau le lasam in lista de "verifica".
 
 ---
 
-## 1. Decizia arhitecturala: NU auto-mapam conturile nemapate
+## Contul 235 — apare cu 1.053.530 RON pe dezvoltare imobiliara
 
-**Ce am decis**: Conturile care apar in jurnal, dar nu exista in `AccountCatalog`, raman vizibile ca "nemapate" (cu triunghi galben in UI). NU le adaugam automat in catalog. NU le mapam pe baza euristicilor.
+Pe firma 4Walls Studio SRL, in 2025, contul `235` apare in 291 de intrari, mereu pereche cu `725` "Venituri din productia de imobilizari" sau cu `401` "Furnizori".
 
-**De ce**:
-- Conform D16 din ADR-0001, `AccountCatalog` este mentinut la nivel de platforma, nu de tenant. Daca ar adauga fiecare contabil ce vrea, am fragmenta catalogul si am rupe consistenta cross-tenant.
-- Unele conturi nemapate NU sunt OMFP 1802 valide (ex. `999` este conventie Saga, `463` este posibila eroare de inregistrare). A le adauga in catalog ar fi o minciuna: am pretinde ca sunt standard OMFP cand nu sunt.
-- Alte conturi nemapate SUNT OMFP 1802 valide dar lipsesc din seed-ul nostru (ex. `235 "Investiții imobiliare în curs de execuție"` exista in OMFP 1802 modificat prin OMFP 85/2022). Acestea le adaugam **explicit la nivel de platforma**, in batch, dupa revizuire, nu pe masura ce apar in jurnal.
+Exemplu de operatie:
+
+```
+2025-12-30  D:235  C:725  1.053.530,73  "Prod. in curs DEZVOLTARE IMOBILIARA"
+2025-12-02  D:235  C:401  15.288,43     "Intrare HOLZ-ARTIKEL SRL"
+```
+
+Contul nu este in catalogul nostru OMFP 1802. Avem impresia ca ar putea fi `235 "Investitii imobiliare in curs de executie"` introdus prin modificarile OMFP 85/2022 sau OMFP 2048/2022, dar nu suntem siguri.
+
+### Intrebari despre contul 235
+
+1. Este `235` un cont valid in planul OMFP 1802 actualizat?
+2. Daca da, care e denumirea exacta oficiala?
+3. Tipul contului: A (activ), P (pasiv), B (bifunctional)?
+4. Ce alte conturi noi din OMFP 85/2022 / OMFP 2048/2022 ai vazut in practica si crezi ca ar trebui sa fie in catalogul nostru? (ex: `215`, `2151–2158`, alte coduri din clasa 2 pe care le vezi des?)
 
 ---
 
-## 2. Cele trei tipologii observate
+## Contul 999 — apare doar pereche cu conturile clasa 8
 
-### 2.1 Cont care PAREA a fi OMFP 1802 valid dar lipsa din seed — caz: 235
-**Date din jurnal** (4Walls Studio + 4Walls Kronis, 291 intrari fiecare, 2025):
+Pe toate firmele 4Walls + Digital Nomads, contul `999` apare in 166 de intrari, **mereu** impreuna cu un cont din clasa 8 (`8035`, `8033`, etc.). Niciodata cu conturi din clasele 1–7.
+
+Exemplu:
+
 ```
-2025-12-31  D:725    C:235     1.053.530,73   expl: "Prod. in curs DEZVOLTARE IMOBILIARA"
-2025-12-30  D:235    C:725     1.053.530,73   expl: "Prod. in curs DEZVOLTARE IMOBILIARA"
-2025-12-02  D:235    C:401...  15.288,43      expl: "Intrare HOLZ-ARTIKEL SRL"
-```
-
-**Ce stiu sigur (din datele observate)**:
-- Contul `235` este folosit pereche cu `725` "Venituri din productia de imobilizari" si cu `401` "Furnizori" in clientii 4Walls 2025.
-- Explicatia repetata pe toate intrarile este "Prod. in curs DEZVOLTARE IMOBILIARA".
-- Exista 291 de intrari in 2025, nu este un cont one-off.
-- Contul `235` NU exista in `seeds/omfp-1802.json` al nostru.
-
-**Ce NU stiu sigur (speculatie, nu am citat)**:
-- Daca `235` este un cont OMFP 1802 valid introdus prin OMFP 85/2022 sau OMFP 2048/2022 si numit "Investiții imobiliare în curs de execuție". Nu am confirmare textuala din fisierele noastre de training sau din legea oficiala. Am facut inferenta pe baza pattern-ului de utilizare (pereche cu 725, dezvoltare imobiliara), dar asta NU este suficient pentru a decide.
-
-**Dubiu 2.1.a**: Este `235` un cod valid in planul OMFP 1802 modificat? Daca da:
-- Care este denumirea exacta oficiala?
-- Ce tip are (A / P / B)?
-- Face parte din vreun grup CPP sau nu?
-- Daca este valid, il adaugam in seed. Daca nu, trebuie sa stim ce reprezinta in planul firmei (probabil un sub-cont analitic al unui cont standard).
-
-**Dubiu 2.1.b**: Exista alte conturi introduse prin OMFP 85/2022 sau OMFP 2048/2022 pe care le-am ratat in seed? Posibile candidate pe care le vad in datele reale sau pe care le stim din practica:
-- 215 "Investiții imobiliare"
-- 2151–2158 sub-conturi
-- 235 (candidatul de mai sus)
-- 7583 / 7584 diferentieri (deja in catalog)
-- 7812 / 7813 / 7814 (deja notate la F20, vezi `intrebari-contabil-f20-detaliat.md` sectiunea 5.3)
-- altele pe care le vezi in practica zilnica?
-
-### 2.2 Cont conventie Saga (citat intern) — caz: 999
-**Date din jurnal** (toate 3 clientii 4Walls + Digital Nomads, 166 intrari total):
-```
-2025-12-13  D:8035   C:999    743,79   expl: "Dare in folosinta ACT BRAD VERDE PVC"
-2025-12-11  D:8035   C:999    2.202,47 expl: "Dare in folosinta NANOCELL TV CLASA F"
-... etc, toate entries sunt 8035/999 sau 999/8035 ...
+2025-12-13  D:8035  C:999  743,79    "Dare in folosinta ACT BRAD VERDE PVC"
+2025-12-11  D:8035  C:999  2.202,47  "Dare in folosinta NANOCELL TV CLASA F"
 ```
 
-**Verificare programatica**: `999` apare in **100% din intrari impreuna cu un cont clasa 8**. Niciodata asociat cu conturi din clasele 1–7.
+Stim din documentatia Saga ca `8035 = 999` este o operatie generata **automat** de Saga pentru obiectele de inventar date in folosinta. Banuim ca `999` este pur si simplu contra-partida tehnica pe care o foloseste Saga pentru clasa 8 (extra-bilantier).
 
-**Citat din propriile noastre fisiere de training**: In `training/contabil/saga-c.md` linia 202 scrie:
-> Dare în folosință obiecte inventar (generează automat 8035=999)
+In Costify, conturile clasa 9 sunt deja excluse automat din F20, CPP si Bilant — deci `999` nu strica nimic. Doar ca apare in lista "nemapate" si te face sa-ti pui intrebari.
 
-Deci utilizarea `8035 = 999` este documentata ca **operatie automata Saga** (nu inventata de contabil, nu OMFP 1802 standard).
+### Intrebari despre contul 999
 
-**Interpretare (sustinuta de citat + date)**: `999` este contra-partida generata de Saga pentru inregistrarile clasei 8. OMFP 1802 nu prescrie un cont specific pentru contra-partida claselor 8/9; Saga foloseste `999` ca default intern.
-
-**Ce face app-ul acum**: `999` are prefixul "9" → `isExtraBilantier: true` automat via `flags.ts` (linia 97). Deci **este exclus corect** din F20, CPP, Bilant, KPI. Problema este cosmetica: il afisam in sectiunea "nemapate" pentru ca nu este in `AccountCatalog`, ceea ce creeaza confuzie — contabilul vede un triunghi galben si se intreaba de ce.
-
-**Dubiu 2.2**: Solutii posibile, alege:
-- **(a)** Adaugam `999` in `seeds/omfp-1802.json` cu numele "Contabilitate in afara bilantului (Saga)" si flag `isExtraBilantier: true` explicit. Este listat in catalog (nu mai apare ca "nemapat") dar numele clarifica ca este conventie Saga, nu OMFP pur.
-- **(b)** Il lasam nemapat, dar in UI il mutam intr-o sub-sectiune separata "conturi extra-bilantiere nemapate" (in loc de lista principala nemapate). Pastram separarea intre "cod Saga cunoscut" si "cod necunoscut de investigat".
-- **(c)** Il lasam exact cum este acum (nemapat, apare in lista galbena). Solutie minima, nu schimbam nimic.
-
-**Dubiu 2.2.b**: Alte conturi conventie Saga similare pe care le-ai vazut in practica si ar trebui tratate la fel?
-- `998`? `997`?
-- Contrapartide pentru `8031`, `8032`, `8033`, `8035`, `8036`, `8037`, `8038` (angajamente acordate/primite)?
-- Conturi pentru operatiuni de inchidere automata?
-- Conturi utilizate de alte programe contabile (Ciel, WinMentor, FreERP) — daca trebuie sa le suportam cand extindem adaptoarele de import?
-
-### 2.3 Cont necunoscut, folosit o singura data — caz: 463
-**Date din jurnal** (4Walls Studio + 4Walls Kronis, 1 intrare fiecare, 2025):
-```
-2025-10-19  D:463    C:456.3   134.243,51   expl: "Intrare LUNGU PETRU_DIVIDENDE INTERIMARE"
-```
-
-**Ce stiu sigur (din datele observate)**:
-- O singura intrare, cu valoare mare (134.243,51 RON), cu un singur partener (Lungu Petru).
-- Contrapartida este `456.3` (analitic al `456`).
-- Explicatia este "DIVIDENDE INTERIMARE".
-- Contul `463` NU exista in `seeds/omfp-1802.json`.
-
-**Ce NU stiu sigur (speculatie)**:
-- Daca `463` este standard OMFP 1802. Din memoria mea, grupa 46 OMFP este "Debitori și creditori diverși" cu conturile `461` (Debitori diversi) si `462` (Creditori diversi), iar `463` nu-mi este familiar. **Dar nu am citat din training file sau din legea oficiala**, deci nu este confirmare solida.
-- Daca este eroare de inregistrare (contabilul a scris gresit `463` in loc de `461`, `457`, sau alt cont).
-- Daca este cont analitic atipic specific acestei firme pentru o categorie interna de clasificare.
-- Daca exista in vreo versiune a planului de conturi pe care nu o cunosc.
-
-**Ce face app-ul acum**: Contul apare in lista "nemapate", contabilul trebuie sa verifice manual.
-
-**Nu implementam nimic specific pentru cazul 2.3 deocamdata** — este exact scopul workflow-ului de investigare (sectiunea 3): a-i da contabilului evidenta ca sa decida singur.
-
-**Dubiu 2.3**: 
-- (a) Este `463` cont standard OMFP 1802 pe care eu nu-l cunosc? Daca da, care este denumirea exacta?
-- (b) In practica ta zilnica, recunosti pattern-ul "`463` cu explicatie DIVIDENDE INTERIMARE"? Este eroare de inregistrare frecventa, cont analitic legitim, sau altceva?
-- (c) Daca este eroare, merita un warning specific in UI ("contul 463 folosit — verifica daca nu era 461 sau 457") sau ramane doar flag-ul generic de "nemapat"?
+1. Confirmi ca `999` este conventie Saga pentru contra-partida claselor 8/9, nu un cont OMFP "real"?
+2. Vrei sa-l adaugam in catalog cu numele "Contabilitate in afara bilantului (Saga)" ca sa nu mai apara ca "nemapat"? Sau il lasam acolo cu o explicatie?
+3. Ai vazut alte coduri Saga similare in practica (ex: `998`, `997`, contra-partide pentru `8031`, `8032`, `8036`, `8037`, `8038`)?
 
 ---
 
-## 3. Workflow-ul de investigare propus (ce construim in app)
+## Contul 463 — apare o singura data, cu DIVIDENDE INTERIMARE
 
-### 3.1 Panoul "Investigheaza cont" — evidenta, nu interpretare
+Pe 4Walls Studio si 4Walls Kronis, contul `463` apare exact **o data** pe firma, in octombrie 2025:
 
-Pentru fiecare cont din sectiunea "Conturi nemapate", adaugam un buton "Investigheaza" care deschide un side-panel cu:
+```
+2025-10-19  D:463  C:456.3  134.243,51  "Intrare LUNGU PETRU_DIVIDENDE INTERIMARE"
+```
 
-**Evidente factuale (NU interpretari)**:
-- **Prima utilizare** — data primei intrari din jurnal care atinge acest cont
-- **Ultima utilizare** — data ultimei intrari
-- **Numar de intrari** — cate tranzactii folosesc contul (debit sau credit)
-- **Soldul final D si C** — deja in balanta (afisat)
-- **Link catre Registru Jurnal filtrat** — "Vezi in jurnal" deschide tab-ul Jurnal cu filtru automat pe acest cont
+134.243 RON, un singur partener (Lungu Petru), explicatia "DIVIDENDE INTERIMARE". Contul nu este in catalogul nostru.
 
-**Ce NU includem initial**:
-- Nu sugeram cod OMFP echivalent
-- Nu propunem mapping
-- Nu cerem confirmare in UI
-- Nu clasificam contul (transit / permanent / etc.)
+Din ce stim din OMFP 1802, grupa 46 contine `461` (Debitori diversi) si `462` (Creditori diversi). `463` nu ne este familiar — banuim ca e fie eroare de inregistrare (poate `461` sau `457` "Dividende de plata"), fie un cont analitic intern. Dar nu vrem sa decidem singuri.
 
-**Argument**: Scopul panoului este sa reduca **timpul de investigare** de la "4 pasi manuali" la "2 pasi cu informatia sub ochi". Interpretarea ramane 100% decizia contabilului.
+### Intrebari despre contul 463
 
-### 3.2 De ce NU hook la Costi (deocamdata)
-
-**Am luat in considerare** sa adaug un buton "Intreaba Costi" care ar pre-completa un prompt cu evidenta colectata. Am decis sa **NU** il livram deocamdata. Rationament:
-
-1. **Modelul folosit este Haiku (Claude Haiku)**. Haiku este rapid si ieftin, dar:
-   - **Puncte slabe**: rationament pe domeniu specific, recuperarea faptelor niche, lanturi lungi de inferenta.
-   - **Puncte tari**: pattern matching pe informatie furnizata explicit, output in romana, urmarea unui prompt template strans.
-2. **Intrebarile despre conturi nemapate necesita rationament domeniu**: pentru `999`, ruta corecta este:
-   - pas 1: vad ca 999 apare doar cu 8xx → pattern matching (Haiku OK)
-   - pas 2: stiu ca 8xx sunt conturi memorandum care cer contra-partida → cunostinta OMFP 1802 (necesita training file explicit incarcat)
-   - pas 3: stiu ca Saga foloseste 999 ca default pentru asta → cunostinta practica Saga
-   - pas 4: concluzia "este plumbing Saga, ignora-l" → sinteza
-
-   Haiku poate gresi la pasii 2–3 daca training file-ul nu este citat verbatim. Risc de raspuns **confident dar gresit**.
-
-3. **Cost mare al unui raspuns gresit**: daca Costi zice "contul 463 este probabil OMFP 411 Clienți" si contabilul il crede, am degradat munca lui. Efect negativ asupra increderii in produs, greu de recuperat.
-
-4. **Nu avem inca masuratori de calitate pe Haiku pentru aceasta clasa de intrebari**. Testele pe care ar trebui sa le facem inainte de a livra un hook:
-   - Baterie de 20–30 conturi nemapate reale (incluzand 235, 463, 999)
-   - Pentru fiecare, rularea Costi pe Haiku si evaluare manuala: raspunsul este corect, neutru sau daunator?
-   - Prag de trecere: cel putin 80% raspunsuri corecte sau neutre, 0% raspunsuri confident-gresite.
-
-5. **Alternative dupa revizuire**: dupa ce avem masuratori de calitate, optiuni:
-   - (a) Hook cu pre-fill al promptului — user apasa manual Trimite (da timp de inspectie).
-   - (b) Hook fara pre-fill — doar deschide chat-ul, user scrie intrebarea. Costi are deja tool-urile `get_journal_entries`, `get_account_catalog`, `get_unmapped_accounts` si poate investiga singur.
-   - (c) Alt model mai capabil (Sonnet) numai pentru aceasta clasa de intrebari, cu upsell / cost separat.
-   - (d) Panoul inline cu explicatie scurta generata la click, cu disclaimer vizibil "raspuns generat AI, verifica in OMFP".
-6. **Decizia curenta**: optiunea (e) — nu livram hook-ul deloc, livram doar panoul de evidenta si link-ul la jurnal. Contabilul poate deschide Costi oricand manual din nav daca vrea; doar nu forţăm integrarea in workflow-ul de investigare pana stim ca aduce valoare pozitiva.
-
-### 3.3 Dubii pentru contabil despre workflow
-
-**Dubiu 3.3.a — evidenta suficienta?** Am ales sa afisam doar 4 campuri de evidenta (prima/ultima utilizare, numar intrari, sold final D/C). In timpul discutiei, am considerat si:
-- Top 3 contrapartide pe debit + top 3 pe credit (ex: `999` e mereu cu `8035` — semnal clar)
-- Top 5 explicatii distincte (ex: `463` e mereu "DIVIDENDE INTERIMARE" — semnal clar)
-- Grafic lunar de activitate (sparkline)
-- Evolutia soldului lunar (transit vs permanent)
-
-Concluzia initiala: ramanem la scope minim. Dubiu: dupa ce folosesti panoul pe cazuri reale, care dintre evidentele suplimentare ai vrea sa apara? Nu adaugam la intamplare, ci doar pe baza utilizarii efective.
-
-**Dubiu 3.3.b — placement:** Am ales sa plasam butonul "Investigheaza" in `UnmappedBanner` (sectiunea galbena deja existenta deasupra balantei). Alternativa era un meniu 3-puncte pe fiecare rand al tabelului de balanta. Confirmi ca banner-ul e locul corect?
-
-**Dubiu 3.3.c — link la jurnal:** "Vezi in jurnal" va deschide tab-ul Jurnal cu filtrul pre-completat pe codul respectiv. Filtrul existent face match pe substring in coloanele cont debit, cont credit, explicatie si ndp. Asta inseamna ca filtrul pe "463" va prinde si eventuale analiticele `463.XX` si explicatiile care contin "463" (rar, dar posibil). E acceptabil sau vrei filtru exact-match doar pe cont?
+1. Este `463` un cod valid in OMFP 1802 pe care noi nu-l cunoastem? Daca da, ce reprezinta?
+2. In practica ta, ai vazut pattern-ul `463` cu DIVIDENDE INTERIMARE? Este eroare frecventa, cont analitic legitim, sau altceva?
+3. Daca e eroare, vrei sa afisam in Costify un avertisment specific ("contul 463 — verifica daca nu era 461 sau 457"), sau ramane in lista generica de "nemapate"?
 
 ---
 
-## 4. Ce adaugam in catalog dupa revizuirea acestor dubii
+## Pe ce vrem parerea ta in general
 
-In functie de raspunsurile tale:
-- Daca **235** este OMFP 1802 valid: adaugam in `seeds/omfp-1802.json` cu `type: "A"`, fara `cppGroup` (nu e P&L), cu denumirea oficiala exacta pe care o confirmi.
-- Daca **999** este recunoscut ca "conventie Saga acceptata": adaugam cu `isExtraBilantier: true` si o denumire care sa spuna asta clar.
-- Daca **463** este eroare frecventa: nu adaugam nimic in catalog; eventual notam in documentatia interna ca "463 folosit = probabil 461/457, verifica manual".
-- Pentru orice alt cont pe care il semnalezi, il includem in batch-ul urmator de actualizare a catalogului.
+Pe langa cele trei conturi specifice de mai sus, ne-ar fi utila parerea ta despre:
 
-**Procedura**: dupa revizuire, modific direct `seeds/omfp-1802.json` + rulez `node prisma/seed.mjs`. Testele de integritate (`f20-structure-integrity.test.ts`) valideaza automat ca mapping-ul ramane consistent.
+### Cum sa prezentam conturile nemapate
+
+Pentru fiecare cont nemapat, vrem sa adaugam in app un buton "Investigheaza" care iti arata:
+
+- prima si ultima utilizare a contului
+- numarul de tranzactii
+- soldul final D si C (deja vizibil)
+- un link "Vezi in jurnal" care deschide tab-ul Registru Jurnal cu filtrul pe acest cont
+
+**Intrebare**: Sunt aceste 4 informatii suficiente ca sa-ti dai seama rapid ce e contul, sau ai vrea sa adaugam si:
+
+- top 3 contrapartide pe debit + top 3 pe credit (ex: pentru `999` ar arata mereu `8035` — semnal ca e tehnic Saga)
+- top 5 explicatii distincte (ex: pentru `463` ar arata "DIVIDENDE INTERIMARE")
+- evolutia soldului lunar (sa vezi daca e cont de tranzit sau permanent)
+
+### Conturi noi pe care sa le adaugam in catalog
+
+Daca ai o lista de conturi pe care le folosesti des si care lipsesc din OMFP 1802 standard (sau sunt sub-conturi specifice unei industrii), trimite-ne-o. Le adaugam in batch in catalogul platformei, cu denumirile oficiale.
 
 ---
 
-## 5. Lucruri care raman sub supraveghere (nu implementez deocamdata)
+## Multumim
 
-- **Auto-clasificarea conturilor nemapate** (transit vs permanent vs extra-bilantier) — depinde de rationament pe care nu-l incredintez unei euristici simple.
-- **Masuratori de calitate Costi/Haiku pe aceasta clasa de intrebari** — test harness dedicat, 20+ cazuri, evaluare manuala, inainte sa activam orice hook AI.
-- **Notificari pe conturi nemapate nou aparute** — util pe termen lung, dar necesita decizie despre ce UX (email? in-app? digest saptamanal?).
-- **Bulk review page** pentru toate conturile nemapate + `needsReview` dintr-un client — premature pana nu avem volume mari de tenants.
+Pentru fiecare punct de mai sus, raspunsul tau (chiar si "nu stiu" sau "nu am intalnit") ne ajuta sa decidem ce facem mai departe. Toate raspunsurile se salveaza direct sub fiecare intrebare — nu trebuie sa scrii email separat.

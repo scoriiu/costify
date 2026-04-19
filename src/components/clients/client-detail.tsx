@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, MoreVertical, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import { PeriodSelector } from "@/components/datasets/period-selector";
@@ -11,10 +11,11 @@ import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
+import { SetariTab, type TransitionView } from "@/components/clients/setari-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
-type Tab = "jurnal" | "balanta" | "cpp" | "plan";
+type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "setari";
 
 interface ImportEventInfo {
   id: string;
@@ -27,13 +28,21 @@ interface ImportEventInfo {
 }
 
 interface Props {
-  client: { id: string; slug: string; name: string; cui: string | null; caen: string | null };
+  client: {
+    id: string;
+    slug: string;
+    name: string;
+    cui: string | null;
+    caen: string | null;
+    createdAt: string;
+  };
   entryCount: number;
   importEvents: ImportEventInfo[];
   periods: DatasetPeriod[];
   activeTab: string;
   selectedYear?: number;
   selectedMonth?: number;
+  transitions: TransitionView[];
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -41,6 +50,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "balanta", label: "Balanta de Verificare" },
   { key: "cpp", label: "Cont Profit si Pierdere" },
   { key: "plan", label: "Plan de Conturi" },
+  { key: "setari", label: "Setari" },
 ];
 
 export function ClientDetail({
@@ -51,6 +61,7 @@ export function ClientDetail({
   activeTab,
   selectedYear,
   selectedMonth,
+  transitions,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -101,9 +112,6 @@ export function ClientDetail({
               <Upload size={14} /> <span className="hidden sm:inline">Upload</span> Jurnal
             </Button>
           </Link>
-          {entryCount > 0 && (
-            <ActionsMenu onDelete={() => setDeleteOpen(true)} />
-          )}
         </div>
       </div>
 
@@ -123,7 +131,13 @@ export function ClientDetail({
           <BalantaTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
         )}
         {tab === "cpp" && selectedYear && selectedMonth && (
-          <CppTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
+          <CppTab
+            clientId={client.id}
+            clientSlug={client.slug}
+            year={selectedYear}
+            month={selectedMonth}
+            onUnmappedFound={setUnmappedRows}
+          />
         )}
         {tab === "plan" && (
           <PlanConturiTab
@@ -131,6 +145,14 @@ export function ClientDetail({
             clientSlug={client.slug}
             year={selectedYear}
             month={selectedMonth}
+          />
+        )}
+        {tab === "setari" && (
+          <SetariTab
+            client={client}
+            entryCount={entryCount}
+            transitions={transitions}
+            onOpenDeleteModal={() => setDeleteOpen(true)}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (
@@ -145,41 +167,6 @@ export function ClientDetail({
         onClose={() => setDeleteOpen(false)}
         onComplete={() => router.refresh()}
       />
-    </div>
-  );
-}
-
-function ActionsMenu({ onDelete }: { onDelete: () => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-dark-3 bg-dark-2 text-gray transition-colors hover:border-primary/40 hover:text-white"
-      >
-        <MoreVertical size={16} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden rounded-xl border border-dark-3 bg-dark-2 py-1 shadow-xl shadow-black/30">
-          <button
-            onClick={() => { setOpen(false); onDelete(); }}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-danger transition-colors hover:bg-danger/10"
-          >
-            <Trash2 size={14} />
-            Sterge date istorice
-          </button>
-        </div>
-      )}
     </div>
   );
 }

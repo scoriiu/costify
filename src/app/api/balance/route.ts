@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { getBalanceRows } from "@/modules/balances";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
-import type { TaxRegime } from "@/modules/accounts";
+import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -23,13 +22,10 @@ export async function GET(request: Request) {
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
-  const [balanceResult, catalog, client] = await Promise.all([
+  const [balanceResult, catalog, taxRegime] = await Promise.all([
     getBalanceRows(clientId, year, month),
     getCatalogMap(),
-    prisma.client.findUnique({
-      where: { id: clientId },
-      select: { taxRegime: true },
-    }),
+    getRegimeForPeriod(clientId, year, month),
   ]);
 
   if (!balanceResult.ok) {
@@ -42,7 +38,6 @@ export async function GET(request: Request) {
     });
   }
 
-  const taxRegime = (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard";
   const kpis = computeKpis(balanceResult.data, catalog);
   const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
   const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });

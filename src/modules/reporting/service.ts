@@ -1,7 +1,6 @@
-import { prisma } from "@/lib/db";
 import { getBalanceRows } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
-import type { TaxRegime } from "@/modules/accounts";
+import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import { computeKpis } from "./kpi";
@@ -28,19 +27,14 @@ export async function getClientCpp(
   year: number,
   month: number
 ): Promise<Result<CppData>> {
-  const [balanceResult, catalog, client] = await Promise.all([
+  const [balanceResult, catalog, taxRegime] = await Promise.all([
     getBalanceRows(clientId, year, month),
     getCatalogMap(),
-    prisma.client.findUnique({
-      where: { id: clientId },
-      select: { taxRegime: true },
-    }),
+    getRegimeForPeriod(clientId, year, month),
   ]);
   if (!balanceResult.ok) return balanceResult;
 
-  const cpp = computeCpp(balanceResult.data, catalog, {
-    taxRegime: (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard",
-  });
+  const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
   if (cpp.lines.length === 0) {
     return err(appError("NOT_FOUND", "Nu exista date P&L pentru aceasta perioada"));
   }
@@ -53,19 +47,14 @@ export async function getClientCppF20(
   year: number,
   month: number
 ): Promise<Result<CppF20Data>> {
-  const [balanceResult, catalog, client] = await Promise.all([
+  const [balanceResult, catalog, taxRegime] = await Promise.all([
     getBalanceRows(clientId, year, month),
     getCatalogMap(),
-    prisma.client.findUnique({
-      where: { id: clientId },
-      select: { taxRegime: true },
-    }),
+    getRegimeForPeriod(clientId, year, month),
   ]);
   if (!balanceResult.ok) return balanceResult;
 
-  const cppF20 = computeCppF20(balanceResult.data, catalog, {
-    taxRegime: (client?.taxRegime as TaxRegime | undefined) ?? "profit_standard",
-  });
+  const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });
 
   return ok(cppF20);
 }

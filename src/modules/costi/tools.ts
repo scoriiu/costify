@@ -96,6 +96,17 @@ export const COSTI_TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_tax_regime_timeline",
+    description: "Returneaza istoricul regimurilor fiscale ale unei firme — fiecare tranzitie (data start, regim, motiv). Util cand contabilul intreaba 'ce regim are clientul X' sau 'cand a trecut firma de la micro la profit'. Costify foloseste un timeline (TaxRegimePeriod), nu un singur flag, pentru ca o firma poate trece intre regimuri in cursul anului. Pentru un raport CPP pe luna X, regimul valabil este cea mai recenta tranzitie cu startDate <= ultima zi a lunii X.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+      },
+      required: ["client_name"],
+    },
+  },
+  {
     name: "get_account_catalog",
     description: "Cauta in catalogul standard OMFP 1802 (~321 conturi). Util pentru a verifica daca un cod exista oficial, ce denumire oficiala are, ce tip (A/P/B) si ce grupa CPP. Poate cauta dupa cod exact sau dupa prefix (ex '60' pentru toate conturile de cheltuieli).",
     input_schema: {

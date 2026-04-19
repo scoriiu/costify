@@ -37,7 +37,7 @@
       "description": "CPP calculat din balanta, cu doua moduri de afisare selectabile printr-un toggle: 'Simplificat' (o linie per cont contribuabil, grupat pe cele 4 sectiuni CPP) si 'F20 detaliat' (formatul oficial ANAF cu 35 de randuri si sub-randuri 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b, conform OMFP 1802 Anexa 3). Ambele moduri reconciliaza: F20.rezultatBrut === Simplificat.rezultatBrut, garantat de un test de invariant. Conturile cu flag isClosing (121, 1211, 1212) sunt excluse din CPP pentru a evita dublul calcul.",
       "view_modes": {
         "simplified": "Daily view. Grupari din AccountCatalog.cppGroup (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE). O linie per cont contribuabil, sortata alfabetic. Util pentru analiza curenta.",
-        "f20": "Format oficial ANAF F20 depus cu situatiile financiare anuale. Randuri rd.01-35 din OMFP 1802 Anexa 3, cu sub-randuri literale (ex: rd.13a cheltuieli cu materii prime, rd.13b alte materiale, rd.14a salarii, rd.14b asigurari sociale). Fiecare cont OMFP are coloana cppLine care mapeaza la un rand F20. 711/712 (variatia stocurilor) se splita la calcul in rd.07 (crestere) sau rd.08 (reducere) in functie de semn. Impozitul din rd.34 respecta Client.taxRegime (D13)."
+        "f20": "Format oficial ANAF F20 depus cu situatiile financiare anuale. Randuri rd.01-35 din OMFP 1802 Anexa 3, cu sub-randuri literale (ex: rd.13a cheltuieli cu materii prime, rd.13b alte materiale, rd.14a salarii, rd.14b asigurari sociale). Fiecare cont OMFP are coloana cppLine care mapeaza la un rand F20. 711/712 (variatia stocurilor) se splita la calcul in rd.07 (crestere) sau rd.08 (reducere) in functie de semn. Impozitul din rd.34 respecta regimul valabil la (year, month) — rezolvat din timeline-ul TaxRegimePeriod (vezi tax_regime_timeline)."
       },
       "sections_simplified": [
         "Venituri din exploatare (cppGroup=VENITURI_EXPLOATARE, clasa 7 cu exceptii)",
@@ -47,10 +47,10 @@
         "Cheltuieli financiare (cppGroup=CHELTUIELI_FINANCIARE)",
         "Rezultat financiar",
         "Rezultat brut = rezultat exploatare + rezultat financiar",
-        "Impozit (cont conform regimului fiscal: 691 standard / 698 micro / 697 IMCA / 695 specific)",
+        "Impozit (cont conform regimului fiscal valabil pe perioada: 691 standard / 698 micro / 697 IMCA / 695 specific)",
         "Rezultat net = rezultat brut - impozit"
       ],
-      "tax_regime_selector": "Dropdown Regim fiscal in header-ul tab-ului CPP. Valori: profit_standard (691, 16%), profit_micro_1 (698, 1%), profit_micro_3 (698, 3%), imca (697), profit_specific (695, HoReCa), deferred (698). Alegerea afecteaza doar contul folosit la linia Impozit; NU calculeaza valoarea datorata — valoarea vine din balanta.",
+      "tax_regime_display": "In header-ul tab-ului CPP, regimul valabil pe perioada selectata se afiseaza ca eticheta read-only ('Profit standard 16% · Cont 691'), nu ca dropdown. Schimbarea se face din tab-ul Setari, sectiunea Regim fiscal — un click pe linkul 'Gestioneaza' duce direct acolo. Asta forteaza schimbarea regimului sa fie un act constient cu data de start, nu un toggle accidental pe pagina de raport.",
       "f20_structure_source": "seeds/f20-structure.json — 35 de randuri cu formule simbolice ('rd.12 - rd.19') pentru subtotale/totaluri si liste explicite de conturi contribuabile pentru randurile de detaliu. Mapa cppLine per cont este stocata in AccountCatalog.",
       "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
     },
@@ -120,12 +120,65 @@
     }
   },
   "client_detail_page": {
-    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere", "Plan de Conturi"],
+    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere", "Plan de Conturi", "Setari"],
     "header": {
       "info": "Numele clientului, CUI, CAEN, numar intrari",
-      "actions": ["Upload Jurnal", "Sterge date (din meniul ...)"]
+      "actions": ["Upload Jurnal"]
     },
     "period_selector": "Vizibil pe tab-urile Balanta si CPP, permite selectie an + luna"
+  },
+  "setari_tab": {
+    "description": "Al cincilea tab pe pagina clientului. Configuratie per-firma — nu se schimba la fiecare deschidere a aplicatiei. Trei sectiuni separate, vizibil distincte, fiecare cu rolul ei.",
+    "url_pattern": "/clients/{slug}?tab=setari (cu ancora #regim-fiscal pentru deep-link din CPP)",
+    "sections": {
+      "informatii_generale": {
+        "purpose": "Date de identificare ale firmei — denumire, CUI, CAEN, data adaugarii in platforma.",
+        "fields": ["name (denumire firma)", "cui (cod fiscal)", "caen (cod CAEN principal)", "createdAt (read-only)", "entryCount (read-only, derivat)"],
+        "edit_pattern": "Mod read-only la deschidere. Buton 'Modifica' transforma blocul in inputs cu Salveaza/Anuleaza. Niciun inline-edit pe click — accountantii asteapta intentie clara pentru modificare.",
+        "action": "updateClientInfoAction(clientId, name, cui, caen)"
+      },
+      "regim_fiscal": {
+        "purpose": "Timeline-ul regimurilor fiscale ale firmei. O firma poate trece de la micro la profit standard in cursul anului (depasire prag, optiune voluntara, schimbare an fiscal) — fiecare tranzitie trebuie inregistrata cu data exacta de start.",
+        "model": "TaxRegimePeriod (clientId, startDate UNIQUE per client, taxRegime, reason?, createdBy). Fiecare rand = O tranzitie. NU stocam regim per luna; stocam doar momentele de schimbare.",
+        "ui_pattern": "Lista timeline cu: tranzitia curenta in top (cu badge 'Curent'), urmata de istoric in jos. Buton 'Adauga tranzitie' deschide modal cu data start + regim + motiv optional. Tranzitiile pot fi editate sau sterse (cu exceptia celei initiale daca e singura).",
+        "inception_marker": "Tranzitiile cu startDate <= 1970-01-01 sunt afisate ca 'De la inceput' (nu ca data calendaristica) — sunt seed-uite automat pentru clientii legacy ca sa avem mereu cel putin un rand in timeline.",
+        "actions": [
+          "createTransitionAction(clientId, startDate, taxRegime, reason?)",
+          "updateTransitionAction(clientId, transitionId, {startDate?, taxRegime?, reason?})",
+          "deleteTransitionAction(clientId, transitionId)"
+        ]
+      },
+      "zona_periculoasa": {
+        "purpose": "Operatii destructive separate vizual (border rosu, titlu rosu) astfel incat sa nu fie executate accidental.",
+        "operations": ["Sterge date istorice (mutat aici din meniul vechi din header)"],
+        "confirmation": "Modal cu input text — utilizatorul trebuie sa scrie cuvantul STERGE manual (fara copy-paste) pentru a activa butonul rosu de confirmare."
+      }
+    }
+  },
+  "tax_regime_timeline": {
+    "description": "Sistemul de regim fiscal este un timeline, nu un flag pe Client. Fiecare schimbare e o tranzitie cu data de start. Regimul valabil la (year, month) se rezolva luand cea mai recenta tranzitie cu startDate <= ultima zi a lunii.",
+    "model": "TaxRegimePeriod { id, clientId, startDate (UNIQUE per client), taxRegime, reason?, createdBy?, createdAt }",
+    "resolution_algorithm": [
+      "1. Calculeaza ultima zi a lunii (year, month)",
+      "2. SELECT * FROM TaxRegimePeriod WHERE clientId=X AND startDate <= ultima_zi ORDER BY startDate DESC LIMIT 1",
+      "3. Daca exista, regimul e taxRegime al acelei tranzitii",
+      "4. Fallback: Client.taxRegime (coloana legacy, pastrata temporar pentru clientii fara timeline seed-uit)",
+      "5. Fallback final: DEFAULT_TAX_REGIME = 'profit_standard'"
+    ],
+    "legacy_compat": "Coloana Client.taxRegime e marcata @deprecated in schema.prisma si va fi eliminata dupa ce toti clientii au cel putin un rand in TaxRegimePeriod. Helper seedInceptionTransitionsForLegacyClients() e idempotent si poate fi rulat oricand.",
+    "regimes": {
+      "profit_standard": "Profit standard, 16%, contul de impozit 691",
+      "profit_micro_1": "Microintreprindere 1% (sub 60k EUR cifra de afaceri), contul 698",
+      "profit_micro_3": "Microintreprindere 3% (intre 60k si 250k/500k EUR), contul 698",
+      "imca": "Impozit Minim pe Cifra de Afaceri, contul 697 (pentru firme >50M EUR)",
+      "profit_specific": "Impozit specific HoReCa, contul 695",
+      "deferred": "Impozit amanat (temporar, mapat pe 698)"
+    },
+    "rationale": "Inainte aveam un dropdown pe pagina CPP care schimba un singur Client.taxRegime — acelasi camp pentru toata istoria firmei. Asta era contabil incorect: o firma care a depasit pragul micro la 1 aprilie are nevoie ca Q1 sa fie raportat ca micro si Q2-Q4 ca profit standard. Timeline-ul rezolva asta corect, fara ca contabilul sa schimbe ceva manual la fiecare deschidere de raport.",
+    "costi_tools_available": [
+      "get_tax_regime_timeline(client_name) → istoricul complet al regimurilor pentru o firma",
+      "get_cpp(client_name, year, month, mode?) → returneaza in raspuns campul taxRegime cu regimul rezolvat pentru acea perioada"
+    ]
   },
   "accounts": {
     "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu ~321 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",

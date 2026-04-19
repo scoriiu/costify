@@ -8,67 +8,64 @@ Pe pagina clientului, al treilea tab este **"Cont Profit si Pierdere"**. Apasa-l
 
 CPP-ul se afiseaza pentru perioada selectata in partea de sus (acelasi selector An + Luna ca la Balanta). Este **cumulativ** pana la sfarsitul lunii selectate — de exemplu, pentru "Decembrie 2025" vezi rezultatul pe anul intreg 2025.
 
+## Regimul fiscal afisat in header
+
+Langa selectorul de perioada, vezi o eticheta read-only cu regimul fiscal valabil pe luna selectata, in formatul `Profit standard 16% · Cont 691`. Daca firma a trecut intre regimuri in cursul anului (ex: micro → profit standard de la 1 aprilie), eticheta se actualizeaza automat in functie de luna pe care o selectezi.
+
+Schimbarea regimului **nu se face de pe pagina CPP** — apesi linkul **Gestioneaza** de langa eticheta, care te duce in tab-ul [Setari](setari-client) la sectiunea Regim fiscal. Acolo tii timeline-ul tranzitiilor fiscale ale firmei (cu data de start si motiv pentru fiecare). Pentru detalii, vezi ghidul [Setari client](setari-client).
+
 ## Structura CPP conform OMFP 1802
 
 Costify urmareste structura oficiala din OMFP 1802:
 
-```
-═══════════════════════════════════════════
-  VENITURI DIN EXPLOATARE
-═══════════════════════════════════════════
-  701  Vanzari de produse finite              50.000 RON
-  704  Venituri din servicii prestate        280.000 RON
-  706  Venituri din chirii                    12.000 RON
-  707  Venituri din vanzarea marfurilor       45.000 RON
-  708  Venituri din activitati diverse         8.000 RON
-  711  Variatia stocurilor                    -5.000 RON
-  ...
-  TOTAL VENITURI EXPLOATARE                  390.000 RON
+**VENITURI DIN EXPLOATARE**
 
-═══════════════════════════════════════════
-  CHELTUIELI DIN EXPLOATARE
-═══════════════════════════════════════════
-  601  Cheltuieli materii prime               25.000 RON
-  602  Cheltuieli materiale consumabile       15.000 RON
-  ...
-  641  Cheltuieli cu salariile               120.000 RON
-  645  Cheltuieli asigurari sociale           28.000 RON
-  ...
-  6811 Cheltuieli amortizare                  18.000 RON
-  TOTAL CHELTUIELI EXPLOATARE                290.000 RON
+| Cont | Denumire | Suma |
+|------|----------|-----:|
+| 701 | Vanzari de produse finite | 50.000 |
+| 704 | Venituri din servicii prestate | 280.000 |
+| 706 | Venituri din chirii | 12.000 |
+| 707 | Venituri din vanzarea marfurilor | 45.000 |
+| 708 | Venituri din activitati diverse | 8.000 |
+| 711 | Variatia stocurilor | -5.000 |
+| | **TOTAL VENITURI EXPLOATARE** | **390.000** |
 
-───────────────────────────────────────────
-  REZULTAT DIN EXPLOATARE                   100.000 RON
-───────────────────────────────────────────
+**CHELTUIELI DIN EXPLOATARE**
 
-═══════════════════════════════════════════
-  VENITURI FINANCIARE
-═══════════════════════════════════════════
-  765  Venituri din diferente de curs valutar    500 RON
-  766  Venituri din dobanzi                      800 RON
-  TOTAL VENITURI FINANCIARE                    1.300 RON
+| Cont | Denumire | Suma |
+|------|----------|-----:|
+| 601 | Cheltuieli materii prime | 25.000 |
+| 602 | Cheltuieli materiale consumabile | 15.000 |
+| 641 | Cheltuieli cu salariile | 120.000 |
+| 645 | Cheltuieli asigurari sociale | 28.000 |
+| 6811 | Cheltuieli amortizare | 18.000 |
+| | **TOTAL CHELTUIELI EXPLOATARE** | **290.000** |
 
-═══════════════════════════════════════════
-  CHELTUIELI FINANCIARE
-═══════════════════════════════════════════
-  665  Cheltuieli diferente curs valutar       1.200 RON
-  666  Cheltuieli cu dobanzile                  3.500 RON
-  TOTAL CHELTUIELI FINANCIARE                  4.700 RON
+**REZULTAT DIN EXPLOATARE** = 390.000 - 290.000 = **100.000 RON**
 
-───────────────────────────────────────────
-  REZULTAT FINANCIAR                         -3.400 RON
-───────────────────────────────────────────
+**VENITURI FINANCIARE**
 
-═══════════════════════════════════════════
-  REZULTAT BRUT                              96.600 RON
-═══════════════════════════════════════════
+| Cont | Denumire | Suma |
+|------|----------|-----:|
+| 765 | Venituri din diferente de curs valutar | 500 |
+| 766 | Venituri din dobanzi | 800 |
+| | **TOTAL VENITURI FINANCIARE** | **1.300** |
 
-  691  Impozit pe profit                       15.456 RON
+**CHELTUIELI FINANCIARE**
 
-═══════════════════════════════════════════
-  REZULTAT NET                                81.144 RON
-═══════════════════════════════════════════
-```
+| Cont | Denumire | Suma |
+|------|----------|-----:|
+| 665 | Cheltuieli diferente curs valutar | 1.200 |
+| 666 | Cheltuieli cu dobanzile | 3.500 |
+| | **TOTAL CHELTUIELI FINANCIARE** | **4.700** |
+
+**REZULTAT FINANCIAR** = 1.300 - 4.700 = **-3.400 RON**
+
+**REZULTAT BRUT** = 100.000 + (-3.400) = **96.600 RON**
+
+Impozit pe profit (cont 691): 15.456 RON
+
+**REZULTAT NET** = 96.600 - 15.456 = **81.144 RON**
 
 Fiecare sectiune are:
 - **Header** colorat (VENITURI / CHELTUIELI EXPLOATARE / FINANCIARE)
