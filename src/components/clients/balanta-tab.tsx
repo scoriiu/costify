@@ -20,7 +20,7 @@ export function BalantaTab({ clientId, year, month, onUnmappedFound }: Props) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/balance?clientId=${clientId}&year=${year}&month=${month}`)
+    fetch(`/api/balance?clientId=${clientId}&year=${year}&month=${month}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setRows(data.rows);

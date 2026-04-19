@@ -47,11 +47,8 @@ export async function GET(request: Request) {
   const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
   const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });
 
-  return NextResponse.json({
-    rows: balanceResult.data,
-    kpis,
-    cpp,
-    cppF20,
-    taxRegime,
-  });
+  return NextResponse.json(
+    { rows: balanceResult.data, kpis, cpp, cppF20, taxRegime },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

@@ -77,7 +77,7 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
 
   function fetchData() {
     setLoading(true);
-    fetch(`/api/balance?clientId=${clientId}&year=${year}&month=${month}`)
+    fetch(`/api/balance?clientId=${clientId}&year=${year}&month=${month}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setCpp(data.cpp);
@@ -158,6 +158,36 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
       ) : viewMode === "f20" && cppF20 ? (
         <CppF20View cpp={cppF20} />
       ) : null}
+
+      <MissingTaxNotice cpp={viewMode === "f20" ? cppF20 : cpp} regime={taxRegime} />
+    </div>
+  );
+}
+
+function MissingTaxNotice({
+  cpp,
+  regime,
+}: {
+  cpp: CppData | CppF20Data | null;
+  regime: string;
+}) {
+  if (!cpp) return null;
+  if (cpp.rezultatBrut <= 0) return null;
+  if (cpp.rezultatBrut !== cpp.rezultatNet) return null;
+
+  const info = REGIME_INFO[regime];
+  const cont = info?.cont ?? "691";
+
+  return (
+    <div
+      className="flex items-start gap-2.5 rounded-xl border border-warn/20 bg-warn/5 px-4 py-3"
+      data-testid="missing-tax-notice"
+    >
+      <Info size={14} className="mt-0.5 shrink-0 text-warn" />
+      <span className="font-mono text-[11px] leading-relaxed text-gray-light">
+        Impozitul nu a fost inregistrat in contabilitate pentru aceasta perioada
+        (contul {cont} nu are rulaj). Rezultat net = Rezultat brut.
+      </span>
     </div>
   );
 }
