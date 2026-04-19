@@ -92,6 +92,26 @@ input:-webkit-autofill:focus {
   caret-color: var(--autofill-text);
 }
 
+/* Every clickable element shows a pointer cursor — no exceptions. */
+button,
+a,
+[role="button"],
+[role="tab"],
+[role="link"],
+[role="menuitem"],
+[role="option"],
+label[for],
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
 /* Thin, subtle scrollbar — visible while scrolling, refined look across OS */
 .scrollbar-thin {
   scrollbar-width: thin;

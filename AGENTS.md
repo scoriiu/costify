@@ -44,6 +44,7 @@
 - **Monospace for all data** — labels, values, numbers always in Geist Mono.
 - **No emojis** — unless user explicitly requests.
 - **All user-facing text in Romanian** — error messages, labels, tooltips, placeholders, confirmations. Code comments and variable names stay in English. Never mix languages in the same string.
+- **Pointer cursor on every clickable element** — `cursor: pointer` is set globally in `globals.css` on `button`, `a`, `[role="button"]`, `select`, `summary`, checkbox/radio inputs, and `label[for]`. Never ship a clickable element that shows the default arrow cursor. If you create a custom clickable `div` or `span`, either add `role="button"` (which gets the cursor automatically) or add `cursor-pointer` explicitly. This is enforced at the CSS level, not per-component.
 
 ### Component Rules
 - Cards: `rounded-xl border border-dark-3 bg-dark-2 p-5`
