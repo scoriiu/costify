@@ -5,9 +5,11 @@ import { CppView } from "@/components/datasets/cpp-view";
 import { CppF20View } from "@/components/datasets/cpp-f20-view";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
 import { updateTaxRegimeAction } from "@/modules/clients/actions";
 import type { CppData, CppF20Data } from "@/modules/reporting";
 import type { BalanceRowView } from "@/modules/balances";
+import { Info } from "lucide-react";
 
 interface Props {
   clientId: string;
@@ -31,6 +33,39 @@ const REGIME_OPTIONS = [
   { value: "profit_specific", label: "Impozit specific (HoReCa)" },
   { value: "deferred", label: "Impozit amanat" },
 ];
+
+const REGIME_INFO: Record<string, { formula: string; cont: string; description: string }> = {
+  profit_standard: {
+    formula: "16% × Profit impozabil",
+    cont: "691",
+    description: "Impozit pe profit standard (Art. 17 CF). Se aplica la rezultatul fiscal dupa ajustarile de deductibilitate.",
+  },
+  profit_micro_1: {
+    formula: "1% × Venituri totale",
+    cont: "698",
+    description: "Impozit pe veniturile microintreprinderii cu minim 1 salariat (Art. 47-57 CF). Baza = venituri conform art. 53, nu profit.",
+  },
+  profit_micro_3: {
+    formula: "3% × Venituri totale",
+    cont: "698",
+    description: "Impozit pe veniturile microintreprinderii — cota de 3% pentru cazuri specifice (Art. 51 CF).",
+  },
+  imca: {
+    formula: "1% × Cifra de afaceri (minim)",
+    cont: "697",
+    description: "Impozit minim pe cifra de afaceri. Se datoreaza diferenta pozitiva intre IMCA si impozitul pe profit standard.",
+  },
+  profit_specific: {
+    formula: "Suma fixa per unitate",
+    cont: "695",
+    description: "Impozit specific pentru HoReCa (abrogat din 2024, pastrat pentru date istorice). Suma fixa pe camera / m² suprafata.",
+  },
+  deferred: {
+    formula: "Diferente temporare × 16%",
+    cont: "698",
+    description: "Impozit pe profit amanat — reflecta diferentele temporare intre baza contabila si baza fiscala (IFRS / OMFP 2844).",
+  },
+};
 
 export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
   const [cpp, setCpp] = useState<CppData | null>(null);
@@ -107,6 +142,7 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
             options={REGIME_OPTIONS}
             onChange={onRegimeChange}
           />
+          <RegimeInfo regime={taxRegime} />
           {isPending && (
             <span className="font-mono text-[11px] text-gray/60">Se actualizeaza...</span>
           )}
@@ -123,5 +159,26 @@ export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
         <CppF20View cpp={cppF20} />
       ) : null}
     </div>
+  );
+}
+
+function RegimeInfo({ regime }: { regime: string }) {
+  const info = REGIME_INFO[regime];
+  if (!info) return null;
+
+  const tooltipContent = `${info.formula}  ·  Cont ${info.cont}\n${info.description}`;
+
+  return (
+    <Tooltip content={tooltipContent}>
+      <span
+        role="button"
+        className="text-gray hover:text-white transition-colors"
+        data-testid="regime-info"
+        data-formula={info.formula}
+        data-cont={info.cont}
+      >
+        <Info size={15} />
+      </span>
+    </Tooltip>
   );
 }
