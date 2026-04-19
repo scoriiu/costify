@@ -250,10 +250,11 @@ function computeTaxRowForRegime(
   for (const code of allowed) {
     const agg = perCode.get(code);
     if (!agg) continue;
-    // Impozit uses debit-side rulaj (rulajTD − rulajTC to net reversals).
-    const net = agg.td - agg.tc;
-    if (net <= 0) continue;
-    total += net;
+    // Use rulajTD only — same as all expense accounts. Using
+    // td − tc nets to zero when monthly closing entries mirror
+    // the original charge (D:691 C:121 → both sides equal).
+    if (agg.td === 0) continue;
+    total += agg.td;
     contributing.add(code);
   }
   return { value: round2(total), accounts: contributing };

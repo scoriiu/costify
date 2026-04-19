@@ -193,7 +193,19 @@ Formula pentru rd. 34: `rulajTD − rulajTC` (se netteaza reversarile).
 
 **Dubiu 4.1.b**: Contul 694 "Impozit pe profit (grup)" — in ce regim apare? L-am lasat in catalog dar nu e mapat la niciun regim default. Se foloseste la consolidare de grup?
 
-### 4.2 Tranzitia micro → profit standard in cursul anului
+### 4.2 Bug remediat — impozitul era zero din cauza closing entries
+**Problema observata**: Pe 4Walls Studio SRL decembrie 2025, `rezultat net === rezultat brut` (impozit = 0), chiar daca contul 691 are `rulajTD = 30.317 RON`. Selectarea unui alt regim fiscal nu schimba nimic vizibil in UI.
+
+**Cauza radacina**: Functia `sumProfitTax` in `cpp.ts` (si `computeTaxRowForRegime` in `cpp-f20.ts`) calcula `rulajTD − rulajTC` pentru conturile de impozit. Insa inchiderile lunare din Saga genereaza automat o intrare-oglinda (D:121 C:691), ceea ce face `rulajTC = rulajTD`. Rezultat: `TD − TC = 0`, impozitul dispare complet.
+
+**Remediere**: Folosim `rulajTD` singur (fara netting cu `rulajTC`), consistent cu tratamentul tuturor celorlalte conturi de cheltuieli din CPP. Dupa remediere:
+- `profit_standard` pe 4Walls dec 2025: impozit = 30.317 (691), rezultat net = 18.422.372,83
+- `profit_micro_1` pe acelasi client: impozit = 0 (nu are 698 in 2025), rezultat net = 18.452.689,83
+- Schimbarea regimului fiscal produce acum **diferente vizibile** in UI
+
+**Dubiu 4.2**: Exista cazuri legitime unde `rulajTC` pe un cont de impozit (691, 698 etc.) NU este o inchidere-oglinda ci o stornare reala (ex: corectie de impozit)? Daca da, am putea pierde acea stornare cu abordarea actuala. In practica, consideram riscul acceptabil pentru ca este identic cu tratamentul tuturor celorlalte cheltuieli — si nu am observat alt pattern in datele de test.
+
+### 4.3 Tranzitia micro → profit standard in cursul anului
 **Ce am facut**: Pentru un client care a trecut de la micro la profit standard in cursul anului, ambele conturi (691 si 698) pot avea rulaj legitim, pe perioade diferite. Sistemul curent accepta **un singur regim per client** — cel setat in UI.
 
 **Dubiu**: In anul de tranzitie, vrei:

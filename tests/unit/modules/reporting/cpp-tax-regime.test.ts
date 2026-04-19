@@ -126,17 +126,33 @@ describe("D13 — CPP impozit line maps to taxRegime", () => {
   });
 });
 
-describe("CPP — profit tax netting", () => {
-  it("subtracts rulajTC on profit tax accounts (closing reverses)", () => {
-    // 691 = 121 at close reverses the tax. When we report CPP mid-year,
-    // the net charge (TD − TC) is what matters, not cumulative TD.
+describe("CPP — profit tax uses rulajTD only (consistent with all expenses)", () => {
+  it("uses rulajTD even when rulajTC mirrors it from closing entries", () => {
+    // Monthly closing entries (D:691 C:121 → reversed as D:121 C:691) produce
+    // rulajTD = rulajTC. Using TD − TC would net to zero and hide the tax.
+    // We use TD only, same as all other expense accounts in groupByCppSection.
     const rows = [
       row("704", { rulajTC: 100000 }),
       row("641", { rulajTD: 60000 }),
-      row("691", { rulajTD: 5000, rulajTC: 5000 }), // fully closed
+      row("691", { rulajTD: 5000, rulajTC: 5000 }),
     ];
     const cpp = computeCpp(rows, CATALOG, { taxRegime: "profit_standard" });
-    expect(findImpozitLine(cpp)).toBeUndefined();
-    expect(cpp.rezultatNet).toBe(40000);
+    const impozit = findImpozitLine(cpp);
+    expect(impozit).toBeDefined();
+    expect(impozit!.value).toBe(5000);
+    expect(cpp.rezultatNet).toBe(35000);
+  });
+
+  it("shows correct impozit when no closing entries exist (TC = 0)", () => {
+    const rows = [
+      row("704", { rulajTC: 100000 }),
+      row("641", { rulajTD: 60000 }),
+      row("691", { rulajTD: 5000 }),
+    ];
+    const cpp = computeCpp(rows, CATALOG, { taxRegime: "profit_standard" });
+    const impozit = findImpozitLine(cpp);
+    expect(impozit).toBeDefined();
+    expect(impozit!.value).toBe(5000);
+    expect(cpp.rezultatNet).toBe(35000);
   });
 });

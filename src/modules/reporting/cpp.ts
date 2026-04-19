@@ -203,10 +203,12 @@ function sumProfitTax(
     if (!meta?.isProfitTax) continue;
     if (allowedCodes && !allowedCodes.has(row.contBase)) continue;
 
-    const value = row.rulajTD - row.rulajTC; // rulajTC nets out any reversal
-    if (value <= 0) continue;
+    // Use rulajTD only — same as all expense accounts. Using
+    // rulajTD − rulajTC nets to zero when monthly closing entries
+    // mirror the original charge (D:691 C:121 → both sides equal).
+    if (row.rulajTD === 0) continue;
 
-    total += value;
+    total += row.rulajTD;
     contributingCodes.push(row.contBase);
   }
 
