@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, Download, HelpCircle, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle, Download, HelpCircle, Pencil, X } from "lucide-react";
 import type { PlanRow } from "@/modules/accounts/plan";
 import { planCsvFilename, planRowsToCsv } from "@/modules/accounts/plan-csv";
 import {
@@ -477,7 +477,7 @@ function ReviewToggle({
       aria-label="Marcheaza ca revizuit"
       title="Marcheaza ca revizuit"
     >
-      <RotateCcw size={12} />
+      <CheckCircle size={12} />
     </button>
   );
 }
