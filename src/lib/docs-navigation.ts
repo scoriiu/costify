@@ -65,6 +65,7 @@ export const DOC_NAVIGATION: DocCategory[] = [
     label: "FAQ & Clarificari",
     description: "Intrebari frecvente si discutii deschise",
     pages: [
+      { slug: "intrebari-contabil-mai-2026", title: "Intrebari pentru contabil — mai 2026", description: "Trei intrebari concrete care ne blocheaza dupa alinierea catalogului la OMFP 1802 oficial: formula TVA, conflict 121 la QHM21, soarta contului 4373", interactive: true },
       { slug: "intrebari-contabil-plan-conturi", title: "Intrebari pentru contabil: plan de conturi", description: "Clarificari necesare pentru refactorizarea maparii conturilor", interactive: true },
       { slug: "intrebari-contabil-f20-detaliat", title: "Intrebari pentru contabil: formularul F20", description: "Confirmari despre mapping-ul conturilor pe randurile F20 si cazuri concrete din practica", interactive: true },
       { slug: "intrebari-contabil-conturi-nemapate", title: "Intrebari pentru contabil: conturi nemapate", description: "Cazuri concrete de conturi care apar in jurnal dar lipsesc din OMFP 1802 — vrem parerea ta", interactive: true },
