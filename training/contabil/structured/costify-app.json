@@ -182,13 +182,13 @@
     ]
   },
   "accounts": {
-    "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu 372 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",
+    "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu 565 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",
     "tier_1_catalog": {
-      "description": "AccountCatalog — tabel global seed-at din seeds/omfp-1802.json. Aliniat la exportul oficial Saga (583 conturi total in plan oficial) si la raspunsurile contabilului Claudia Solomon (44 raspunsuri DocAnswer).",
-      "content": "Conturi sintetice standard OMFP 1802 (clase 1-9, inclusiv 999 tehnic Saga), cu tip A/P/B, grupa CPP, flag special si roluri KPI (cashRole, arRole, apRole, vatRole, payrollRole)",
-      "count": "372 conturi (extins de la 324 in mai 2026), cu 29+ conturi noi adaugate care apar in jurnale reale (CAM 436, FX 6651/7651, utilitati 6051-6058, etc.)",
+      "description": "AccountCatalog — tabel global seed-at din seeds/omfp-1802.json. Aliniat la textul oficial consolidat OMFP 1802/2014 (parsat din lege5.ro), la exportul Saga (583 conturi) si la raspunsurile contabilului Claudia Solomon (44 raspunsuri DocAnswer).",
+      "content": "Conturi sintetice standard OMFP 1802 (clase 1-9, inclusiv 999 tehnic Saga), cu tip A/P/B, grupa CPP, flag special si roluri KPI (cashRole, arRole, apRole, vatRole, payrollRole). Denumiri stocate fara diacritice per Claudia 1.5.",
+      "count": "565 conturi (de la 324 initial → 372 mai 2026 → 565 mai 2026 v2 dupa parsarea textului OMFP oficial). Acopera ~97% din planul Saga, doar conturile clasa 8/9 cost-center customizate de fiecare entitate lipsesc.",
       "source": "seeds/omfp-1802.json, incarcat in init container pe fiecare deploy (idempotent upsert)",
-      "may_2026_revision": "Revizie completa fata de Saga + raspunsuri Claudia: a) bug-uri de denumire (643 si 644 inversate, 216/217 inversate, 107 redenumit din 'Rezerve din conversie' la 'Diferente de curs valutar din conversie'); b) corectii de tip (401 P, 5121/5124 B, clasa 8 toata B+extra-bilantier); c) 48 conturi noi adaugate; d) cppLine fixes (654→16a, 786→26b, 6817→15a, 643→14a impreuna cu 644)."
+      "may_2026_v2_revision": "Aliniat la textul oficial OMFP 1802/2014 consolidat de pe lege5.ro (parsat de scripts/catalog-analysis/4-parse-omfp-html.ts): a) 193 conturi noi adaugate (1081, 1411, 2071, 2075, 6351, 6456, 6587, 4282, 5187 etc.); b) 3 swap-uri rezolvate (8032<->8033, 8038<->8039, 223<->224); c) 35 denumiri actualizate la versiunea oficiala OMFP (361 'Active biologice de natura stocurilor', 605 'Cheltuieli privind utilitatile', 704 'Venituri din servicii prestate', 642 cu 'avantaje in natura', 697 numele cleaner, 711 'Venituri aferente costurilor stocurilor'); d) tipuri pastrate per Saga pentru 5121/5124/609/709/711 (Saga arata practica reala, OMFP HTML doar default pe clasa)."
     },
     "tier_2_client_accounts": {
       "description": "ClientAccount — tabel per client cu denumiri analitice si override-uri",

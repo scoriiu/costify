@@ -1,7 +1,7 @@
 {
-  "version": "omfp_1802_2025",
+  "version": "omfp_1802_2025_v2",
   "source": "OMFP 1802/2014 + modifications through 2025",
-  "description": "Standard Romanian Chart of Accounts. Complete classes 1-8. CPP groupings based on OMFP 1802 Annex for Cont Profit si Pierdere. Special flags: pl_closing (121), profit_distribution (129), profit_tax (691), micro_tax (698). Tier 1 of the 3-tier mapping architecture — read-only, shared across all tenants. Pending accountant review (see docs/ro/intrebari-contabil-plan-conturi.md).",
+  "description": "Standard Romanian Chart of Accounts (OMFP 1802/2014 consolidated). Aligned with the official text published on lege5.ro (parsed via scripts/catalog-analysis/4-parse-omfp-html.ts) and validated against the Saga C export Plan_conturi_202604.xlsx. Tier 1 of the 3-tier mapping architecture — read-only, shared across all tenants. Names are stored without diacritics per accountant guidance (Claudia Solomon 1.5).",
   "accounts": [
     {
       "code": "101",
@@ -102,8 +102,14 @@
     },
     {
       "code": "205",
-      "name": "Concesiuni, brevete, licente, marci comerciale",
+      "name": "Concesiuni, brevete, licente, marci comerciale, drepturi si active similare",
       "type": "A"
+    },
+    {
+      "code": "206",
+      "name": "Active necorporale de explorare si evaluare a resurselor minerale",
+      "type": "A",
+      "classDigit": 2
     },
     {
       "code": "207",
@@ -132,7 +138,7 @@
     },
     {
       "code": "214",
-      "name": "Mobilier, aparatura birotica si alte active corporale",
+      "name": "Mobilier, aparatura birotica, echipamente de protectie a valorilor umane si materiale si alte active corporale",
       "type": "A"
     },
     {
@@ -152,13 +158,19 @@
     },
     {
       "code": "223",
-      "name": "Imobilizari in curs",
+      "name": "Instalatii tehnice si mijloace de transport in curs de aprovizionare",
       "type": "A"
     },
     {
       "code": "224",
-      "name": "Avansuri acordate pentru imobilizari corporale",
+      "name": "Mobilier, aparatura birotica, echipamente de protectie a valorilor umane si materiale si alte active corporale in curs de aprovizionare",
       "type": "A"
+    },
+    {
+      "code": "227",
+      "name": "Active biologice productive in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 2
     },
     {
       "code": "231",
@@ -177,14 +189,32 @@
       "type": "A"
     },
     {
+      "code": "262",
+      "name": "Actiuni detinute la entitati asociate",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
       "code": "263",
-      "name": "Actiuni detinute la entitatile asociate si entitatile controlate in comun",
+      "name": "Actiuni detinute la entitati controlate in comun",
       "type": "A"
+    },
+    {
+      "code": "264",
+      "name": "Titluri puse in echivalenta",
+      "type": "A",
+      "classDigit": 2
     },
     {
       "code": "265",
       "name": "Alte titluri imobilizate",
       "type": "A"
+    },
+    {
+      "code": "266",
+      "name": "Certificate verzi amanate",
+      "type": "A",
+      "classDigit": 2
     },
     {
       "code": "267",
@@ -247,8 +277,38 @@
       "type": "B"
     },
     {
+      "code": "321",
+      "name": "Materii prime in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
+      "code": "322",
+      "name": "Materiale consumabile in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
+      "code": "323",
+      "name": "Materiale de natura obiectelor de inventar in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
+      "code": "326",
+      "name": "Active biologice de natura stocurilor in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
       "code": "327",
       "name": "Marfuri in curs de aprovizionare",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
+      "code": "328",
+      "name": "Ambalaje in curs de aprovizionare",
       "type": "A",
       "classDigit": 3
     },
@@ -278,6 +338,12 @@
       "type": "A"
     },
     {
+      "code": "347",
+      "name": "Produse agricole",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
       "code": "348",
       "name": "Diferente de pret la produse",
       "type": "B"
@@ -294,7 +360,7 @@
     },
     {
       "code": "356",
-      "name": "Animale aflate la terti",
+      "name": "Active biologice de natura stocurilor aflate la terti",
       "type": "A"
     },
     {
@@ -309,8 +375,14 @@
     },
     {
       "code": "361",
-      "name": "Animale si pasari",
+      "name": "Active biologice de natura stocurilor",
       "type": "A"
+    },
+    {
+      "code": "368",
+      "name": "Diferente de pret la active biologice de natura stocurilor",
+      "type": "B",
+      "classDigit": 3
     },
     {
       "code": "371",
@@ -359,7 +431,7 @@
     },
     {
       "code": "396",
-      "name": "Ajustari pentru deprecierea animalelor",
+      "name": "Ajustari pentru deprecierea activelor biologice de natura stocurilor",
       "type": "P"
     },
     {
@@ -538,7 +610,7 @@
     },
     {
       "code": "457",
-      "name": "Dividende de platit",
+      "name": "Dividende de plata",
       "type": "P"
     },
     {
@@ -584,13 +656,31 @@
       "type": "B"
     },
     {
+      "code": "478",
+      "name": "Venituri in avans aferente activelor primite prin transfer de la clienti",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "481",
+      "name": "Decontari intre unitate si subunitati",
+      "type": "B",
+      "classDigit": 4
+    },
+    {
+      "code": "482",
+      "name": "Decontari intre subunitati",
+      "type": "B",
+      "classDigit": 4
+    },
+    {
       "code": "491",
       "name": "Ajustari pentru deprecierea creantelor - clienti",
       "type": "P"
     },
     {
       "code": "495",
-      "name": "Ajustari pentru deprecierea creantelor - decontari in grup",
+      "name": "Ajustari pentru deprecierea creantelor - decontari in cadrul grupului si cu actionarii/asociatii",
       "type": "P"
     },
     {
@@ -612,6 +702,12 @@
       "code": "506",
       "name": "Obligatiuni",
       "type": "A"
+    },
+    {
+      "code": "507",
+      "name": "Certificate verzi primite",
+      "type": "A",
+      "classDigit": 5
     },
     {
       "code": "508",
@@ -665,7 +761,7 @@
     },
     {
       "code": "591",
-      "name": "Ajustari pentru pierderea de valoare a actiunilor",
+      "name": "Ajustari pentru pierderea de valoare a actiunilor detinute la entitatile afiliate",
       "type": "P"
     },
     {
@@ -675,8 +771,14 @@
     },
     {
       "code": "596",
-      "name": "Ajustari pentru pierderea de valoare a altor investitii pe termen scurt",
+      "name": "Ajustari pentru pierderea de valoare a obligatiunilor",
       "type": "P"
+    },
+    {
+      "code": "598",
+      "name": "Ajustari pentru pierderea de valoare a altor investitii pe termen scurt si creante asimilate",
+      "type": "P",
+      "classDigit": 5
     },
     {
       "code": "601",
@@ -716,7 +818,7 @@
     },
     {
       "code": "605",
-      "name": "Cheltuieli privind energia si apa",
+      "name": "Cheltuieli privind utilitatile",
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu energia si apa",
@@ -923,7 +1025,7 @@
     },
     {
       "code": "642",
-      "name": "Cheltuieli cu tichetele de masa acordate salariatilor",
+      "name": "Cheltuieli cu avantajele in natura si tichetele acordate salariatilor",
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu tichetele de masa",
@@ -1099,7 +1201,7 @@
     },
     {
       "code": "695",
-      "name": "Cheltuieli cu impozitul specific (HoReCa, istoric)",
+      "name": "Cheltuieli cu impozitul specific unor activitati.",
       "type": "A",
       "special": "profit_tax",
       "cppLine": "34",
@@ -1107,7 +1209,7 @@
     },
     {
       "code": "697",
-      "name": "Cheltuieli cu impozitul minim pe cifra de afaceri (IMCA)",
+      "name": "Cheltuieli cu impozitul pe profit la nivelul impozitului minim pe cifra de afaceri",
       "type": "A",
       "special": "profit_tax",
       "cppLine": "34",
@@ -1115,7 +1217,7 @@
     },
     {
       "code": "698",
-      "name": "Cheltuieli cu impozitul pe venit al microintreprinderii",
+      "name": "Cheltuieli cu impozitul pe venit si cu alte impozite care nu apar in elementele de mai sus",
       "type": "A",
       "special": "micro_tax",
       "cppLine": "34",
@@ -1150,7 +1252,7 @@
     },
     {
       "code": "704",
-      "name": "Venituri din lucrari executate si servicii prestate",
+      "name": "Venituri din servicii prestate",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din servicii prestate",
@@ -1204,7 +1306,7 @@
     },
     {
       "code": "711",
-      "name": "Variatia stocurilor",
+      "name": "Venituri aferente costurilor stocurilor de produse",
       "type": "B",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Variatia stocurilor",
@@ -1257,6 +1359,12 @@
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
+      "code": "751",
+      "name": "Venituri din operatiuni de fiducie",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
       "code": "754",
       "name": "Venituri din creante reactivate si debitori diversi",
       "type": "P",
@@ -1264,6 +1372,12 @@
       "cppLabel": "Venituri din creante reactivate",
       "cppLine": "11",
       "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "755",
+      "name": "Venituri din reevaluarea imobilizarilor corporale",
+      "type": "P",
+      "classDigit": 7
     },
     {
       "code": "758",
@@ -1386,6 +1500,114 @@
       "isExtraBilantier": true
     },
     {
+      "code": "803",
+      "name": "Alte conturi in afara bilantului",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "805",
+      "name": "Dobanzi aferente contractelor de leasing si altor contracte asimilate, neajunse la scadenta",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "806",
+      "name": "Certificate de emisii de gaze cu efect de sera",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "807",
+      "name": "Active contingente",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "808",
+      "name": "Datorii contingente",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "809",
+      "name": "Creante preluate prin cesionare",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "891",
+      "name": "Bilant de deschidere",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "892",
+      "name": "Bilant de inchidere",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "901",
+      "name": "Decontari interne privind cheltuielile",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "902",
+      "name": "Decontari interne privind productia obtinuta",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "903",
+      "name": "Decontari interne privind diferentele de pret",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "921",
+      "name": "Cheltuielile activitatii de baza",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "922",
+      "name": "Cheltuielile activitatilor auxiliare",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "923",
+      "name": "Cheltuieli indirecte de productie",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "924",
+      "name": "Cheltuieli generale de administratie",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "925",
+      "name": "Cheltuieli de desfacere",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "931",
+      "name": "Costul productiei obtinute",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
+      "code": "933",
+      "name": "Costul productiei in curs de executie",
+      "type": "A",
+      "classDigit": 9
+    },
+    {
       "code": "999",
       "name": "Contrapartida tehnica Saga (conturi extra-bilantiere)",
       "type": "B",
@@ -1403,6 +1625,30 @@
       "type": "P"
     },
     {
+      "code": "1015",
+      "name": "Patrimoniul regiei",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1016",
+      "name": "Patrimoniul public",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1017",
+      "name": "Patrimoniul privat",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1018",
+      "name": "Patrimoniul institutelor nationale de cercetare-dezvoltare",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
       "code": "1031",
       "name": "Beneficii ale angajatilor sub forma de capitaluri proprii",
       "type": "P",
@@ -1410,13 +1656,13 @@
     },
     {
       "code": "1033",
-      "name": "Diferente de curs pentru investitia intr-o entitate straina",
+      "name": "Diferente de curs valutar in relatie cu investitia neta intr-o entitate straina",
       "type": "B",
       "classDigit": 1
     },
     {
       "code": "1038",
-      "name": "Alte elemente de capitaluri proprii",
+      "name": "Diferente din modificarea valorii juste a activelor financiare disponibile in vederea vanzarii si alte elemente de capitaluri proprii",
       "type": "B",
       "classDigit": 1
     },
@@ -1456,6 +1702,18 @@
       "type": "P"
     },
     {
+      "code": "1081",
+      "name": "Interese care nu controleaza - rezultatul exercitiului financiar",
+      "type": "B",
+      "classDigit": 1
+    },
+    {
+      "code": "1082",
+      "name": "Interese care nu controleaza - alte capitaluri proprii",
+      "type": "B",
+      "classDigit": 1
+    },
+    {
       "code": "1091",
       "name": "Actiuni proprii detinute pe termen scurt",
       "type": "A"
@@ -1466,9 +1724,27 @@
       "type": "A"
     },
     {
+      "code": "1095",
+      "name": "Actiuni proprii reprezentand titluri detinute de societatea absorbita la societatea absorbanta",
+      "type": "A",
+      "classDigit": 1
+    },
+    {
       "code": "1171",
       "name": "Rezultatul reportat reprezentand profitul nerepartizat sau pierderea neacoperita",
       "type": "B"
+    },
+    {
+      "code": "1172",
+      "name": "Rezultatul reportat provenit din adoptarea pentru prima data a IAS, mai putin IAS 29",
+      "type": "B",
+      "classDigit": 1
+    },
+    {
+      "code": "1173",
+      "name": "Rezultatul reportat provenit din modificarile politicilor contabile",
+      "type": "B",
+      "classDigit": 1
     },
     {
       "code": "1174",
@@ -1486,8 +1762,38 @@
       "type": "B"
     },
     {
+      "code": "1411",
+      "name": "Castiguri legate de vanzarea instrumentelor de capitaluri proprii",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1412",
+      "name": "Castiguri legate de anularea instrumentelor de capitaluri proprii",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1491",
+      "name": "Pierderi rezultate din vanzarea instrumentelor de capitaluri proprii",
+      "type": "A",
+      "classDigit": 1
+    },
+    {
+      "code": "1495",
+      "name": "Pierderi rezultate din reorganizari, care sunt determinate de anularea titlurilor detinute",
+      "type": "A",
+      "classDigit": 1
+    },
+    {
       "code": "1496",
-      "name": "Pierderi din reorganizari de societati pentru activul net negativ",
+      "name": "Pierderi rezultate din reorganizari de societati, corespunzatoare activului net negativ al societatii absorbite",
+      "type": "A",
+      "classDigit": 1
+    },
+    {
+      "code": "1498",
+      "name": "Alte pierderi legate de instrumentele de capitaluri proprii",
       "type": "A",
       "classDigit": 1
     },
@@ -1503,7 +1809,7 @@
     },
     {
       "code": "1513",
-      "name": "Provizioane pentru dezafectare imobilizari corporale",
+      "name": "Provizioane pentru dezafectare imobilizari corporale si alte actiuni similare legate de acestea",
       "type": "P"
     },
     {
@@ -1522,14 +1828,134 @@
       "type": "P"
     },
     {
+      "code": "1517",
+      "name": "Provizioane pentru terminarea contractului de munca",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
       "code": "1518",
       "name": "Alte provizioane",
       "type": "P"
     },
     {
+      "code": "1614",
+      "name": "Imprumuturi externe din emisiuni de obligatiuni garantate de stat",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1615",
+      "name": "Imprumuturi externe din emisiuni de obligatiuni garantate de banci",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1617",
+      "name": "Imprumuturi interne din emisiuni de obligatiuni garantate de stat",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1618",
+      "name": "Alte imprumuturi din emisiuni de obligatiuni",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
       "code": "1621",
       "name": "Credite bancare pe termen lung",
       "type": "P"
+    },
+    {
+      "code": "1622",
+      "name": "Credite bancare pe termen lung nerambursate la scadenta",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1623",
+      "name": "Credite externe guvernamentale",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1624",
+      "name": "Credite bancare externe garantate de stat",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1625",
+      "name": "Credite bancare externe garantate de banci",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1626",
+      "name": "Credite de la trezoreria statului",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1627",
+      "name": "Credite bancare interne garantate de stat",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1661",
+      "name": "Datorii fata de entitatile afiliate",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1663",
+      "name": "Datorii fata de entitatile asociate si entitatile controlate in comun",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1681",
+      "name": "Dobanzi aferente imprumuturilor din emisiuni de obligatiuni",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1682",
+      "name": "Dobanzi aferente creditelor bancare pe termen lung",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1685",
+      "name": "Dobanzi aferente datoriilor fata de entitatile afiliate",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1686",
+      "name": "Dobanzi aferente datoriilor fata de entitatile asociate si entitatile controlate in comun",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1687",
+      "name": "Dobanzi aferente altor imprumuturi si datorii asimilate",
+      "type": "P",
+      "classDigit": 1
+    },
+    {
+      "code": "1691",
+      "name": "Prime privind rambursarea obligatiunilor",
+      "type": "A",
+      "classDigit": 1
+    },
+    {
+      "code": "1692",
+      "name": "Prime privind rambursarea altor datorii",
+      "type": "A",
+      "classDigit": 1
     },
     {
       "code": "2051",
@@ -1540,6 +1966,18 @@
       "code": "2052",
       "name": "Programe informatice / Software",
       "type": "A"
+    },
+    {
+      "code": "2071",
+      "name": "Fond comercial pozitiv",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2075",
+      "name": "Fond comercial negativ",
+      "type": "P",
+      "classDigit": 2
     },
     {
       "code": "2111",
@@ -1553,7 +1991,7 @@
     },
     {
       "code": "2131",
-      "name": "Echipamente tehnologice",
+      "name": "Echipamente tehnologice (masini, utilaje si instalatii de lucru)",
       "type": "A"
     },
     {
@@ -1567,14 +2005,80 @@
       "type": "A"
     },
     {
+      "code": "2671",
+      "name": "Sume de incasat de la entitatile afiliate",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2672",
+      "name": "Dobanda aferenta sumelor de incasat de la entitatile afiliate",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2673",
+      "name": "Creante fata de entitatile asociate si entitatile controlate in comun",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2674",
+      "name": "Dobanda aferenta creantelor fata de entitatile asociate si entitatile controlate in comun",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2675",
+      "name": "Imprumuturi acordate pe termen lung",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2676",
+      "name": "Dobanda aferenta imprumuturilor acordate pe termen lung",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
+      "code": "2677",
+      "name": "Obligatiuni achizitionate cu ocazia emisiunilor efectuate de terti",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
       "code": "2678",
       "name": "Alte creante imobilizate",
       "type": "A",
       "classDigit": 2
     },
     {
+      "code": "2679",
+      "name": "Dobanzi aferente altor creante imobilizate",
+      "type": "A",
+      "classDigit": 2
+    },
+    {
       "code": "2691",
       "name": "Varsaminte de efectuat pentru actiunile detinute la entitatile afiliate",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2692",
+      "name": "Varsaminte de efectuat privind actiunile detinute la entitati asociate",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2693",
+      "name": "Varsaminte de efectuat privind actiunile detinute la entitati controlate in comun",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2695",
+      "name": "Varsaminte de efectuat pentru alte imobilizari financiare",
       "type": "P",
       "classDigit": 2
     },
@@ -1590,8 +2094,14 @@
     },
     {
       "code": "2805",
-      "name": "Amortizarea concesiunilor, brevetelor, licentelor",
+      "name": "Amortizarea concesiunilor, brevetelor, licentelor, marcilor comerciale, drepturilor si activelor similare",
       "type": "P"
+    },
+    {
+      "code": "2806",
+      "name": "Amortizarea activelor necorporale de explorare si evaluare a resurselor minerale",
+      "type": "P",
+      "classDigit": 2
     },
     {
       "code": "2807",
@@ -1615,13 +2125,151 @@
     },
     {
       "code": "2813",
-      "name": "Amortizarea instalatiilor si masinilor",
+      "name": "Amortizarea instalatiilor si mijloacelor de transport",
       "type": "P"
     },
     {
       "code": "2814",
       "name": "Amortizarea altor imobilizari corporale",
       "type": "P"
+    },
+    {
+      "code": "2815",
+      "name": "Amortizarea investitiilor imobiliare",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2816",
+      "name": "Amortizarea activelor corporale de explorare si evaluare a resurselor minerale",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2817",
+      "name": "Amortizarea activelor biologice productive",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2903",
+      "name": "Ajustari pentru deprecierea cheltuielilor de dezvoltare",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2905",
+      "name": "Ajustari pentru deprecierea concesiunilor, brevetelor, licentelor, marcilor comerciale, drepturilor si activelor similare",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2906",
+      "name": "Ajustari pentru deprecierea activelor necorporale de explorare si evaluare a resurselor minerale",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2908",
+      "name": "Ajustari pentru deprecierea altor imobilizari necorporale",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2911",
+      "name": "Ajustari pentru deprecierea terenurilor si amenajarilor de terenuri",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2912",
+      "name": "Ajustari pentru deprecierea constructiilor",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2913",
+      "name": "Ajustari pentru deprecierea instalatiilor si mijloacelor de transport",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2914",
+      "name": "Ajustari pentru deprecierea altor imobilizari corporale",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2915",
+      "name": "Ajustari pentru deprecierea investitiilor imobiliare",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2916",
+      "name": "Ajustari pentru deprecierea activelor corporale de explorare si evaluare a resurselor minerale",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2917",
+      "name": "Ajustari pentru deprecierea activelor biologice productive",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2931",
+      "name": "Ajustari pentru deprecierea imobilizarilor corporale in curs de executie",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2935",
+      "name": "Ajustari pentru deprecierea investitiilor imobiliare in curs de executie",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2961",
+      "name": "Ajustari pentru pierderea de valoare a actiunilor detinute la entitatile afiliate",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2962",
+      "name": "Ajustari pentru pierderea de valoare a actiunilor detinute la entitati asociate si entitati controlate in comun",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2963",
+      "name": "Ajustari pentru pierderea de valoare a altor titluri imobilizate",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2964",
+      "name": "Ajustari pentru pierderea de valoare a sumelor de incasat de la entitatile afiliate",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2965",
+      "name": "Ajustari pentru pierderea de valoare a creantelor fata de entitatile asociate si entitatile controlate in comun",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2966",
+      "name": "Ajustari pentru pierderea de valoare a imprumuturilor acordate pe termen lung",
+      "type": "P",
+      "classDigit": 2
+    },
+    {
+      "code": "2968",
+      "name": "Ajustari pentru pierderea de valoare a altor creante imobilizate",
+      "type": "P",
+      "classDigit": 2
     },
     {
       "code": "3021",
@@ -1649,9 +2297,99 @@
       "type": "A"
     },
     {
+      "code": "3026",
+      "name": "Furaje",
+      "type": "A",
+      "classDigit": 3
+    },
+    {
       "code": "3028",
       "name": "Alte materiale consumabile",
       "type": "A"
+    },
+    {
+      "code": "3921",
+      "name": "Ajustari pentru deprecierea materialelor consumabile",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3922",
+      "name": "Ajustari pentru deprecierea materialelor de natura obiectelor de inventar",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3941",
+      "name": "Ajustari pentru deprecierea semifabricatelor",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3945",
+      "name": "Ajustari pentru deprecierea produselor finite",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3946",
+      "name": "Ajustari pentru deprecierea produselor reziduale",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3947",
+      "name": "Ajustari pentru deprecierea produselor agricole",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3951",
+      "name": "Ajustari pentru deprecierea materiilor si materialelor aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3952",
+      "name": "Ajustari pentru deprecierea semifabricatelor aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3953",
+      "name": "Ajustari pentru deprecierea produselor finite aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3954",
+      "name": "Ajustari pentru deprecierea produselor reziduale aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3955",
+      "name": "Ajustari pentru deprecierea produselor agricole aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3956",
+      "name": "Ajustari pentru deprecierea activelor biologice de natura stocurilor aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3957",
+      "name": "Ajustari pentru deprecierea marfurilor aflate la terti",
+      "type": "P",
+      "classDigit": 3
+    },
+    {
+      "code": "3958",
+      "name": "Ajustari pentru deprecierea ambalajelor aflate la terti",
+      "type": "P",
+      "classDigit": 3
     },
     {
       "code": "4091",
@@ -1670,6 +2408,12 @@
       "classDigit": 4
     },
     {
+      "code": "4094",
+      "name": "Avansuri acordate pentru imobilizari necorporale",
+      "type": "A",
+      "classDigit": 4
+    },
+    {
       "code": "4111",
       "name": "Clienti",
       "type": "A"
@@ -1678,6 +2422,18 @@
       "code": "4118",
       "name": "Clienti incerti sau in litigiu",
       "type": "A"
+    },
+    {
+      "code": "4281",
+      "name": "Alte datorii in legatura cu personalul",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4282",
+      "name": "Alte creante in legatura cu personalul",
+      "type": "A",
+      "classDigit": 4
     },
     {
       "code": "4311",
@@ -1733,6 +2489,12 @@
       "classDigit": 4
     },
     {
+      "code": "4381",
+      "name": "Alte datorii sociale",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
       "code": "4382",
       "name": "Alte creante sociale",
       "type": "A",
@@ -1744,8 +2506,14 @@
       "type": "P"
     },
     {
+      "code": "4415",
+      "name": "Impozitul specific unor activitati",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
       "code": "4418",
-      "name": "Impozitul pe venit microintreprinderi",
+      "name": "Impozitul pe venit",
       "type": "P"
     },
     {
@@ -1774,8 +2542,20 @@
       "type": "B"
     },
     {
+      "code": "4451",
+      "name": "Subventii guvernamentale",
+      "type": "A",
+      "classDigit": 4
+    },
+    {
       "code": "4452",
       "name": "Imprumuturi nerambursabile cu caracter de subventii",
+      "type": "A",
+      "classDigit": 4
+    },
+    {
+      "code": "4458",
+      "name": "Alte sume primite cu caracter de subventii",
       "type": "A",
       "classDigit": 4
     },
@@ -1796,9 +2576,105 @@
       "classDigit": 4
     },
     {
+      "code": "4518",
+      "name": "Dobanzi aferente decontarilor intre entitatile afiliate",
+      "type": "B",
+      "classDigit": 4
+    },
+    {
+      "code": "4538",
+      "name": "Dobanzi aferente decontarilor cu entitatile asociate si entitatile controlate in comun",
+      "type": "B",
+      "classDigit": 4
+    },
+    {
       "code": "4551",
-      "name": "Asociati - conturi curente",
+      "name": "Actionari/Asociati - conturi curente",
       "type": "P"
+    },
+    {
+      "code": "4558",
+      "name": "Actionari/Asociati - dobanzi la conturi curente",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4581",
+      "name": "Decontari din operatiuni in participatie - pasiv",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4582",
+      "name": "Decontari din operatiuni in participatie - activ",
+      "type": "A",
+      "classDigit": 4
+    },
+    {
+      "code": "4661",
+      "name": "Datorii din operatiuni de fiducie",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4662",
+      "name": "Creante din operatiuni de fiducie",
+      "type": "A",
+      "classDigit": 4
+    },
+    {
+      "code": "4751",
+      "name": "Subventii guvernamentale pentru investitii",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4752",
+      "name": "Imprumuturi nerambursabile cu caracter de subventii pentru investitii",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4753",
+      "name": "Donatii pentru investitii",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4754",
+      "name": "Plusuri de inventar de natura imobilizarilor",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "4758",
+      "name": "Alte sume primite cu caracter de subventii pentru investitii",
+      "type": "P",
+      "classDigit": 4
+    },
+    {
+      "code": "5081",
+      "name": "Alte titluri de plasament",
+      "type": "A",
+      "classDigit": 5
+    },
+    {
+      "code": "5088",
+      "name": "Dobanzi la obligatiuni si titluri de plasament",
+      "type": "A",
+      "classDigit": 5
+    },
+    {
+      "code": "5091",
+      "name": "Varsaminte de efectuat pentru actiunile detinute la entitatile afiliate",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5092",
+      "name": "Varsaminte de efectuat pentru alte investitii pe termen scurt",
+      "type": "P",
+      "classDigit": 5
     },
     {
       "code": "5112",
@@ -1831,6 +2707,18 @@
       "type": "A"
     },
     {
+      "code": "5186",
+      "name": "Dobanzi de platit",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5187",
+      "name": "Dobanzi de incasat",
+      "type": "A",
+      "classDigit": 5
+    },
+    {
       "code": "5191",
       "name": "Credite bancare pe termen scurt",
       "type": "P"
@@ -1839,6 +2727,36 @@
       "code": "5192",
       "name": "Credite bancare pe termen scurt nerambursate la scadenta",
       "type": "P"
+    },
+    {
+      "code": "5193",
+      "name": "Credite externe guvernamentale",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5194",
+      "name": "Credite externe garantate de stat",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5195",
+      "name": "Credite externe garantate de banci",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5196",
+      "name": "Credite de la Trezoreria Statului",
+      "type": "P",
+      "classDigit": 5
+    },
+    {
+      "code": "5197",
+      "name": "Credite interne garantate de stat",
+      "type": "P",
+      "classDigit": 5
     },
     {
       "code": "5198",
@@ -1894,7 +2812,7 @@
     },
     {
       "code": "6022",
-      "name": "Cheltuieli privind combustibilul",
+      "name": "Cheltuieli privind combustibilii",
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli privind combustibilul"
@@ -1915,10 +2833,16 @@
     },
     {
       "code": "6025",
-      "name": "Cheltuieli privind semintele",
+      "name": "Cheltuieli privind semintele si materialele de plantat",
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli privind semintele"
+    },
+    {
+      "code": "6026",
+      "name": "Cheltuieli privind furajele",
+      "type": "A",
+      "classDigit": 6
     },
     {
       "code": "6028",
@@ -1991,6 +2915,18 @@
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
+      "code": "6351",
+      "name": "Cheltuieli cu impozitul suplimentar pentru sectoarele de activitate specifice",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6421",
+      "name": "Cheltuieli cu avantajele in natura acordate salariatilor",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
       "code": "6422",
       "name": "Cheltuieli cu tichetele de masa acordate salariatilor",
       "type": "A",
@@ -2027,6 +2963,24 @@
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
+      "code": "6455",
+      "name": "Cheltuieli privind contributia unitatii la asigurarile de viata",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6456",
+      "name": "Cheltuieli privind contributia unitatii la fondurile de pensii facultative",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6457",
+      "name": "Cheltuieli privind contributia unitatii la primele de asigurare voluntara de sanatate",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
       "code": "6458",
       "name": "Alte cheltuieli privind asigurarile si protectia sociala",
       "type": "A",
@@ -2043,6 +2997,24 @@
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLine": "14b",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
+    },
+    {
+      "code": "6511",
+      "name": "Cheltuieli ocazionate de constituirea fiduciei",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6512",
+      "name": "Cheltuieli din derularea operatiunilor de fiducie",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6513",
+      "name": "Cheltuieli din lichidarea operatiunilor de fiducie",
+      "type": "A",
+      "classDigit": 6
     },
     {
       "code": "6581",
@@ -2081,6 +3053,18 @@
       "cppLineLabel": "d) Alte cheltuieli de exploatare"
     },
     {
+      "code": "6586",
+      "name": "Cheltuieli reprezentand transferuri si contributii datorate in baza unor acte normative speciale",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
+      "code": "6587",
+      "name": "Cheltuieli privind calamitatile si alte evenimente similare",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
       "code": "6588",
       "name": "Alte cheltuieli de exploatare",
       "type": "A",
@@ -2088,6 +3072,12 @@
       "cppLabel": "Alte cheltuieli de exploatare",
       "cppLine": "17d",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
+    },
+    {
+      "code": "6641",
+      "name": "Cheltuieli privind imobilizarile financiare cedate",
+      "type": "A",
+      "classDigit": 6
     },
     {
       "code": "6642",
@@ -2106,6 +3096,12 @@
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLine": "28",
       "cppLineLabel": "Alte cheltuieli financiare"
+    },
+    {
+      "code": "6652",
+      "name": "Diferente nefavorabile de curs valutar din evaluarea elementelor monetare care fac parte din investitia neta intr-o entitate straina",
+      "type": "A",
+      "classDigit": 6
     },
     {
       "code": "6811",
@@ -2162,6 +3158,12 @@
       "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
     },
     {
+      "code": "6861",
+      "name": "Cheltuieli privind actualizarea provizioanelor",
+      "type": "A",
+      "classDigit": 6
+    },
+    {
       "code": "6863",
       "name": "Cheltuieli financiare privind ajustarile pentru pierderea de valoare a imobilizarilor financiare",
       "type": "A",
@@ -2178,6 +3180,12 @@
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLine": "26a",
       "cppLineLabel": "a) Cheltuieli cu ajustarile pentru pierderea de valoare a imobilizarilor financiare"
+    },
+    {
+      "code": "6865",
+      "name": "Cheltuieli financiare privind amortizarea diferentelor aferente titlurilor de stat",
+      "type": "A",
+      "classDigit": 6
     },
     {
       "code": "6868",
@@ -2198,6 +3206,18 @@
       "cppLineLabel": "Productia vanduta"
     },
     {
+      "code": "7017",
+      "name": "Venituri din vanzarea produselor agricole",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7018",
+      "name": "Venituri din vanzarea activelor biologice de natura stocurilor",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
       "code": "7411",
       "name": "Venituri din subventii de exploatare aferente cifrei de afaceri",
       "type": "P",
@@ -2208,7 +3228,7 @@
     },
     {
       "code": "7412",
-      "name": "Venituri din subventii de exploatare aferente materiilor prime si materialelor",
+      "name": "Venituri din subventii de exploatare pentru materii prime si materiale",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii materiale",
@@ -2226,7 +3246,7 @@
     },
     {
       "code": "7414",
-      "name": "Venituri din subventii de exploatare aferente cheltuielilor cu personalul",
+      "name": "Venituri din subventii de exploatare pentru plata personalului",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii personal",
@@ -2235,7 +3255,7 @@
     },
     {
       "code": "7415",
-      "name": "Venituri din subventii de exploatare aferente asigurarilor si protectiei sociale",
+      "name": "Venituri din subventii de exploatare pentru asigurari si protectie sociala",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii asigurari sociale",
@@ -2244,7 +3264,7 @@
     },
     {
       "code": "7416",
-      "name": "Venituri din subventii de exploatare aferente altor cheltuieli de exploatare",
+      "name": "Venituri din subventii de exploatare pentru alte cheltuieli de exploatare",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii alte cheltuieli",
@@ -2253,7 +3273,7 @@
     },
     {
       "code": "7417",
-      "name": "Venituri din subventii de exploatare in caz de calamitati",
+      "name": "Venituri din subventii de exploatare in caz de calamitati si alte evenimente similare",
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii calamitati",
@@ -2277,6 +3297,24 @@
       "cppLabel": "Subventii alte venituri",
       "cppLine": "11",
       "cppLineLabel": "Alte venituri din exploatare"
+    },
+    {
+      "code": "7511",
+      "name": "Venituri ocazionate de constituirea fiduciei",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7512",
+      "name": "Venituri din derularea operatiunilor de fiducie",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7513",
+      "name": "Venituri din lichidarea operatiunilor de fiducie.",
+      "type": "P",
+      "classDigit": 7
     },
     {
       "code": "7581",
@@ -2324,6 +3362,36 @@
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
+      "code": "7611",
+      "name": "Venituri din actiuni detinute la entitatile afiliate",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7612",
+      "name": "Venituri din actiuni detinute la entitati asociate",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7613",
+      "name": "Venituri din actiuni detinute la entitati controlate in comun",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7615",
+      "name": "Venituri din alte imobilizari financiare",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7641",
+      "name": "Venituri din imobilizari financiare cedate",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
       "code": "7642",
       "name": "Castiguri din investitiile financiare pe termen scurt cedate",
       "type": "P",
@@ -2340,6 +3408,36 @@
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLine": "24",
       "cppLineLabel": "Alte venituri financiare"
+    },
+    {
+      "code": "7652",
+      "name": "Diferente favorabile de curs valutar din evaluarea elementelor monetare care fac parte din investitia neta intr-o entitate straina",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7812",
+      "name": "Venituri din provizioane",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7813",
+      "name": "Venituri din ajustari pentru deprecierea imobilizarilor",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7814",
+      "name": "Venituri din ajustari pentru deprecierea activelor circulante",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7815",
+      "name": "Venituri din fondul comercial negativ",
+      "type": "P",
+      "classDigit": 7
     },
     {
       "code": "7816",
@@ -2360,26 +3458,68 @@
       "cppLineLabel": "b) Venituri din ajustari pentru deprecierea activelor circulante"
     },
     {
+      "code": "7863",
+      "name": "Venituri financiare din ajustari pentru pierderea de valoare a imobilizarilor financiare",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7864",
+      "name": "Venituri financiare din ajustari pentru pierderea de valoare a activelor circulante",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "7865",
+      "name": "Venituri financiare din amortizarea diferentelor aferente titlurilor de stat;",
+      "type": "P",
+      "classDigit": 7
+    },
+    {
+      "code": "8011",
+      "name": "Giruri si garantii acordate",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "8018",
+      "name": "Alte angajamente acordate",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "8021",
+      "name": "Giruri si garantii primite",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "8028",
+      "name": "Alte angajamente primite",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
       "code": "8031",
-      "name": "Imobilizari corporale luate cu chirie",
+      "name": "Imobilizari corporale primite cu chirie sau in baza altor contracte similare;",
       "type": "B",
       "isExtraBilantier": true
     },
     {
       "code": "8032",
-      "name": "Valori materiale primite in custodie",
+      "name": "Valori materiale primite spre prelucrare sau reparare",
       "type": "B",
       "isExtraBilantier": true
     },
     {
       "code": "8033",
-      "name": "Valori materiale primite in prelucrare",
+      "name": "Valori materiale primite in pastrare sau custodie",
       "type": "B",
       "isExtraBilantier": true
     },
     {
       "code": "8034",
-      "name": "Debitori scosi din activ",
+      "name": "Debitori scosi din activ, urmariti in continuare",
       "type": "B",
       "isExtraBilantier": true
     },
@@ -2396,16 +3536,34 @@
       "isExtraBilantier": true
     },
     {
+      "code": "8037",
+      "name": "Efecte scontate neajunse la scadenta",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
       "code": "8038",
-      "name": "Alte valori in afara bilantului",
+      "name": "Bunuri primite in administrare, concesiune, cu chirie si alte bunuri similare",
       "type": "B",
       "isExtraBilantier": true
     },
     {
       "code": "8039",
-      "name": "Credite restante",
+      "name": "Alte valori in afara bilantului",
       "type": "B",
       "isExtraBilantier": true
+    },
+    {
+      "code": "8051",
+      "name": "Dobanzi de platit",
+      "type": "B",
+      "classDigit": 8
+    },
+    {
+      "code": "8052",
+      "name": "Dobanzi de incasat",
+      "type": "B",
+      "classDigit": 8
     }
   ]
 }
