@@ -44,6 +44,8 @@ function isExtraBilantierCode(code) {
 function deriveCashRole(code) {
   if (code === "5121" || code === "5124") return "cash_direct";
   if (code === "5311" || code === "5314") return "cash_direct";
+  if (code === "5328") return "cash_direct";
+  if (code === "5113" || code === "5114" || code === "5118") return "cash_direct";
   if (code === "542") return "cash_advance";
   if (code === "581" || code === "5125") return "transit";
   return null;
@@ -51,6 +53,7 @@ function deriveCashRole(code) {
 
 function deriveArRole(code) {
   if (code === "4111") return "ar_primary";
+  if (code === "413") return "ar_primary";
   if (code === "4118") return "ar_doubtful";
   if (code === "418") return "ar_pending";
   if (code === "419") return "customer_advance";
@@ -59,8 +62,10 @@ function deriveArRole(code) {
 
 function deriveApRole(code) {
   if (code === "401" || code === "404") return "ap_primary";
+  if (code === "403" || code === "405") return "ap_primary";
   if (code === "408") return "ap_pending";
   if (code === "409") return "supplier_advance";
+  if (code === "4093") return "supplier_advance";
   return null;
 }
 
@@ -78,7 +83,7 @@ function derivePayrollRole(code) {
   if (salary.has(code)) return "salary";
   const social = new Set([
     "4311", "4312", "4313", "4314", "4315", "4316", "4317", "4318",
-    "4371", "4372", "4441",
+    "436", "4371", "4372", "4373", "4441",
   ]);
   if (social.has(code)) return "social_contrib";
   return null;

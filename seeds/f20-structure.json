@@ -195,8 +195,8 @@
       "indent": 1,
       "kind": "detail",
       "side": "D",
-      "accounts": ["641", "642", "644"],
-      "source": "OMFP 1802 Anexa 3 rd.14 litera a. Include 642 tichete de masa si 644 remunerare in instrumente de capital."
+      "accounts": ["641", "642", "643", "644", "6422"],
+      "source": "OMFP 1802 Anexa 3 rd.14 litera a + Claudia (F20 OMF 107/2025): formula = ct. 641+642+643+644. Include tichete masa (642, 6422), stock options (643 - dupa Saga export 2026), prime participare profit (644 - dupa Saga export 2026)."
     },
     {
       "rowNumber": "14b",
@@ -205,8 +205,8 @@
       "indent": 1,
       "kind": "detail",
       "side": "D",
-      "accounts": ["643", "645", "6451", "6452", "6453", "6458", "646"],
-      "note": "Include CAM (646), prime angajator (643), contributii sociale (645x).",
+      "accounts": ["645", "6451", "6452", "6453", "6458", "646", "6461"],
+      "note": "Include CAM (646, 6461), contributii sociale (645x). 643 mutat la 14a per Claudia 1.5/2.1.",
       "source": "OMFP 1802 Anexa 3 rd.14 litera b."
     },
     {

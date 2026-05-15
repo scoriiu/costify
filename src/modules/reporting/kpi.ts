@@ -109,24 +109,44 @@ function computePayablesKpi(
 }
 
 // ---------- D9: VAT KPI ----------
-// tvaDePlata = max(0, vat_collected.finC − vat_deductible.finD − vat_pending)
-// Per our D9 divergence: use computed formula, NOT 4423 finC.
-// Positive result = owed to state; negative = to recover (but we show actual sign).
+// Per accountant's most recent answer ("4 KPI-uri — conturi incluse"):
+//   tvaDePlata = sold 4423 − sold 4424
+// where positive = owed to state, negative = to recover.
+//
+// Behavior depends on whether the period has been closed (lunar regularization):
+//   POST-CLOSE: 4426/4427/4428 are zeroed; 4423 (P) holds the payable;
+//               4424 (A) holds the receivable. Formula = 4423.finC − 4424.finD.
+//   PRE-CLOSE:  4423/4424 are zero; the components live in 4426 (deductible, A),
+//               4427 (collected, P), 4428 (pending, B). Fallback to computed:
+//               4427.finC − 4426.finD − 4428(net).
+//
+// We try the post-close formula first; if it's zero AND there are non-zero
+// components, fall back to the computed one. This matches both regimes
+// honestly without picking sides.
 
 function computeVatKpi(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>
 ): number {
-  let collected = 0;
-  let deductible = 0;
-  let pending = 0;
-  let receivable = 0;
+  let payable = 0; // 4423.finC
+  let receivable = 0; // 4424.finD
+  let collected = 0; // 4427.finC − finD (pre-close net)
+  let deductible = 0; // 4426.finD − finC (pre-close net)
+  let pending = 0; // 4428.finC − finD (pre-close net)
 
   for (const row of rows) {
     const meta = lookupByBase(row.contBase, catalog);
     if (!meta?.vatRole) continue;
 
     switch (meta.vatRole) {
+      case "vat_payable":
+        // 4423 — TVA de plata (P). Sold creditor = datorie.
+        payable += row.finC - row.finD;
+        break;
+      case "vat_receivable":
+        // 4424 — TVA de recuperat (A). Sold debitor = creanta.
+        receivable += row.finD - row.finC;
+        break;
       case "vat_collected":
         collected += row.finC - row.finD;
         break;
@@ -134,22 +154,20 @@ function computeVatKpi(
         deductible += row.finD - row.finC;
         break;
       case "vat_pending":
-        // 4428 — net of debit/credit
         pending += row.finC - row.finD;
-        break;
-      case "vat_receivable":
-        // 4424 — VAT owed back by state (reduces payable)
-        receivable += row.finD - row.finC;
-        break;
-      case "vat_payable":
-        // 4423 — post-close. Not used in computed formula per D9, but included
-        // as a fallback if the computed components are all zero (post-closed state).
         break;
     }
   }
 
-  const computed = collected - deductible - pending - receivable;
-  return round2(computed);
+  // Primary formula per Claudia "4": 4423 − 4424
+  const postCloseFormula = payable - receivable;
+
+  // If 4423/4424 both zero but components exist, use pre-close formula
+  if (postCloseFormula === 0 && (collected !== 0 || deductible !== 0 || pending !== 0)) {
+    return round2(collected - deductible - pending);
+  }
+
+  return round2(postCloseFormula);
 }
 
 // ---------- Revenue / expense totals ----------

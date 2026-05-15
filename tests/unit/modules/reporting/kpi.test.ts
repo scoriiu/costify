@@ -168,8 +168,8 @@ describe("KPI — Datorii furnizori (D8 payables formula)", () => {
   });
 });
 
-describe("KPI — TVA de plata (D9 computed formula)", () => {
-  it("= 4427 finC − 4426 finD", () => {
+describe("KPI — TVA de plata (Claudia 4: sold 4423 − sold 4424, with pre-close fallback)", () => {
+  it("PRE-CLOSE: = 4427 finC − 4426 finD when 4423/4424 are zero", () => {
     const rows = [
       makeRow({ cont: "4427", contBase: "4427", finC: 5000 }),
       makeRow({ cont: "4426", contBase: "4426", finD: 3000 }),
@@ -178,7 +178,7 @@ describe("KPI — TVA de plata (D9 computed formula)", () => {
     expect(kpis.tvaDePlata).toBe(2000);
   });
 
-  it("returns negative when deductible exceeds collected (TVA de recuperat)", () => {
+  it("PRE-CLOSE: returns negative when deductible exceeds collected (TVA de recuperat)", () => {
     const rows = [
       makeRow({ cont: "4427", contBase: "4427", finC: 1000 }),
       makeRow({ cont: "4426", contBase: "4426", finD: 3000 }),
@@ -187,7 +187,7 @@ describe("KPI — TVA de plata (D9 computed formula)", () => {
     expect(kpis.tvaDePlata).toBe(-2000);
   });
 
-  it("subtracts 4428 vat_pending (TVA neexigibila)", () => {
+  it("PRE-CLOSE: subtracts 4428 vat_pending (TVA neexigibila)", () => {
     const rows = [
       makeRow({ cont: "4427", contBase: "4427", finC: 5000 }),
       makeRow({ cont: "4426", contBase: "4426", finD: 2000 }),
@@ -197,22 +197,25 @@ describe("KPI — TVA de plata (D9 computed formula)", () => {
     expect(kpis.tvaDePlata).toBe(2200); // 5000 − 2000 − 800
   });
 
-  it("subtracts 4424 vat_receivable (TVA de recuperat din perioada anterioara)", () => {
+  it("POST-CLOSE: 4423 finC is the primary source (Claudia 4)", () => {
+    const rows = [makeRow({ cont: "4423", contBase: "4423", finC: 2000 })];
+    const kpis = computeKpis(rows, CATALOG);
+    expect(kpis.tvaDePlata).toBe(2000);
+  });
+
+  it("POST-CLOSE: 4424 finD reduces TVA de plata (de recuperat)", () => {
     const rows = [
-      makeRow({ cont: "4427", contBase: "4427", finC: 3000 }),
-      makeRow({ cont: "4426", contBase: "4426", finD: 1500 }),
+      makeRow({ cont: "4423", contBase: "4423", finC: 3000 }),
       makeRow({ cont: "4424", contBase: "4424", finD: 500 }),
     ];
     const kpis = computeKpis(rows, CATALOG);
-    expect(kpis.tvaDePlata).toBe(1000); // 3000 − 1500 − 500
+    expect(kpis.tvaDePlata).toBe(2500); // 3000 − 500
   });
 
-  it("ignores 4423 per D9 (NOT the primary source)", () => {
-    // The accountant recommended 4423 finC. We deliberately don't use it.
-    // A firm that only has 4423 populated (post-close state) will see 0.
-    const rows = [makeRow({ cont: "4423", contBase: "4423", finC: 2000 })];
+  it("POST-CLOSE: 4424 only (TVA de recuperat din periodada anterioara) is negative", () => {
+    const rows = [makeRow({ cont: "4424", contBase: "4424", finD: 800 })];
     const kpis = computeKpis(rows, CATALOG);
-    expect(kpis.tvaDePlata).toBe(0);
+    expect(kpis.tvaDePlata).toBe(-800);
   });
 });
 

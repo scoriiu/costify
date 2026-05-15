@@ -55,17 +55,18 @@
       "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
     },
     "kpi_cards": {
-      "description": "Indicatori financiari calculati din balanta",
+      "description": "Indicatori financiari calculati din balanta. Formulele sunt aliniate la raspunsurile contabilului Claudia Solomon (sectiunea '4 KPI-uri') si sunt role-driven prin AccountCatalog (campurile cashRole, arRole, apRole, vatRole).",
       "indicators": [
-        "Cash & Banca (5121 + 5124 + 5311 + 5314)",
-        "Creante clienti (4111)",
-        "Datorii furnizori (401 + 404)",
-        "TVA de plata (4427.finC - 4426.finD)",
-        "Venituri totale (clasa 7 rulajTC)",
-        "Cheltuieli totale (clasa 6 rulajTD)",
-        "Rezultat (venituri - cheltuieli)",
-        "Marja operationala (%)"
-      ]
+        "Cash & Banca = (5121 + 5124 + 5311 + 5314 + 5328 + 5113 + 5114 + 5118 + 542) net finD−finC. EXCLUDE: 581 (viramente interne, sold normal 0), 5125 (sume in curs de decontare, transit).",
+        "Creante clienti = (4111 + 413 + 4118 + 418) finD − 419 finC (avans primit de la client)",
+        "Datorii furnizori = (401 + 403 + 404 + 405 + 408) finC − (409 + 4093) finD (avans platit la furnizor)",
+        "TVA de plata: POST-CLOSE (lunar regularizat): sold 4423 − sold 4424. PRE-CLOSE (component intermediar): 4427.finC − 4426.finD − 4428(net). Fallback automat in functie de starea conturilor.",
+        "Venituri totale = suma rulajTC pe clasa 7, exclude isClosing (121) si isExtraBilantier (clasa 8/9)",
+        "Cheltuieli totale = suma rulajTD pe clasa 6, exclude isClosing, isProfitTax (691/694/695/697/698) si isExtraBilantier",
+        "Rezultat = Venituri − Cheltuieli (fara impozit)",
+        "Marja operationala = Rezultat / Venituri × 100"
+      ],
+      "implementation_note": "Toate formulele sunt in src/modules/reporting/kpi.ts si folosesc roluri din AccountCatalog (derivate de src/modules/accounts/flags.ts). Schimbarile la formule afecteaza toate clientii in timp real — sunt pur-computate, fara cache."
     },
     "upload_jurnal": {
       "description": "Import XLSX din Saga C cu deduplicare automata",
@@ -181,12 +182,13 @@
     ]
   },
   "accounts": {
-    "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu ~321 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",
+    "architecture": "Plan de conturi in trei nivele: (1) AccountCatalog global read-only cu 372 conturi OMFP 1802 standard, (2) ClientAccount per client cu denumiri analitice editabile, (3) fallback nemapat cu warning.",
     "tier_1_catalog": {
-      "description": "AccountCatalog — tabel global seed-at din seeds/omfp-1802.json",
-      "content": "Conturi sintetice standard OMFP 1802 (clase 1-8), cu tip A/P/B, grupa CPP, flag special (pl_closing=121, profit_distribution=129, profit_tax=691, micro_tax=698)",
-      "count": "~321 conturi, 98 cu cppGroup setat, 4 cu flag special",
-      "source": "seeds/omfp-1802.json, incarcat in init container pe fiecare deploy (idempotent upsert)"
+      "description": "AccountCatalog — tabel global seed-at din seeds/omfp-1802.json. Aliniat la exportul oficial Saga (583 conturi total in plan oficial) si la raspunsurile contabilului Claudia Solomon (44 raspunsuri DocAnswer).",
+      "content": "Conturi sintetice standard OMFP 1802 (clase 1-9, inclusiv 999 tehnic Saga), cu tip A/P/B, grupa CPP, flag special si roluri KPI (cashRole, arRole, apRole, vatRole, payrollRole)",
+      "count": "372 conturi (extins de la 324 in mai 2026), cu 29+ conturi noi adaugate care apar in jurnale reale (CAM 436, FX 6651/7651, utilitati 6051-6058, etc.)",
+      "source": "seeds/omfp-1802.json, incarcat in init container pe fiecare deploy (idempotent upsert)",
+      "may_2026_revision": "Revizie completa fata de Saga + raspunsuri Claudia: a) bug-uri de denumire (643 si 644 inversate, 216/217 inversate, 107 redenumit din 'Rezerve din conversie' la 'Diferente de curs valutar din conversie'); b) corectii de tip (401 P, 5121/5124 B, clasa 8 toata B+extra-bilantier); c) 48 conturi noi adaugate; d) cppLine fixes (654→16a, 786→26b, 6817→15a, 643→14a impreuna cu 644)."
     },
     "tier_2_client_accounts": {
       "description": "ClientAccount — tabel per client cu denumiri analitice si override-uri",

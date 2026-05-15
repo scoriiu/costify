@@ -112,6 +112,9 @@ export function isExtraBilantierCode(code: string): boolean {
 export function deriveCashRole(code: string): CashRole | null {
   if (code === "5121" || code === "5124") return "cash_direct";
   if (code === "5311" || code === "5314") return "cash_direct";
+  if (code === "5328") return "cash_direct"; // alte valori — tichete, timbre (Claudia 4)
+  // 5113, 5114, 5118 — valori de incasat (cecuri, efecte) per Claudia 4
+  if (code === "5113" || code === "5114" || code === "5118") return "cash_direct";
   if (code === "542") return "cash_advance";
   if (code === "581" || code === "5125") return "transit";
   return null;
@@ -120,8 +123,9 @@ export function deriveCashRole(code: string): CashRole | null {
 // ---------- D8 receivables roles ----------
 
 export function deriveArRole(code: string): ArRole | null {
-  // Per accountant 2.4: Creante = (4111 + 4118 + 418) finD − 419 finC
+  // Per accountant 4: Creante = (4111 + 4118 + 413 + 418) finD − 419 finC
   if (code === "4111") return "ar_primary";
+  if (code === "413") return "ar_primary"; // efecte de primit de la clienti (Claudia 4)
   if (code === "4118") return "ar_doubtful";
   if (code === "418") return "ar_pending";
   if (code === "419") return "customer_advance";
@@ -131,10 +135,13 @@ export function deriveArRole(code: string): ArRole | null {
 // ---------- D8 payables roles ----------
 
 export function deriveApRole(code: string): ApRole | null {
-  // Per accountant 2.4: Datorii = (401 + 404 + 408) finC − 409 finD
+  // Per accountant 4: Datorii = (401 + 403 + 404 + 405 + 408) finC − 409 finD
   if (code === "401" || code === "404") return "ap_primary";
+  if (code === "403" || code === "405") return "ap_primary"; // efecte de plata (Claudia 4)
   if (code === "408") return "ap_pending";
   if (code === "409") return "supplier_advance";
+  // 4093 is a sub-account of 409 (avansuri pentru imobilizari corporale) — same role
+  if (code === "4093") return "supplier_advance";
   return null;
 }
 
@@ -165,8 +172,10 @@ export function derivePayrollRole(code: string): PayrollRole | null {
     "4316",
     "4317",
     "4318",
+    "436", // CAM — Contributia asiguratorie de munca (Claudia 1.4 social_contrib_family)
     "4371",
     "4372",
+    "4373", // Fondul de garantare a creantelor salariale
     "4441",
   ]);
   if (socialContribCodes.has(code)) return "social_contrib";
