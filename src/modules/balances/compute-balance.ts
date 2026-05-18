@@ -21,10 +21,45 @@ export function computeBalanceFromJournal(
   const periodMonth = month ?? findLastMonth(entries, year);
   const openingBal = computeOpeningBalances(entries, year);
   const accounts = buildAccountAggregations(entries, year, periodMonth, openingBal);
-  const rawRows = buildRawRows(accounts, openingBal, accountNames, unmappedBases);
+  const withParents = addSyntheticParents(accounts);
+  const rawRows = buildRawRows(withParents, openingBal, accountNames, unmappedBases);
 
   rawRows.sort((a, b) => a.cont.localeCompare(b.cont, undefined, { numeric: true }));
   return computeLeafFlags(rawRows);
+}
+
+/**
+ * For every analytic account (`401.00023`, `5121.BT`), create or augment the
+ * synthetic parent (`401`, `5121`) by summing all its analytics. If the parent
+ * synthetic was also touched directly in the journal, keep its own movements
+ * and add the analytics on top.
+ */
+function addSyntheticParents(accounts: Map<string, AccountAgg>): Map<string, AccountAgg> {
+  const result = new Map<string, AccountAgg>();
+  for (const [cont, agg] of accounts) result.set(cont, agg);
+
+  const parents = new Map<string, AccountAgg>();
+  for (const [cont, agg] of accounts) {
+    const base = getContBase(cont);
+    if (base === cont) continue;
+    let parent = parents.get(base);
+    if (!parent) {
+      const existing = result.get(base);
+      parent = existing
+        ? { ...existing }
+        : { cumDBefore: 0, cumCBefore: 0, rulajtD: 0, rulajtC: 0, rulajD: 0, rulajC: 0 };
+      parents.set(base, parent);
+    }
+    parent.cumDBefore += agg.cumDBefore;
+    parent.cumCBefore += agg.cumCBefore;
+    parent.rulajtD += agg.rulajtD;
+    parent.rulajtC += agg.rulajtC;
+    parent.rulajD += agg.rulajD;
+    parent.rulajC += agg.rulajC;
+  }
+
+  for (const [base, agg] of parents) result.set(base, agg);
+  return result;
 }
 
 function findLastMonth(entries: JournalEntry[], year: number): number {
