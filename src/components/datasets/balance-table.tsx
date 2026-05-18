@@ -5,6 +5,8 @@ import { AlertTriangle } from "lucide-react";
 import type { BalanceRowView } from "@/modules/balances";
 import { SearchInput } from "@/components/ui/search-input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
+import { BALANCE_COLUMN_EXPLANATIONS, type BalanceColumnKey } from "@/lib/kpi-explanations";
 
 interface Props {
   rows: BalanceRowView[];
@@ -44,16 +46,16 @@ export function BalanceTable({ rows }: Props) {
         <table className="w-full border-separate border-spacing-0">
           <thead>
             <tr className="bg-dark-2">
-              <Th align="left" first>Cont</Th>
-              <Th align="left">Denumire</Th>
-              <Th>Sold in D</Th>
-              <Th>Sold in C</Th>
-              <Th>Rulaj D</Th>
-              <Th>Rulaj C</Th>
-              <Th>Total D</Th>
-              <Th>Total C</Th>
-              <Th>Sold fin D</Th>
-              <Th last>Sold fin C</Th>
+              <Th align="left" first explainKey="cont">Cont</Th>
+              <Th align="left" explainKey="denumire">Denumire</Th>
+              <Th explainKey="soldInD">Sold in D</Th>
+              <Th explainKey="soldInC">Sold in C</Th>
+              <Th explainKey="rulajD">Rulaj D</Th>
+              <Th explainKey="rulajC">Rulaj C</Th>
+              <Th explainKey="totalD">Total D</Th>
+              <Th explainKey="totalC">Total C</Th>
+              <Th explainKey="soldFinD">Sold fin D</Th>
+              <Th last explainKey="soldFinC">Sold fin C</Th>
             </tr>
           </thead>
           <tbody>
@@ -133,19 +135,31 @@ function Th({
   align = "right",
   first,
   last,
+  explainKey,
 }: {
   children?: React.ReactNode;
   align?: "left" | "right";
   first?: boolean;
   last?: boolean;
+  explainKey?: BalanceColumnKey;
 }) {
+  const content = explainKey ? (
+    <Tooltip content={BALANCE_COLUMN_EXPLANATIONS[explainKey].body} side="bottom">
+      <span className="cursor-help underline decoration-dotted decoration-gray/50 underline-offset-2">
+        {children}
+      </span>
+    </Tooltip>
+  ) : (
+    children
+  );
+
   return (
     <th
       className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray border-b border-b-dark-3 ${
         align === "right" ? "text-right" : "text-left"
       } ${!last ? "border-r border-r-white/[0.04]" : ""} ${first ? "min-w-[80px]" : ""}`}
     >
-      {children}
+      {content}
     </th>
   );
 }
