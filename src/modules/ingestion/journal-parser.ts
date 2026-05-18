@@ -74,7 +74,78 @@ export function parseJournalXLSX(buffer: Buffer): JournalParseResult {
     return val !== null && val !== undefined ? String(val).trim() : "";
   };
 
-  let compound: { fixedAccount: string; side: "debit" | "credit"; dateKey: string } | null = null;
+  // A single date may carry two compound headers (one fixing the debit side,
+  // one fixing the credit side) — e.g. monthly closing entries: "121 = %" for
+  // expenses and "% = 121" for revenues. Saga sometimes emits both back-to-back
+  // before any detail row, with the detail rows interleaved later. We must
+  // track both and pick the matching one for each detail row by looking at
+  // which side of the detail row is empty.
+  //
+  // We also accept "orphan" detail rows that appear BEFORE the compound header
+  // on the same date (rare but seen in Saga exports). They are buffered and
+  // dispensed retroactively once the matching header arrives.
+  type Compound = { fixedAccount: string; dateKey: string; detailsUsed: number; explicatie: string };
+  type OrphanDetail = {
+    dateVal: Date;
+    dKey: string;
+    contD: string;
+    contC: string;
+    suma: number;
+    ndp: string;
+    explicatie: string;
+    felD: string;
+    categorie: string | null;
+    cod: string | null;
+    validat: string | null;
+    tva: number | null;
+    needs: "debit" | "credit";
+  };
+  // Stacks of active compounds per side. A date can have multiple compounds
+  // of the same side interleaved (e.g. salary-block + closing-block both with
+  // 421/121 as debit fixed account). When picking a compound for a detail row,
+  // we prefer one whose explicatie matches the detail's, falling back to the
+  // most recently added one.
+  const compoundDebitStack: Compound[] = [];
+  const compoundCreditStack: Compound[] = [];
+  const orphanBuffer: OrphanDetail[] = [];
+
+  const findCompound = (stack: Compound[], dKey: string, explicatie: string): Compound | null => {
+    if (stack.length === 0) return null;
+    // Closing details ("Inchidere luna XYZ") MUST tie to a compound with the
+    // exact same explicatie — never fall back.
+    const isClosingDetail = /Inchidere\s+luna/i.test(explicatie);
+    for (let j = stack.length - 1; j >= 0; j--) {
+      const c = stack[j];
+      if (c.dateKey !== dKey) continue;
+      if (explicatie && c.explicatie === explicatie) return c;
+    }
+    if (isClosingDetail) return null;
+    // For non-closing details, fall back to the most recent compound on this date
+    for (let j = stack.length - 1; j >= 0; j--) {
+      const c = stack[j];
+      if (c.dateKey === dKey) return c;
+    }
+    return null;
+  };
+
+  const clearStaleCompounds = (stack: Compound[], dKey: string) => {
+    for (let j = stack.length - 1; j >= 0; j--) {
+      if (stack[j].dateKey !== dKey) stack.splice(j, 1);
+    }
+  };
+
+  const flushOrphans = (kind: "debit" | "credit", compound: Compound) => {
+    for (let j = orphanBuffer.length - 1; j >= 0; j--) {
+      const o = orphanBuffer[j];
+      if (o.dKey !== compound.dateKey || o.needs !== kind) continue;
+      if (compound.explicatie && o.explicatie && compound.explicatie !== o.explicatie) continue;
+      const cd = kind === "debit" ? compound.fixedAccount : o.contD;
+      const cc = kind === "credit" ? compound.fixedAccount : o.contC;
+      yearSet.add(o.dateVal.getFullYear());
+      entries.push(makeEntry(o.dateVal, o.ndp, cd, cc, o.suma, o.explicatie, o.felD, o.categorie, o.cod, o.validat, o.tva));
+      orphanBuffer.splice(j, 1);
+    }
+  };
 
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
@@ -107,26 +178,62 @@ export function parseJournalXLSX(buffer: Buffer): JournalParseResult {
     }
 
     if (!contD && !contC) continue;
-    if (compound && compound.dateKey !== dKey) compound = null;
 
-    // Compound header: one side is "%"
+    // Clear stale compounds and orphans whose date no longer matches.
+    clearStaleCompounds(compoundDebitStack, dKey);
+    clearStaleCompounds(compoundCreditStack, dKey);
+    if (orphanBuffer.length > 0 && orphanBuffer[0].dKey !== dKey) {
+      orphanBuffer.length = 0;
+    }
+
+    const isDetailDebitMissing = !contD && contC && contC !== "%";
+    const isDetailCreditMissing = contD && contD !== "%" && !contC;
+
+    // Compound header: one side is "%". Push onto the stack and retroactively
+    // dispense any orphan details that arrived earlier and match by explicatie.
     if (contC === "%" && contD && contD !== "%") {
-      compound = { fixedAccount: contD, side: "debit", dateKey: dKey };
+      const compound = { fixedAccount: contD, dateKey: dKey, detailsUsed: 0, explicatie };
+      compoundDebitStack.push(compound);
+      flushOrphans("debit", compound);
       continue;
     }
     if (contD === "%" && contC && contC !== "%") {
-      compound = { fixedAccount: contC, side: "credit", dateKey: dKey };
+      const compound = { fixedAccount: contC, dateKey: dKey, detailsUsed: 0, explicatie };
+      compoundCreditStack.push(compound);
+      flushOrphans("credit", compound);
       continue;
     }
     if (contD === "%" && contC === "%") continue;
 
-    // Detail rows: fill in missing side from compound context
-    if (compound && compound.dateKey === dKey) {
-      if (compound.side === "debit" && contC && (!contD || contD === "%")) {
-        contD = compound.fixedAccount;
-      } else if (compound.side === "credit" && contD && (!contC || contC === "%")) {
-        contC = compound.fixedAccount;
+    // Detail rows: pick the compound that best matches by explicatie.
+    if (isDetailDebitMissing) {
+      const c = findCompound(compoundDebitStack, dKey, explicatie);
+      if (c) {
+        contD = c.fixedAccount;
+        c.detailsUsed += 1;
       }
+    } else if (isDetailCreditMissing) {
+      const c = findCompound(compoundCreditStack, dKey, explicatie);
+      if (c) {
+        contC = c.fixedAccount;
+        c.detailsUsed += 1;
+      }
+    }
+
+    // Orphan detail (no matching compound yet): buffer for a later header.
+    if (!contD && contC) {
+      orphanBuffer.push({
+        dateVal, dKey, contD: "", contC, suma, ndp, explicatie, felD,
+        categorie, cod, validat, tva, needs: "debit",
+      });
+      continue;
+    }
+    if (!contC && contD) {
+      orphanBuffer.push({
+        dateVal, dKey, contD, contC: "", suma, ndp, explicatie, felD,
+        categorie, cod, validat, tva, needs: "credit",
+      });
+      continue;
     }
 
     if (!contD || !contC) continue;

@@ -7,7 +7,12 @@ import {
 } from "@tests/fixtures/reference/helpers";
 
 const KNOWN_DIFFERENCES: Record<string, string[]> = {
-  "QHM21 Network SRL — Dec 2025": ["121", "421"],
+  // Saga records explicit negative balances on the "wrong" side (sold creditor
+  // negativ = sold debitor pozitiv in fact). Costify nets to the dominant side
+  // with `max(D-C, 0)`, which is mathematically equivalent but presented
+  // differently. These two accounts carry such anomalies in QHM21.
+  "QHM21 Network SRL — Dec 2023": ["4423"],
+  "QHM21 Network SRL — Dec 2024": ["5328"],
 };
 
 function runVerificationSuite(
@@ -73,6 +78,22 @@ runVerificationSuite(
   "4walls-kronis-registru-jurnal.xlsx",
   "4walls-kronis-balanta-2025-12.xlsx",
   2025,
+  12
+);
+
+runVerificationSuite(
+  "QHM21 Network SRL — Dec 2023",
+  "qhm-registru-jurnal.xlsx",
+  "qhm-balanta-2023-12.xlsx",
+  2023,
+  12
+);
+
+runVerificationSuite(
+  "QHM21 Network SRL — Dec 2024",
+  "qhm-registru-jurnal.xlsx",
+  "qhm-balanta-2024-12.xlsx",
+  2024,
   12
 );
 

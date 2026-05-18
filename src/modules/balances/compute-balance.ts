@@ -152,10 +152,10 @@ function buildRawRows(
   for (const [cont, agg] of accounts) {
     const debInit = Math.max(agg.cumDBefore - agg.cumCBefore, 0);
     const credInit = Math.max(agg.cumCBefore - agg.cumDBefore, 0);
-    const debPrecTotal = debInit + (agg.rulajtD - agg.rulajD);
-    const credPrecTotal = credInit + (agg.rulajtC - agg.rulajC);
-    const soldInD = Math.max(debPrecTotal - credPrecTotal, 0);
-    const soldInC = Math.max(credPrecTotal - debPrecTotal, 0);
+    const debPrec = debInit + (agg.rulajtD - agg.rulajD);
+    const credPrec = credInit + (agg.rulajtC - agg.rulajC);
+    const soldInD = Math.max(debPrec - credPrec, 0);
+    const soldInC = Math.max(credPrec - debPrec, 0);
     const totalDeb = debInit + agg.rulajtD;
     const totalCred = credInit + agg.rulajtC;
     const finD = Math.max(totalDeb - totalCred, 0);
@@ -169,7 +169,7 @@ function buildRawRows(
       unmapped: unmappedBases?.has(contBase) ?? false,
       debInit: round2(debInit), credInit: round2(credInit),
       soldInD: round2(soldInD), soldInC: round2(soldInC),
-      debPrec: round2(debPrecTotal), credPrec: round2(credPrecTotal),
+      debPrec: round2(debPrec), credPrec: round2(credPrec),
       rulajD: round2(agg.rulajD), rulajC: round2(agg.rulajC),
       rulajTD: round2(agg.rulajtD), rulajTC: round2(agg.rulajtC),
       totalDeb: round2(totalDeb), totalCred: round2(totalCred),
