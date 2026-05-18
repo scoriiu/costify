@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { prisma } from "@/lib/db";
+import { parseJournalSearch } from "@/modules/ingestion/journal-search-query";
 
 const MAX_LIMIT = 500;
 const MAX_QUERY_LEN = 100;
@@ -24,14 +25,8 @@ export async function GET(request: Request) {
 
   const where: Prisma.JournalLineWhereInput = { clientId, deletedAt: null };
   if (rawQuery) {
-    where.OR = [
-      { contD: { contains: rawQuery, mode: "insensitive" } },
-      { contC: { contains: rawQuery, mode: "insensitive" } },
-      { contDBase: { contains: rawQuery, mode: "insensitive" } },
-      { contCBase: { contains: rawQuery, mode: "insensitive" } },
-      { explicatie: { contains: rawQuery, mode: "insensitive" } },
-      { ndp: { contains: rawQuery, mode: "insensitive" } },
-    ];
+    const parsed = parseJournalSearch(rawQuery);
+    if (parsed.or.length > 0) where.OR = parsed.or;
   }
 
   const [entries, total] = await Promise.all([
