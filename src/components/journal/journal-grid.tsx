@@ -51,6 +51,7 @@ export function JournalGrid({ clientId }: Props) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [colWidths, setColWidths] = useState(() =>
     COLUMNS.map((c) => c.defaultWidth)
   );
@@ -58,46 +59,48 @@ export function JournalGrid({ clientId }: Props) {
   const loadedRef = useRef(0);
   const loadingMoreRef = useRef(false);
 
-  const fetchPage = useCallback(async (offset: number) => {
-    const res = await fetch(
-      `/api/journal?clientId=${clientId}&offset=${offset}&limit=${PAGE_SIZE}`
-    );
-    if (!res.ok) return;
-    const data = await res.json();
-    setTotal(data.total);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedFilter(filter.trim()), 200);
+    return () => clearTimeout(id);
+  }, [filter]);
 
-    setRows((prev) => {
-      const ids = new Set(prev.map((r) => r.id));
-      const newRows = data.items.filter((r: JournalRow) => !ids.has(r.id));
-      return [...prev, ...newRows];
-    });
+  const fetchPage = useCallback(
+    async (offset: number, q: string) => {
+      const params = new URLSearchParams({
+        clientId,
+        offset: String(offset),
+        limit: String(PAGE_SIZE),
+      });
+      if (q) params.set("q", q);
+      const res = await fetch(`/api/journal?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTotal(data.total);
 
-    loadedRef.current = offset + data.items.length;
-  }, [clientId]);
+      if (offset === 0) {
+        setRows(data.items);
+      } else {
+        setRows((prev) => {
+          const ids = new Set(prev.map((r) => r.id));
+          const newRows = data.items.filter((r: JournalRow) => !ids.has(r.id));
+          return [...prev, ...newRows];
+        });
+      }
+
+      loadedRef.current = offset + data.items.length;
+    },
+    [clientId]
+  );
 
   useEffect(() => {
     setRows([]);
     loadedRef.current = 0;
     setLoading(true);
-    fetchPage(0).finally(() => setLoading(false));
-  }, [clientId, fetchPage]);
-
-  const filtered = filter
-    ? rows.filter((r) => {
-        const q = filter.toLowerCase();
-        return (
-          r.contD.toLowerCase().includes(q) ||
-          r.contC.toLowerCase().includes(q) ||
-          r.explicatie.toLowerCase().includes(q) ||
-          r.ndp.toLowerCase().includes(q) ||
-          r.data.includes(q) ||
-          formatDate(r.data).includes(q)
-        );
-      })
-    : rows;
+    fetchPage(0, debouncedFilter).finally(() => setLoading(false));
+  }, [clientId, debouncedFilter, fetchPage]);
 
   const virtualizer = useVirtualizer({
-    count: filtered.length,
+    count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 20,
@@ -111,11 +114,11 @@ export function JournalGrid({ clientId }: Props) {
     const needsMore = lastItem.index >= rows.length - 50;
     if (needsMore && loadedRef.current < total && !loadingMoreRef.current) {
       loadingMoreRef.current = true;
-      fetchPage(loadedRef.current).finally(() => {
+      fetchPage(loadedRef.current, debouncedFilter).finally(() => {
         loadingMoreRef.current = false;
       });
     }
-  }, [virtualizer.getVirtualItems(), rows.length, total, fetchPage]);
+  }, [virtualizer.getVirtualItems(), rows.length, total, fetchPage, debouncedFilter]);
 
   if (loading) {
     return (
@@ -143,7 +146,8 @@ export function JournalGrid({ clientId }: Props) {
           className="w-80"
         />
         <span className="ml-auto font-mono text-xs text-gray">
-          {filter ? `${filtered.length} / ` : ""}{total.toLocaleString("ro-RO")} intrari
+          {total.toLocaleString("ro-RO")} {total === 1 ? "intrare" : "intrari"}
+          {debouncedFilter ? ` (filtrate)` : ""}
         </span>
       </div>
 
@@ -159,7 +163,7 @@ export function JournalGrid({ clientId }: Props) {
             style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
-              const row = filtered[virtualRow.index];
+              const row = rows[virtualRow.index];
               if (!row) return null;
 
               return (

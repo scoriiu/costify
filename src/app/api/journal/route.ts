@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { prisma } from "@/lib/db";
 
 const MAX_LIMIT = 500;
+const MAX_QUERY_LEN = 100;
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -18,10 +20,23 @@ export async function GET(request: Request) {
 
   const offset = Math.max(0, parseInt(url.searchParams.get("offset") ?? "0"));
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(url.searchParams.get("limit") ?? "200")));
+  const rawQuery = (url.searchParams.get("q") ?? "").trim().slice(0, MAX_QUERY_LEN);
+
+  const where: Prisma.JournalLineWhereInput = { clientId, deletedAt: null };
+  if (rawQuery) {
+    where.OR = [
+      { contD: { contains: rawQuery, mode: "insensitive" } },
+      { contC: { contains: rawQuery, mode: "insensitive" } },
+      { contDBase: { contains: rawQuery, mode: "insensitive" } },
+      { contCBase: { contains: rawQuery, mode: "insensitive" } },
+      { explicatie: { contains: rawQuery, mode: "insensitive" } },
+      { ndp: { contains: rawQuery, mode: "insensitive" } },
+    ];
+  }
 
   const [entries, total] = await Promise.all([
     prisma.journalLine.findMany({
-      where: { clientId, deletedAt: null },
+      where,
       orderBy: [{ data: "desc" }, { ndp: "desc" }],
       skip: offset,
       take: limit,
@@ -40,7 +55,7 @@ export async function GET(request: Request) {
         felD: true,
       },
     }),
-    prisma.journalLine.count({ where: { clientId, deletedAt: null } }),
+    prisma.journalLine.count({ where }),
   ]);
 
   return NextResponse.json({
