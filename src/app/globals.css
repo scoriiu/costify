@@ -147,3 +147,159 @@ input:-webkit-autofill:focus {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* =========================================
+   COSTI MASCOT — LIVELINESS LAYER
+   Idle micro-motion, blinks (SMIL inside SVG), state morphology
+   one-shot reactions, hover delight. All gated by
+   prefers-reduced-motion at the bottom of this block.
+   ========================================= */
+
+@keyframes costi-state-bounce {
+  0%   { transform: scale(1) rotate(0deg); }
+  18%  { transform: scale(1.06) rotate(1.2deg); }
+  38%  { transform: scale(0.97) rotate(-0.8deg); }
+  60%  { transform: scale(1.02) rotate(0.4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.costi-state-bounce {
+  animation: costi-state-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: 50% 50%;
+  display: inline-block;
+}
+
+/* Per-state idle loops. Each state's CSS animation is calm enough not to
+   compete with the SMIL eye animations inside the SVG — we lean on the
+   SVG for "alive" and the CSS for "in mood". */
+@keyframes costi-idle-look {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(1.2deg); }
+  94% { transform: rotate(-0.8deg); }
+}
+@keyframes costi-think-sway {
+  0%, 100% { transform: rotate(0deg); }
+  33% { transform: rotate(2.4deg); }
+  66% { transform: rotate(-1.8deg); }
+}
+@keyframes costi-success-nod {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(3deg) translateY(-1px); }
+  45% { transform: rotate(-1.5deg) translateY(0); }
+  70% { transform: rotate(1deg); }
+}
+@keyframes costi-alert-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-2deg); }
+  40% { transform: rotate(2deg); }
+  60% { transform: rotate(-1.4deg); }
+  80% { transform: rotate(1deg); }
+}
+@keyframes costi-error-droop {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(2px) rotate(-1.5deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes costi-working-focus {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.012); }
+}
+@keyframes costi-celebrate-puff {
+  0%   { transform: scale(1) translateY(0); filter: drop-shadow(0 0 4px rgba(0,184,148,0.2)); }
+  35%  { transform: scale(1.06) translateY(-2px); filter: drop-shadow(0 0 14px rgba(0,184,148,0.5)); }
+  70%  { transform: scale(1.03) translateY(-1px); filter: drop-shadow(0 0 10px rgba(0,184,148,0.35)); }
+  100% { transform: scale(1.02) translateY(0); filter: drop-shadow(0 0 6px rgba(0,184,148,0.3)); }
+}
+@keyframes costi-sleep-breathe {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  50% { transform: rotate(0.4deg) translateY(0.6px); }
+}
+@keyframes costi-teach-point {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.018); }
+  60% { transform: scale(1); }
+}
+
+.costi-state-greeting    { animation: costi-idle-look 9s ease-in-out infinite; }
+.costi-state-thinking    { animation: costi-think-sway 3.2s ease-in-out infinite; }
+.costi-state-success     { animation: costi-success-nod 1.4s ease-in-out 1; }
+.costi-state-alert       { animation: costi-alert-shake 0.55s ease-in-out 2; }
+.costi-state-error       { animation: costi-error-droop 0.9s ease-in-out 1; }
+.costi-state-working     { animation: costi-working-focus 3.6s ease-in-out infinite; }
+.costi-state-celebrating { animation: costi-celebrate-puff 1.6s ease-out 1 forwards; }
+.costi-state-sleeping    { animation: costi-sleep-breathe 4.8s ease-in-out infinite; }
+.costi-state-teaching    { animation: costi-teach-point 2.4s ease-in-out infinite; }
+
+/* One-shot reactions. Re-keyed by the React component so they restart
+   every time `reacting` toggles on. */
+@keyframes costi-react-pop {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.12); }
+  50%  { transform: scale(0.96); }
+  75%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes costi-react-nod {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(6deg) translateY(1px); }
+  50% { transform: rotate(-3deg) translateY(0); }
+  80% { transform: rotate(2deg); }
+}
+@keyframes costi-react-bounce {
+  0%, 100% { transform: translateY(0); }
+  25%  { transform: translateY(-8px); }
+  55%  { transform: translateY(-2px); }
+  75%  { transform: translateY(-5px); }
+}
+.costi-react-pop    { animation: costi-react-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1; transform-origin: center center; display: inline-block; }
+.costi-react-nod    { animation: costi-react-nod 0.6s ease-out 1; transform-origin: 50% 30%; display: inline-block; }
+.costi-react-bounce { animation: costi-react-bounce 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1; display: inline-block; }
+
+/* Greeting wave — only the arm group inside the SVG. Subtle, not
+   constant. */
+@keyframes costi-wave {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  78% { transform: rotate(-6deg); }
+  86% { transform: rotate(8deg); }
+  94% { transform: rotate(-2deg); }
+}
+.costi-wave {
+  animation: costi-wave 5.4s ease-in-out infinite;
+  /* transform-origin is set inline on the <g> in SVG user-space coords
+     (110px 100px = the right shoulder). Do NOT add transform-box here —
+     it would switch origin to the element's bbox and the arm would
+     pivot from its own center instead of the shoulder. */
+}
+
+/* Hover delight — subtle lift + warmth glow. Mirrors Boris's pattern. */
+@media (hover: hover) {
+  .costi-root {
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), filter 240ms ease;
+  }
+  .costi-root:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04) drop-shadow(0 6px 12px rgba(13, 107, 94, 0.18));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .costi-state-bounce,
+  .costi-state-greeting,
+  .costi-state-thinking,
+  .costi-state-success,
+  .costi-state-alert,
+  .costi-state-error,
+  .costi-state-working,
+  .costi-state-celebrating,
+  .costi-state-sleeping,
+  .costi-state-teaching,
+  .costi-react-pop,
+  .costi-react-nod,
+  .costi-react-bounce,
+  .costi-wave {
+    animation: none !important;
+  }
+  @media (hover: hover) {
+    .costi-root { transition: none !important; }
+    .costi-root:hover { transform: none !important; filter: none !important; }
+  }
+}
