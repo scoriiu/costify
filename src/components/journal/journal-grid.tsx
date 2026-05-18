@@ -49,7 +49,8 @@ function formatDate(iso: string): string {
 export function JournalGrid({ clientId }: Props) {
   const [rows, setRows] = useState<JournalRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const [colWidths, setColWidths] = useState(() =>
@@ -58,6 +59,7 @@ export function JournalGrid({ clientId }: Props) {
   const parentRef = useRef<HTMLDivElement>(null);
   const loadedRef = useRef(0);
   const loadingMoreRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedFilter(filter.trim()), 200);
@@ -65,7 +67,7 @@ export function JournalGrid({ clientId }: Props) {
   }, [filter]);
 
   const fetchPage = useCallback(
-    async (offset: number, q: string) => {
+    async (offset: number, q: string, requestId: number) => {
       const params = new URLSearchParams({
         clientId,
         offset: String(offset),
@@ -75,6 +77,8 @@ export function JournalGrid({ clientId }: Props) {
       const res = await fetch(`/api/journal?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
+      if (requestId !== requestIdRef.current) return;
+
       setTotal(data.total);
 
       if (offset === 0) {
@@ -93,10 +97,14 @@ export function JournalGrid({ clientId }: Props) {
   );
 
   useEffect(() => {
-    setRows([]);
+    const requestId = ++requestIdRef.current;
     loadedRef.current = 0;
-    setLoading(true);
-    fetchPage(0, debouncedFilter).finally(() => setLoading(false));
+    setRefetching(true);
+    fetchPage(0, debouncedFilter, requestId).finally(() => {
+      if (requestId !== requestIdRef.current) return;
+      setRefetching(false);
+      setInitialLoading(false);
+    });
   }, [clientId, debouncedFilter, fetchPage]);
 
   const virtualizer = useVirtualizer({
@@ -114,13 +122,14 @@ export function JournalGrid({ clientId }: Props) {
     const needsMore = lastItem.index >= rows.length - 50;
     if (needsMore && loadedRef.current < total && !loadingMoreRef.current) {
       loadingMoreRef.current = true;
-      fetchPage(loadedRef.current, debouncedFilter).finally(() => {
+      const requestId = requestIdRef.current;
+      fetchPage(loadedRef.current, debouncedFilter, requestId).finally(() => {
         loadingMoreRef.current = false;
       });
     }
   }, [virtualizer.getVirtualItems(), rows.length, total, fetchPage, debouncedFilter]);
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="flex items-center justify-center py-16 text-sm text-gray">
         Se incarca jurnalul...
@@ -128,7 +137,7 @@ export function JournalGrid({ clientId }: Props) {
     );
   }
 
-  if (total === 0) {
+  if (total === 0 && !debouncedFilter) {
     return (
       <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-dark-3 py-16">
         <p className="text-sm text-gray">Nu exista intrari. Uploadeaza un registru jurnal.</p>
@@ -146,18 +155,31 @@ export function JournalGrid({ clientId }: Props) {
           className="w-80"
         />
         <span className="ml-auto font-mono text-xs text-gray">
-          {total.toLocaleString("ro-RO")} {total === 1 ? "intrare" : "intrari"}
-          {debouncedFilter ? ` (filtrate)` : ""}
+          {refetching ? (
+            <span className="text-gray/70">Cauta...</span>
+          ) : (
+            <>
+              {total.toLocaleString("ro-RO")} {total === 1 ? "intrare" : "intrari"}
+              {debouncedFilter ? " (filtrate)" : ""}
+            </>
+          )}
         </span>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-dark-3">
         <HeaderRow colWidths={colWidths} onResize={setColWidths} />
 
+        {total === 0 && debouncedFilter && !refetching ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="font-mono text-xs text-gray">
+              Nicio intrare nu se potriveste cu &ldquo;{debouncedFilter}&rdquo;.
+            </p>
+          </div>
+        ) : (
         <div
           ref={parentRef}
           className="overflow-auto"
-          style={{ height: `min(${total * ROW_HEIGHT}px, 70vh)` }}
+          style={{ height: `min(${Math.max(total, 1) * ROW_HEIGHT}px, 70vh)` }}
         >
           <div
             style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}
@@ -192,6 +214,7 @@ export function JournalGrid({ clientId }: Props) {
             })}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
