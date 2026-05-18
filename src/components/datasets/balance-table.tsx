@@ -73,15 +73,19 @@ export function BalanceTable({ rows }: Props) {
 }
 
 function BalanceRow({ row }: { row: BalanceRowView }) {
-  const isParent = row.hasChild;
+  const isAnalytic = row.cont.includes(".");
 
   return (
-    <tr className={`hover:bg-dark-2/40 ${isParent ? "text-white font-semibold" : "text-gray-light"}`}>
+    <tr className="hover:bg-dark-2/40 text-gray-light">
       <Td align="left" first>
-        <span className="font-mono text-xs">{row.cont}</span>
+        <span className={`font-mono text-xs ${isAnalytic ? "pl-6 text-gray" : "text-gray-light"}`}>
+          {row.cont}
+        </span>
       </Td>
       <Td align="left">
-        <span className={`text-xs truncate max-w-[250px] inline-flex items-center gap-1.5 ${row.unmapped ? "text-warn/70" : ""}`}>
+        <span className={`text-xs truncate max-w-[250px] inline-flex items-center gap-1.5 ${
+          row.unmapped ? "text-warn/70" : isAnalytic ? "text-gray" : ""
+        }`}>
           {row.unmapped && <AlertTriangle size={10} className="shrink-0 text-warn" />}
           {row.denumire}
         </span>

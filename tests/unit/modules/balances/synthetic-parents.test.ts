@@ -20,6 +20,10 @@ function entry(
     suma,
     explicatie: "",
     felD: "",
+    categorie: null,
+    cod: null,
+    validat: null,
+    tva: null,
   };
 }
 
