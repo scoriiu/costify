@@ -170,7 +170,7 @@ export function TopNav({ userName, userEmail }: TopNavProps) {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-dark-3 bg-dark/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-8">
+        <div className="page-data flex h-14 items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-4 sm:gap-8">
             <Link href="/clients">
               <Logo size="lg" />

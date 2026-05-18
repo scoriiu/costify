@@ -79,7 +79,7 @@ export function ClientDetail({
   const needsPeriod = tab === "balanta" || tab === "cpp";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
+    <div className="page-data px-4 py-6 sm:px-8 sm:py-8">
       <Link
         href="/clients"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray hover:text-white transition-colors"
