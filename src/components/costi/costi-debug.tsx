@@ -83,22 +83,96 @@ export function CostiDebug() {
       </div>
 
       <div>
+        <h2 className="text-lg font-bold text-white mb-4">Crop modes</h2>
+        <div className="grid grid-cols-3 gap-4 rounded-2xl border border-dark-3 bg-dark-2 p-8">
+          {(["full", "bust", "head"] as const).map((mode) => (
+            <div key={mode} className="flex flex-col items-center gap-3">
+              <CostiMascot state="greeting" size={120} mode={mode} />
+              <div className="text-center">
+                <div className="text-xs font-semibold uppercase tracking-widest text-primary-light">{mode}</div>
+                <div className="text-xs text-gray mt-1">
+                  {mode === "full" ? "Intregul corp" : mode === "bust" ? "Cap + umeri + sacou" : "Doar capul"}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-bold text-white mb-4">Chat bubble corner</h2>
+        <div className="rounded-2xl border border-dark-3 bg-dark-2 p-8">
+          <p className="text-sm text-gray mb-4">
+            Cum apare Costi in coltul de chat din dreapta-jos. Bust mode,
+            64px, cerc rotunjit, bordura discreta. Starea
+            implicita este <code className="font-mono text-xs text-primary-light">success</code> —
+            ochi inchisi in zambet, calm si primitor.
+          </p>
+          <div className="relative h-[180px] rounded-xl border border-dark-3 bg-dark p-4">
+            {/* Mock app surface */}
+            <div className="absolute inset-4 flex flex-col gap-2 opacity-30">
+              <div className="h-3 w-32 rounded bg-dark-3" />
+              <div className="h-3 w-48 rounded bg-dark-3" />
+              <div className="h-3 w-40 rounded bg-dark-3" />
+            </div>
+            {/* The actual bubble in the corner */}
+            <button
+              className="absolute bottom-4 right-4 rounded-full bg-dark-2 border border-dark-3 shadow-[0_8px_24px_rgba(0,0,0,0.5)] overflow-hidden flex items-center justify-center hover:shadow-[0_12px_32px_rgba(13,107,94,0.4)] transition-shadow"
+              style={{ width: 64, height: 64 }}
+              aria-label="Deschide chatul cu Costi"
+            >
+              <CostiMascot state="success" size={64} mode="bust" lookAt="cursor" />
+            </button>
+          </div>
+          <p className="text-xs text-gray mt-4">
+            Mai jos: cum arata fiecare stare in cerc, pentru cand chatul comuta
+            tonul (succes / atentie / eroare).
+          </p>
+          <div className="flex items-end gap-6 flex-wrap mt-4">
+            {(["teaching", "thinking", "success", "alert", "error"] as const).map((s) => (
+              <div key={s} className="flex flex-col items-center gap-2">
+                <div className="rounded-full bg-dark border border-dark-3 overflow-hidden flex items-center justify-center" style={{ width: 64, height: 64 }}>
+                  <CostiMascot state={s} size={64} mode="bust" />
+                </div>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-gray">{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div>
         <h2 className="text-lg font-bold text-white mb-4">Background Contrast</h2>
+        <p className="text-sm text-gray mb-4">
+          Suprafetele reale ale aplicatiei — surface-0/1/2/3 din temele dark
+          si light (vezi <code className="font-mono text-xs">globals.css</code>).
+          Pe suprafetele dark, Costi primeste o aura discreta in spatele capului
+          (prop <code className="font-mono text-xs">surface=&quot;dark&quot;</code>).
+        </p>
         <div className="grid grid-cols-4 gap-4">
-          {[
-            { bg: "#0D1117", label: "Midnight" },
-            { bg: "#161B22", label: "Surface 1" },
-            { bg: "#F8FAFC", label: "Light" },
-            { bg: "#FFFFFF", label: "White" },
-          ].map(({ bg, label }) => (
+          {([
+            { bg: "#0B1514", label: "Dark · surface-0", surface: "dark" as const },
+            { bg: "#111F1E", label: "Dark · surface-1", surface: "dark" as const },
+            { bg: "#182A28", label: "Dark · surface-2", surface: "dark" as const },
+            { bg: "#223633", label: "Dark · surface-3", surface: "dark" as const },
+            { bg: "#F0EFEA", label: "Light · surface-0", surface: "light" as const },
+            { bg: "#F7F6F2", label: "Light · surface-1", surface: "light" as const },
+            { bg: "#E6E4DE", label: "Light · surface-2", surface: "light" as const },
+            { bg: "#D9D7D0", label: "Light · surface-3", surface: "light" as const },
+          ]).map(({ bg, label, surface }) => (
             <div
               key={label}
               className="flex flex-col items-center gap-3 rounded-2xl border border-dark-3 p-6"
               style={{ backgroundColor: bg }}
             >
-              <CostiMascot state="greeting" size={100} />
-              <span className="text-xs font-mono" style={{ color: bg === "#FFFFFF" || bg === "#F8FAFC" ? "#334155" : "#8B949E" }}>
-                {label} ({bg})
+              <CostiMascot state="greeting" size={100} surface={surface} />
+              <span
+                className="text-xs font-mono text-center"
+                style={{ color: surface === "light" ? "#44413C" : "#8A877F" }}
+              >
+                {label}
+                <br />
+                <span style={{ opacity: 0.7 }}>{bg}</span>
               </span>
             </div>
           ))}
@@ -109,19 +183,19 @@ export function CostiDebug() {
         <h2 className="text-lg font-bold text-white mb-4">Chat Context</h2>
         <div className="max-w-xl space-y-3">
           <div className="flex gap-3 items-start">
-            <CostiMascot state="thinking" size={32} />
+            <CostiMascot state="thinking" size={36} mode="head" />
             <div className="rounded-2xl rounded-bl-md bg-dark-3/40 px-4 py-3 text-sm text-gray-light">
               Analizez datele, un moment...
             </div>
           </div>
           <div className="flex gap-3 items-start">
-            <CostiMascot state="success" size={32} />
+            <CostiMascot state="success" size={36} mode="head" />
             <div className="rounded-2xl rounded-bl-md bg-dark-3/40 px-4 py-3 text-sm text-gray-light">
               TVA-ul standard in 2026 este 21%, conform art. 291 CF.
             </div>
           </div>
           <div className="flex gap-3 items-start">
-            <CostiMascot state="error" size={32} />
+            <CostiMascot state="error" size={36} mode="head" />
             <div className="rounded-2xl rounded-bl-md bg-dark-3/40 px-4 py-3 text-sm text-gray-light">
               Nu ma pot conecta la server. Verifica conexiunea.
             </div>

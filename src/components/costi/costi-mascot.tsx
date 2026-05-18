@@ -17,6 +17,8 @@ export type CostiState =
 
 export type CostiReacting = "pop" | "nod" | "bounce" | null;
 export type CostiLookAt = "off" | "cursor" | "user" | "down";
+export type CostiMode = "full" | "bust" | "head";
+export type CostiSurface = "light" | "dark";
 
 interface CostiMascotProps {
   state?: CostiState;
@@ -25,6 +27,18 @@ interface CostiMascotProps {
   animated?: boolean;
   reacting?: CostiReacting;
   lookAt?: CostiLookAt;
+  /** Crop level:
+   *  - "full" (default): whole figure, viewBox 0 0 160 190
+   *  - "bust": head + shoulders + a slice of the jacket (good for cards,
+   *    headers, medium avatars).
+   *  - "head": head only (good for chat bubbles, tiny avatars where face
+   *    details would otherwise be unreadable).
+   */
+  mode?: CostiMode;
+  /** The surface Costi is being placed ON, not the global theme. When
+   *  "dark" we render a soft white halo behind the head so his hair
+   *  doesn't dissolve into the background. Defaults to "light" (no halo). */
+  surface?: CostiSurface;
 }
 
 const SKIN = "#D4A574";
@@ -49,7 +63,10 @@ const LEFT_EYE_CX = 68;
 const RIGHT_EYE_CX = 92;
 const DEFAULT_EYE_CY = 57;
 
-const NO_SACCADE_STATES: CostiState[] = ["thinking", "working", "alert", "sleeping"];
+// Teaching has only one open eye (the other winks). A single eye
+// flicking horizontally reads as a twitch without a partner eye doing
+// the same motion. Blink + cursor gaze stay; autonomous saccades off.
+const NO_SACCADE_STATES: CostiState[] = ["thinking", "working", "alert", "sleeping", "teaching"];
 const SACCADE_DUR = "6.4s";
 const SACCADE_KEYTIMES = "0;0.18;0.19;0.36;0.5;0.51;0.7;0.71;0.87;0.88;1";
 
@@ -236,12 +253,20 @@ function Base({ children, breathe }: { children: React.ReactNode; breathe: boole
 interface HeadProps {
   children?: React.ReactNode;
   drift: boolean;
+  /** On "dark" surfaces, add a thin white rim-light stroke to the hair
+   *  so it doesn't dissolve into the background. */
+  surface: CostiSurface;
 }
+
+const HAIR_RIM_STROKE = "#FFFFFF";
+const HAIR_RIM_OPACITY = 0.32;
+const HAIR_RIM_WIDTH = 0.8;
 
 /** Head wrapper carries the layered drift (rotation + translate) that
  *  makes Costi feel alive at rest. The transform-origin is set via the
  *  animateTransform rotation pivot (50 50 in head-local SVG coords). */
-function Head({ children, drift }: HeadProps) {
+function Head({ children, drift, surface }: HeadProps) {
+  const rim = surface === "dark";
   return (
     <g className="costi-head">
       {drift && (
@@ -269,9 +294,27 @@ function Head({ children, drift }: HeadProps) {
       <path d="M50 55 Q50 25 80 22 Q110 25 110 55 L108 72 Q105 88 80 90 Q55 88 52 72 Z" fill={SKIN} />
       <path d="M58 68 Q58 88 80 90 Q102 88 102 68 L100 75 Q98 85 80 87 Q62 85 60 75 Z" fill={BEARD} opacity={0.85} />
       <path d="M68 68 Q74 72 80 68 Q86 72 92 68" stroke={BEARD} strokeWidth={3} fill="none" strokeLinecap="round" />
-      <path d="M52 45 Q50 22 80 18 Q110 22 108 45 L105 38 Q103 26 80 24 Q57 26 55 38 Z" fill={HAIR} />
-      <rect x={51} y={48} width={5} height={14} rx={2} fill={HAIR} />
-      <rect x={104} y={48} width={5} height={14} rx={2} fill={HAIR} />
+      <path
+        d="M52 45 Q50 22 80 18 Q110 22 108 45 L105 38 Q103 26 80 24 Q57 26 55 38 Z"
+        fill={HAIR}
+        stroke={rim ? HAIR_RIM_STROKE : undefined}
+        strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+        strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+      />
+      <rect
+        x={51} y={48} width={5} height={14} rx={2}
+        fill={HAIR}
+        stroke={rim ? HAIR_RIM_STROKE : undefined}
+        strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+        strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+      />
+      <rect
+        x={104} y={48} width={5} height={14} rx={2}
+        fill={HAIR}
+        stroke={rim ? HAIR_RIM_STROKE : undefined}
+        strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+        strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+      />
       {children}
     </g>
   );
@@ -298,18 +341,51 @@ function Brows() {
   );
 }
 
+/** Relaxed arm hanging straight at the side. Long sleeve from shoulder
+ *  to wrist (single straight rect — no elbow joint), small skin wrist
+ *  gap, closed-fist hand seen from the side with thumb bump on the
+ *  outer (forward) edge plus two knuckle shadow lines for volume.
+ *  Bottoms out at y=160, matching the jacket hem. */
+function RelaxedArm({ side }: { side: "left" | "right" }) {
+  // side="left" = his right arm = on our left = sleeve at x=36-48
+  // side="right" = his left arm = on our right = sleeve at x=112-124
+  if (side === "left") {
+    return (
+      <g>
+        <rect x={36} y={100} width={12} height={48} rx={6} fill={JACKET} />
+        <rect x={38} y={148} width={8} height={4} rx={2} fill={SKIN} />
+        <ellipse cx={42} cy={155} rx={5.5} ry={5} fill={SKIN} />
+        <ellipse cx={47} cy={154} rx={2.2} ry={2.6} fill={SKIN} />
+        <path d="M39 154 Q42 154.5 45 154" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
+        <path d="M39 157 Q42 157.5 45 157" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
+      </g>
+    );
+  }
+  return (
+    <g>
+      <rect x={112} y={100} width={12} height={48} rx={6} fill={JACKET} />
+      <rect x={114} y={148} width={8} height={4} rx={2} fill={SKIN} />
+      <ellipse cx={118} cy={155} rx={5.5} ry={5} fill={SKIN} />
+      <ellipse cx={113} cy={154} rx={2.2} ry={2.6} fill={SKIN} />
+      <path d="M115 154 Q118 154.5 121 154" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
+      <path d="M115 157 Q118 157.5 121 157" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
+    </g>
+  );
+}
+
 interface SceneProps {
   animated: boolean;
   reducedMotion: boolean;
   gazeX: number;
   gazeY: number;
+  surface: CostiSurface;
 }
 
-function Greeting({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
+function Greeting({ animated, reducedMotion, gazeX, gazeY, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         <Eyes state="greeting" animated={animated} reducedMotion={reducedMotion} gazeX={gazeX} gazeY={gazeY} />
         <Brows />
@@ -328,40 +404,25 @@ function Greeting({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
           <rect x={117} y={47} width={7} height={3.2} rx={1.6} fill={SKIN} />
         </g>
       </g>
-      {/* Relaxed right arm (his right, our left). Sleeve + hand fit
-          within the body's bottom edge (y=160). Hand reads as a soft
-          closed fist seen from the side. */}
-      <rect x={36} y={100} width={12} height={48} rx={6} fill={JACKET} />
-      {/* Wrist — narrow skin band emerging from cuff */}
-      <rect x={38} y={148} width={8} height={4} rx={2} fill={SKIN} />
-      {/* Fist — compact closed-hand shape. Bottom of the ellipse
-          lands at y=160, matching the jacket hem. */}
-      <ellipse cx={42} cy={155} rx={5.5} ry={5} fill={SKIN} />
-      {/* Thumb — small bump on the outer (forward) edge of the fist */}
-      <ellipse cx={47} cy={154} rx={2.2} ry={2.6} fill={SKIN} />
-      {/* Knuckle shadow — three soft horizontal lines suggest the
-          curled fingers tucked into the palm without protruding. */}
-      <path d="M39 154 Q42 154.5 45 154" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
-      <path d="M39 157 Q42 157.5 45 157" stroke={SKIN_DARK} strokeWidth={0.5} fill="none" opacity={0.45} />
+      <RelaxedArm side="left" />
     </Base>
   );
 }
 
-function Thinking({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
+function Thinking({ animated, reducedMotion, gazeX, gazeY, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         <Eyes state="thinking" animated={animated} reducedMotion={reducedMotion} gazeX={gazeX} gazeY={gazeY} leftCx={70} rightCx={94} />
         <Brows />
         <line x1={74} y1={77} x2={86} y2={77} stroke={MOUTH} strokeWidth={1.5} strokeLinecap="round" />
       </Head>
-      <rect x={36} y={95} width={12} height={20} rx={6} fill={JACKET} />
-      <path d="M42 68 L42 98" stroke={SKIN} strokeWidth={10} strokeLinecap="round" />
-      <circle cx={42} cy={66} r={5} fill={SKIN} />
-      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      {/* Both arms relaxed at the sides. Thinking is signalled by the
+          three pulsing thought dots above the head + the eye sway. */}
+      <RelaxedArm side="left" />
+      <RelaxedArm side="right" />
       {/* Thought dots — pulse to suggest active thought */}
       <g className={drift ? "costi-thought" : undefined}>
         <circle cx={128} cy={38} r={3} fill={DARK_3}>
@@ -378,11 +439,11 @@ function Thinking({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
   );
 }
 
-function Success({ animated, reducedMotion }: SceneProps) {
+function Success({ animated, reducedMotion, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         {/* Closed crescent eyes for the happy smile — no pupils here,
             no gaze; the smile is the signal. */}
@@ -407,11 +468,11 @@ function Success({ animated, reducedMotion }: SceneProps) {
   );
 }
 
-function Alert({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
+function Alert({ animated, reducedMotion, gazeX, gazeY, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         {/* Raised left eyebrow */}
         <path d="M59 44 Q64 41 77 45" stroke={HAIR} strokeWidth={2.5} fill="none" strokeLinecap="round" />
@@ -423,8 +484,7 @@ function Alert({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
       <rect x={114} y={85} width={10} height={11} rx={5} fill={SKIN} />
       <rect x={122} y={84} width={14} height={4} rx={2} fill={SKIN} />
       <circle cx={136} cy={86} r={2.2} fill={SKIN} />
-      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      <RelaxedArm side="left" />
       <g transform="translate(120, 60)" className={drift ? "costi-warn-pulse" : undefined}>
         <polygon points="12,0 24,22 0,22" fill={WARN} stroke={DARK} strokeWidth={1} />
         <line x1={12} y1={6} x2={12} y2={13} stroke={DARK} strokeWidth={2.5} strokeLinecap="round" />
@@ -434,11 +494,11 @@ function Alert({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
   );
 }
 
-function Error({ animated, reducedMotion }: SceneProps) {
+function Error({ animated, reducedMotion, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses y={38} />
         <line x1={62} y1={57} x2={75} y2={57} stroke={EYE_PUPIL} strokeWidth={2.5} strokeLinecap="round" />
         <line x1={85} y1={57} x2={98} y2={57} stroke={EYE_PUPIL} strokeWidth={2.5} strokeLinecap="round" />
@@ -446,24 +506,26 @@ function Error({ animated, reducedMotion }: SceneProps) {
         <path d="M85 51 Q92 47 99 50" stroke={HAIR} strokeWidth={2.5} fill="none" strokeLinecap="round" />
         <path d="M74 77 Q80 74 86 77" stroke={MOUTH} strokeWidth={1.5} fill="none" strokeLinecap="round" />
       </Head>
+      {/* Pinching-nose arm (his right). Long sleeve covers BOTH upper
+          arm and forearm — only the wrist + fingers are skin. */}
       <g>
         <path d="M50 100 Q42 98 38 90" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
-        <path d="M38 90 Q36 78 42 64" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+        <path d="M38 90 Q36 78 42 64" stroke={JACKET} strokeWidth={11} fill="none" strokeLinecap="round" />
+        {/* Skin wrist + hand pinching nose bridge */}
         <ellipse cx={54} cy={54} rx={3} ry={2.2} fill={SKIN} />
         <ellipse cx={60} cy={52} rx={2.2} ry={3} fill={SKIN} />
         <circle cx={50} cy={56} r={3.5} fill={SKIN} />
       </g>
-      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      <RelaxedArm side="right" />
     </Base>
   );
 }
 
-function Working({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
+function Working({ animated, reducedMotion, gazeX, gazeY, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         <Eyes state="working" animated={animated} reducedMotion={reducedMotion} gazeX={gazeX} gazeY={gazeY} cy={59} leftRy={2.5} rightRy={2.5} withHighlight={false} />
         <Brows />
@@ -492,21 +554,22 @@ function Working({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
   );
 }
 
-function Celebrating({ animated, reducedMotion }: SceneProps) {
+function Celebrating({ animated, reducedMotion, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         <path d="M62 57 Q68 52 74 57" stroke={EYE_PUPIL} strokeWidth={2.5} fill="none" strokeLinecap="round" />
         <path d="M86 57 Q92 52 98 57" stroke={EYE_PUPIL} strokeWidth={2.5} fill="none" strokeLinecap="round" />
         <Brows />
         <path d="M70 76 Q80 84 90 76" stroke={MOUTH} strokeWidth={2} fill="none" strokeLinecap="round" />
       </Head>
-      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      <RelaxedArm side="left" />
+      {/* Coffee-cup arm (his left). Long sleeve covers upper arm AND
+          forearm — only the wrist + hand gripping the cup are skin. */}
       <path d="M110 100 Q120 106 124 96" stroke={JACKET} strokeWidth={13} fill="none" strokeLinecap="round" />
-      <path d="M124 96 Q128 88 126 80" stroke={SKIN} strokeWidth={9} fill="none" strokeLinecap="round" />
+      <path d="M124 96 Q128 88 126 80" stroke={JACKET} strokeWidth={11} fill="none" strokeLinecap="round" />
       <rect x={116} y={68} width={18} height={22} rx={4} fill={WHITE} opacity={0.9} />
       <rect x={116} y={66} width={18} height={4} rx={2} fill={GRAY} opacity={0.3} />
       <path d="M134 74 Q141 74 141 81 Q141 88 134 88" stroke={WHITE} strokeWidth={2} fill="none" opacity={0.6} />
@@ -537,8 +600,9 @@ function Celebrating({ animated, reducedMotion }: SceneProps) {
   );
 }
 
-function Sleeping({ animated, reducedMotion }: SceneProps) {
+function Sleeping({ animated, reducedMotion, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
+  const rim = surface === "dark";
   return (
     <Base breathe={drift}>
       {/* Sleeping head is tilted; no idle drift on top — gentle breath
@@ -547,18 +611,34 @@ function Sleeping({ animated, reducedMotion }: SceneProps) {
         <path d="M50 55 Q50 25 80 22 Q110 25 110 55 L108 72 Q105 88 80 90 Q55 88 52 72 Z" fill={SKIN} />
         <path d="M58 68 Q58 88 80 90 Q102 88 102 68 L100 75 Q98 85 80 87 Q62 85 60 75 Z" fill={BEARD} opacity={0.85} />
         <path d="M68 68 Q74 72 80 68 Q86 72 92 68" stroke={BEARD} strokeWidth={3} fill="none" strokeLinecap="round" />
-        <path d="M52 45 Q50 22 80 18 Q110 22 108 45 L105 38 Q103 26 80 24 Q57 26 55 38 Z" fill={HAIR} />
-        <rect x={51} y={48} width={5} height={14} rx={2} fill={HAIR} />
-        <rect x={104} y={48} width={5} height={14} rx={2} fill={HAIR} />
+        <path
+          d="M52 45 Q50 22 80 18 Q110 22 108 45 L105 38 Q103 26 80 24 Q57 26 55 38 Z"
+          fill={HAIR}
+          stroke={rim ? HAIR_RIM_STROKE : undefined}
+          strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+          strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+        />
+        <rect
+          x={51} y={48} width={5} height={14} rx={2}
+          fill={HAIR}
+          stroke={rim ? HAIR_RIM_STROKE : undefined}
+          strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+          strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+        />
+        <rect
+          x={104} y={48} width={5} height={14} rx={2}
+          fill={HAIR}
+          stroke={rim ? HAIR_RIM_STROKE : undefined}
+          strokeWidth={rim ? HAIR_RIM_WIDTH : undefined}
+          strokeOpacity={rim ? HAIR_RIM_OPACITY : undefined}
+        />
         <Glasses />
         <line x1={62} y1={57} x2={74} y2={57} stroke={EYE_PUPIL} strokeWidth={2} strokeLinecap="round" />
         <line x1={86} y1={57} x2={98} y2={57} stroke={EYE_PUPIL} strokeWidth={2} strokeLinecap="round" />
         <path d="M74 76 Q80 78 86 76" stroke={MOUTH} strokeWidth={1.5} fill="none" strokeLinecap="round" />
       </g>
-      <rect x={36} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={38} y={138} width={9} height={12} rx={4} fill={SKIN} />
-      <rect x={112} y={100} width={12} height={42} rx={6} fill={JACKET} />
-      <rect x={114} y={138} width={9} height={12} rx={4} fill={SKIN} />
+      <RelaxedArm side="left" />
+      <RelaxedArm side="right" />
       <g className={drift ? "costi-zzz" : undefined}>
         <text x={118} y={35} fontSize={16} fill={GRAY} fontWeight={800} fontFamily="Inter" opacity={0.5}>
           Z
@@ -579,12 +659,12 @@ function Sleeping({ animated, reducedMotion }: SceneProps) {
   );
 }
 
-function Teaching({ animated, reducedMotion, gazeX, gazeY }: SceneProps) {
+function Teaching({ animated, reducedMotion, gazeX, gazeY, surface }: SceneProps) {
   const drift = animated && !reducedMotion;
   const live = drift;
   return (
     <Base breathe={drift}>
-      <Head drift={drift}>
+      <Head drift={drift} surface={surface}>
         <Glasses />
         {/* Only one open eye to animate (the right is winking). The left
             pupil still gets blink + saccade + gaze translation. */}
@@ -648,6 +728,8 @@ export function CostiMascot({
   animated = true,
   reacting = null,
   lookAt = "off",
+  mode = "full",
+  surface = "light",
 }: CostiMascotProps) {
   const reducedMotion = usePrefersReducedMotion();
   const trackCursor = lookAt === "cursor" && animated && !reducedMotion;
@@ -694,8 +776,19 @@ export function CostiMascot({
         >
           <svg
             width={size}
-            height={size * 1.1875}
-            viewBox="0 0 160 190"
+            height={
+              mode === "head" ? size
+              : mode === "bust" ? size * 0.72
+              : size * 1.1875
+            }
+            viewBox={
+              mode === "head" ? "40 12 80 80"
+              // Bust = head + neck + shoulders + top of jacket. Width
+              // is wide enough to contain the greeting wave hand even
+              // mid-swing. Aspect ratio ~145/105.
+              : mode === "bust" ? "5 12 145 105"
+              : "0 0 160 190"
+            }
             fill="none"
             className={className}
             aria-hidden
@@ -705,6 +798,7 @@ export function CostiMascot({
               reducedMotion={reducedMotion}
               gazeX={gaze.x}
               gazeY={gaze.y}
+              surface={surface}
             />
           </svg>
         </div>
