@@ -12,6 +12,8 @@ prisma/*.db
 uploads/
 .idea/
 temp/
-reference/
+# Old top-level reference folder (no longer used). tests/fixtures/reference is
+# committed explicitly via -f, snapshots travel with the repo.
+/reference/
 playwright-report/
 test-results/
