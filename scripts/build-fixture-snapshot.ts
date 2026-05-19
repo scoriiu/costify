@@ -91,4 +91,11 @@ function bake(journalFile: string, outFile: string) {
 
 bake("qhm-registru-jurnal.xlsx", "qhm-registru-jurnal.snapshot.json.gz");
 bake("4walls-kronis-registru-jurnal.xlsx", "4walls-kronis-registru-jurnal.snapshot.json.gz");
+bake("widder-registru-jurnal.xlsx", "widder-registru-jurnal.snapshot.json.gz");
+bake("enadri-registru-jurnal.xls", "enadri-registru-jurnal.snapshot.json.gz");
+bake("citibox-registru-jurnal.xlsx", "citibox-registru-jurnal.snapshot.json.gz");
+bake("titan-registru-jurnal.xlsx", "titan-registru-jurnal.snapshot.json.gz");
+bake("medezen-registru-jurnal.xls", "medezen-registru-jurnal.snapshot.json.gz");
+bake("flavus-registru-jurnal.xlsx", "flavus-registru-jurnal.snapshot.json.gz");
+bake("upperhouse-registru-jurnal.xlsx", "upperhouse-registru-jurnal.snapshot.json.gz");
 console.log("[bake] done");

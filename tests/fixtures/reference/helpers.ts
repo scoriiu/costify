@@ -57,13 +57,95 @@ export interface ExpectedRow {
   fin_c: number;
 }
 
+/**
+ * Saga exports the balance with either UPPERCASE (CONT, DEB_INIT, ...) or
+ * lowercase (cont, deb_init, ...) column headers depending on the version.
+ * We normalize both to the lowercase shape the tests expect.
+ */
+function normalizeRow(raw: Record<string, unknown>): ExpectedRow {
+  const lower: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) lower[k.toLowerCase()] = v;
+  return {
+    cont: String(lower.cont ?? ""),
+    denumire: String(lower.denumire ?? ""),
+    tip: String(lower.tip ?? ""),
+    analitic: Boolean(lower.analitic),
+    deb_init: Number(lower.deb_init ?? 0),
+    cred_init: Number(lower.cred_init ?? 0),
+    sold_in_d: Number(lower.sold_in_d ?? 0),
+    sold_in_c: Number(lower.sold_in_c ?? 0),
+    deb_prec: Number(lower.deb_prec ?? 0),
+    cred_prec: Number(lower.cred_prec ?? 0),
+    rulaj_d: Number(lower.rulaj_d ?? 0),
+    rulaj_c: Number(lower.rulaj_c ?? 0),
+    rulajt_d: Number(lower.rulajt_d ?? 0),
+    rulajt_c: Number(lower.rulajt_c ?? 0),
+    total_deb: Number(lower.total_deb ?? 0),
+    total_cred: Number(lower.total_cred ?? 0),
+    fin_d: Number(lower.fin_d ?? 0),
+    fin_c: Number(lower.fin_c ?? 0),
+  };
+}
+
+/**
+ * Saga's "raport tipărit" balance format — a print-ready report with company
+ * header, section subtotals ("Total sume clasa N"), blank rows, and unnamed
+ * positional columns. Column indices are fixed and inferred from a sample:
+ *   0 cont · 3 denumire · 8 sold_in_d · 9 sold_in_c
+ *   12 rulaj_d · 14 rulaj_c · 16 rulajt_d · 17 rulajt_c · 18 fin_d · 19 fin_c
+ * Only rows whose cell[0] looks like a valid account number are kept.
+ */
+function parseReportFormat(ws: XLSX.WorkSheet): Map<string, ExpectedRow> {
+  const arr = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
+  const map = new Map<string, ExpectedRow>();
+  const ACCT_RE = /^[0-9]{3,4}(\.[A-Z0-9]+)?$/i;
+  for (const row of arr) {
+    const cont = String(row[0] ?? "").trim();
+    if (!ACCT_RE.test(cont)) continue;
+    map.set(cont, {
+      cont,
+      denumire: String(row[3] ?? ""),
+      tip: "",
+      analitic: false,
+      deb_init: 0,
+      cred_init: 0,
+      sold_in_d: Number(row[8] ?? 0),
+      sold_in_c: Number(row[9] ?? 0),
+      deb_prec: 0,
+      cred_prec: 0,
+      rulaj_d: Number(row[12] ?? 0),
+      rulaj_c: Number(row[14] ?? 0),
+      rulajt_d: Number(row[16] ?? 0),
+      rulajt_c: Number(row[17] ?? 0),
+      total_deb: 0,
+      total_cred: 0,
+      fin_d: Number(row[18] ?? 0),
+      fin_c: Number(row[19] ?? 0),
+    });
+  }
+  return map;
+}
+
 export function loadExpectedBalance(fileName: string): Map<string, ExpectedRow> {
   const buf = readFileSync(resolve(FIXTURES, fileName));
   const wb = XLSX.read(buf);
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<ExpectedRow>(ws);
+  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+
+  // Detect the report format: first row has a single huge string (company
+  // header) and no recognizable column keys like "cont"/"CONT".
+  const hasContColumn = rawRows.length > 0 && Object.keys(rawRows[0]).some(
+    (k) => k.toLowerCase() === "cont"
+  );
+  if (!hasContColumn) {
+    return parseReportFormat(ws);
+  }
+
   const map = new Map<string, ExpectedRow>();
-  for (const r of rows) map.set(r.cont, r);
+  for (const raw of rawRows) {
+    const row = normalizeRow(raw);
+    if (row.cont) map.set(row.cont, row);
+  }
   return map;
 }
 
@@ -74,7 +156,12 @@ export function loadExpectedBalance(fileName: string): Map<string, ExpectedRow> 
  * extension. Regenerate via `pnpm tsx scripts/build-fixture-snapshot.ts`.
  */
 export function loadJournal(journalFile: string): JournalParseResult {
-  const snapshotPath = resolve(FIXTURES, journalFile.replace(/\.xlsx$/, ".snapshot.json.gz"));
+  // Strip any spreadsheet extension (.xlsx, .xls, .ods) — Saga exports both
+  // legacy .xls and modern .xlsx, and the snapshot lives next to either.
+  const snapshotPath = resolve(
+    FIXTURES,
+    journalFile.replace(/\.(xlsx|xls|ods)$/i, ".snapshot.json.gz")
+  );
   if (existsSync(snapshotPath)) {
     const compressed = readFileSync(snapshotPath);
     const json = gunzipSync(compressed).toString("utf8");

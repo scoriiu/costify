@@ -16,6 +16,7 @@
     "test:unit": "vitest run tests/unit",
     "test:watch": "vitest",
     "test:fixtures:bake": "tsx scripts/build-fixture-snapshot.ts",
+    "test:client": "vitest run tests/unit/modules/balances/client-reconciliation",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

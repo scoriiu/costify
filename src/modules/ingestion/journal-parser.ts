@@ -18,8 +18,21 @@ function parseDate(value: unknown): Date | null {
     const date = XLSX.SSF.parse_date_code(value);
     return date ? new Date(date.y, date.m - 1, date.d) : null;
   }
-  if (typeof value === "string" && value.trim()) {
-    const d = new Date(value.trim());
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    // Romanian/European format: DD.MM.YYYY or DD/MM/YYYY (optionally with time).
+    // Saga exports dates in this format as text in some templates.
+    const m = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?$/);
+    if (m) {
+      const day = Number(m[1]);
+      const month = Number(m[2]);
+      const year = Number(m[3]);
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return new Date(year, month - 1, day);
+      }
+    }
+    const d = new Date(trimmed);
     return isNaN(d.getTime()) ? null : d;
   }
   return null;

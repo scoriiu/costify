@@ -66,6 +66,13 @@ const CASES: PipelineCase[] = [
   { label: "QHM21 Dec 2024", journalFile: "qhm-registru-jurnal.xlsx", year: 2024, month: 12 },
   { label: "QHM21 Dec 2023", journalFile: "qhm-registru-jurnal.xlsx", year: 2023, month: 12 },
   { label: "4Walls Kronis Dec 2025", journalFile: "4walls-kronis-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Widder Dec 2025", journalFile: "widder-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Enadri Dec 2025", journalFile: "enadri-registru-jurnal.xls", year: 2025, month: 12 },
+  { label: "Citibox Dec 2025", journalFile: "citibox-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Titan Dec 2025", journalFile: "titan-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Medezen Dec 2025", journalFile: "medezen-registru-jurnal.xls", year: 2025, month: 12 },
+  { label: "Flavus Dec 2025", journalFile: "flavus-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Upperhouse Dec 2025", journalFile: "upperhouse-registru-jurnal.xlsx", year: 2025, month: 12 },
 ];
 
 for (const c of CASES) {
@@ -117,7 +124,7 @@ for (const c of CASES) {
   });
 }
 
-// Lock the exact production numbers reported by the user so the QHM Apr 2026
+// Lock the exact production numbers reported by the user so the 1. QHM Apr 2026
 // regression cannot quietly re-appear with a different breaking change.
 describe("QHM21 Apr 2026 — production numbers from the reported screenshot", () => {
   resetF20Cache();
