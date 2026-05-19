@@ -43,13 +43,17 @@ export function runVerificationSuite(
   month: number,
   options: VerificationOptions = {}
 ): void {
-  const describeFn = options.skip ? describe.skip : describe;
-  const fullLabel = options.skip ? `${label} [SKIPPED: ${options.skip}]` : label;
+  // REPORT_MODE turns the suite into a "report everything" pass: skip and
+  // knownDifferences are both ignored so the failure report can show all
+  // documented diffs. Used by scripts/generate-failure-report.ts.
+  const reportMode = process.env.RECONCILIATION_REPORT_MODE === "1";
+  const describeFn = options.skip && !reportMode ? describe.skip : describe;
+  const fullLabel = options.skip && !reportMode ? `${label} [SKIPPED: ${options.skip}]` : label;
   describeFn(fullLabel, () => {
     const expected = loadExpectedBalance(balantaFile);
     const { rows: ourRows, parseResult } = computeBalance(journalFile, year, month);
     const ourMap = new Map(ourRows.map((r) => [r.cont, r]));
-    const knownDiffs = new Set(options.knownDifferences ?? []);
+    const knownDiffs = reportMode ? new Set<string>() : new Set(options.knownDifferences ?? []);
     const leafAccounts = getLeafAccountsWithPositiveValues(expected)
       .filter(([cont]) => !knownDiffs.has(cont));
 

@@ -73,6 +73,11 @@ const CASES: PipelineCase[] = [
   { label: "Medezen Dec 2025", journalFile: "medezen-registru-jurnal.xls", year: 2025, month: 12 },
   { label: "Flavus Dec 2025", journalFile: "flavus-registru-jurnal.xlsx", year: 2025, month: 12 },
   { label: "Upperhouse Dec 2025", journalFile: "upperhouse-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Hello Dec 2025", journalFile: "hello-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "CS Analytiqs Dec 2025", journalFile: "cs-analytiqs-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Swat Dec 2025", journalFile: "swat-registru-jurnal.xlsx", year: 2025, month: 12 },
+  { label: "Kluthe Dec 2025", journalFile: "kluthe-registru-jurnal.xls", year: 2025, month: 12 },
+  { label: "Korner Dec 2025", journalFile: "korner-registru-jurnal.xlsx", year: 2025, month: 12 },
 ];
 
 for (const c of CASES) {

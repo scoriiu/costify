@@ -425,6 +425,13 @@ const SEVERITY_LABEL: Record<FailureNote["severity"], string> = {
   "missing-data": "Date lipsă (sold anterior)",
 };
 
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function renderHTML(failures: Failure[]): string {
   const grouped = new Map<string, Failure[]>();
   for (const f of failures) {
@@ -434,11 +441,12 @@ function renderHTML(failures: Failure[]): string {
   }
 
   const summary = Array.from(grouped.entries())
-    .map(([k, list]) => `<li><strong>${k}</strong>: ${list.length} diferențe</li>`)
+    .map(([k, list]) => `<li><a href="#${slugify(k)}"><strong>${k}</strong></a>: ${list.length} diferențe</li>`)
     .join("\n      ");
 
   const sections = Array.from(grouped.entries())
     .map(([groupLabel, list]) => {
+      const id = slugify(groupLabel);
       const cards = list
         .map((f) => {
           const note = classifyFailure(f);
@@ -454,21 +462,21 @@ function renderHTML(failures: Failure[]): string {
             <h3>${note.category}</h3>
           </div>
           <div class="numbers">
-            <div><span class="label">Saga (așteptat):</span> <code>${f.expected.toFixed(2)}</code></div>
+            <div><span class="label">Saga (asteptat):</span> <code>${f.expected.toFixed(2)}</code></div>
             <div><span class="label">Costify (calculat):</span> <code>${f.received.toFixed(2)}</code></div>
-            <div><span class="label">Deltă:</span> <code class="delta">${f.delta.toFixed(2)}</code></div>
+            <div><span class="label">Diferenta:</span> <code class="delta">${f.delta.toFixed(2)}</code></div>
           </div>
           <p class="note">${note.explanation}</p>
         </div>`;
         })
         .join("\n");
       return `
-    <section>
-      <h2>${groupLabel}</h2>
+    <details id="${id}" class="client-section">
+      <summary><span class="client-name">${groupLabel}</span> <span class="client-count">${list.length} diferente</span></summary>
       <div class="cards">
         ${cards}
       </div>
-    </section>`;
+    </details>`;
     })
     .join("\n");
 
@@ -508,14 +516,59 @@ function renderHTML(failures: Failure[]): string {
     }
     .overview h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: -0.04em; }
     .overview ul { margin: 0; padding-left: 20px; line-height: 1.7; }
-    section { margin-bottom: 40px; }
-    section h2 {
-      font-size: 22px;
-      letter-spacing: -0.04em;
-      padding-bottom: 12px;
-      margin: 0 0 20px;
-      border-bottom: 1px solid var(--surface-2);
+    .overview a {
+      color: var(--primary);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.15s;
     }
+    .overview a:hover { border-bottom-color: var(--primary); }
+    .client-section {
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: 12px;
+      overflow: hidden;
+      scroll-margin-top: 20px;
+    }
+    .client-section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      user-select: none;
+      transition: background-color 0.15s;
+    }
+    .client-section > summary:hover { background: var(--surface-2); }
+    .client-section > summary::-webkit-details-marker { display: none; }
+    .client-section > summary::before {
+      content: "▸";
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-right: 10px;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .client-section[open] > summary::before { transform: rotate(90deg); }
+    .client-name { flex: 1; }
+    .client-count {
+      font-family: ui-monospace, "Geist Mono", "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .client-section[open] > .cards { padding: 0 20px 20px; }
     .cards { display: grid; gap: 16px; }
     .card {
       background: var(--surface);
