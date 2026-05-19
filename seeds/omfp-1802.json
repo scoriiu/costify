@@ -540,7 +540,7 @@
       "type": "P",
       "classDigit": 4,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -786,7 +786,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu materiile prime",
-      "cppLine": "13a",
+      "cppLine": "17",
       "cppLineLabel": "a) Cheltuieli cu materiile prime si materialele consumabile"
     },
     {
@@ -795,7 +795,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu materialele consumabile",
-      "cppLine": "13a",
+      "cppLine": "17",
       "cppLineLabel": "a) Cheltuieli cu materiile prime si materialele consumabile"
     },
     {
@@ -804,7 +804,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu obiectele de inventar",
-      "cppLine": "13b",
+      "cppLine": "18",
       "cppLineLabel": "Alte cheltuieli materiale"
     },
     {
@@ -813,7 +813,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Materiale nestocate",
-      "cppLine": "13b",
+      "cppLine": "18",
       "cppLineLabel": "Alte cheltuieli materiale"
     },
     {
@@ -822,7 +822,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu energia si apa",
-      "cppLine": "13c",
+      "cppLine": "19",
       "cppLineLabel": "Alte cheltuieli externe (cu energia si apa)"
     },
     {
@@ -831,7 +831,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu animalele",
-      "cppLine": "13b",
+      "cppLine": "18",
       "cppLineLabel": "Alte cheltuieli materiale"
     },
     {
@@ -840,7 +840,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu marfurile",
-      "cppLine": "13d",
+      "cppLine": "22",
       "cppLineLabel": "Cheltuieli privind marfurile"
     },
     {
@@ -849,7 +849,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu ambalajele",
-      "cppLine": "13b",
+      "cppLine": "18",
       "cppLineLabel": "Alte cheltuieli materiale"
     },
     {
@@ -858,7 +858,7 @@
       "type": "P",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Reduceri comerciale primite",
-      "cppLine": "13e",
+      "cppLine": "23",
       "cppLineLabel": "Reduceri comerciale primite"
     },
     {
@@ -867,7 +867,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu intretinerea si reparatiile",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -876,7 +876,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu chiriile",
-      "cppLine": "17a",
+      "cppLine": "36",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -885,7 +885,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu asigurarile",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -894,7 +894,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu studiile",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -903,7 +903,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -912,7 +912,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "40",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -921,7 +921,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "42",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -930,7 +930,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "44",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -939,7 +939,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu colaboratorii",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -948,7 +948,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu comisioane si onorarii",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -957,7 +957,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli protocol si reclama",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -966,7 +966,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu transportul",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -975,7 +975,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu deplasari",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -984,7 +984,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli postale si telecom",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -993,7 +993,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli servicii bancare",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -1002,7 +1002,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Alte cheltuieli cu servicii",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "a) Cheltuieli cu prestatiile externe"
     },
     {
@@ -1011,7 +1011,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu impozite si taxe",
-      "cppLine": "17b",
+      "cppLine": "46",
       "cppLineLabel": "b) Cheltuieli cu alte impozite, taxe si varsaminte asimilate"
     },
     {
@@ -1020,7 +1020,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu salariile",
-      "cppLine": "14a",
+      "cppLine": "25",
       "cppLineLabel": "a) Salarii si indemnizatii"
     },
     {
@@ -1029,7 +1029,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu tichetele de masa",
-      "cppLine": "14a",
+      "cppLine": "25",
       "cppLineLabel": "a) Salarii si indemnizatii"
     },
     {
@@ -1038,7 +1038,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Prime angajator",
-      "cppLine": "14a",
+      "cppLine": "25",
       "cppLineLabel": "a) Salarii si indemnizatii"
     },
     {
@@ -1047,7 +1047,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Remunerare in capital",
-      "cppLine": "14a",
+      "cppLine": "25",
       "cppLineLabel": "a) Salarii si indemnizatii"
     },
     {
@@ -1056,7 +1056,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli asigurari sociale",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -1065,7 +1065,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu CAM",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -1074,7 +1074,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare"
     },
     {
@@ -1083,7 +1083,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli protectia mediului",
-      "cppLine": "17c",
+      "cppLine": "47",
       "cppLineLabel": "c) Cheltuieli cu protectia mediului inconjurator"
     },
     {
@@ -1092,7 +1092,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Pierderi din creante",
-      "cppLine": "16a",
+      "cppLine": "32",
       "cppLineLabel": "a) Cheltuieli cu ajustarile pentru deprecierea activelor circulante"
     },
     {
@@ -1101,7 +1101,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17d",
+      "cppLine": "48",
       "cppLineLabel": "d) Alte cheltuieli de exploatare"
     },
     {
@@ -1110,7 +1110,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Alte cheltuieli de exploatare",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
     },
     {
@@ -1119,7 +1119,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Pierderi din creante participatii",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -1128,7 +1128,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Cheltuieli investitii cedate",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -1137,7 +1137,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Cheltuieli diferente curs valutar",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -1146,7 +1146,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Cheltuieli cu dobanzile",
-      "cppLine": "27",
+      "cppLine": "68",
       "cppLineLabel": "Cheltuieli privind dobanzile"
     },
     {
@@ -1155,7 +1155,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Cheltuieli sconturi acordate",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -1164,7 +1164,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Alte cheltuieli financiare",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -1180,7 +1180,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_FINANCIARE",
       "cppLabel": "Amortizari financiare",
-      "cppLine": "26a",
+      "cppLine": "66",
       "cppLineLabel": "a) Cheltuieli"
     },
     {
@@ -1188,7 +1188,7 @@
       "name": "Cheltuieli cu impozitul pe profit",
       "type": "A",
       "special": "profit_tax",
-      "cppLine": "34",
+      "cppLine": "78",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -1196,7 +1196,7 @@
       "name": "Cheltuieli cu impozitul pe profit rezultat din decontarile in cadrul grupului fiscal",
       "type": "A",
       "special": "profit_tax",
-      "cppLine": "34",
+      "cppLine": "79",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -1204,7 +1204,7 @@
       "name": "Cheltuieli cu impozitul specific unor activitati.",
       "type": "A",
       "special": "profit_tax",
-      "cppLine": "34",
+      "cppLine": "82",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -1212,7 +1212,7 @@
       "name": "Cheltuieli cu impozitul pe profit la nivelul impozitului minim pe cifra de afaceri",
       "type": "A",
       "special": "profit_tax",
-      "cppLine": "34",
+      "cppLine": "81",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -1220,7 +1220,7 @@
       "name": "Cheltuieli cu impozitul pe venit si cu alte impozite care nu apar in elementele de mai sus",
       "type": "A",
       "special": "micro_tax",
-      "cppLine": "34",
+      "cppLine": "82",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -1229,7 +1229,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Vanzari produse finite",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1238,7 +1238,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Vanzari semifabricate",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1247,7 +1247,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Vanzari produse reziduale",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1256,7 +1256,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din servicii prestate",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1265,7 +1265,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din studii si cercetari",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1274,7 +1274,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din chirii",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1283,7 +1283,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din vanzarea marfurilor",
-      "cppLine": "03",
+      "cppLine": "04",
       "cppLineLabel": "Venituri din vanzarea marfurilor"
     },
     {
@@ -1292,7 +1292,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din activitati diverse",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -1301,7 +1301,7 @@
       "type": "A",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Reduceri comerciale acordate",
-      "cppLine": "04",
+      "cppLine": "05",
       "cppLineLabel": "Reduceri comerciale acordate"
     },
     {
@@ -1346,7 +1346,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Productia de investitii imobiliare",
-      "cppLine": "09",
+      "cppLine": "11",
       "cppLineLabel": "Productia realizata de entitate pentru scopurile sale proprii si capitalizata"
     },
     {
@@ -1355,7 +1355,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din subventii",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -1370,7 +1370,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din creante reactivate",
-      "cppLine": "11",
+      "cppLine": "33",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -1385,7 +1385,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Alte venituri din exploatare",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -1394,7 +1394,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri din imobilizari financiare",
-      "cppLine": "21",
+      "cppLine": "57",
       "cppLineLabel": "Venituri din interese de participare"
     },
     {
@@ -1403,7 +1403,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri investitii termen scurt",
-      "cppLine": "22",
+      "cppLine": "62",
       "cppLineLabel": "Venituri din alte investitii financiare si creante care fac parte din activele imobilizate"
     },
     {
@@ -1412,7 +1412,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri creante imobilizate",
-      "cppLine": "22",
+      "cppLine": "62",
       "cppLineLabel": "Venituri din alte investitii financiare si creante care fac parte din activele imobilizate"
     },
     {
@@ -1421,7 +1421,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri investitii cedate",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -1430,7 +1430,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri diferente curs valutar",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -1439,7 +1439,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri din dobanzi",
-      "cppLine": "23",
+      "cppLine": "59",
       "cppLineLabel": "Venituri din dobanzi"
     },
     {
@@ -1448,7 +1448,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri sconturi obtinute",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -1457,7 +1457,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Alte venituri financiare",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -1466,7 +1466,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din provizioane",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -1475,7 +1475,7 @@
       "type": "P",
       "cppGroup": "VENITURI_FINANCIARE",
       "cppLabel": "Venituri ajustari financiare",
-      "cppLine": "26b",
+      "cppLine": "67",
       "cppLineLabel": "b) Venituri din ajustari de valoare privind imobilizarile financiare si investitiile financiare"
     },
     {
@@ -1484,7 +1484,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": null,
-      "cppLine": "34",
+      "cppLine": "80",
       "cppLineLabel": "Impozitul pe profit / venit"
     },
     {
@@ -2857,7 +2857,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "13c",
+      "cppLine": "20",
       "cppLineLabel": "c) Cheltuieli privind energia si apa"
     },
     {
@@ -2866,7 +2866,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "13c",
+      "cppLine": "19",
       "cppLineLabel": "c) Cheltuieli privind energia si apa"
     },
     {
@@ -2875,7 +2875,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "13c",
+      "cppLine": "21",
       "cppLineLabel": "c) Cheltuieli privind energia si apa"
     },
     {
@@ -2884,8 +2884,26 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "13c",
+      "cppLine": "19",
       "cppLineLabel": "c) Cheltuieli privind energia si apa"
+    },
+    {
+      "code": "6121",
+      "name": "Cheltuieli cu redevente",
+      "type": "A",
+      "classDigit": 6,
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLine": "37",
+      "cppLineLabel": "Cheltuieli cu redevente"
+    },
+    {
+      "code": "6122",
+      "name": "Cheltuieli cu locatiile de gestiune",
+      "type": "A",
+      "classDigit": 6,
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLine": "38",
+      "cppLineLabel": "Cheltuieli cu locatiile de gestiune"
     },
     {
       "code": "6123",
@@ -2893,7 +2911,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "39",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -2902,7 +2920,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -2911,7 +2929,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17a",
+      "cppLine": "35",
       "cppLineLabel": "Cheltuieli cu prestatii externe"
     },
     {
@@ -2932,7 +2950,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "14a",
+      "cppLine": "25",
       "cppLineLabel": "a) Salarii si indemnizatii"
     },
     {
@@ -2941,7 +2959,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Contributia unitatii CAS",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -2950,7 +2968,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Contributia somaj",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -2959,7 +2977,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Contributia CASS angajator",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -2986,7 +3004,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Alte cheltuieli sociale",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -2995,7 +3013,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "14b",
+      "cppLine": "26",
       "cppLineLabel": "b) Cheltuieli cu asigurarile si protectia sociala"
     },
     {
@@ -3022,7 +3040,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Amenzi si penalitati",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
     },
     {
@@ -3031,7 +3049,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Donatii acordate",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
     },
     {
@@ -3040,7 +3058,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli active cedate",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
     },
     {
@@ -3049,7 +3067,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare"
     },
     {
@@ -3070,7 +3088,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Alte cheltuieli de exploatare",
-      "cppLine": "17d",
+      "cppLine": "50",
       "cppLineLabel": "d) Alte cheltuieli de exploatare (despagubiri, donatii, active cedate etc.)"
     },
     {
@@ -3085,7 +3103,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_FINANCIARE",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -3094,7 +3112,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_FINANCIARE",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -3109,7 +3127,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu amortizarea",
-      "cppLine": "15a",
+      "cppLine": "28",
       "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
     },
     {
@@ -3118,7 +3136,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Cheltuieli cu provizioanele",
-      "cppLine": "18a",
+      "cppLine": "52",
       "cppLineLabel": "a) Cheltuieli cu provizioanele"
     },
     {
@@ -3127,7 +3145,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Ajustari depreciere imobilizari",
-      "cppLine": "15a",
+      "cppLine": "29",
       "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
     },
     {
@@ -3136,7 +3154,7 @@
       "type": "A",
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLabel": "Ajustari active circulante",
-      "cppLine": "16a",
+      "cppLine": "32",
       "cppLineLabel": "a) Cheltuieli cu ajustarile pentru deprecierea activelor circulante"
     },
     {
@@ -3145,7 +3163,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "15a",
+      "cppLine": "28",
       "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
     },
     {
@@ -3154,8 +3172,17 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "15a",
+      "cppLine": "29",
       "cppLineLabel": "a) Ajustari de valoare privind imobilizarile corporale si necorporale (chelt.)"
+    },
+    {
+      "code": "6818",
+      "name": "Alte cheltuieli de exploatare privind ajustari pentru depreciere",
+      "type": "A",
+      "classDigit": 6,
+      "cppGroup": "CHELTUIELI_EXPLOATARE",
+      "cppLine": "29",
+      "cppLineLabel": "a.2) Alte cheltuieli ajustari valoare imobilizari"
     },
     {
       "code": "6861",
@@ -3169,7 +3196,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_FINANCIARE",
-      "cppLine": "26a",
+      "cppLine": "66",
       "cppLineLabel": "a) Cheltuieli cu ajustarile pentru pierderea de valoare a imobilizarilor financiare"
     },
     {
@@ -3178,7 +3205,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_FINANCIARE",
-      "cppLine": "26a",
+      "cppLine": "66",
       "cppLineLabel": "a) Cheltuieli cu ajustarile pentru pierderea de valoare a imobilizarilor financiare"
     },
     {
@@ -3193,7 +3220,7 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_FINANCIARE",
-      "cppLine": "28",
+      "cppLine": "70",
       "cppLineLabel": "Alte cheltuieli financiare"
     },
     {
@@ -3202,7 +3229,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": "VENITURI_EXPLOATARE",
-      "cppLine": "02",
+      "cppLine": "03",
       "cppLineLabel": "Productia vanduta"
     },
     {
@@ -3232,7 +3259,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii materiale",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3241,7 +3268,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii cheltuieli externe",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3250,7 +3277,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii personal",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3259,7 +3286,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii asigurari sociale",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3268,7 +3295,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii alte cheltuieli",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3277,7 +3304,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii calamitati",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3286,7 +3313,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii dobanda",
-      "cppLine": "11",
+      "cppLine": "61",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3295,7 +3322,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii alte venituri",
-      "cppLine": "11",
+      "cppLine": "12",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3322,7 +3349,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Despagubiri si penalitati",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3331,7 +3358,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Donatii primite",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3340,7 +3367,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Venituri din vanzarea activelor",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3349,7 +3376,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Subventii pentru investitii",
-      "cppLine": "10",
+      "cppLine": "14",
       "cppLineLabel": "Venituri din subventii de exploatare pentru investitii"
     },
     {
@@ -3358,7 +3385,7 @@
       "type": "P",
       "cppGroup": "VENITURI_EXPLOATARE",
       "cppLabel": "Alte venituri din exploatare",
-      "cppLine": "11",
+      "cppLine": "13",
       "cppLineLabel": "Alte venituri din exploatare"
     },
     {
@@ -3397,7 +3424,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": "VENITURI_FINANCIARE",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -3406,7 +3433,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": "VENITURI_FINANCIARE",
-      "cppLine": "24",
+      "cppLine": "62",
       "cppLineLabel": "Alte venituri financiare"
     },
     {
@@ -3445,7 +3472,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": "VENITURI_EXPLOATARE",
-      "cppLine": "15b",
+      "cppLine": "13",
       "cppLineLabel": "b) Ajustari de valoare privind imobilizarile corporale si necorporale (ven.)"
     },
     {
@@ -3454,7 +3481,7 @@
       "type": "P",
       "classDigit": 7,
       "cppGroup": "VENITURI_EXPLOATARE",
-      "cppLine": "16b",
+      "cppLine": "30",
       "cppLineLabel": "b) Venituri din ajustari pentru deprecierea activelor circulante"
     },
     {

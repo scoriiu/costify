@@ -138,6 +138,10 @@ export function CppTab({ clientId, clientSlug, year, month, onUnmappedFound }: P
         </div>
       </div>
 
+      {viewMode === "f20" && year < 2024 && (
+        <LegacyF20Notice year={year} />
+      )}
+
       {!hasData ? (
         <div className="flex items-center justify-center py-16 text-sm text-gray">
           Nu exista date P&L pentru aceasta perioada.
@@ -149,6 +153,20 @@ export function CppTab({ clientId, clientSlug, year, month, onUnmappedFound }: P
       ) : null}
 
       <MissingTaxNotice cpp={viewMode === "f20" ? cppF20 : cpp} regime={taxRegime} />
+    </div>
+  );
+}
+
+function LegacyF20Notice({ year }: { year: number }) {
+  return (
+    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-gray-light">
+      <span className="font-mono font-semibold text-blue">Nota:</span>{" "}
+      Costify afiseaza F20 in structura noua (OMF 2036/2025) si pentru
+      exercitiul {year}. Formularul oficial depus la ANAF pentru anul{" "}
+      {year} a folosit structura anterioara (OMFP 1802/2014 cu modificarile{" "}
+      85/2022, 2048/2022 si 5394/2023). Totalele sunt identice; doar
+      gruparea pe randuri difera. Pentru auditori, consultati formularul
+      original arhivat in dosarul firmei.
     </div>
   );
 }

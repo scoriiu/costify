@@ -34,11 +34,22 @@
       ]
     },
     "cont_profit_si_pierdere": {
-      "description": "CPP calculat din balanta, cu doua moduri de afisare selectabile printr-un toggle: 'Simplificat' (o linie per cont contribuabil, grupat pe cele 4 sectiuni CPP) si 'F20 detaliat' (formatul oficial ANAF cu 35 de randuri si sub-randuri 13a-e, 14a-b, 15a-b, 16a-b, 17a-d, 18a-b, conform OMFP 1802 Anexa 3). Ambele moduri reconciliaza: F20.rezultatBrut === Simplificat.rezultatBrut, garantat de un test de invariant. Conturile cu flag isClosing (121, 1211, 1212) sunt excluse din CPP pentru a evita dublul calcul.",
+      "description": "CPP calculat din balanta, cu doua moduri de afisare selectabile printr-un toggle: 'Simplificat' (o linie per cont contribuabil, grupat pe cele 4 sectiuni CPP) si 'F20 detaliat' (formatul oficial ANAF cu 84 de randuri conform OMF 2036/2025 Anexa 1, Cod 20). Ambele moduri reconciliaza: F20.rezultatBrut === Simplificat.rezultatBrut, garantat de test invariant. Conturile cu flag isClosing (121, 1211, 1212) sunt excluse din CPP pentru a evita dublul calcul.",
       "view_modes": {
         "simplified": "Daily view. Grupari din AccountCatalog.cppGroup (VENITURI_EXPLOATARE, CHELTUIELI_EXPLOATARE, VENITURI_FINANCIARE, CHELTUIELI_FINANCIARE). O linie per cont contribuabil, sortata alfabetic. Util pentru analiza curenta.",
-        "f20": "Format oficial ANAF F20 depus cu situatiile financiare anuale. Randuri rd.01-35 din OMFP 1802 Anexa 3, cu sub-randuri literale (ex: rd.13a cheltuieli cu materii prime, rd.13b alte materiale, rd.14a salarii, rd.14b asigurari sociale). Fiecare cont OMFP are coloana cppLine care mapeaza la un rand F20. 711/712 (variatia stocurilor) se splita la calcul in rd.07 (crestere) sau rd.08 (reducere) in functie de semn. Impozitul din rd.34 respecta regimul valabil la (year, month) — rezolvat din timeline-ul TaxRegimePeriod (vezi tax_regime_timeline)."
+        "f20": "Format oficial ANAF F20 — OMF 2036/2025 Anexa 1, in vigoare de 20 ianuarie 2026, aplicabil pentru exercitii financiare 2024+. Inlocuieste structura OMFP 1802/2014 Anexa 3 + amendamente. Are 84 randuri vs 35 in vechea structura — mult mai granular. Sectiuni: A=Cifra afaceri (rd.01-06), B=Venituri exploatare (rd.07-16), C=Cheltuieli exploatare (rd.17-54), D=Rezultat exploatare (rd.55-56), E=Venituri financiare (rd.57-64), F=Cheltuieli financiare (rd.65-71), G=Totale + impozit + rezultat (rd.72-84). Pentru exercitiile pre-2024, Costify afiseaza tot in noua structura cu banner explicativ — totalele raman identice, doar gruparea pe randuri difera fata de formularul oficial depus la momentul respectiv."
       },
+      "key_changes_omf2036_vs_omfp1802": [
+        "725 (productie investitii imobiliare) → rd. 11 propriu (era inclus in rd. 09)",
+        "755 (reevaluare imobilizari corporale) → rd. 10 propriu (era pe rd. 11 in vechi)",
+        "7412-7419 (subventii exploatare) → rd. 12 propriu (erau pe rd. 11)",
+        "6051 (consum energie) → rd. 20 propriu, 6053 (gaze) → rd. 21 propriu",
+        "6121 (redevente) → rd. 37, 6122 (locatii) → rd. 38, 6123 (chirii) → rd. 39",
+        "794 (venituri impozit grup fiscal) → rd. 80 propriu cu semn negativ (reduce impozitul)",
+        "697 (IMCA — impozit minim cifra afaceri) → rd. 81 propriu",
+        "Rezultat exploatare pe doua randuri: rd. 55 (profit) si rd. 56 (pierdere) — Costify le combina in summary cu semn",
+        "Rezultat net pe rd. 83 (profit) si rd. 84 (pierdere) — la fel"
+      ],
       "sections_simplified": [
         "Venituri din exploatare (cppGroup=VENITURI_EXPLOATARE, clasa 7 cu exceptii)",
         "Cheltuieli din exploatare (cppGroup=CHELTUIELI_EXPLOATARE, clasa 6 cu exceptii)",
@@ -47,12 +58,12 @@
         "Cheltuieli financiare (cppGroup=CHELTUIELI_FINANCIARE)",
         "Rezultat financiar",
         "Rezultat brut = rezultat exploatare + rezultat financiar",
-        "Impozit (cont conform regimului fiscal valabil pe perioada: 691 standard / 698 micro / 697 IMCA / 695 specific)",
+        "Impozit (cont conform regimului fiscal valabil pe perioada: 691→rd.78 standard / 698→rd.82 micro / 697→rd.81 IMCA / 695→rd.82 specific)",
         "Rezultat net = rezultat brut - impozit"
       ],
       "tax_regime_display": "In header-ul tab-ului CPP, regimul valabil pe perioada selectata se afiseaza ca eticheta read-only ('Profit standard 16% · Cont 691'), nu ca dropdown. Schimbarea se face din tab-ul Setari, sectiunea Regim fiscal — un click pe linkul 'Gestioneaza' duce direct acolo. Asta forteaza schimbarea regimului sa fie un act constient cu data de start, nu un toggle accidental pe pagina de raport.",
-      "f20_structure_source": "seeds/f20-structure.json — 35 de randuri cu formule simbolice ('rd.12 - rd.19') pentru subtotale/totaluri si liste explicite de conturi contribuabile pentru randurile de detaliu. Mapa cppLine per cont este stocata in AccountCatalog.",
-      "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
+      "f20_structure_source": "seeds/f20-structure.json — 84 randuri cu formule simbolice ('rd.16 - rd.54' etc.) pentru subtotale/totaluri si liste explicite de conturi contribuabile pentru randurile de detaliu. Configuratia upgrade-safe: dualRowAccounts (711/712 split pe rd.07/08), taxRegimeAccounts (regim → cont → rand), summary (denumiri agregate → randurile care le poarta) — toate in JSON, deci OMF urmator se aplica prin inlocuirea fisierului fara modificare de cod.",
+      "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/info/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
     },
     "kpi_cards": {
       "description": "Indicatori financiari calculati din balanta. Formulele sunt aliniate la raspunsurile contabilului Claudia Solomon (sectiunea '4 KPI-uri') si sunt role-driven prin AccountCatalog (campurile cashRole, arRole, apRole, vatRole).",

@@ -38,26 +38,25 @@ function get(lines: CppF20Line[], rn: string): CppF20Line {
   return found;
 }
 
-describe("computeCppF20 — core routing", () => {
+describe("computeCppF20 — core routing (OMF 2036/2025)", () => {
   beforeEach(() => {
     resetF20Cache();
     resetSyncCache();
   });
 
-  it("maps cifra de afaceri sources to rd.02 / rd.03 / rd.04", () => {
+  it("routes cifra de afaceri to rd.03 / rd.04 / rd.05 (productie, marfuri, reduceri)", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 100000 }),
       row({ cont: "707", contBase: "707", rulajTC: 30000 }),
       row({ cont: "709", contBase: "709", rulajTD: 500 }),
     ]);
-    expect(get(cpp.lines, "02").value).toBe(100000);
-    expect(get(cpp.lines, "03").value).toBe(30000);
-    expect(get(cpp.lines, "04").value).toBe(500);
-    // rd.01 = 02 + 03 - 04
+    expect(get(cpp.lines, "03").value).toBe(100000);
+    expect(get(cpp.lines, "04").value).toBe(30000);
+    expect(get(cpp.lines, "05").value).toBe(500);
     expect(get(cpp.lines, "01").value).toBe(100000 + 30000 - 500);
   });
 
-  it("routes all production revenues under rd.02", () => {
+  it("aggregates all production revenues 701-708 under rd.03", () => {
     const cpp = computeCppF20([
       row({ cont: "701", contBase: "701", rulajTC: 1000 }),
       row({ cont: "702", contBase: "702", rulajTC: 2000 }),
@@ -66,53 +65,79 @@ describe("computeCppF20 — core routing", () => {
       row({ cont: "706", contBase: "706", rulajTC: 5000 }),
       row({ cont: "708", contBase: "708", rulajTC: 6000 }),
     ]);
-    expect(get(cpp.lines, "02").value).toBe(21000);
+    expect(get(cpp.lines, "03").value).toBe(21000);
   });
 
-  it("splits class 64x between rd.14a salarii and rd.14b asigurari", () => {
+  it("splits class 64x between rd.25 salarii and rd.26 asigurari sociale", () => {
     const cpp = computeCppF20([
       row({ cont: "641", contBase: "641", rulajTD: 60000 }),
       row({ cont: "642", contBase: "642", rulajTD: 5000 }),
       row({ cont: "6451", contBase: "6451", rulajTD: 9000 }),
       row({ cont: "646", contBase: "646", rulajTD: 1500 }),
     ]);
-    expect(get(cpp.lines, "14a").value).toBe(65000);
-    expect(get(cpp.lines, "14b").value).toBe(10500);
-    expect(get(cpp.lines, "14").value).toBe(75500);
+    expect(get(cpp.lines, "25").value).toBe(65000);
+    expect(get(cpp.lines, "26").value).toBe(10500);
+    expect(get(cpp.lines, "24").value).toBe(75500);
   });
 
-  it("class 60x cheltuieli materiale split by OMFP sub-rows", () => {
+  it("splits class 60x materials into dedicated rows (17/18/19/22/23)", () => {
     const cpp = computeCppF20([
-      row({ cont: "601", contBase: "601", rulajTD: 10000 }), // rd.13a
-      row({ cont: "603", contBase: "603", rulajTD: 1000 }),  // rd.13b
-      row({ cont: "605", contBase: "605", rulajTD: 2000 }),  // rd.13c
-      row({ cont: "607", contBase: "607", rulajTD: 50000 }), // rd.13d
-      row({ cont: "609", contBase: "609", rulajTC: 300 }),   // rd.13e, subtracted
+      row({ cont: "601", contBase: "601", rulajTD: 10000 }), // rd.17
+      row({ cont: "603", contBase: "603", rulajTD: 1000 }),  // rd.18
+      row({ cont: "605", contBase: "605", rulajTD: 2000 }),  // rd.19
+      row({ cont: "607", contBase: "607", rulajTD: 50000 }), // rd.22
+      row({ cont: "609", contBase: "609", rulajTC: 300 }),   // rd.23 (subtracted)
     ]);
-    expect(get(cpp.lines, "13a").value).toBe(10000);
-    expect(get(cpp.lines, "13b").value).toBe(1000);
-    expect(get(cpp.lines, "13c").value).toBe(2000);
-    expect(get(cpp.lines, "13d").value).toBe(50000);
-    expect(get(cpp.lines, "13e").value).toBe(300);
+    expect(get(cpp.lines, "17").value).toBe(10000);
+    expect(get(cpp.lines, "18").value).toBe(1000);
+    expect(get(cpp.lines, "19").value).toBe(2000);
+    expect(get(cpp.lines, "22").value).toBe(50000);
+    expect(get(cpp.lines, "23").value).toBe(300);
   });
 
-  it("prestatii externe 611-628 aggregate into rd.17a", () => {
+  it("6051 (energie) and 6053 (gaze) land on dedicated info rows 20/21", () => {
+    const cpp = computeCppF20([
+      row({ cont: "6051", contBase: "6051", rulajTD: 8000 }),
+      row({ cont: "6053", contBase: "6053", rulajTD: 4000 }),
+    ]);
+    expect(get(cpp.lines, "20").value).toBe(8000);
+    expect(get(cpp.lines, "21").value).toBe(4000);
+  });
+
+  it("prestatii externe 611-628 aggregate into rd.35", () => {
     const cpp = computeCppF20([
       row({ cont: "611", contBase: "611", rulajTD: 1000 }),
       row({ cont: "622", contBase: "622", rulajTD: 2000 }),
       row({ cont: "627", contBase: "627", rulajTD: 500 }),
       row({ cont: "628", contBase: "628", rulajTD: 3000 }),
     ]);
-    expect(get(cpp.lines, "17a").value).toBe(6500);
+    expect(get(cpp.lines, "35").value).toBe(6500);
   });
 
-  it("666 dobanzi goes to rd.27, not rd.28", () => {
+  it("666 dobanzi goes to rd.68 (dedicated row), 665 to rd.70 (alte chelt. financiare)", () => {
     const cpp = computeCppF20([
       row({ cont: "666", contBase: "666", rulajTD: 4500 }),
       row({ cont: "665", contBase: "665", rulajTD: 200 }),
     ]);
-    expect(get(cpp.lines, "27").value).toBe(4500);
-    expect(get(cpp.lines, "28").value).toBe(200);
+    expect(get(cpp.lines, "68").value).toBe(4500);
+    expect(get(cpp.lines, "70").value).toBe(200);
+  });
+
+  it("725 (productie investitii imobiliare) lands on dedicated rd.11", () => {
+    const cpp = computeCppF20([
+      row({ cont: "725", contBase: "725", rulajTC: 25000 }),
+    ]);
+    expect(get(cpp.lines, "11").value).toBe(25000);
+  });
+
+  it("7412-7419 subventii land on rd.12 (dedicated, separated from rd.06)", () => {
+    const cpp = computeCppF20([
+      row({ cont: "7411", contBase: "7411", rulajTC: 5000 }), // rd.06
+      row({ cont: "7412", contBase: "7412", rulajTC: 3000 }), // rd.12
+      row({ cont: "7419", contBase: "7419", rulajTC: 1000 }), // rd.12
+    ]);
+    expect(get(cpp.lines, "06").value).toBe(5000);
+    expect(get(cpp.lines, "12").value).toBe(4000);
   });
 });
 
@@ -162,95 +187,97 @@ describe("computeCppF20 — totals and formulas", () => {
     resetSyncCache();
   });
 
-  it("rd.12 sums A section correctly", () => {
+  it("rd.16 venituri exploatare total includes all A+B section rows", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 100000 }),
-      row({ cont: "741", contBase: "741", rulajTC: 5000 }), // alte venituri rd.11
+      row({ cont: "725", contBase: "725", rulajTC: 5000 }), // rd.11
     ]);
     expect(get(cpp.lines, "01").value).toBe(100000);
     expect(get(cpp.lines, "11").value).toBe(5000);
-    expect(get(cpp.lines, "12").value).toBe(105000);
+    expect(get(cpp.lines, "16").value).toBe(105000);
   });
 
-  it("rd.19 sums cheltuieli exploatare including all sub-rows", () => {
+  it("rd.54 sums cheltuieli exploatare including all sub-rows", () => {
     const cpp = computeCppF20([
-      row({ cont: "601", contBase: "601", rulajTD: 10000 }), // 13a
-      row({ cont: "641", contBase: "641", rulajTD: 60000 }), // 14a
-      row({ cont: "6811", contBase: "6811", rulajTD: 5000 }), // 15a
-      row({ cont: "611", contBase: "611", rulajTD: 2000 }), // 17a
-      row({ cont: "635", contBase: "635", rulajTD: 1500 }), // 17b
+      row({ cont: "601", contBase: "601", rulajTD: 10000 }), // rd.17
+      row({ cont: "641", contBase: "641", rulajTD: 60000 }), // rd.25
+      row({ cont: "6811", contBase: "6811", rulajTD: 5000 }), // rd.28
+      row({ cont: "611", contBase: "611", rulajTD: 2000 }),   // rd.35
+      row({ cont: "635", contBase: "635", rulajTD: 1500 }),   // rd.46
     ]);
-    expect(get(cpp.lines, "13a").value).toBe(10000);
-    expect(get(cpp.lines, "14a").value).toBe(60000);
-    expect(get(cpp.lines, "15a").value).toBe(5000);
-    expect(get(cpp.lines, "17a").value).toBe(2000);
-    expect(get(cpp.lines, "17b").value).toBe(1500);
-    expect(get(cpp.lines, "19").value).toBe(78500);
+    expect(get(cpp.lines, "17").value).toBe(10000);
+    expect(get(cpp.lines, "25").value).toBe(60000);
+    expect(get(cpp.lines, "28").value).toBe(5000);
+    expect(get(cpp.lines, "35").value).toBe(2000);
+    expect(get(cpp.lines, "46").value).toBe(1500);
+    expect(get(cpp.lines, "54").value).toBe(78500);
   });
 
-  it("rd.20 rezultat exploatare = rd.12 - rd.19", () => {
+  it("rezultat exploatare = rd.55 (profit) or rd.56 (loss), summary signed", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 100000 }),
       row({ cont: "641", contBase: "641", rulajTD: 60000 }),
     ]);
-    expect(get(cpp.lines, "12").value).toBe(100000);
-    expect(get(cpp.lines, "19").value).toBe(60000);
-    expect(get(cpp.lines, "20").value).toBe(40000);
+    expect(get(cpp.lines, "16").value).toBe(100000);
+    expect(get(cpp.lines, "54").value).toBe(60000);
+    expect(get(cpp.lines, "55").value).toBe(40000);
+    expect(get(cpp.lines, "56").value).toBe(0);
     expect(cpp.rezultatExploatare).toBe(40000);
   });
 
-  it("rd.30 rezultat financiar = rd.25 - rd.29", () => {
+  it("rezultat financiar = rd.72/rd.73, signed in summary", () => {
     const cpp = computeCppF20([
-      row({ cont: "766", contBase: "766", rulajTC: 500 }),  // rd.23
-      row({ cont: "666", contBase: "666", rulajTD: 1200 }), // rd.27
+      row({ cont: "766", contBase: "766", rulajTC: 500 }),  // rd.59
+      row({ cont: "666", contBase: "666", rulajTD: 1200 }), // rd.68
     ]);
-    expect(get(cpp.lines, "25").value).toBe(500);
-    expect(get(cpp.lines, "29").value).toBe(1200);
-    expect(get(cpp.lines, "30").value).toBe(-700);
+    expect(get(cpp.lines, "64").value).toBe(500);
+    expect(get(cpp.lines, "71").value).toBe(1200);
+    expect(get(cpp.lines, "73").value).toBe(700);
     expect(cpp.rezultatFinanciar).toBe(-700);
   });
 
-  it("rd.33 rezultat brut sums operating and financial results", () => {
+  it("rezultat brut = rd.74 - rd.75", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 100000 }),
       row({ cont: "641", contBase: "641", rulajTD: 40000 }),
       row({ cont: "766", contBase: "766", rulajTC: 500 }),
       row({ cont: "666", contBase: "666", rulajTD: 200 }),
     ]);
-    // rd.33 = rd.31 - rd.32 = (100000+500) - (40000+200)
-    expect(get(cpp.lines, "33").value).toBe(60300);
+    expect(get(cpp.lines, "74").value).toBe(100500);
+    expect(get(cpp.lines, "75").value).toBe(40200);
+    expect(get(cpp.lines, "76").value).toBe(60300);
     expect(cpp.rezultatBrut).toBe(60300);
   });
 
-  it("rd.35 rezultat net = rd.33 - rd.34 (impozit)", () => {
+  it("rezultat net = rd.76 - rd.78 - rd.79 + rd.80 - rd.81 - rd.82 (default, no regime)", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 100000 }),
       row({ cont: "641", contBase: "641", rulajTD: 60000 }),
-      row({ cont: "691", contBase: "691", rulajTD: 6400 }),
+      row({ cont: "691", contBase: "691", rulajTD: 6400 }), // rd.78
     ]);
-    expect(get(cpp.lines, "33").value).toBe(40000);
-    expect(get(cpp.lines, "34").value).toBe(6400);
-    expect(get(cpp.lines, "35").value).toBe(33600);
+    expect(get(cpp.lines, "76").value).toBe(40000);
+    expect(get(cpp.lines, "78").value).toBe(6400);
+    expect(get(cpp.lines, "83").value).toBe(33600);
     expect(cpp.rezultatNet).toBe(33600);
   });
 });
 
-describe("computeCppF20 — tax regime routing (rd.34)", () => {
+describe("computeCppF20 — tax regime routing (rd.78-82)", () => {
   beforeEach(() => {
     resetF20Cache();
     resetSyncCache();
   });
 
-  it("default (no regime) includes any profit-tax account", () => {
+  it("default (no regime) includes every profit-tax account on its declared row", () => {
     const cpp = computeCppF20([
-      row({ cont: "691", contBase: "691", rulajTD: 1000 }),
-      row({ cont: "698", contBase: "698", rulajTD: 2000 }),
+      row({ cont: "691", contBase: "691", rulajTD: 1000 }), // rd.78
+      row({ cont: "698", contBase: "698", rulajTD: 2000 }), // rd.82
     ]);
-    // Both contribute when no regime is specified
-    expect(get(cpp.lines, "34").value).toBe(3000);
+    expect(get(cpp.lines, "78").value).toBe(1000);
+    expect(get(cpp.lines, "82").value).toBe(2000);
   });
 
-  it("profit_standard uses only 691", () => {
+  it("profit_standard restricts impozit to 691 → rd.78 only", () => {
     const cpp = computeCppF20(
       [
         row({ cont: "691", contBase: "691", rulajTD: 1000 }),
@@ -259,10 +286,11 @@ describe("computeCppF20 — tax regime routing (rd.34)", () => {
       undefined,
       { taxRegime: "profit_standard" }
     );
-    expect(get(cpp.lines, "34").value).toBe(1000);
+    expect(get(cpp.lines, "78").value).toBe(1000);
+    expect(get(cpp.lines, "82").value).toBe(0);
   });
 
-  it("profit_micro_1 uses only 698", () => {
+  it("profit_micro_1 restricts impozit to 698 → rd.82 only", () => {
     const cpp = computeCppF20(
       [
         row({ cont: "691", contBase: "691", rulajTD: 1000 }),
@@ -271,10 +299,11 @@ describe("computeCppF20 — tax regime routing (rd.34)", () => {
       undefined,
       { taxRegime: "profit_micro_1" }
     );
-    expect(get(cpp.lines, "34").value).toBe(500);
+    expect(get(cpp.lines, "78").value).toBe(0);
+    expect(get(cpp.lines, "82").value).toBe(500);
   });
 
-  it("imca uses only 697", () => {
+  it("imca restricts impozit to 697 → rd.81 only", () => {
     const cpp = computeCppF20(
       [
         row({ cont: "697", contBase: "697", rulajTD: 800 }),
@@ -283,16 +312,17 @@ describe("computeCppF20 — tax regime routing (rd.34)", () => {
       undefined,
       { taxRegime: "imca" }
     );
-    expect(get(cpp.lines, "34").value).toBe(800);
+    expect(get(cpp.lines, "81").value).toBe(800);
+    expect(get(cpp.lines, "78").value).toBe(0);
   });
 
-  it("profit_specific (HoReCa) uses only 695", () => {
+  it("profit_specific (HoReCa) restricts impozit to 695 → rd.82", () => {
     const cpp = computeCppF20(
       [row({ cont: "695", contBase: "695", rulajTD: 300 })],
       undefined,
       { taxRegime: "profit_specific" }
     );
-    expect(get(cpp.lines, "34").value).toBe(300);
+    expect(get(cpp.lines, "82").value).toBe(300);
   });
 });
 
@@ -306,9 +336,8 @@ describe("computeCppF20 — analytic rollup", () => {
     const cpp = computeCppF20([
       row({ cont: "401.00023", contBase: "401", rulajTC: 99999 }),
     ]);
-    // 401 is not on any F20 line → all rows zero
-    expect(get(cpp.lines, "12").value).toBe(0);
-    expect(get(cpp.lines, "19").value).toBe(0);
+    expect(get(cpp.lines, "16").value).toBe(0);
+    expect(get(cpp.lines, "54").value).toBe(0);
     expect(cpp.rezultatNet).toBe(0);
   });
 
@@ -317,14 +346,14 @@ describe("computeCppF20 — analytic rollup", () => {
       row({ cont: "641.A01", contBase: "641", rulajTD: 20000 }),
       row({ cont: "641.A02", contBase: "641", rulajTD: 15000 }),
     ]);
-    expect(get(cpp.lines, "14a").value).toBe(35000);
+    expect(get(cpp.lines, "25").value).toBe(35000);
   });
 
-  it("longer analytics fall back to catalog prefixes (6451.X -> 6451)", () => {
+  it("longer analytics fall back to catalog prefixes (6451.X -> 6451 -> rd.26)", () => {
     const cpp = computeCppF20([
       row({ cont: "6451.X", contBase: "6451", rulajTD: 9000 }),
     ]);
-    expect(get(cpp.lines, "14b").value).toBe(9000);
+    expect(get(cpp.lines, "26").value).toBe(9000);
   });
 });
 
@@ -336,11 +365,10 @@ describe("computeCppF20 — edge cases", () => {
 
   it("empty input produces a full F20 skeleton with all zero values", () => {
     const cpp = computeCppF20([]);
-    expect(cpp.lines.length).toBeGreaterThan(30);
+    expect(cpp.lines.length).toBe(84);
     expect(cpp.rezultatNet).toBe(0);
     expect(cpp.rezultatBrut).toBe(0);
     expect(cpp.venituriTotale).toBe(0);
-    // every row is zero
     for (const line of cpp.lines) expect(line.value).toBe(0);
   });
 
@@ -358,7 +386,6 @@ describe("computeCppF20 — edge cases", () => {
       row({ cont: "704", contBase: "704", rulajTC: 10000, isLeaf: false, hasChild: true }),
       row({ cont: "704.X", contBase: "704", rulajTC: 10000, isLeaf: true }),
     ]);
-    // Only the leaf contributes
     expect(cpp.venituriExploatare).toBe(10000);
   });
 
@@ -366,8 +393,7 @@ describe("computeCppF20 — edge cases", () => {
     const cpp = computeCppF20([
       row({ cont: "704", contBase: "704", rulajTC: 0 }),
     ]);
-    expect(get(cpp.lines, "02").value).toBe(0);
-    // rd.01 must still be present even when all its children are zero
+    expect(get(cpp.lines, "03").value).toBe(0);
     expect(get(cpp.lines, "01")).toBeDefined();
   });
 
@@ -385,12 +411,12 @@ describe("computeCppF20 — edge cases", () => {
     const rd01 = get(cpp.lines, "01");
     expect(rd01.section).toBe("A");
     expect(rd01.kind).toBe("subtotal");
-    const rd14a = get(cpp.lines, "14a");
-    expect(rd14a.indent).toBe(1);
-    expect(rd14a.kind).toBe("detail");
-    const rd20 = get(cpp.lines, "20");
-    expect(rd20.section).toBe("C");
-    expect(rd20.kind).toBe("total");
+    const rd25 = get(cpp.lines, "25");
+    expect(rd25.indent).toBe(1);
+    expect(rd25.kind).toBe("detail");
+    const rd55 = get(cpp.lines, "55");
+    expect(rd55.section).toBe("D");
+    expect(rd55.kind).toBe("total");
   });
 
   it("detail rows expose which accounts contributed", () => {
@@ -398,13 +424,13 @@ describe("computeCppF20 — edge cases", () => {
       row({ cont: "641", contBase: "641", rulajTD: 10000 }),
       row({ cont: "642", contBase: "642", rulajTD: 2000 }),
     ]);
-    const rd14a = get(cpp.lines, "14a");
-    expect(rd14a.accounts).toEqual(["641", "642"]);
+    const rd25 = get(cpp.lines, "25");
+    expect(rd25.accounts).toEqual(["641", "642"]);
   });
 
   it("version identifier is propagated from structure seed", () => {
     const cpp = computeCppF20([]);
-    expect(cpp.version).toBe("f20-omfp1802-2024-v1");
+    expect(cpp.version).toBe("f20-omf2036-2025-v2");
   });
 });
 
@@ -465,7 +491,7 @@ describe("evaluateFormula (pure helper)", () => {
     expect(evaluateFormula("rd.01 + rd.99", m)).toBe(100);
   });
 
-  it("supports sub-row ids like 13a, 17b, 26b", () => {
+  it("supports legacy sub-row ids like 13a, 17b (backwards-compatible parser)", () => {
     const m = new Map([
       ["13a", 10],
       ["13b", 20],

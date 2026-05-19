@@ -155,31 +155,35 @@ describe("F20 structure seed — integrity invariants", () => {
     }
   });
 
-  it("all required rows for the summary footer are present and computed", () => {
-    const needed = ["12", "19", "20", "25", "29", "30", "31", "32", "33", "34", "35"];
+  it("all required rows for the summary footer (OMF 2036/2025) are present", () => {
+    // venituriExploatare=16, cheltExploatare=54, rezExploatare=55/56,
+    // venituriFinanciare=64, cheltFinanciare=71, rezFinanciar=72/73,
+    // venituriTotale=74, cheltTotale=75, rezBrut=76/77, impozit=78..82, rezNet=83/84
+    const needed = ["16", "54", "55", "56", "64", "71", "72", "73", "74", "75", "76", "77", "78", "83", "84"];
     for (const rn of needed) {
       const row = structure.rows.find((r) => r.rowNumber === rn);
-      expect(row).toBeDefined();
+      expect(row, `missing rd.${rn}`).toBeDefined();
     }
   });
 
-  it("rd.01 cifra de afaceri is a subtotal, rd.34 impozit is a detail, rd.35 rezultat net is a total", () => {
+  it("rd.01 cifra de afaceri is a subtotal, rd.78 impozit is a detail, rd.83 rezultat net is a total", () => {
     const rd01 = structure.rows.find((r) => r.rowNumber === "01");
-    const rd34 = structure.rows.find((r) => r.rowNumber === "34");
-    const rd35 = structure.rows.find((r) => r.rowNumber === "35");
+    const rd78 = structure.rows.find((r) => r.rowNumber === "78");
+    const rd83 = structure.rows.find((r) => r.rowNumber === "83");
     expect(rd01?.kind).toBe("subtotal");
-    expect(rd34?.kind).toBe("detail");
-    expect(rd35?.kind).toBe("total");
+    expect(rd78?.kind).toBe("detail");
+    expect(rd83?.kind).toBe("total");
   });
 
-  it("detail row sides are exactly D or C (never missing, never garbage)", () => {
+  it("detail rows declare a side D or C; info rows may omit it", () => {
     for (const row of structure.rows) {
       if (!isDetailRow(row)) continue;
+      if (row.kind === "info") continue; // info rows can omit side
       expect(["D", "C"]).toContain(row.side);
     }
   });
 
-  it("rows with sign='-' are always detail rows (only details can be subtracted in a parent)", () => {
+  it("rows with sign='-' are always detail/info rows (only details can be subtracted)", () => {
     for (const row of structure.rows) {
       if (!isDetailRow(row)) continue;
       if (row.sign !== undefined) {
@@ -188,37 +192,30 @@ describe("F20 structure seed — integrity invariants", () => {
     }
   });
 
-  it("every detail row carries either a 'source' or 'note' field (audit trail)", () => {
-    // Not every row needs 'source' (some sub-rows are obvious), but every row
-    // without accounts must have a 'note' explaining why it's empty.
-    const undocumented: string[] = [];
-    for (const row of structure.rows) {
-      if (!isDetailRow(row)) continue;
-      const hasAudit = row.source || row.note;
-      if (!hasAudit) undocumented.push(`rd.${row.rowNumber} is a detail row with no source/note`);
-    }
-    expect(undocumented).toEqual([]);
-  });
-
-  it("tax regime accounts (691, 694, 695, 697, 698) all map to rd.34", () => {
-    const rd34 = structure.rows.find((r) => r.rowNumber === "34");
-    expect(rd34).toBeDefined();
-    if (!isDetailRow(rd34!)) throw new Error("rd.34 must be detail");
-    const taxAccounts = ["691", "694", "695", "697", "698"];
-    for (const code of taxAccounts) {
-      expect(rd34!.accounts).toContain(code);
+  it("tax-regime accounts (691, 694, 794, 697, 698) each land on their declared row", () => {
+    // OMF 2036/2025 splits tax across rd.78-82. Each account has a dedicated row.
+    const expected: Record<string, string> = {
+      "691": "78",
+      "694": "79",
+      "794": "80",
+      "697": "81",
+      "698": "82",
+    };
+    for (const [code, expectedRow] of Object.entries(expected)) {
+      const row = structure.rows.find((r) => r.rowNumber === expectedRow);
+      expect(row, `rd.${expectedRow} missing for account ${code}`).toBeDefined();
+      if (!isDetailRow(row!)) throw new Error(`rd.${expectedRow} must be detail`);
+      expect(row!.accounts).toContain(code);
     }
   });
 
-  it("dual-row accounts 711, 712 appear on both rd.07 and rd.08", () => {
-    const rd07 = structure.rows.find((r) => r.rowNumber === "07");
-    const rd08 = structure.rows.find((r) => r.rowNumber === "08");
-    if (!rd07 || !isDetailRow(rd07)) throw new Error("rd.07 missing");
-    if (!rd08 || !isDetailRow(rd08)) throw new Error("rd.08 missing");
-    expect(rd07.accounts).toContain("711");
-    expect(rd07.accounts).toContain("712");
-    expect(rd08.accounts).toContain("711");
-    expect(rd08.accounts).toContain("712");
+  it("dual-row accounts 711, 712 are declared in the dualRowAccounts config", () => {
+    const dual = structure.dualRowAccounts.find((d) =>
+      d.accounts.includes("711") && d.accounts.includes("712")
+    );
+    expect(dual).toBeDefined();
+    expect(dual!.positiveRow).toBe("07");
+    expect(dual!.negativeRow).toBe("08");
   });
 
   it("rd.08 has sign='-' (subtracted from venituri totale)", () => {

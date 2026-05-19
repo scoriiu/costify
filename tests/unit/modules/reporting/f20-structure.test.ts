@@ -37,7 +37,17 @@ describe("loadF20Structure", () => {
 
   it("version matches the shipped identifier", () => {
     const s = loadF20Structure();
-    expect(s.version).toBe("f20-omfp1802-2024-v1");
+    expect(s.version).toBe("f20-omf2036-2025-v2");
+  });
+
+  it("declares upgrade-safe runtime config (summary, dualRowAccounts, taxRegimeAccounts)", () => {
+    const s = loadF20Structure();
+    expect(s.applicableFromYear).toBeGreaterThanOrEqual(2024);
+    expect(s.summary.rezultatNet).toBeDefined();
+    expect(s.summary.rezultatBrut).toBeDefined();
+    expect(s.dualRowAccounts.length).toBeGreaterThan(0);
+    expect(s.taxRegimeAccounts.profit_standard).toBeDefined();
+    expect(s.taxRegimeAccounts.imca).toBeDefined();
   });
 
   it("every row has a rowNumber, label, section, indent, kind", () => {
@@ -47,7 +57,7 @@ describe("loadF20Structure", () => {
       expect(row.label).toBeTruthy();
       expect(["A", "B", "C", "D", "E", "F", "G"]).toContain(row.section);
       expect(row.indent).toBeGreaterThanOrEqual(0);
-      expect(["detail", "subtotal", "total"]).toContain(row.kind);
+      expect(["detail", "info", "subtotal", "total"]).toContain(row.kind);
     }
   });
 
@@ -64,7 +74,7 @@ describe("loadF20Structure", () => {
   it("subtotal and total rows carry a formula", () => {
     const s = loadF20Structure();
     for (const row of s.rows) {
-      if (row.kind !== "detail") {
+      if (row.kind === "subtotal" || row.kind === "total") {
         expect(row.formula).toBeTruthy();
       }
     }
