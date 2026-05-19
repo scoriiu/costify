@@ -90,7 +90,7 @@ describe("D13 — CPP impozit line maps to taxRegime", () => {
     expect(impozit?.value).toBe(8000);
   });
 
-  it("default (no taxRegime) sums all isProfitTax accounts — legacy behavior", () => {
+  it("default (no taxRegime) renders each profit-tax account on its own line, then nets in rezultatNet", () => {
     const rows = [
       row("704", { rulajTC: 100000 }),
       row("641", { rulajTD: 60000 }),
@@ -98,8 +98,16 @@ describe("D13 — CPP impozit line maps to taxRegime", () => {
       row("698", { rulajTD: 1000 }),
     ];
     const cpp = computeCpp(rows, CATALOG);
-    const impozit = findImpozitLine(cpp);
-    expect(impozit?.value).toBe(6000); // both summed
+    const taxLines = cpp.lines.filter(
+      (l) => !l.isTotal && !l.isHeader && (l.cont === "691" || l.cont === "698")
+    );
+    // Both tax accounts render — each on its own row — matching the F20
+    // layout where rd.78 (691) and rd.82 (698) are separate detail rows.
+    expect(taxLines.map((l) => l.cont).sort()).toEqual(["691", "698"]);
+    expect(taxLines.find((l) => l.cont === "691")?.value).toBe(5000);
+    expect(taxLines.find((l) => l.cont === "698")?.value).toBe(1000);
+    // Rezultat net subtracts the combined tax: 100000 − 60000 − 5000 − 1000.
+    expect(cpp.rezultatNet).toBe(34000);
   });
 
   it("profit-tax accounts are ALWAYS excluded from cheltuieli exploatare regardless of regime", () => {

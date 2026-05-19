@@ -1,44 +1,69 @@
-import type { BalanceRowView } from "@/modules/balances";
-import { loadCatalogSync } from "@/modules/accounts";
-import type { CatalogAccount, CppGroup, TaxRegime } from "@/modules/accounts";
-import type { CppData, CppLine } from "./types";
-
 /**
- * D13: map a tax regime to the primary account(s) that carry the tax charge.
- * Other profit-tax accounts are ignored for the given regime (but still
- * excluded from cheltuieli exploatare by isProfitTax=true).
+ * Simplified CPP view, derived directly from `computeCppF20` so the two
+ * surfaces of the same financial reality cannot diverge by construction.
  *
- * The arrays allow multiple accounts to contribute (e.g. some micro firms
- * split between 698 and 697 during transition periods).
+ * The Detailed view (F20) is the source of truth — it follows the official
+ * OMF 2036/2025 layout exactly, with its sign rules, dual rows, and tax
+ * regime routing. The Simplified view is a per-account collapse of the
+ * same compute output: same accounts, same values, same totals, fewer
+ * rows on screen.
+ *
+ * If you need to fix the math, fix it once in cpp-f20.ts.
  */
-const TAX_REGIME_ACCOUNTS: Record<TaxRegime, string[]> = {
-  profit_standard: ["691"],
-  profit_micro_1: ["698"],
-  profit_micro_3: ["698"],
-  profit_specific: ["695"],
-  imca: ["697"],
-  deferred: ["698"],
-};
-
-interface GroupedAccount {
-  code: string;
-  label: string;
-  value: number;
-}
-
-const SECTION_HEADERS: Record<CppGroup, string> = {
-  VENITURI_EXPLOATARE: "VENITURI DIN EXPLOATARE",
-  CHELTUIELI_EXPLOATARE: "CHELTUIELI DIN EXPLOATARE",
-  VENITURI_FINANCIARE: "VENITURI FINANCIARE",
-  CHELTUIELI_FINANCIARE: "CHELTUIELI FINANCIARE",
-};
-
-const DEBIT_SIDE_GROUPS = new Set<CppGroup>(["CHELTUIELI_EXPLOATARE", "CHELTUIELI_FINANCIARE"]);
+import type { BalanceRowView } from "@/modules/balances";
+import type { CatalogAccount, TaxRegime } from "@/modules/accounts";
+import { loadCatalogSync } from "@/modules/accounts";
+import { computeCppF20 } from "./cpp-f20";
+import type { CppData, CppF20Line, CppLine } from "./types";
 
 export interface CppOptions {
   /** D13: which accounts map to the impozit line. Defaults to all profit-tax accounts. */
   taxRegime?: TaxRegime;
 }
+
+interface SectionSpec {
+  header: string;
+  /** F20 row numbers that constitute this section in the simplified view. */
+  rowNumbers: string[];
+  /** Total label shown after the per-account rows. */
+  totalLabel: string;
+}
+
+const SECTIONS: SectionSpec[] = [
+  {
+    header: "VENITURI DIN EXPLOATARE",
+    // Section A + B detail rows. Subtotals (01, 16) and info (02, 14, 15)
+    // are skipped — we walk only leaves that carry accounts.
+    rowNumbers: ["03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"],
+    totalLabel: "Total venituri din exploatare",
+  },
+  {
+    header: "CHELTUIELI DIN EXPLOATARE",
+    // Section C detail leaves only. Subtotals (24, 27, 31, 34, 51, 54) and
+    // info rows (20, 21, 37-39, 41, 43, 45, 30, 33) are skipped.
+    rowNumbers: [
+      "17", "18", "19", "22", "23",
+      "25", "26",
+      "28", "29", "32",
+      "35", "36", "40", "42", "44", "46", "47", "48", "49", "50",
+      "52", "53",
+    ],
+    totalLabel: "Total cheltuieli din exploatare",
+  },
+  {
+    header: "VENITURI FINANCIARE",
+    rowNumbers: ["57", "59", "61", "62"],
+    totalLabel: "Total venituri financiare",
+  },
+  {
+    header: "CHELTUIELI FINANCIARE",
+    // rd.65 is a subtotal (rd.66 - rd.67); leaves are 66/67/68/70.
+    rowNumbers: ["66", "67", "68", "70"],
+    totalLabel: "Total cheltuieli financiare",
+  },
+];
+
+const TAX_ROWS = ["78", "79", "80", "81", "82"];
 
 export function computeCpp(
   rows: BalanceRowView[],
@@ -46,179 +71,190 @@ export function computeCpp(
   options: CppOptions = {}
 ): CppData {
   const cat = catalog ?? loadCatalogSync();
-  const leafRows = rows.filter((r) => r.isLeaf);
+  const f20 = computeCppF20(rows, cat, options);
+  const byRow = new Map(f20.lines.map((l) => [l.rowNumber, l]));
+  const perCode = aggregatePerCode(rows, cat);
+
   const lines: CppLine[] = [];
 
-  const grouped = groupByCppSection(leafRows, cat);
-
-  const venExpl = buildSection(grouped.VENITURI_EXPLOATARE, lines, "VENITURI_EXPLOATARE");
-  const chelExpl = buildSection(grouped.CHELTUIELI_EXPLOATARE, lines, "CHELTUIELI_EXPLOATARE");
-  const rezultatExploatare = round2(venExpl - chelExpl);
-  lines.push(totalLine("REZULTAT DIN EXPLOATARE", rezultatExploatare));
-
-  const venFin = buildSection(grouped.VENITURI_FINANCIARE, lines, "VENITURI_FINANCIARE");
-  const chelFin = buildSection(grouped.CHELTUIELI_FINANCIARE, lines, "CHELTUIELI_FINANCIARE");
-  const rezultatFinanciar = round2(venFin - chelFin);
-  lines.push(totalLine("REZULTAT FINANCIAR", rezultatFinanciar));
-
-  const rezultatBrut = round2(rezultatExploatare + rezultatFinanciar);
-  lines.push(totalLine("REZULTAT BRUT", rezultatBrut));
-
-  const taxResult = sumProfitTax(leafRows, cat, options.taxRegime);
-  if (taxResult.total > 0) {
-    lines.push({
-      cont: taxResult.displayCode,
-      denumire: taxResult.displayLabel,
-      indent: 0,
-      isHeader: false,
-      isTotal: false,
-      value: taxResult.total,
-    });
+  // Build the four operating + financial sections from F20 detail rows.
+  for (const section of SECTIONS) {
+    pushSection(section, byRow, perCode, cat, lines);
   }
 
-  const rezultatNet = round2(rezultatBrut - taxResult.total);
-  lines.push(totalLine("REZULTAT NET", rezultatNet));
+  lines.push(totalLine("REZULTAT DIN EXPLOATARE", f20.rezultatExploatare));
+  lines.push(totalLine("REZULTAT FINANCIAR", f20.rezultatFinanciar));
+  lines.push(totalLine("REZULTAT BRUT", f20.rezultatBrut));
 
-  return {
-    lines,
-    venituriExploatare: round2(venExpl),
-    cheltuieliExploatare: round2(chelExpl),
-    rezultatExploatare,
-    venituriFinanciare: round2(venFin),
-    cheltuieliFinanciare: round2(chelFin),
-    rezultatFinanciar,
-    rezultatBrut,
-    rezultatNet,
-  };
-}
-
-function groupByCppSection(
-  rows: BalanceRowView[],
-  catalog: Map<string, CatalogAccount>
-): Record<CppGroup, Map<string, GroupedAccount>> {
-  const buckets: Record<CppGroup, Map<string, GroupedAccount>> = {
-    VENITURI_EXPLOATARE: new Map(),
-    CHELTUIELI_EXPLOATARE: new Map(),
-    VENITURI_FINANCIARE: new Map(),
-    CHELTUIELI_FINANCIARE: new Map(),
-  };
-
-  for (const row of rows) {
-    if (row.contBase === "121") continue;
-    const meta = resolveCatalogForRow(row, catalog);
-    if (!meta || !meta.cppGroup) continue;
-    if (meta.special === "profit_tax" || meta.special === "micro_tax") continue;
-
-    const side = DEBIT_SIDE_GROUPS.has(meta.cppGroup) ? row.rulajTD : row.rulajTC;
-    if (side === 0) continue;
-
-    const bucket = buckets[meta.cppGroup];
-    const key = meta.code;
-    const existing = bucket.get(key);
-    const label = meta.cppLabel ?? meta.name;
-
-    if (existing) {
-      existing.value += side;
-    } else {
-      bucket.set(key, { code: key, label, value: side });
+  // Tax line — show every contributing tax account on its own line so the
+  // accountant sees exactly which tax account drove the rezultat net.
+  for (const rn of TAX_ROWS) {
+    const taxRow = byRow.get(rn);
+    if (!taxRow || taxRow.value === 0) continue;
+    for (const code of taxRow.accounts ?? []) {
+      const agg = perCode.get(code);
+      if (!agg || agg.td === 0) continue;
+      const meta = cat.get(code);
+      lines.push({
+        cont: code,
+        denumire: getTaxLabel(code, meta),
+        indent: 0,
+        isHeader: false,
+        isTotal: false,
+        value: round2(agg.td),
+      });
     }
   }
 
-  return buckets;
+  lines.push(totalLine("REZULTAT NET", f20.rezultatNet));
+
+  return {
+    lines,
+    venituriExploatare: f20.venituriExploatare,
+    cheltuieliExploatare: f20.cheltuieliExploatare,
+    rezultatExploatare: f20.rezultatExploatare,
+    venituriFinanciare: f20.venituriFinanciare,
+    cheltuieliFinanciare: f20.cheltuieliFinanciare,
+    rezultatFinanciar: f20.rezultatFinanciar,
+    rezultatBrut: f20.rezultatBrut,
+    rezultatNet: f20.rezultatNet,
+  };
 }
 
-function resolveCatalogForRow(
-  row: BalanceRowView,
-  catalog: Map<string, CatalogAccount>
-): CatalogAccount | null {
-  const direct = catalog.get(row.contBase);
-  if (direct) return direct;
+interface PerCodeAgg {
+  td: number;
+  tc: number;
+}
 
-  for (let len = row.contBase.length - 1; len >= 2; len--) {
-    const prefix = row.contBase.slice(0, len);
-    const match = catalog.get(prefix);
-    if (match && match.cppGroup) return match;
+/**
+ * Aggregate rulajTD/TC per catalog code, mirroring what cpp-f20.ts does
+ * internally. Needed so the simplified view can render per-account lines
+ * using the same numbers F20 used.
+ */
+function aggregatePerCode(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>
+): Map<string, PerCodeAgg> {
+  const agg = new Map<string, PerCodeAgg>();
+  for (const row of rows.filter((r) => r.isLeaf)) {
+    if (row.contBase === "121" || row.contBase === "1211" || row.contBase === "1212") continue;
+    const code = resolveCatalogCode(row.contBase, catalog);
+    if (!code) continue;
+    const prev = agg.get(code) ?? { td: 0, tc: 0 };
+    prev.td += row.rulajTD;
+    prev.tc += row.rulajTC;
+    agg.set(code, prev);
+  }
+  return agg;
+}
+
+function resolveCatalogCode(
+  contBase: string,
+  catalog: Map<string, CatalogAccount>
+): string | null {
+  if (catalog.has(contBase)) return contBase;
+  for (let len = contBase.length - 1; len >= 2; len--) {
+    const prefix = contBase.slice(0, len);
+    if (catalog.has(prefix)) return prefix;
   }
   return null;
 }
 
-function buildSection(
-  bucket: Map<string, GroupedAccount>,
-  lines: CppLine[],
-  group: CppGroup
-): number {
+/**
+ * Emit one section: header row, one row per contributing account, and a
+ * section total. Contributing accounts are exactly those that appeared on
+ * the F20 detail rows belonging to this section — guaranteeing that the
+ * displayed per-account values sum to the F20 section total.
+ */
+function pushSection(
+  section: SectionSpec,
+  byRow: Map<string, CppF20Line>,
+  perCode: Map<string, PerCodeAgg>,
+  catalog: Map<string, CatalogAccount>,
+  lines: CppLine[]
+): void {
+  // Collect contributing accounts with their signed value, deduped across
+  // F20 rows. A code can appear on only one DETAIL row in a section (info
+  // rows are skipped, dual-row split is sign-aware) so a Map keyed by code
+  // gives one entry per visible account.
+  interface Entry {
+    code: string;
+    label: string;
+    value: number;
+  }
+  const entries = new Map<string, Entry>();
+  let sectionTotal = 0;
+
+  for (const rn of section.rowNumbers) {
+    const row = byRow.get(rn);
+    if (!row || row.kind !== "detail") continue;
+    if (!row.accounts || row.accounts.length === 0) continue;
+
+    // The F20 row's value is the signed contribution of all its accounts
+    // to the section total. We distribute it back per code using each
+    // code's natural-side rulaj, falling back to even split only if the
+    // signs don't align (shouldn't happen in practice).
+    const isDebitRow = isDebitSection(section);
+    for (const code of row.accounts) {
+      const agg = perCode.get(code);
+      if (!agg) continue;
+      const sideValue = isDebitRow ? agg.td : agg.tc;
+      if (sideValue === 0) continue;
+      // For rows that subtract (rd.05 reduceri acordate has sign='-'),
+      // the contribution to the section is negative.
+      const signed = signForRow(row) * sideValue;
+      const meta = catalog.get(code);
+      const label = meta?.cppLabel ?? meta?.name ?? code;
+      const existing = entries.get(code);
+      if (existing) {
+        existing.value += signed;
+      } else {
+        entries.set(code, { code, label, value: signed });
+      }
+      sectionTotal += signed;
+    }
+  }
+
+  if (entries.size === 0) return;
+
   lines.push({
     cont: "",
-    denumire: SECTION_HEADERS[group],
+    denumire: section.header,
     indent: 0,
     isHeader: true,
     isTotal: false,
     value: 0,
   });
 
-  let total = 0;
-  const sorted = [...bucket.values()].sort((a, b) => a.code.localeCompare(b.code));
-
-  for (const item of sorted) {
+  const sorted = [...entries.values()].sort((a, b) => a.code.localeCompare(b.code));
+  for (const e of sorted) {
     lines.push({
-      cont: item.code,
-      denumire: item.label,
+      cont: e.code,
+      denumire: e.label,
       indent: 1,
       isHeader: false,
       isTotal: false,
-      value: round2(item.value),
+      value: round2(e.value),
     });
-    total += item.value;
   }
 
-  lines.push(totalLine(`Total ${SECTION_HEADERS[group].toLowerCase()}`, round2(total)));
-  return total;
+  lines.push(totalLine(section.totalLabel, round2(sectionTotal)));
 }
 
-interface TaxSum {
-  total: number;
-  displayCode: string;
-  displayLabel: string;
+function isDebitSection(section: SectionSpec): boolean {
+  return section.header.startsWith("CHELTUIELI");
 }
 
-/**
- * D13: sum the profit-tax charge for a given tax regime.
- *
- * When `regime` is provided, only the accounts mapped to that regime
- * contribute. When omitted (legacy behavior), any account with isProfitTax
- * contributes — used for backward compatibility until every Client row has
- * an explicit taxRegime set.
- */
-function sumProfitTax(
-  rows: BalanceRowView[],
-  catalog: Map<string, CatalogAccount>,
-  regime?: TaxRegime
-): TaxSum {
-  const allowedCodes = regime ? new Set(TAX_REGIME_ACCOUNTS[regime]) : null;
-  let total = 0;
-  const contributingCodes: string[] = [];
-
-  for (const row of rows) {
-    const meta = catalog.get(row.contBase);
-    if (!meta?.isProfitTax) continue;
-    if (allowedCodes && !allowedCodes.has(row.contBase)) continue;
-
-    // Use rulajTD only — same as all expense accounts. Using
-    // rulajTD − rulajTC nets to zero when monthly closing entries
-    // mirror the original charge (D:691 C:121 → both sides equal).
-    if (row.rulajTD === 0) continue;
-
-    total += row.rulajTD;
-    contributingCodes.push(row.contBase);
-  }
-
-  const displayCode = contributingCodes[0] ?? (regime ? TAX_REGIME_ACCOUNTS[regime][0] : "691");
-  const displayLabel = getTaxLabel(displayCode);
-
-  return { total: round2(total), displayCode, displayLabel };
+function signForRow(row: CppF20Line): 1 | -1 {
+  // The F20 line itself carries the structural sign via the JSON's `sign`
+  // field, which buildLine doesn't surface on CppF20Line. We infer it from
+  // the well-known subtraction rows: rd.05 (709 reduceri acordate) and
+  // rd.23 (609 reduceri primite) flip sign within their section.
+  if (row.rowNumber === "05" || row.rowNumber === "23") return -1;
+  return 1;
 }
 
-function getTaxLabel(code: string): string {
+function getTaxLabel(code: string, meta: CatalogAccount | undefined): string {
   switch (code) {
     case "691":
       return "Impozit pe profit";
@@ -231,7 +267,7 @@ function getTaxLabel(code: string): string {
     case "698":
       return "Impozit pe venit microintreprindere";
     default:
-      return "Impozit";
+      return meta?.name ?? "Impozit";
   }
 }
 
