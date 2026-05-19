@@ -269,11 +269,12 @@ function AccountRow({
   onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const isAnalytic = row.cont.includes(".");
 
   return (
     <tr className="border-b border-dark-3/50 hover:bg-dark-2/40">
       <Td align="left" first>
-        <div className="flex items-center gap-1.5">
+        <div className={`flex items-center gap-1.5 ${isAnalytic ? "pl-6" : ""}`}>
           {row.needsReview && (
             <AlertTriangle
               size={11}
@@ -281,7 +282,7 @@ function AccountRow({
               aria-label="Necesita revizie"
             />
           )}
-          <span className="font-mono text-xs text-gray">{row.cont}</span>
+          <span className={`font-mono text-xs ${isAnalytic ? "text-gray" : "text-gray-light"}`}>{row.cont}</span>
         </div>
       </Td>
       <Td align="left">
@@ -300,7 +301,7 @@ function AccountRow({
           <div className="flex items-center gap-2">
             <span
               className={`text-xs ${
-                row.needsReview ? "text-warn" : "text-gray-light"
+                row.needsReview ? "text-warn" : isAnalytic ? "text-gray" : "text-gray-light"
               }`}
             >
               {row.name}
