@@ -95,13 +95,20 @@ describe("computeCppF20 — core routing (OMF 2036/2025)", () => {
     expect(get(cpp.lines, "23").value).toBe(300);
   });
 
-  it("6051 (energie) and 6053 (gaze) land on dedicated info rows 20/21", () => {
+  it("6051 (energie) and 6053 (gaze) sum into parent rd.19 and narrate on info rows 20/21", () => {
     const cpp = computeCppF20([
       row({ cont: "6051", contBase: "6051", rulajTD: 8000 }),
       row({ cont: "6053", contBase: "6053", rulajTD: 4000 }),
     ]);
+    // Parent (detail) holds the total used by upstream subtotals.
+    expect(get(cpp.lines, "19").value).toBe(12000);
+    expect(get(cpp.lines, "19").kind).toBe("detail");
+    // Info rows narrate the subset for transparency, kind=info so the UI
+    // can style them as sub-lines. They MUST NOT double-count into rd.34.
     expect(get(cpp.lines, "20").value).toBe(8000);
+    expect(get(cpp.lines, "20").kind).toBe("info");
     expect(get(cpp.lines, "21").value).toBe(4000);
+    expect(get(cpp.lines, "21").kind).toBe("info");
   });
 
   it("prestatii externe 611-628 aggregate into rd.35", () => {
@@ -458,6 +465,73 @@ describe("computeCppF20 — reconciliation with simplified CPP", () => {
     expect(f20.rezultatFinanciar).toBe(simplified.rezultatFinanciar);
   });
 
+  // Regression: QHM21 Apr 2026 — the full real balance from production.
+  // The bug was that 6051/6053 (utilitati subdivizate) and 6121/6122/6123
+  // (chirii subdivizate) were mapped to *info* rows (rd. 20/21/37/38/39)
+  // that get rendered but never summed into the parent total (rd. 19, 36).
+  // Result: F20 detaliat under-counted utilitati + chirii vs Simplificat.
+  // This test reconstructs the exact balance and locks the fix.
+  it("QHM21 Apr 2026 full balance — F20 reconciles with Simplificat to the cent", async () => {
+    const { computeCpp } = await import("@/modules/reporting/cpp");
+    const rows = [
+      // Section A — venituri exploatare
+      row({ cont: "704", contBase: "704", rulajTC: 2_079_633.80 }),
+      row({ cont: "706", contBase: "706", rulajTC: 27_526.68 }),
+      // Section C — cheltuieli exploatare
+      row({ cont: "436", contBase: "436", rulajTD: 22_674.00 }),
+      row({ cont: "6022", contBase: "6022", rulajTD: 349.52 }),
+      row({ cont: "6024", contBase: "6024", rulajTD: 3_421.24 }),
+      row({ cont: "6028", contBase: "6028", rulajTD: 5_910.83 }),
+      row({ cont: "603", contBase: "603", rulajTD: 48_147.05 }),
+      row({ cont: "604", contBase: "604", rulajTD: 2_045.00 }),
+      row({ cont: "6052", contBase: "6052", rulajTD: 14.71 }),
+      row({ cont: "6058", contBase: "6058", rulajTD: 2_991.00 }),
+      row({ cont: "611", contBase: "611", rulajTD: 3_602.93 }),
+      row({ cont: "6123", contBase: "6123", rulajTD: 89_183.14 }),
+      row({ cont: "613", contBase: "613", rulajTD: 1_072.28 }),
+      row({ cont: "622", contBase: "622", rulajTD: 123.97 }),
+      row({ cont: "6231", contBase: "6231", rulajTD: 3_783.37 }),
+      row({ cont: "624", contBase: "624", rulajTD: 10.74 }),
+      row({ cont: "625", contBase: "625", rulajTD: 10_448.60 }),
+      row({ cont: "626", contBase: "626", rulajTD: 3_818.14 }),
+      row({ cont: "627", contBase: "627", rulajTD: 5_606.77 }),
+      row({ cont: "628", contBase: "628", rulajTD: 146_420.78 }),
+      row({ cont: "635", contBase: "635", rulajTD: -401.85 }),
+      row({ cont: "641", contBase: "641", rulajTD: 1_232_662.00 }),
+      row({ cont: "642", contBase: "642", rulajTD: 16_840.00 }),
+      row({ cont: "6422", contBase: "6422", rulajTD: 44_080.00 }),
+      row({ cont: "6461", contBase: "6461", rulajTD: 27_734.00 }),
+      row({ cont: "6581", contBase: "6581", rulajTD: 362.00 }),
+      row({ cont: "6588", contBase: "6588", rulajTD: 1_740.35 }),
+      row({ cont: "6811", contBase: "6811", rulajTD: 15_261.43 }),
+      // Section E/F — venituri/cheltuieli financiare
+      row({ cont: "7651", contBase: "7651", rulajTC: 243.58 }),
+      row({ cont: "6651", contBase: "6651", rulajTD: 68.41 }),
+      row({ cont: "666", contBase: "666", rulajTD: 19_699.77 }),
+      // Section G — impozit
+      row({ cont: "691", contBase: "691", rulajTD: 58_363.00 }),
+    ];
+
+    const simplified = computeCpp(rows);
+    const f20 = computeCppF20(rows);
+
+    // Hard reconciliation to the cent — every aggregate matches.
+    expect(f20.venituriExploatare).toBeCloseTo(simplified.venituriExploatare, 2);
+    expect(f20.cheltuieliExploatare).toBeCloseTo(simplified.cheltuieliExploatare, 2);
+    expect(f20.rezultatExploatare).toBeCloseTo(simplified.rezultatExploatare, 2);
+    expect(f20.venituriFinanciare).toBeCloseTo(simplified.venituriFinanciare, 2);
+    expect(f20.cheltuieliFinanciare).toBeCloseTo(simplified.cheltuieliFinanciare, 2);
+    expect(f20.rezultatFinanciar).toBeCloseTo(simplified.rezultatFinanciar, 2);
+    expect(f20.rezultatBrut).toBeCloseTo(simplified.rezultatBrut, 2);
+    expect(f20.rezultatNet).toBeCloseTo(simplified.rezultatNet, 2);
+
+    // Exact production numbers from the live QHM21 Apr 2026 balance.
+    expect(f20.rezultatExploatare).toBeCloseTo(419_258.48, 2);
+    expect(f20.rezultatFinanciar).toBeCloseTo(-19_524.60, 2);
+    expect(f20.rezultatBrut).toBeCloseTo(399_733.88, 2);
+    expect(f20.rezultatNet).toBeCloseTo(341_370.88, 2);
+  });
+
   it("F20 rezultat net equals simplified rezultat net with same tax regime", async () => {
     const { computeCpp } = await import("@/modules/reporting/cpp");
     const rows = [
@@ -597,6 +671,11 @@ describe("computeCppF20 — catalog routing exclusivity", () => {
         violations.push(`${code} (cppLine=${expected}, side=${side}) produced 0 on its target row`);
       }
 
+      // Info rows ("- din care: ...") legitimately re-list a subset of the
+      // parent's accounts for display. They are display-only narrations
+      // and never enter the parent's total via codeToRow. Skip them in
+      // the leakage check — the test only enforces that no other DETAIL
+      // row routes the same code (which would double-count).
       for (const line of cpp.lines) {
         if (line.kind !== "detail") continue;
         if (line.rowNumber === expected) continue;

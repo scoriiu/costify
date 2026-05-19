@@ -152,8 +152,10 @@ function F20Row({ line }: { line: CppF20Line }) {
     );
   }
 
-  // detail
+  // detail or info — info rows ("- din care: ...") narrate a subset of the
+  // parent's sum and are styled lighter to visually anchor them as sub-info.
   const accountsLabel = (line.accounts ?? []).join(", ");
+  const isInfo = line.kind === "info";
   return (
     <tr className="border-b border-dark-3/50 hover:bg-dark-2/40">
       <td className="border-r border-white/[0.04] px-3 py-1.5 font-mono text-[0.7rem] text-gray">
@@ -163,7 +165,9 @@ function F20Row({ line }: { line: CppF20Line }) {
         className="border-r border-white/[0.04] px-3 py-1.5"
         style={{ paddingLeft: `${12 + line.indent * 16}px` }}
       >
-        <span className="text-xs text-gray-light">{line.label}</span>
+        <span className={`text-xs ${isInfo ? "text-gray" : "text-gray-light"}`}>
+          {line.label}
+        </span>
       </td>
       <td className="border-r border-white/[0.04] px-3 py-1.5">
         <span className="font-mono text-[0.65rem] text-gray/80">
@@ -171,7 +175,7 @@ function F20Row({ line }: { line: CppF20Line }) {
         </span>
       </td>
       <td className="px-3 py-1.5 text-right">
-        <span className="font-mono text-xs text-gray-light">
+        <span className={`font-mono text-xs ${isInfo ? "text-gray" : "text-gray-light"}`}>
           {formatValue(line.value)}
         </span>
       </td>

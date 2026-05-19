@@ -2857,8 +2857,8 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "20",
-      "cppLineLabel": "c) Cheltuieli privind energia si apa"
+      "cppLine": "19",
+      "cppLineLabel": "b) Cheltuieli privind utilitatile"
     },
     {
       "code": "6052",
@@ -2867,7 +2867,7 @@
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
       "cppLine": "19",
-      "cppLineLabel": "c) Cheltuieli privind energia si apa"
+      "cppLineLabel": "b) Cheltuieli privind utilitatile"
     },
     {
       "code": "6053",
@@ -2875,8 +2875,8 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "21",
-      "cppLineLabel": "c) Cheltuieli privind energia si apa"
+      "cppLine": "19",
+      "cppLineLabel": "b) Cheltuieli privind utilitatile"
     },
     {
       "code": "6058",
@@ -2893,8 +2893,8 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "37",
-      "cppLineLabel": "Cheltuieli cu redevente"
+      "cppLine": "36",
+      "cppLineLabel": "Cheltuieli cu redeventele, locatiile si chiriile"
     },
     {
       "code": "6122",
@@ -2902,8 +2902,8 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "38",
-      "cppLineLabel": "Cheltuieli cu locatiile de gestiune"
+      "cppLine": "36",
+      "cppLineLabel": "Cheltuieli cu redeventele, locatiile si chiriile"
     },
     {
       "code": "6123",
@@ -2911,8 +2911,8 @@
       "type": "A",
       "classDigit": 6,
       "cppGroup": "CHELTUIELI_EXPLOATARE",
-      "cppLine": "39",
-      "cppLineLabel": "Cheltuieli cu prestatii externe"
+      "cppLine": "36",
+      "cppLineLabel": "Cheltuieli cu redeventele, locatiile si chiriile"
     },
     {
       "code": "6231",

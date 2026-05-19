@@ -207,8 +207,12 @@ function buildCodeToRowMap(
       }
     }
   }
+  // Fallback for accounts not in the catalog: register them via the F20
+  // structure's own account lists. Info rows are excluded — their accounts
+  // are display-only narrations of a parent's sum, never primary routing.
   for (const row of structure.rows) {
     if (!isDetailRow(row)) continue;
+    if (row.kind === "info") continue;
     for (const acc of row.accounts) {
       if (!map.has(acc)) map.set(acc, row.rowNumber);
     }
@@ -238,12 +242,30 @@ function computeDetailRow(
     return computeTaxRowForRegime(row.rowNumber, regime, perCode, structure);
   }
 
-  // Info rows without a side carry only their declared accounts (they're
-  // shown for transparency — "- din care: 7584") and do not contribute to
-  // any subtotal, so we sum them honestly using the implicit credit side.
-  const summingSide = row.side ?? "C";
+  // Info rows ("- din care: ...") are display-only — they expose a
+  // subset of an OMFP account group that the parent already sums in
+  // full. They MUST NOT pull from `codeToRow` (the catalog routes their
+  // codes to the parent), so we read straight from `perCode` using the
+  // accounts declared inline. The parent receives the complete sum;
+  // info rows narrate the slice. Without this branch we'd either
+  // double-count (info + parent) or starve the parent (info wins).
+  if (row.kind === "info") {
+    const contributing = new Set<string>();
+    let total = 0;
+    const side = row.side ?? "D";
+    for (const code of row.accounts) {
+      const agg = perCode.get(code);
+      if (!agg) continue;
+      const amount = side === "D" ? agg.td : agg.tc;
+      if (amount === 0) continue;
+      total += amount;
+      contributing.add(code);
+    }
+    return { value: round2(total), accounts: contributing };
+  }
 
-  // Standard: find every catalog code that maps to this row and sum.
+  // Standard detail row: find every catalog code that maps to this row
+  // (via codeToRow, which honors the OMFP catalog's cppLine) and sum.
   const contributing = new Set<string>();
   let total = 0;
   for (const [code, mappedRow] of codeToRow) {
@@ -252,7 +274,7 @@ function computeDetailRow(
     if (dualCodes.has(code)) continue;
     const agg = perCode.get(code);
     if (!agg) continue;
-    const amount = summingSide === "D" ? agg.td : agg.tc;
+    const amount = row.side === "D" ? agg.td : agg.tc;
     if (amount === 0) continue;
     total += amount;
     contributing.add(code);
@@ -338,7 +360,7 @@ function buildLine(
       label: row.label,
       section: row.section,
       indent: row.indent,
-      kind: "detail",
+      kind: row.kind, // "detail" or "info" — preserve for UI rendering
       value,
       accounts: accs && accs.size > 0 ? [...accs].sort() : undefined,
     };

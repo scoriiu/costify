@@ -131,6 +131,11 @@ describe("F20 structure seed — integrity invariants", () => {
     const mismatches: string[] = [];
     for (const row of structure.rows) {
       if (!isDetailRow(row)) continue;
+      // Info rows ("- din care: 6051") legitimately re-declare a subset of
+      // their parent's accounts for display. The catalog cppLine points to
+      // the parent (rd.19) so the parent gets the full sum; the info row
+      // narrates a slice. Mismatch is expected and intentional here.
+      if (row.kind === "info") continue;
       for (const code of row.accounts) {
         if (DUAL.has(code)) continue;
         const cat = catalog.get(code);

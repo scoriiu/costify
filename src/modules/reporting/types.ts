@@ -36,7 +36,7 @@ export interface CppF20Line {
   label: string;
   section: "A" | "B" | "C" | "D" | "E" | "F" | "G";
   indent: number;
-  kind: "detail" | "subtotal" | "total";
+  kind: "detail" | "info" | "subtotal" | "total";
   value: number;
   /** Accounts that contributed to this detail row. Empty for subtotals/totals. */
   accounts?: string[];
