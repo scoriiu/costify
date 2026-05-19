@@ -504,3 +504,190 @@ describe("evaluateFormula (pure helper)", () => {
     expect(evaluateFormula("", new Map())).toBe(0);
   });
 });
+
+describe("computeCppF20 — catalog routing exclusivity", () => {
+  beforeEach(() => {
+    resetF20Cache();
+    resetSyncCache();
+  });
+
+  // Regression: 6651 (Diferente nefavorabile curs valutar) is a *financial*
+  // expense and must land on rd.70 (Alte cheltuieli financiare), not on
+  // rd.28 (a.1) Amortizare imobilizari) or any other unrelated row.
+  // Before the fix, the row was leaking into rd.28 because some compute
+  // path was matching by prefix only.
+  it("6651 lands on rd.70 and on NO other detail row", () => {
+    const cpp = computeCppF20([
+      row({ cont: "6651", contBase: "6651", rulajTD: 68.41 }),
+    ]);
+
+    expect(get(cpp.lines, "70").value).toBeCloseTo(68.41, 2);
+    expect(get(cpp.lines, "70").accounts).toEqual(["6651"]);
+
+    // Hard guarantee: every OTHER detail row is zero and lists no 6651.
+    const detailLines = cpp.lines.filter((l) => l.kind === "detail" && l.rowNumber !== "70");
+    for (const line of detailLines) {
+      expect(line.value, `rd.${line.rowNumber} leaked a value for 6651`).toBe(0);
+      expect(line.accounts ?? [], `rd.${line.rowNumber} lists 6651 wrongly`).not.toContain("6651");
+    }
+  });
+
+  it("6811 (amortizare) lands on rd.28 only — sister of 6651 to lock the pair", () => {
+    const cpp = computeCppF20([
+      row({ cont: "6811", contBase: "6811", rulajTD: 5000 }),
+    ]);
+
+    expect(get(cpp.lines, "28").value).toBe(5000);
+    expect(get(cpp.lines, "28").accounts).toEqual(["6811"]);
+
+    const otherDetails = cpp.lines.filter((l) => l.kind === "detail" && l.rowNumber !== "28");
+    for (const line of otherDetails) {
+      expect(line.accounts ?? [], `rd.${line.rowNumber} should not list 6811`).not.toContain("6811");
+    }
+  });
+
+  /**
+   * Drives every account that has a `cppLine` in the OMFP catalog through
+   * computeCppF20 in isolation. The contract: the only detail row carrying
+   * a non-zero value is the one declared by `cppLine`. Any cross-contamination
+   * means we're double-counting or mis-routing — both would silently produce
+   * wrong F20 totals on real client data.
+   *
+   * Dual-row accounts (711/712) are excluded — they are handled by a
+   * separate branch and may legitimately appear on rd.07 OR rd.08.
+   */
+  it("every catalog cppLine routes to exactly one detail row (no leakage)", async () => {
+    const { loadCatalogSync } = await import("@/modules/accounts");
+    const catalog = loadCatalogSync();
+
+    const DUAL_CODES = new Set(["711", "712"]);
+    const VALUE = 1000;
+    const violations: string[] = [];
+
+    // Look up the F20 row's `side` to know which rulaj column carries weight.
+    // The compute layer reads agg.td when row.side === "D" and agg.tc when
+    // row.side === "C". Feeding the wrong side produces 0 even for a perfect
+    // mapping, so the test must respect the declared side.
+    const structure = (await import("@/modules/reporting/f20-structure")).loadF20Structure();
+    const rowSideByNumber = new Map<string, "D" | "C">();
+    for (const r of structure.rows) {
+      if (r.kind === "detail" && r.side) rowSideByNumber.set(r.rowNumber, r.side);
+    }
+
+    for (const [code, account] of catalog) {
+      if (!account.cppLine) continue;
+      if (DUAL_CODES.has(code)) continue;
+
+      const expected = account.cppLine;
+      const side = rowSideByNumber.get(expected);
+      if (!side) continue; // info row or unknown — skip
+
+      resetF20Cache();
+      const cpp = computeCppF20([
+        row({
+          cont: code,
+          contBase: code,
+          rulajTD: side === "D" ? VALUE : 0,
+          rulajTC: side === "C" ? VALUE : 0,
+        }),
+      ]);
+
+      const target = get(cpp.lines, expected);
+      if (target.value === 0) {
+        violations.push(`${code} (cppLine=${expected}, side=${side}) produced 0 on its target row`);
+      }
+
+      for (const line of cpp.lines) {
+        if (line.kind !== "detail") continue;
+        if (line.rowNumber === expected) continue;
+        const accs = line.accounts ?? [];
+        if (accs.includes(code)) {
+          violations.push(`${code} leaked into rd.${line.rowNumber} (declared rd.${expected})`);
+        }
+      }
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  // Regression: QHM21 SRL aprilie 2026 had 6651 + 704 + 706 + 691 in the
+  // balance and the F20 detailed view showed bogus data on rd.28. This
+  // test reconstructs that exact balance and verifies every row goes where
+  // the contabil expects.
+  it("QHM21 Apr 2026 minimal balance routes correctly", () => {
+    const cpp = computeCppF20([
+      row({ cont: "704", contBase: "704", rulajTC: 2_000_000 }),
+      row({ cont: "706", contBase: "706", rulajTC: 107_160.48 }),
+      row({ cont: "6651", contBase: "6651", rulajTD: 68.41 }),
+      row({ cont: "691", contBase: "691", rulajTD: 58_363 }),
+    ]);
+
+    // Section A — Cifra de afaceri
+    expect(get(cpp.lines, "03").value).toBeCloseTo(2_107_160.48, 2);
+    expect(get(cpp.lines, "03").accounts).toEqual(["704", "706"]);
+    expect(get(cpp.lines, "01").value).toBeCloseTo(2_107_160.48, 2);
+
+    // Section C — nothing on amortizare
+    expect(get(cpp.lines, "28").value).toBe(0);
+    expect(get(cpp.lines, "28").accounts).toBeUndefined();
+
+    // Section F — 6651 here
+    expect(get(cpp.lines, "70").value).toBeCloseTo(68.41, 2);
+    expect(get(cpp.lines, "70").accounts).toEqual(["6651"]);
+
+    // Section G — impozit 691 on rd.78
+    expect(get(cpp.lines, "78").value).toBe(58_363);
+    expect(get(cpp.lines, "78").accounts).toEqual(["691"]);
+
+    // Total: profit brut = 2_107_160.48 - 68.41 = 2_107_092.07
+    //        profit net = 2_107_092.07 - 58_363 = 2_048_729.07
+    expect(cpp.rezultatBrut).toBeCloseTo(2_107_092.07, 2);
+    expect(cpp.rezultatNet).toBeCloseTo(2_048_729.07, 2);
+  });
+});
+
+describe("computeCppF20 — section labels match OMF 2036/2025 layout", () => {
+  beforeEach(() => {
+    resetF20Cache();
+    resetSyncCache();
+  });
+
+  /**
+   * Section letters in OMF 2036/2025 carry specific meaning that drove the
+   * UI label fix. This test pins each section to its canonical content so
+   * a future structure edit can't silently shuffle them and break the UI
+   * legend.
+   */
+  it("each section letter contains the canonical row range", () => {
+    const cpp = computeCppF20([]);
+    const sectionsByRow = new Map(cpp.lines.map((l) => [l.rowNumber, l.section]));
+
+    // A = Cifra de afaceri (rd.01-06)
+    expect(sectionsByRow.get("01")).toBe("A");
+    expect(sectionsByRow.get("06")).toBe("A");
+
+    // B = Venituri din exploatare (rd.07-16)
+    expect(sectionsByRow.get("07")).toBe("B");
+    expect(sectionsByRow.get("16")).toBe("B");
+
+    // C = Cheltuieli din exploatare (rd.17-54)
+    expect(sectionsByRow.get("17")).toBe("C");
+    expect(sectionsByRow.get("54")).toBe("C");
+
+    // D = Rezultat din exploatare (rd.55-56)
+    expect(sectionsByRow.get("55")).toBe("D");
+    expect(sectionsByRow.get("56")).toBe("D");
+
+    // E = Venituri financiare (rd.57-64)
+    expect(sectionsByRow.get("57")).toBe("E");
+    expect(sectionsByRow.get("64")).toBe("E");
+
+    // F = Cheltuieli financiare (rd.65-71)
+    expect(sectionsByRow.get("65")).toBe("F");
+    expect(sectionsByRow.get("71")).toBe("F");
+
+    // G = Rezultat financiar + totale + impozit + rezultat net (rd.72-84)
+    expect(sectionsByRow.get("72")).toBe("G");
+    expect(sectionsByRow.get("84")).toBe("G");
+  });
+});
