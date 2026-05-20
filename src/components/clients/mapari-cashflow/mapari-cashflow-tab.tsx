@@ -25,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
+import { DocsLink } from "@/components/ui/docs-link";
+import { DocsLinks } from "@/modules/docs/links";
 import type {
   CostCategoryNode,
   MappingScope,
@@ -86,7 +88,16 @@ export function MapariCashflowTab({ data }: Props) {
             ? `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
             : `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
         }
-        helper="Acestea sunt etichetele pe care le vede patronul pe /firma. Daca defaults-urile OMFP suna bine pentru aceasta firma, nu trebuie sa faci nimic aici. Modifica doar daca patronul cere ceva specific (exemplu: 'Marketing online' separat de 'Servicii externe')."
+        helper={
+          <>
+            Acestea sunt etichetele pe care le vede patronul pe /firma. Daca
+            defaults-urile OMFP suna bine pentru aceasta firma, nu trebuie sa
+            faci nimic aici. Modifica doar daca patronul cere ceva specific
+            (exemplu: &apos;Marketing online&apos; separat de &apos;Servicii
+            externe&apos;).{" "}
+            <DocsLink href={DocsLinks.categories}>Despre categorii</DocsLink>
+          </>
+        }
       >
         <CategoryTreePanel
           tree={data.tree}
@@ -100,9 +111,22 @@ export function MapariCashflowTab({ data }: Props) {
         title="Verticale de business"
         optional
         helper={
-          data.verticalsEnabled
-            ? "Linii de business pe care le urmaresti separat. Conturile fara verticala alocata merg la 'Toata firma'."
-            : "Activeaza doar daca firma are mai multe linii de business (exemplu QHM21: Outsourcing, Recruitment, Coworking). Pentru majoritatea firmelor nu e necesar."
+          data.verticalsEnabled ? (
+            <>
+              Linii de business pe care le urmaresti separat. Conturile fara
+              verticala alocata merg la &apos;Toata firma&apos;.{" "}
+              <DocsLink href={DocsLinks.verticals}>Despre verticale</DocsLink>
+            </>
+          ) : (
+            <>
+              Activeaza doar daca firma are mai multe linii de business
+              (exemplu QHM21: Outsourcing, Recruitment, Coworking). Pentru
+              majoritatea firmelor nu e necesar.{" "}
+              <DocsLink href={DocsLinks.verticals}>
+                Cand am nevoie de verticale?
+              </DocsLink>
+            </>
+          )
         }
       >
         <VerticalsPanel
@@ -117,9 +141,14 @@ export function MapariCashflowTab({ data }: Props) {
         number={3}
         title="Mapeaza conturile"
         helper={
-          data.verticalsEnabled
-            ? "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie si optional la o verticala. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza."
-            : "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza."
+          <>
+            {data.verticalsEnabled
+              ? "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie si optional la o verticala. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza. "
+              : "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza. "}
+            <DocsLink href={DocsLinks.exampleQhm21}>
+              Vezi exemplu real (QHM21)
+            </DocsLink>
+          </>
         }
       >
         <AccountListPanel
@@ -150,7 +179,7 @@ function StepSection({
 }: {
   number: number;
   title: string;
-  helper: string;
+  helper: React.ReactNode;
   optional?: boolean;
   /** When true, the section renders collapsed by default with a small chevron
    *  button that expands it. Used for advanced/optional configuration the
@@ -702,12 +731,21 @@ function PageHeader({
   return (
     <div className="space-y-3">
       <div>
-        <h2
-          className="text-[20px] font-semibold text-white"
-          style={{ letterSpacing: "-0.04em" }}
-        >
-          Mapari Cashflow
-        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2
+            className="text-[20px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            Mapari Cashflow
+          </h2>
+          <div className="flex items-center gap-3 text-[12px] shrink-0">
+            <DocsLink href={DocsLinks.forAccountant}>Ghid contabil</DocsLink>
+            <span className="text-dark-3" aria-hidden>
+              ·
+            </span>
+            <DocsLink href={DocsLinks.exampleQhm21}>Exemplu QHM21</DocsLink>
+          </div>
+        </div>
         <p
           className="mt-1 max-w-3xl text-[13px] text-gray-light"
           style={{ letterSpacing: "-0.02em" }}
