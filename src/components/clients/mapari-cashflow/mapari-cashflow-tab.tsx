@@ -68,6 +68,9 @@ export function MapariCashflowTab({ data }: Props) {
   });
 
   const unmappedCount = data.accounts.filter((a) => a.currentMapping === null).length;
+  const expenseRootCount = data.tree.filter((n) => n.kind === "expense").length;
+  const revenueRootCount = data.tree.filter((n) => n.kind === "revenue").length;
+  const customCount = data.tree.filter((n) => !n.isOmfpDefault).length;
 
   return (
     <div className="space-y-8 max-w-6xl">
@@ -75,8 +78,15 @@ export function MapariCashflowTab({ data }: Props) {
 
       <StepSection
         number={1}
-        title="Categorii"
-        helper="Cum vrei sa numesti grupurile de cheltuieli si venituri ale firmei. Acestea apar pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii'. Am pornit cu o lista OMFP standard — redenumeste sau adauga ce vrei."
+        title="Etichete patron"
+        optional
+        collapsible
+        collapsedSummary={
+          customCount > 0
+            ? `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
+            : `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
+        }
+        helper="Acestea sunt etichetele pe care le vede patronul pe /firma. Daca defaults-urile OMFP suna bine pentru aceasta firma, nu trebuie sa faci nimic aici. Modifica doar daca patronul cere ceva specific (exemplu: 'Marketing online' separat de 'Servicii externe')."
       >
         <CategoryTreePanel
           tree={data.tree}
@@ -134,14 +144,25 @@ function StepSection({
   title,
   helper,
   optional,
+  collapsible,
+  collapsedSummary,
   children,
 }: {
   number: number;
   title: string;
   helper: string;
   optional?: boolean;
+  /** When true, the section renders collapsed by default with a small chevron
+   *  button that expands it. Used for advanced/optional configuration the
+   *  accountant rarely needs to touch (e.g. patron labels — OMFP defaults
+   *  are good enough for 95% of firms). */
+  collapsible?: boolean;
+  /** One-line summary shown next to the chevron when collapsed. */
+  collapsedSummary?: string;
   children: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(!collapsible);
+
   return (
     <section>
       <div className="mb-3">
@@ -166,6 +187,17 @@ function StepSection({
               optional
             </span>
           )}
+          {collapsible && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="ml-auto text-[12px] text-primary hover:text-primary-light inline-flex items-center gap-1"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              {expanded ? "Ascunde" : "Personalizeaza"}
+              <span aria-hidden>{expanded ? "▴" : "▾"}</span>
+            </button>
+          )}
         </div>
         <p
           className="mt-1 text-[12px] text-gray max-w-3xl"
@@ -173,8 +205,16 @@ function StepSection({
         >
           {helper}
         </p>
+        {collapsible && !expanded && collapsedSummary && (
+          <p
+            className="mt-2 text-[12px] text-gray-light italic"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {collapsedSummary}
+          </p>
+        )}
       </div>
-      {children}
+      {expanded && children}
     </section>
   );
 }
@@ -716,7 +756,7 @@ function CategoryTreePanel({
   const revenueRoots = tree.filter((n) => n.kind === "revenue");
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_280px] gap-4">
       <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
         <CategorySection
           title="Cheltuieli"
@@ -737,7 +777,92 @@ function CategoryTreePanel({
           onMutate={onMutate}
         />
       </div>
+      <PatronPreview expenseRoots={expenseRoots} revenueRoots={revenueRoots} />
     </div>
+  );
+}
+
+function PatronPreview({
+  expenseRoots,
+  revenueRoots,
+}: {
+  expenseRoots: CostCategoryNode[];
+  revenueRoots: CostCategoryNode[];
+}) {
+  // Take top 5 of each to keep the preview compact. Sort by name to stay
+  // deterministic since we don't have amounts here.
+  const expensesSample = expenseRoots.slice(0, 5);
+  const revenuesSample = revenueRoots.slice(0, 4);
+
+  return (
+    <aside className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 self-start">
+      <div className="flex items-center gap-1.5">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-primary"
+          aria-hidden
+        >
+          Preview /firma
+        </span>
+      </div>
+      <p
+        className="mt-1 text-[11px] text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Asa apar etichetele pe pagina patronului.
+      </p>
+
+      <div className="mt-4">
+        <p
+          className="text-[11px] font-semibold text-gray-light"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          Unde s-au dus banii
+        </p>
+        <ul className="mt-1.5 space-y-1">
+          {expensesSample.map((n) => (
+            <li
+              key={n.id}
+              className="text-[11px] text-gray-light truncate"
+              style={{ letterSpacing: "-0.02em" }}
+              title={n.name}
+            >
+              • {n.name}
+            </li>
+          ))}
+          {expenseRoots.length > expensesSample.length && (
+            <li className="text-[10px] text-gray italic">
+              +{expenseRoots.length - expensesSample.length} mai multe
+            </li>
+          )}
+        </ul>
+      </div>
+
+      <div className="mt-4">
+        <p
+          className="text-[11px] font-semibold text-gray-light"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          De unde au venit banii
+        </p>
+        <ul className="mt-1.5 space-y-1">
+          {revenuesSample.map((n) => (
+            <li
+              key={n.id}
+              className="text-[11px] text-gray-light truncate"
+              style={{ letterSpacing: "-0.02em" }}
+              title={n.name}
+            >
+              • {n.name}
+            </li>
+          ))}
+          {revenueRoots.length > revenuesSample.length && (
+            <li className="text-[10px] text-gray italic">
+              +{revenueRoots.length - revenuesSample.length} mai multe
+            </li>
+          )}
+        </ul>
+      </div>
+    </aside>
   );
 }
 
