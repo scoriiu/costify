@@ -259,6 +259,31 @@
       "Dar Costi trebuie sa stie ce vede firma (snapshot publicat) cand un patron il intreaba: foloseste get_balance/get_cpp pe luna publicata."
     ]
   },
+  "mapari_cashflow_module": {
+    "description": "Tab nou pe pagina clientului (intre 'Plan de Conturi' si 'Setari'). Aici contabilul mapeaza conturile OMFP la categorii patron-friendly. Categoriile sunt sursa pentru breakdown-urile pe /firma ('Unde s-au dus banii', 'De unde au venit banii').",
+    "axa_A_vs_axa_B": {
+      "axa_A_natura_cheltuielii": "PR-2b. Generica, partajata cu toate firmele. Categorii ca 'Salarii', 'Electricitate', 'Chirie', 'Servicii IT'. Default OMFP la prima vizita. Contabilul poate restructura.",
+      "axa_B_verticale": "PR-2c (urmator). Specifica fiecarei firme. Pentru QHM21: Outsourcing, Recruitment, Coworking. Majoritatea firmelor nu vor avea verticale. Flag verticalsEnabled pe Client controleaza vizibilitatea.",
+      "rationale": "In Excel-ul lui Sorin, randurile sunt natura cheltuielii (Electricitate apare in toate 4 sheet-uri identic), iar sheet-urile sunt verticalele (Outsourcing/Recruitment/Coworking impart aceeasi Electricitate in proportii diferite). Axele sunt ORTOGONALE. Nu se incoreaza in numele categoriei (NU 'Electricitate Outsourcing')."
+    },
+    "data_model": {
+      "CostCategory": "Ierarhie recursiva (parentId) per client. Field-uri: clientId, parentId, name, kind ('expense'|'revenue'), position, isOmfpDefault. Pure 4-level visual recommandation, dar fara cap hard.",
+      "AccountCategoryMapping": "clientId + cont + scope ('contBase'|'analytic') + categoryId. Unique pe (clientId, cont). Analytic ('628.01') castiga peste contBase ('628') la resolve."
+    },
+    "resolver_algorithm": [
+      "1. Analytic exact match pentru cont complet (628.01 -> Outsourcing)",
+      "2. ContBase match pentru getContBase(cont) (628 -> Servicii)",
+      "3. Prefix walk (628 -> 62 -> 6) pana gaseste hit",
+      "4. Fallback la OMFP hardcoded 2-digit labels din PR-2a"
+    ],
+    "seed_strategy": "Lista categoriilor default e in src/modules/categories/seed.ts (NU in DB). Idempotent: la prima deschidere a tab-ului, daca clientul are 0 categorii, creem 10 expense + 6 revenue. Daca exista deja vreo categorie, nu atingem nimic. Defaults se modifica prin PR review.",
+    "ui_accountant": "Two-panel: stanga arbore Cheltuieli + Venituri (cu Plus/Pencil/Trash pe hover), dreapta lista conturilor 6x/7x cu rulajul ultimei luni si dropdown Categorie. Filter Toate/Nemapate/Cheltuieli/Venituri. Pentru cont analitic: buton 'din baza / individual' (creeaza override analytic).",
+    "owner_view": "Patronul NU vede acest tab. Vede doar rezultatul pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii' — labels-urile devin numele categoriilor patron, amounts rolup la nivelul ROOT.",
+    "tools_available_for_costi": [
+      "Costi nu are inca tools dedicate. Pentru a raspunde 'cum e mapat X?', poate citi din DB direct prin get_balance (vede conturile + rulajele).",
+      "Posibil viitor: get_category_mapping(client_name) -> lista mapping-urilor active."
+    ]
+  },
   "multi_tenant": {
     "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",
     "isolation": "JournalLine are clientId direct, izolare la nivel de serviciu",

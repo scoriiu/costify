@@ -7,6 +7,12 @@ import type { OwnerSnapshot } from "@/modules/reporting/owner";
  *        insights + outstanding.
  *    2 — adds expenseBreakdown, revenueBreakdown, topMonthlyExpenses, runway,
  *        salaryAffordability, yoy.
+ *
+ *  Note about PR-2b: We introduced CostCategory mappings that change the
+ *  CONTENT of expenseBreakdown/revenueBreakdown items (custom labels and ids
+ *  instead of OMFP 2-digit codes), but the SHAPE stays identical
+ *  (CategoryBreakdownItem unchanged). No version bump needed — old published
+ *  snapshots remain renderable.
  */
 export const SNAPSHOT_VERSION = 2;
 

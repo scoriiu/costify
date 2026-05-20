@@ -14,7 +14,9 @@ import {
   getLatestPublishedView,
 } from "@/modules/publishing";
 import { listAccountantAuditTrail } from "@/modules/audit";
+import { loadMapariCashflow } from "@/modules/categories";
 import { ClientDetail } from "@/components/clients/client-detail";
+import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
 import { AccessSection } from "@/components/clients/access-section";
 import {
   PublishingSection,
@@ -154,6 +156,16 @@ export default async function ClientDetailPage(props: Props) {
     })
     .sort((a, b) => b.year - a.year || b.month - a.month);
 
+  // Lazy-load the "Mapari Cashflow" tab content only when the user is on
+  // that tab. This avoids running the loader (which fetches balance rows
+  // for the latest period) on every page visit.
+  const mapariCashflowSection =
+    tab === "mapari-cashflow"
+      ? await loadMapariCashflow(client.id).then((data) => (
+          <MapariCashflowTab data={data} />
+        ))
+      : null;
+
   const publishBar =
     year && month ? (
       <PublishStatusBar
@@ -223,6 +235,7 @@ export default async function ClientDetailPage(props: Props) {
       }
       publishBar={publishBar}
       auditSection={<AuditSection rows={auditRows} />}
+      mapariCashflowSection={mapariCashflowSection}
     />
   );
 }

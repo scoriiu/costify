@@ -60,14 +60,16 @@ model Client {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journalLines     JournalLine[]
-  importEvents     ImportEvent[]
-  journalPartners  JournalPartner[]
-  clientAccounts   ClientAccount[]
-  taxRegimePeriods TaxRegimePeriod[]
-  accesses         ClientAccess[]
-  publishedPeriods PublishedPeriod[]
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines        JournalLine[]
+  importEvents        ImportEvent[]
+  journalPartners     JournalPartner[]
+  clientAccounts      ClientAccount[]
+  taxRegimePeriods    TaxRegimePeriod[]
+  accesses            ClientAccess[]
+  publishedPeriods    PublishedPeriod[]
+  costCategories      CostCategory[]
+  accountCategoryMaps AccountCategoryMapping[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -134,6 +136,76 @@ model PublishedPeriod {
   @@index([clientId, year(sort: Desc), month(sort: Desc)])
   @@index([clientId, publishedAt(sort: Desc)])
   @@index([clientId, staleSince])
+}
+
+/// Hierarchical patron-facing taxonomy for one client. The accountant edits
+/// this tree in the "Categorii" tab; the OWNER consumes the result on /firma
+/// under "Unde s-au dus banii" / "De unde au venit banii".
+///
+/// Each row is one node. Roots have `parentId = null`. Recursion through
+/// `parent`/`children` allows arbitrary depth; the UI suggests 4 levels but
+/// does not enforce a hard cap so the model survives Sorin-style 5-level
+/// decompositions (Outsourcing > Echipa > Salarii > Bonus > Q4).
+///
+/// `kind` is fixed at the root and inherited by all descendants — a tree
+/// is always pure "expense" or pure "revenue". Mixing is not meaningful for
+/// the patron view.
+///
+/// `isOmfpDefault` marks nodes seeded by the auto-bootstrap from OMFP labels.
+/// They can be renamed or deleted, but the UI shows a small badge so the
+/// accountant knows what was the system's starting point.
+model CostCategory {
+  id            String   @id @default(cuid())
+  clientId      String
+  parentId      String?
+  name          String
+  kind          String // "expense" | "revenue"
+  position      Int      @default(0)
+  isOmfpDefault Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client   Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent   CostCategory?             @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children CostCategory[]            @relation("CostCategoryTree")
+  mappings AccountCategoryMapping[]
+
+  @@unique([clientId, parentId, name])
+  @@index([clientId])
+  @@index([clientId, kind])
+  @@index([parentId])
+}
+
+/// Maps a Romanian chart-of-accounts entry to a CostCategory leaf, scoped to
+/// one client. Two scopes are supported:
+///   - "contBase":  the base 3-digit code (e.g. "628") — applies to every
+///                  analytic under it unless overridden.
+///   - "analytic":  the full analytic code (e.g. "628.01") — wins over the
+///                  base mapping at resolve time.
+///
+/// Resolution at query time (see modules/categories/resolver.ts):
+///   1. Look up `scope=analytic` row for the exact `cont`.
+///   2. Look up `scope=contBase` for `getContBase(cont)`.
+///   3. Walk shorter prefixes (e.g. "628" → "62" → "6") until a match.
+///   4. Fall back to OMFP hardcoded labels from PR-2a.
+///
+/// Uniqueness on `(clientId, cont)` enforces "one cont = one category". To
+/// move a cont, the row is updated, not duplicated.
+model AccountCategoryMapping {
+  id         String   @id @default(cuid())
+  clientId   String
+  scope      String // "contBase" | "analytic"
+  cont       String
+  categoryId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, cont])
+  @@index([clientId])
+  @@index([categoryId])
 }
 
 /// Timeline of tax regime transitions for a client.

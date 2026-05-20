@@ -15,7 +15,7 @@ import { SetariTab, type TransitionView } from "@/components/clients/setari-tab"
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
-type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "setari";
+type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "mapari-cashflow" | "setari";
 
 interface ImportEventInfo {
   id: string;
@@ -52,6 +52,8 @@ interface Props {
   publishBar?: React.ReactNode;
   /** Server-rendered "Istoric actiuni" section shown inside the Setari tab. */
   auditSection?: React.ReactNode;
+  /** Server-rendered "Mapari Cashflow" tab content. Lazily server-loaded. */
+  mapariCashflowSection?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -59,6 +61,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "balanta", label: "Balanta de Verificare" },
   { key: "cpp", label: "Cont Profit si Pierdere" },
   { key: "plan", label: "Plan de Conturi" },
+  { key: "mapari-cashflow", label: "Mapari Cashflow" },
   { key: "setari", label: "Setari" },
 ];
 
@@ -75,6 +78,7 @@ export function ClientDetail({
   publishSection,
   publishBar,
   auditSection,
+  mapariCashflowSection,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -174,6 +178,7 @@ export function ClientDetail({
             month={selectedMonth}
           />
         )}
+        {tab === "mapari-cashflow" && mapariCashflowSection}
         {tab === "setari" && (
           <SetariTab
             client={client}

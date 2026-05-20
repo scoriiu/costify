@@ -23,6 +23,8 @@ export {
   computeInsights,
   computeExpenseBreakdown,
   computeRevenueBreakdown,
+  computeExpenseBreakdownFromCategories,
+  computeRevenueBreakdownFromCategories,
   computeTopMonthlyExpenses,
   computeRunway,
   computeSalaryAffordability,

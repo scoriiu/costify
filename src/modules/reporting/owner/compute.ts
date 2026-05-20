@@ -14,6 +14,8 @@
 
 import type { BalanceRowView } from "@/modules/balances";
 import type { CatalogAccount } from "@/modules/accounts";
+import type { ResolverState } from "@/modules/categories";
+import { resolveCategoryForCont } from "@/modules/categories";
 import type {
   FinancialSummary,
   CashPosition,
@@ -674,4 +676,117 @@ export function computeYoy(
     cashEnd: buildSlot(current.cashEnd, prev?.cashEnd ?? null),
     hasPreviousYear: prev !== undefined,
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*           CATEGORY-AWARE BREAKDOWNS (Axa A) — PR-2b                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Same shape as computeExpenseBreakdown / computeRevenueBreakdown but groups
+ * by the firm's own CostCategory tree instead of the hardcoded 2-digit OMFP
+ * labels. Used by the owner snapshot when the client has at least one mapping.
+ *
+ * Grouping rule:
+ *   - Each leaf account in class 6 (or 7 for revenue) is resolved to a
+ *     CostCategory via the resolver chain (analytic > contBase > prefix walk).
+ *   - The amount accumulates into the ROOT category of that resolution chain
+ *     — so "Salarii brut" and "Bonus QHM" both roll up under the user-visible
+ *     root, but the patron sees a single line "Salarii si contributii" with
+ *     the combined amount. The accountant's sub-tree is the configuration; the
+ *     patron view stays flat by design.
+ *   - Accounts with no mapping fall back to the OMFP 2-digit code so the
+ *     patron view never goes blank during the migration window.
+ *
+ * Returns sorted desc, percent of total month-expenses.
+ */
+export function computeExpenseBreakdownFromCategories(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>,
+  resolver: ResolverState
+): CategoryBreakdownItem[] {
+  return computeBreakdownByCategory(rows, catalog, resolver, "expense");
+}
+
+export function computeRevenueBreakdownFromCategories(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>,
+  resolver: ResolverState
+): CategoryBreakdownItem[] {
+  return computeBreakdownByCategory(rows, catalog, resolver, "revenue");
+}
+
+function computeBreakdownByCategory(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>,
+  resolver: ResolverState,
+  kind: "expense" | "revenue"
+): CategoryBreakdownItem[] {
+  const leaves = rows.filter((r) => r.isLeaf);
+  const classDigit = kind === "expense" ? "6" : "7";
+
+  // Two parallel buckets: one keyed by ROOT category id (label = root name)
+  // for mapped accounts, one keyed by fallback OMFP 2-digit code for the
+  // long tail. Both rendered together so the patron sees their full month.
+  const byRoot = new Map<string, { label: string; value: number }>();
+  const byFallbackCode = new Map<string, number>();
+
+  for (const row of leaves) {
+    const base = row.contBase;
+    if (!base.startsWith(classDigit)) continue;
+    if (kind === "revenue") {
+      const code2 = base.substring(0, 2);
+      if (code2 === "71" || code2 === "72") continue;
+    }
+    const meta = lookupByBase(base, catalog);
+    if (meta?.isClosing || meta?.isExtraBilantier) continue;
+
+    let amount: number;
+    if (kind === "expense") {
+      amount = base.startsWith("609") ? -row.rulajC : row.rulajD;
+    } else {
+      amount = base.startsWith("709") ? -row.rulajD : row.rulajC;
+    }
+    if (Math.abs(amount) < 0.01) continue;
+
+    const resolved = resolveCategoryForCont(row.cont, resolver);
+    if (resolved) {
+      const root = resolved.path[0];
+      if (root.kind !== kind) continue; // mapping wrong-kinded — shouldn't happen, defensive
+      const existing = byRoot.get(root.id);
+      if (existing) {
+        existing.value += amount;
+      } else {
+        byRoot.set(root.id, { label: root.name, value: amount });
+      }
+    } else {
+      const code = base.substring(0, 2);
+      byFallbackCode.set(code, (byFallbackCode.get(code) ?? 0) + amount);
+    }
+  }
+
+  const labelsForFallback =
+    kind === "expense" ? EXPENSE_LABELS_PATRON : REVENUE_LABELS_PATRON;
+
+  const items: CategoryBreakdownItem[] = [];
+  for (const [id, { label, value }] of byRoot.entries()) {
+    items.push({ code: id, label, value: round2(value), percent: 0 });
+  }
+  for (const [code, value] of byFallbackCode.entries()) {
+    items.push({
+      code: `fallback:${code}`,
+      label: labelsForFallback[code] ?? `Categoria ${code}`,
+      value: round2(value),
+      percent: 0,
+    });
+  }
+
+  const total = items.reduce((s, i) => s + Math.abs(i.value), 0);
+  for (const item of items) {
+    item.percent = total > 0 ? round2((Math.abs(item.value) / total) * 100) : 0;
+  }
+
+  return items
+    .filter((i) => Math.abs(i.value) > 0.01)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
 }

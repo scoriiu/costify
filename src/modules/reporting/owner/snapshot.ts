@@ -23,11 +23,19 @@ import {
   computeInsights,
   computeExpenseBreakdown,
   computeRevenueBreakdown,
+  computeExpenseBreakdownFromCategories,
+  computeRevenueBreakdownFromCategories,
   computeTopMonthlyExpenses,
   computeRunway,
   computeSalaryAffordability,
   computeYoy,
 } from "./compute";
+import { prisma } from "@/lib/db";
+import {
+  listCategoryTree,
+  listMappings,
+  buildResolverState,
+} from "@/modules/categories";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
 
@@ -135,8 +143,29 @@ export async function loadOwnerSnapshot(
   // below — compute once and reuse.
   const trends = await computeMonthlyTrends(clientId, year, month, catalog, 12);
 
-  const expenseBreakdown = computeExpenseBreakdown(rows, catalog);
-  const revenueBreakdown = computeRevenueBreakdown(rows, catalog);
+  // Try the category-aware breakdown first. When the client has at least one
+  // CostCategory mapping, use the firm's own labels ("Salarii echipa tech",
+  // "Outsourcing tehnic") instead of the generic OMFP 2-digit labels.
+  //
+  // We never auto-seed during owner-snapshot loads — that side effect must
+  // come from the accountant opening the Mapari Cashflow tab explicitly.
+  // If the firm has no categories yet, fall through to the PR-2a hardcoded
+  // breakdown so the patron view still works.
+  const [categoryTreeResult, mappings] = await Promise.all([
+    listCategoryTree(prisma, clientId, { autoSeed: false }),
+    listMappings(prisma, clientId),
+  ]);
+  const useCategoryBreakdown = mappings.length > 0;
+  const resolverState = useCategoryBreakdown
+    ? buildResolverState(categoryTreeResult.tree, mappings)
+    : null;
+
+  const expenseBreakdown = resolverState
+    ? computeExpenseBreakdownFromCategories(rows, catalog, resolverState)
+    : computeExpenseBreakdown(rows, catalog);
+  const revenueBreakdown = resolverState
+    ? computeRevenueBreakdownFromCategories(rows, catalog, resolverState)
+    : computeRevenueBreakdown(rows, catalog);
   const topMonthlyExpenses = computeTopMonthlyExpenses(rows, catalog, 10);
   const runway = computeRunway(summary, trends, 3);
   const salaryAffordability = computeSalaryAffordability(
