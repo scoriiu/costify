@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import { PeriodSelector } from "@/components/datasets/period-selector";
@@ -43,6 +43,8 @@ interface Props {
   selectedYear?: number;
   selectedMonth?: number;
   transitions: TransitionView[];
+  /** Server-rendered "Acces clientului" section shown inside the Setari tab. */
+  accessSection?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -62,6 +64,7 @@ export function ClientDetail({
   selectedYear,
   selectedMonth,
   transitions,
+  accessSection,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -107,6 +110,16 @@ export function ClientDetail({
               onChange={(y, m) => navigate({ year: y, month: m })}
             />
           )}
+          <a
+            href={`/clients/${client.slug}?view=owner`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Vezi ce vede ${client.name} cand intra in Costify`}
+          >
+            <Button variant="ghost">
+              <Eye size={14} /> <span className="hidden sm:inline">Vezi ca firma</span>
+            </Button>
+          </a>
           <Link href={`/clients/${client.slug}/import`}>
             <Button variant="primary">
               <Upload size={14} /> <span className="hidden sm:inline">Upload</span> Jurnal
@@ -153,6 +166,7 @@ export function ClientDetail({
             entryCount={entryCount}
             transitions={transitions}
             onOpenDeleteModal={() => setDeleteOpen(true)}
+            accessSection={accessSection}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (

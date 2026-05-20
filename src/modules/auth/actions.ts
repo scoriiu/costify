@@ -4,10 +4,15 @@ import { prisma } from "@/lib/db";
 import { verifyPassword } from "./password";
 import { createSession, destroySession } from "./session";
 import { loginSchema } from "./validation";
+import { parseUserRole } from "@/modules/roles";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
 type ActionResult = { error?: string };
+
+function landingForRole(userRole: unknown): string {
+  return parseUserRole(userRole) === "OWNER" ? "/firma" : "/clients";
+}
 
 export async function registerAction(
   _prev: ActionResult,
@@ -51,7 +56,7 @@ export async function loginFormAction(formData: FormData): Promise<void> {
     h.get("user-agent") ?? undefined
   );
 
-  redirect("/clients");
+  redirect(landingForRole(user.userRole));
 }
 
 export async function loginAction(
@@ -92,7 +97,7 @@ export async function loginAction(
     h.get("user-agent") ?? undefined
   );
 
-  redirect("/clients");
+  redirect(landingForRole(user.userRole));
 }
 
 export async function logoutAction(): Promise<void> {

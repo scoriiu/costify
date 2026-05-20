@@ -1,6 +1,7 @@
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { LoginForm } from "@/components/auth/login-form";
 import { getSessionUser } from "@/modules/auth/session";
+import { parseUserRole } from "@/modules/roles";
 import { redirect } from "next/navigation";
 
 interface Props {
@@ -9,7 +10,10 @@ interface Props {
 
 export default async function LoginPage({ searchParams }: Props) {
   const user = await getSessionUser();
-  if (user) redirect("/clients");
+  if (user) {
+    const landing = parseUserRole(user.userRole) === "OWNER" ? "/firma" : "/clients";
+    redirect(landing);
+  }
 
   const { error } = await searchParams;
 

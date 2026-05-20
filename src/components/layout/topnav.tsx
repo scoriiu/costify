@@ -17,7 +17,6 @@ const INTERNAL_WHITELIST = [
 
 const NAV_ITEMS = [
   { href: "/clients", label: "Clients" },
-  { href: "/reports", label: "Reports" },
   { href: "/costi", label: "Costi" },
   { href: "/docs", label: "Docs" },
 ];

@@ -8,6 +8,9 @@ export type AuditAction =
   | "reject"
   | "recalculate"
   | "export"
+  | "view"
+  | "grant"
+  | "revoke"
   | "login"
   | "logout";
 

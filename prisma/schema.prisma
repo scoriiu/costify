@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Identity role of a user.
+/// - ACCOUNTANT: a person who manages a portfolio of client firms. Default.
+/// - OWNER: a person who owns or runs one or more firms. Sees only `/firma`.
+/// One user has exactly one identity role. Authorization beyond that is RBAC.
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -14,12 +18,16 @@ model User {
   passwordHash  String
   emailVerified Boolean   @default(false)
   active        Boolean   @default(true)
+  userRole      String    @default("ACCOUNTANT") // "ACCOUNTANT" | "OWNER"
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions Session[]
-  clients  Client[]
+  sessions       Session[]
+  clients        Client[]
+  clientAccesses ClientAccess[]
+
+  @@index([userRole])
 }
 
 model Session {
@@ -57,9 +65,33 @@ model Client {
   journalPartners  JournalPartner[]
   clientAccounts   ClientAccount[]
   taxRegimePeriods TaxRegimePeriod[]
+  accesses         ClientAccess[]
 
   @@unique([userId, slug])
   @@index([userId])
+}
+
+/// Grants an OWNER user read access to a Client's /firma dashboard.
+/// One row = one (user, client, role) triple.
+///
+/// An OWNER may have many ClientAccess rows (multi-firm owners are common in RO).
+/// ACCOUNTANTs do NOT get a ClientAccess row — they reach their clients via
+/// Client.userId (they own the client record itself in the cabinet's portfolio).
+model ClientAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  clientId  String
+  role      String   @default("OWNER") // "OWNER" for now; future: "OPERATOR" etc.
+  createdBy String? // user id of the ACCOUNTANT who granted access (audit context)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId])
+  @@index([clientId])
 }
 
 /// Timeline of tax regime transitions for a client.

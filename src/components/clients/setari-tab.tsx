@@ -47,6 +47,9 @@ interface Props {
   entryCount: number;
   transitions: TransitionView[];
   onOpenDeleteModal: () => void;
+  /** Server-rendered "Acces clientului" section. Passed as a slot so server data
+   *  (current accesses) can be fetched without making the whole tab a server component. */
+  accessSection?: React.ReactNode;
 }
 
 const REGIME_OPTIONS = [
@@ -86,11 +89,18 @@ function isInception(iso: string): boolean {
   return new Date(iso).getUTCFullYear() <= 1970;
 }
 
-export function SetariTab({ client, entryCount, transitions, onOpenDeleteModal }: Props) {
+export function SetariTab({
+  client,
+  entryCount,
+  transitions,
+  onOpenDeleteModal,
+  accessSection,
+}: Props) {
   return (
     <div className="space-y-6 max-w-3xl">
       <GeneralInfoSection client={client} />
       <TaxRegimeSection clientId={client.id} transitions={transitions} />
+      {accessSection}
       <DangerZoneSection entryCount={entryCount} onDelete={onOpenDeleteModal} />
     </div>
   );
