@@ -1,0 +1,270 @@
+/**
+ * Enriched audit trail readers for UI use.
+ *
+ * `queryAuditTrail` returns raw AuditRecord rows (actorId only). The "Istoric
+ * actiuni" UI needs the actor's display name plus a translation of the event
+ * shape into a human sentence in Romanian. Two output shapes are supported:
+ *
+ *  - listAccountantAuditTrail: detailed view for the cabinet. Shows entity
+ *    type, action verb, before/after summary, actor name and time.
+ *  - listOwnerAuditTrail: same data, filtered + translated into plain
+ *    entrepreneur language (no account codes, no internal entity names).
+ *
+ * Both run a single DB query then enrich in memory.
+ */
+
+import { prisma } from "@/lib/db";
+import { queryAuditTrail } from "./service";
+import type { AuditRecord } from "./types";
+
+export interface AccountantAuditRow {
+  id: string;
+  createdAt: Date;
+  actorName: string;
+  actorEmail: string | null;
+  /** Romanian verb phrase, e.g. "a publicat luna aprilie 2026" */
+  description: string;
+  /** Underlying entity_type for filtering. */
+  entityType: string;
+  action: AuditRecord["action"];
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface OwnerAuditRow {
+  id: string;
+  createdAt: Date;
+  /** Translated, jargon-free Romanian sentence. */
+  description: string;
+}
+
+export interface AuditTrailOptions {
+  limit?: number;
+  offset?: number;
+  startDate?: Date;
+  endDate?: Date;
+  entityType?: string;
+}
+
+async function enrichActors(records: AuditRecord[]) {
+  const actorIds = Array.from(new Set(records.map((r) => r.actorId)));
+  if (actorIds.length === 0) return new Map<string, { name: string; email: string }>();
+  const users = await prisma.user.findMany({
+    where: { id: { in: actorIds } },
+    select: { id: true, name: true, email: true },
+  });
+  return new Map(users.map((u) => [u.id, { name: u.name, email: u.email }]));
+}
+
+export async function listAccountantAuditTrail(
+  clientId: string,
+  opts: AuditTrailOptions = {}
+): Promise<AccountantAuditRow[]> {
+  const records = await queryAuditTrail({
+    tenantId: clientId,
+    limit: opts.limit ?? 50,
+    offset: opts.offset ?? 0,
+    startDate: opts.startDate,
+    endDate: opts.endDate,
+    entityType: opts.entityType,
+  });
+  const actors = await enrichActors(records);
+
+  return records.map((r) => {
+    const actor = actors.get(r.actorId);
+    return {
+      id: r.id,
+      createdAt: r.createdAt,
+      actorName: actor?.name ?? "Sistem",
+      actorEmail: actor?.email ?? null,
+      description: describeForAccountant(r),
+      entityType: r.entityType,
+      action: r.action,
+      before: r.before,
+      after: r.after,
+      metadata: r.metadata,
+    };
+  });
+}
+
+export async function listOwnerAuditTrail(
+  clientId: string,
+  opts: AuditTrailOptions = {}
+): Promise<OwnerAuditRow[]> {
+  const records = await queryAuditTrail({
+    tenantId: clientId,
+    limit: opts.limit ?? 50,
+    offset: opts.offset ?? 0,
+    startDate: opts.startDate,
+    endDate: opts.endDate,
+  });
+  const actors = await enrichActors(records);
+
+  return records
+    .map((r) => ({ raw: r, actor: actors.get(r.actorId) }))
+    .filter(({ raw }) => isVisibleToOwner(raw))
+    .map(({ raw, actor }) => ({
+      id: raw.id,
+      createdAt: raw.createdAt,
+      description: describeForOwner(raw, actor?.name ?? "Contabilul tau"),
+    }));
+}
+
+const MONTH_NAMES_RO = [
+  "ianuarie",
+  "februarie",
+  "martie",
+  "aprilie",
+  "mai",
+  "iunie",
+  "iulie",
+  "august",
+  "septembrie",
+  "octombrie",
+  "noiembrie",
+  "decembrie",
+];
+
+function monthLabel(year: number, month: number): string {
+  return `${MONTH_NAMES_RO[month - 1]} ${year}`;
+}
+
+/**
+ * Map an AuditRecord to a Romanian sentence for the accountant view.
+ * Detailed and uses OMFP terminology where appropriate.
+ */
+function describeForAccountant(r: AuditRecord): string {
+  const meta = r.metadata ?? {};
+  const after = r.after ?? {};
+  const before = r.before ?? {};
+
+  switch (r.entityType) {
+    case "published_period": {
+      const year = pickNumber(after, "year") ?? pickNumber(before, "year");
+      const month = pickNumber(after, "month") ?? pickNumber(before, "month");
+      const period = year && month ? monthLabel(year, month) : "luna";
+      if (r.action === "create") return `a publicat ${period}`;
+      if (r.action === "update") return `a re-publicat ${period}`;
+      if (r.action === "delete") return `a retras publicarea pentru ${period}`;
+      return `${r.action} pe ${period}`;
+    }
+    case "firma_dashboard": {
+      const page = pickString(meta, "page") ?? "home";
+      const mode = pickString(meta, "viewMode") ?? "";
+      const who = pickString(meta, "actorRole") === "ACCOUNTANT" ? "a vizualizat firma" : "a deschis firma";
+      return `${who} (${page}${mode ? ", " + mode : ""})`;
+    }
+    case "client_access": {
+      if (r.action === "grant") {
+        const email = pickString(after, "userEmail") ?? "patron";
+        return `a oferit acces firmei ${email}`;
+      }
+      if (r.action === "revoke") {
+        const email = pickString(before, "userEmail") ?? "patron";
+        return `a revocat accesul firmei ${email}`;
+      }
+      return `${r.action} pe acces firma`;
+    }
+    case "tax_regime_transition": {
+      const regime = pickString(after, "taxRegime") ?? pickString(before, "taxRegime") ?? "";
+      const date = pickString(after, "startDate") ?? pickString(before, "startDate") ?? "";
+      if (r.action === "create") return `a adaugat o tranzitie de regim fiscal: ${regime} de la ${date}`;
+      if (r.action === "update") return `a modificat o tranzitie de regim fiscal (${regime}, ${date})`;
+      if (r.action === "delete") return `a sters o tranzitie de regim fiscal (${regime}, ${date})`;
+      return `${r.action} regim fiscal`;
+    }
+    case "tax_regime_legacy":
+      return `a modificat regimul fiscal (legacy) la ${pickString(after, "taxRegime") ?? ""}`;
+    case "client":
+      if (r.action === "create") {
+        return `a creat firma ${pickString(after, "name") ?? ""}`;
+      }
+      return `${r.action} firma`;
+    case "client_info":
+      return `a actualizat datele firmei (nume/CUI/CAEN)`;
+    case "client_account": {
+      const code = pickString(meta, "code") ?? "";
+      return `a redenumit contul ${code}`;
+    }
+    case "client_account_review": {
+      const code = pickString(meta, "code") ?? "";
+      const needs = (after as { needsReview?: boolean }).needsReview;
+      return needs ? `a marcat contul ${code} pentru revizuire` : `a confirmat contul ${code}`;
+    }
+    case "import_event":
+      return `a importat un jurnal (${pickNumber(after, "entriesAdded") ?? 0} intrari noi)`;
+    case "journal_lines":
+      if (r.action === "delete") {
+        const n = pickNumber(meta, "totalDeleted") ?? 0;
+        const from = pickString(meta, "fromDate") ?? "";
+        return `a sters ${n} intrari de jurnal incepand cu ${from.slice(0, 10)}`;
+      }
+      return `${r.action} pe jurnal`;
+    default:
+      return `${r.action} pe ${r.entityType}`;
+  }
+}
+
+/**
+ * Owner-language sentence. Strips OMFP jargon ("regim fiscal", "cont 401")
+ * and substitutes entrepreneur-friendly words.
+ */
+function describeForOwner(r: AuditRecord, actorName: string): string {
+  const meta = r.metadata ?? {};
+  const after = r.after ?? {};
+  const before = r.before ?? {};
+
+  switch (r.entityType) {
+    case "published_period": {
+      const year = pickNumber(after, "year") ?? pickNumber(before, "year");
+      const month = pickNumber(after, "month") ?? pickNumber(before, "month");
+      const period = year && month ? monthLabel(year, month) : "o luna";
+      if (r.action === "create") return `${actorName} ti-a publicat ${period}`;
+      if (r.action === "update") return `${actorName} a actualizat datele pentru ${period}`;
+      if (r.action === "delete") return `${actorName} a retras temporar datele pentru ${period}`;
+      return `${actorName} a modificat ${period}`;
+    }
+    case "client_access":
+      if (r.action === "grant") return `${actorName} ti-a oferit acces la firma`;
+      if (r.action === "revoke") return `${actorName} a revocat accesul`;
+      return `${actorName} a modificat accesul tau`;
+    case "import_event":
+      return `${actorName} a adaugat date noi din contabilitate`;
+    case "journal_lines":
+      if (r.action === "delete") {
+        return `${actorName} a curatat niste inregistrari vechi pentru corectie`;
+      }
+      return `${actorName} a modificat inregistrari`;
+    case "client_info":
+      return `${actorName} a actualizat datele firmei`;
+    default:
+      return ""; // hidden (filtered out by isVisibleToOwner)
+  }
+}
+
+/**
+ * Decides whether a given audit event is meaningful for the OWNER's view.
+ * Internal pipeline noise (balance recalc, classification rules) is hidden;
+ * user-visible business events (publish, import, access change) are shown.
+ */
+function isVisibleToOwner(r: AuditRecord): boolean {
+  const visibleTypes = new Set([
+    "published_period",
+    "client_access",
+    "import_event",
+    "journal_lines",
+    "client_info",
+  ]);
+  return visibleTypes.has(r.entityType);
+}
+
+function pickNumber(obj: Record<string, unknown>, key: string): number | null {
+  const v = obj[key];
+  return typeof v === "number" ? v : null;
+}
+
+function pickString(obj: Record<string, unknown>, key: string): string | null {
+  const v = obj[key];
+  return typeof v === "string" ? v : null;
+}

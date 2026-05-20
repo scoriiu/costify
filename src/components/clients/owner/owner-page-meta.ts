@@ -135,4 +135,10 @@ export const OWNER_PAGES: Record<OwnerPageKey, OwnerPageMeta> = {
       "Sfaturi automate pe baza tendintelor recente",
     ],
   },
+  istoric: {
+    key: "istoric",
+    title: "Istoric actiuni",
+    subtitle: "Toate modificarile facute de contabilul tau pe firma — publicari, importuri, schimbari.",
+    preview: [],
+  },
 };

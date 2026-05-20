@@ -47,7 +47,8 @@ export type OwnerPageKey =
   | "eu"
   | "stat"
   | "evolutie"
-  | "sanatate";
+  | "sanatate"
+  | "istoric";
 
 const NAV_ITEMS: Array<{ key: OwnerPageKey; label: string; pageSlug: string }> = [
   { key: "home", label: "Acasa", pageSlug: "" },
@@ -61,6 +62,7 @@ const NAV_ITEMS: Array<{ key: OwnerPageKey; label: string; pageSlug: string }> =
   { key: "stat", label: "Stat", pageSlug: "stat" },
   { key: "evolutie", label: "Evolutie", pageSlug: "evolutie" },
   { key: "sanatate", label: "Sanatate", pageSlug: "sanatate" },
+  { key: "istoric", label: "Istoric", pageSlug: "istoric" },
 ];
 
 interface OwnerLayoutProps {

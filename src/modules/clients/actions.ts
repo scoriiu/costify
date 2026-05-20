@@ -12,6 +12,7 @@ import {
   deleteTransition,
 } from "./tax-regime";
 import type { TaxRegime } from "@/modules/accounts";
+import { recordClientMutation } from "@/modules/audit";
 
 const createClientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
@@ -76,6 +77,22 @@ export async function createClientAction(
     },
   });
 
+  await recordClientMutation({
+    clientId: created.id,
+    actorId: user.id,
+    action: "create",
+    entityType: "client",
+    entityId: created.id,
+    before: null,
+    after: {
+      name: parsed.data.name,
+      cui: parsed.data.cui ?? null,
+      caen: parsed.data.caen ?? null,
+      taxRegime: created.taxRegime,
+    },
+    metadata: { slug },
+  });
+
   redirect("/clients");
 }
 
@@ -96,13 +113,13 @@ const toggleReviewSchema = z.object({
 async function assertClientOwned(
   userId: string,
   clientId: string
-): Promise<{ slug: string } | null> {
+): Promise<{ slug: string; name: string } | null> {
   const row = await prisma.client.findUnique({
     where: { id: clientId },
-    select: { userId: true, slug: true },
+    select: { userId: true, slug: true, name: true },
   });
   if (!row || row.userId !== userId) return null;
-  return { slug: row.slug };
+  return { slug: row.slug, name: row.name };
 }
 
 /**
@@ -125,6 +142,11 @@ export async function updateClientAccountNameAction(
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  const existing = await prisma.clientAccount.findUnique({
+    where: { clientId_code: { clientId: parsed.data.clientId, code: parsed.data.code } },
+    select: { customName: true },
+  });
+
   await prisma.clientAccount.upsert({
     where: {
       clientId_code: { clientId: parsed.data.clientId, code: parsed.data.code },
@@ -140,6 +162,17 @@ export async function updateClientAccountNameAction(
       source: "user_edit",
       lastSeenAt: new Date(),
     },
+  });
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: existing ? "update" : "create",
+    entityType: "client_account",
+    entityId: parsed.data.code,
+    before: existing ? { customName: existing.customName } : null,
+    after: { customName: parsed.data.name.trim() },
+    metadata: { code: parsed.data.code },
   });
 
   revalidatePath(`/clients/${client.slug}`);
@@ -166,6 +199,11 @@ export async function toggleClientAccountReviewAction(
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  const existing = await prisma.clientAccount.findUnique({
+    where: { clientId_code: { clientId: parsed.data.clientId, code: parsed.data.code } },
+    select: { needsReview: true },
+  });
+
   await prisma.clientAccount.upsert({
     where: {
       clientId_code: { clientId: parsed.data.clientId, code: parsed.data.code },
@@ -180,6 +218,17 @@ export async function toggleClientAccountReviewAction(
     update: {
       needsReview: parsed.data.needsReview,
     },
+  });
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "update",
+    entityType: "client_account_review",
+    entityId: parsed.data.code,
+    before: existing ? { needsReview: existing.needsReview } : null,
+    after: { needsReview: parsed.data.needsReview },
+    metadata: { code: parsed.data.code },
   });
 
   revalidatePath(`/clients/${client.slug}`);
@@ -206,9 +255,25 @@ export async function updateTaxRegimeAction(
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  const before = await prisma.client.findUnique({
+    where: { id: parsed.data.clientId },
+    select: { taxRegime: true },
+  });
+
   await prisma.client.update({
     where: { id: parsed.data.clientId },
     data: { taxRegime: parsed.data.taxRegime },
+  });
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "update",
+    entityType: "tax_regime_legacy",
+    entityId: parsed.data.clientId,
+    before: before ? { taxRegime: before.taxRegime } : null,
+    after: { taxRegime: parsed.data.taxRegime },
+    metadata: { deprecated: true },
   });
 
   revalidatePath(`/clients/${client.slug}`);
@@ -261,14 +326,16 @@ export async function createTaxRegimeTransitionAction(input: {
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  let createdId: string;
   try {
-    await createTransition({
+    const created = await createTransition({
       clientId: parsed.data.clientId,
       startDate: parseLocalDate(parsed.data.startDate),
       taxRegime: parsed.data.taxRegime as TaxRegime,
       reason: parsed.data.reason ?? null,
       createdBy: user.id,
     });
+    createdId = created.id;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (message.includes("Unique")) {
@@ -279,6 +346,21 @@ export async function createTaxRegimeTransitionAction(input: {
     }
     return { ok: false, error: "Nu am putut salva tranzitia" };
   }
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "create",
+    entityType: "tax_regime_transition",
+    entityId: createdId,
+    before: null,
+    after: {
+      startDate: parsed.data.startDate,
+      taxRegime: parsed.data.taxRegime,
+      reason: parsed.data.reason ?? null,
+    },
+    metadata: {},
+  });
 
   revalidatePath(`/clients/${client.slug}`);
   revalidatePath(`/clients/${client.slug}/settings`);
@@ -303,8 +385,15 @@ export async function updateTaxRegimeTransitionAction(input: {
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  // Capture before-state for audit
+  const beforeRow = await prisma.taxRegimePeriod.findFirst({
+    where: { id: parsed.data.transitionId, clientId: parsed.data.clientId },
+    select: { startDate: true, taxRegime: true, reason: true },
+  });
+
+  let updated: { id: string; startDate: Date; taxRegime: string; reason: string | null } | null = null;
   try {
-    const updated = await updateTransition(parsed.data.clientId, parsed.data.transitionId, {
+    updated = await updateTransition(parsed.data.clientId, parsed.data.transitionId, {
       startDate: parsed.data.startDate ? parseLocalDate(parsed.data.startDate) : undefined,
       taxRegime: parsed.data.taxRegime as TaxRegime | undefined,
       reason: parsed.data.reason === undefined ? undefined : parsed.data.reason ?? null,
@@ -317,6 +406,27 @@ export async function updateTaxRegimeTransitionAction(input: {
     }
     return { ok: false, error: "Nu am putut actualiza tranzitia" };
   }
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "update",
+    entityType: "tax_regime_transition",
+    entityId: parsed.data.transitionId,
+    before: beforeRow
+      ? {
+          startDate: beforeRow.startDate.toISOString().slice(0, 10),
+          taxRegime: beforeRow.taxRegime,
+          reason: beforeRow.reason,
+        }
+      : null,
+    after: {
+      startDate: updated.startDate.toISOString().slice(0, 10),
+      taxRegime: updated.taxRegime,
+      reason: updated.reason,
+    },
+    metadata: {},
+  });
 
   revalidatePath(`/clients/${client.slug}`);
   revalidatePath(`/clients/${client.slug}/settings`);
@@ -338,8 +448,30 @@ export async function deleteTaxRegimeTransitionAction(input: {
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  const beforeRow = await prisma.taxRegimePeriod.findFirst({
+    where: { id: parsed.data.transitionId, clientId: parsed.data.clientId },
+    select: { startDate: true, taxRegime: true, reason: true },
+  });
+
   const removed = await deleteTransition(parsed.data.clientId, parsed.data.transitionId);
   if (!removed) return { ok: false, error: "Tranzitia nu a fost gasita" };
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "delete",
+    entityType: "tax_regime_transition",
+    entityId: parsed.data.transitionId,
+    before: beforeRow
+      ? {
+          startDate: beforeRow.startDate.toISOString().slice(0, 10),
+          taxRegime: beforeRow.taxRegime,
+          reason: beforeRow.reason,
+        }
+      : null,
+    after: null,
+    metadata: {},
+  });
 
   revalidatePath(`/clients/${client.slug}`);
   revalidatePath(`/clients/${client.slug}/settings`);
@@ -374,13 +506,31 @@ export async function updateClientInfoAction(input: {
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
+  const before = await prisma.client.findUnique({
+    where: { id: parsed.data.clientId },
+    select: { name: true, cui: true, caen: true },
+  });
+
+  const after = {
+    name: parsed.data.name.trim(),
+    cui: parsed.data.cui?.trim() || null,
+    caen: parsed.data.caen?.trim() || null,
+  };
+
   await prisma.client.update({
     where: { id: parsed.data.clientId },
-    data: {
-      name: parsed.data.name.trim(),
-      cui: parsed.data.cui?.trim() || null,
-      caen: parsed.data.caen?.trim() || null,
-    },
+    data: after,
+  });
+
+  await recordClientMutation({
+    clientId: parsed.data.clientId,
+    actorId: user.id,
+    action: "update",
+    entityType: "client_info",
+    entityId: parsed.data.clientId,
+    before: before,
+    after,
+    metadata: {},
   });
 
   revalidatePath(`/clients/${client.slug}`);

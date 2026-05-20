@@ -52,6 +52,8 @@ interface Props {
   accessSection?: React.ReactNode;
   /** Server-rendered "Publicare" section. Same pattern as accessSection. */
   publishSection?: React.ReactNode;
+  /** Server-rendered "Istoric actiuni" section. Same pattern. */
+  auditSection?: React.ReactNode;
 }
 
 const REGIME_OPTIONS = [
@@ -98,6 +100,7 @@ export function SetariTab({
   onOpenDeleteModal,
   accessSection,
   publishSection,
+  auditSection,
 }: Props) {
   return (
     <div className="space-y-6 max-w-3xl">
@@ -105,6 +108,7 @@ export function SetariTab({
       <TaxRegimeSection clientId={client.id} transitions={transitions} />
       {accessSection}
       {publishSection}
+      {auditSection}
       <DangerZoneSection entryCount={entryCount} onDelete={onOpenDeleteModal} />
     </div>
   );

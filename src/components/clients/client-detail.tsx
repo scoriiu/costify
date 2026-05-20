@@ -50,6 +50,8 @@ interface Props {
   /** Publish status bar for the currently selected (year, month) — only set
    *  when on balanta/cpp tabs. Server-fetched. */
   publishBar?: React.ReactNode;
+  /** Server-rendered "Istoric actiuni" section shown inside the Setari tab. */
+  auditSection?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -72,6 +74,7 @@ export function ClientDetail({
   accessSection,
   publishSection,
   publishBar,
+  auditSection,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -179,6 +182,7 @@ export function ClientDetail({
             onOpenDeleteModal={() => setDeleteOpen(true)}
             accessSection={accessSection}
             publishSection={publishSection}
+            auditSection={auditSection}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (

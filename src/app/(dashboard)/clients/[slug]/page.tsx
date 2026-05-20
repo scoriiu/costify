@@ -13,6 +13,7 @@ import {
   getPublishedView,
   getLatestPublishedView,
 } from "@/modules/publishing";
+import { listAccountantAuditTrail } from "@/modules/audit";
 import { ClientDetail } from "@/components/clients/client-detail";
 import { AccessSection } from "@/components/clients/access-section";
 import {
@@ -20,6 +21,7 @@ import {
   type PublishingSectionRow,
 } from "@/components/clients/publishing-section";
 import { PublishStatusBar } from "@/components/clients/publish-status-bar";
+import { AuditSection } from "@/components/clients/audit-section";
 import {
   OwnerLayout,
   OwnerView,
@@ -42,7 +44,7 @@ interface Props {
 
 const VALID_OWNER_PAGES: OwnerPageKey[] = [
   "home", "bani", "clienti", "furnizori", "cheltuieli", "venituri",
-  "profit", "eu", "stat", "evolutie", "sanatate",
+  "profit", "eu", "stat", "evolutie", "sanatate", "istoric",
 ];
 
 function resolveOwnerPage(page: string | undefined): OwnerPageKey {
@@ -117,11 +119,12 @@ export default async function ClientDetailPage(props: Props) {
   }
 
   // Default: accountant view with tabs
-  const [transitions, accesses, publishedPeriods, currentStatus] = await Promise.all([
+  const [transitions, accesses, publishedPeriods, currentStatus, auditRows] = await Promise.all([
     getTransitions(client.id),
     listAccessesForClient(client.id),
     listPublishedPeriods(client.id),
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
+    listAccountantAuditTrail(client.id, { limit: 50 }),
   ]);
   const tab = searchParams.tab ?? "jurnal";
 
@@ -219,6 +222,7 @@ export default async function ClientDetailPage(props: Props) {
         />
       }
       publishBar={publishBar}
+      auditSection={<AuditSection rows={auditRows} />}
     />
   );
 }
