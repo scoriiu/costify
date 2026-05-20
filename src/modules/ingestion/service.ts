@@ -4,6 +4,7 @@ import { parseJournalXLSX } from "./journal-parser";
 import { buildPartnerMappings } from "./partner-extractor";
 import { bulkUpsertFromImport } from "@/modules/accounts";
 import { recordAuditEvent } from "@/modules/audit";
+import { markPeriodsAsStale } from "@/modules/publishing";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import type { JournalEntry } from "./types";
@@ -75,6 +76,11 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   await storeJournalLines(input.clientId, importEvent.id, newEntries);
   await updatePartnerMappings(input.clientId, parseResult.entries);
   await bulkUpsertFromImport(input.clientId, parseResult.accountNames);
+
+  const touchedPeriods = uniquePeriods(newEntries);
+  if (touchedPeriods.length > 0) {
+    await markPeriodsAsStale(input.clientId, touchedPeriods);
+  }
 
   await recordAuditEvent({
     tenantId: input.clientId,
@@ -160,6 +166,26 @@ async function storeJournalLines(
   }
 }
 
+function uniquePeriods(entries: JournalEntry[]): Array<{ year: number; month: number }> {
+  const seen = new Map<string, { year: number; month: number }>();
+  for (const e of entries) {
+    const k = `${e.year}-${e.month}`;
+    if (!seen.has(k)) seen.set(k, { year: e.year, month: e.month });
+  }
+  return Array.from(seen.values());
+}
+
+function uniquePeriodsFromDates(dates: Date[]): Array<{ year: number; month: number }> {
+  const seen = new Map<string, { year: number; month: number }>();
+  for (const d of dates) {
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;
+    const k = `${y}-${m}`;
+    if (!seen.has(k)) seen.set(k, { year: y, month: m });
+  }
+  return Array.from(seen.values());
+}
+
 async function updatePartnerMappings(clientId: string, entries: JournalEntry[]) {
   const partners = buildPartnerMappings(entries);
   if (partners.length === 0) return;
@@ -197,6 +223,11 @@ export async function softDeleteEntriesFrom(
     where: { clientId, deletedAt: null, data: { gte: fromDate } },
     data: { deletedAt: new Date() },
   });
+
+  const touched = uniquePeriodsFromDates(entries.map((e) => e.data));
+  if (touched.length > 0) {
+    await markPeriodsAsStale(clientId, touched);
+  }
 
   await recordAuditEvent({
     tenantId: clientId,

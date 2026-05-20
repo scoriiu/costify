@@ -8,8 +8,18 @@ import { getBalanceRows } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
 import { loadOwnerSnapshot } from "@/modules/reporting/owner";
 import { listAccessesForClient } from "@/modules/roles";
+import {
+  listPublishedPeriods,
+  getPublishedView,
+  getLatestPublishedView,
+} from "@/modules/publishing";
 import { ClientDetail } from "@/components/clients/client-detail";
 import { AccessSection } from "@/components/clients/access-section";
+import {
+  PublishingSection,
+  type PublishingSectionRow,
+} from "@/components/clients/publishing-section";
+import { PublishStatusBar } from "@/components/clients/publish-status-bar";
 import {
   OwnerLayout,
   OwnerView,
@@ -72,22 +82,6 @@ export default async function ClientDetailPage(props: Props) {
       activePage,
     });
 
-    // No data → show inside OwnerLayout with a simple message
-    if (!year || !month) {
-      return (
-        <OwnerLayout context={context}>
-          <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
-            <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
-              Inca nu ai date despre firma
-            </h1>
-            <p className="mt-3 text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-              Cand contabilul incarca primul jurnal, vei vedea aici cum sta firma.
-            </p>
-          </div>
-        </OwnerLayout>
-      );
-    }
-
     // Sub-pages other than home: render placeholder (until real pages are built)
     if (activePage !== "home") {
       const meta = OWNER_PAGES[activePage];
@@ -98,35 +92,81 @@ export default async function ClientDetailPage(props: Props) {
       );
     }
 
-    // Home page — full snapshot
-    const [snapshot, balanceResult, catalog] = await Promise.all([
-      loadOwnerSnapshot({
-        clientId: client.id,
-        clientName: client.name,
-        clientCui: client.cui,
-        clientSlug: client.slug,
-        year,
-        month,
-      }),
-      getBalanceRows(client.id, year, month),
-      getCatalogMap(),
-    ]);
+    const published = await getLatestPublishedView(client.id);
 
-    const marja = balanceResult.ok ? computeKpis(balanceResult.data, catalog).marjaOperationala : null;
+    if (!published) {
+      return (
+        <OwnerLayout context={context}>
+          <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
+            <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+              Nicio luna publicata inca
+            </h1>
+            <p className="mt-3 max-w-xl text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              Cand publici prima luna catre firma, patronul va vedea aici cum sta. Pana atunci, vede acelasi ecran ca tine.
+            </p>
+          </div>
+        </OwnerLayout>
+      );
+    }
 
     return (
       <OwnerLayout context={context}>
-        <OwnerView snapshot={snapshot} context={context} marjaOperationala={marja} />
+        <OwnerView snapshot={published.snapshot} context={context} marjaOperationala={null} />
       </OwnerLayout>
     );
   }
 
   // Default: accountant view with tabs
-  const [transitions, accesses] = await Promise.all([
+  const [transitions, accesses, publishedPeriods, currentStatus] = await Promise.all([
     getTransitions(client.id),
     listAccessesForClient(client.id),
+    listPublishedPeriods(client.id),
+    year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
   ]);
   const tab = searchParams.tab ?? "jurnal";
+
+  // Merge journal-having periods with published rows so the Setari panel shows
+  // both "ready to publish" and "already published" months in a single timeline.
+  const publishedMap = new Map(
+    publishedPeriods.map((p) => [`${p.year}-${p.month}`, p])
+  );
+  const journalKeys = new Set(periods.map((p) => `${p.year}-${p.month}`));
+  const allKeys = new Set<string>([...publishedMap.keys(), ...journalKeys]);
+  const publishingRows: PublishingSectionRow[] = Array.from(allKeys)
+    .map((k) => {
+      const [yStr, mStr] = k.split("-");
+      const py = parseInt(yStr, 10);
+      const pm = parseInt(mStr, 10);
+      const pub = publishedMap.get(k);
+      return {
+        year: py,
+        month: pm,
+        isPublished: pub !== undefined,
+        publishedAt: pub ? pub.publishedAt.toISOString() : null,
+        publisherName: pub?.publisherName ?? null,
+        noteForOwner: pub?.noteForOwner ?? null,
+        stale: pub?.stale ?? false,
+        hasJournalData: journalKeys.has(k),
+      };
+    })
+    .sort((a, b) => b.year - a.year || b.month - a.month);
+
+  const publishBar =
+    year && month ? (
+      <PublishStatusBar
+        clientId={client.id}
+        clientSlug={client.slug}
+        year={year}
+        month={month}
+        status={{
+          isPublished: currentStatus !== null,
+          publishedAt: currentStatus?.publishedAt.toISOString() ?? null,
+          publisherName: currentStatus?.publisherName ?? null,
+          noteForOwner: currentStatus?.noteForOwner ?? null,
+          stale: currentStatus?.stale ?? false,
+        }}
+      />
+    ) : null;
 
   return (
     <ClientDetail
@@ -171,6 +211,14 @@ export default async function ClientDetailPage(props: Props) {
           }))}
         />
       }
+      publishSection={
+        <PublishingSection
+          clientId={client.id}
+          clientSlug={client.slug}
+          rows={publishingRows}
+        />
+      }
+      publishBar={publishBar}
     />
   );
 }

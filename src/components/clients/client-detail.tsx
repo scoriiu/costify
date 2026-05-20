@@ -45,6 +45,11 @@ interface Props {
   transitions: TransitionView[];
   /** Server-rendered "Acces clientului" section shown inside the Setari tab. */
   accessSection?: React.ReactNode;
+  /** Server-rendered "Publicare" section shown inside the Setari tab. */
+  publishSection?: React.ReactNode;
+  /** Publish status bar for the currently selected (year, month) — only set
+   *  when on balanta/cpp tabs. Server-fetched. */
+  publishBar?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -65,6 +70,8 @@ export function ClientDetail({
   selectedMonth,
   transitions,
   accessSection,
+  publishSection,
+  publishBar,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -130,6 +137,10 @@ export function ClientDetail({
 
       <TabBar active={tab} onTabChange={(t) => navigate({ tab: t, year: selectedYear, month: selectedMonth })} />
 
+      {(tab === "balanta" || tab === "cpp") && selectedYear && selectedMonth && publishBar && (
+        <div className="mt-4">{publishBar}</div>
+      )}
+
       {unmappedRows.length > 0 && (
         <div className="mt-4">
           <UnmappedBanner rows={unmappedRows} />
@@ -167,6 +178,7 @@ export function ClientDetail({
             transitions={transitions}
             onOpenDeleteModal={() => setDeleteOpen(true)}
             accessSection={accessSection}
+            publishSection={publishSection}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (

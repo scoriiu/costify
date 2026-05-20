@@ -23,9 +23,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions       Session[]
-  clients        Client[]
-  clientAccesses ClientAccess[]
+  sessions          Session[]
+  clients           Client[]
+  clientAccesses    ClientAccess[]
+  publishedPeriods  PublishedPeriod[]
 
   @@index([userRole])
 }
@@ -66,6 +67,7 @@ model Client {
   clientAccounts   ClientAccount[]
   taxRegimePeriods TaxRegimePeriod[]
   accesses         ClientAccess[]
+  publishedPeriods PublishedPeriod[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -92,6 +94,46 @@ model ClientAccess {
   @@unique([userId, clientId])
   @@index([userId])
   @@index([clientId])
+}
+
+/// A snapshot of computed financials for one (client, year, month) period that
+/// the accountant has explicitly marked as visible to the firm's OWNER(s).
+///
+/// Publishing semantics:
+///   - The OWNER only sees periods that have a row here.
+///   - The displayed values come from `snapshotData` (frozen at publish time),
+///     NOT from a live recompute. This protects the patron from in-flight
+///     accountant edits and lets us answer "what did Sorin see on April 18?".
+///   - Re-publishing the same (clientId, year, month) overwrites `snapshotData`,
+///     `publishedAt`, `noteForOwner` and bumps the audit trail.
+///   - Unpublishing deletes the row; OWNER then sees the next-most-recent
+///     published period, or the "nothing published yet" empty state.
+///
+/// `snapshotData` shape is versioned via `snapshotVersion` so we can migrate
+/// the JSON forward as the OwnerSnapshot type evolves. See `modules/publishing`.
+model PublishedPeriod {
+  id              String   @id @default(cuid())
+  clientId        String
+  year            Int
+  month           Int // 1..12
+  publishedBy     String // accountant userId
+  publishedAt     DateTime @default(now())
+  noteForOwner    String? // optional one-liner shown to the OWNER ("Salariile dec incluse")
+  snapshotVersion Int      @default(1)
+  snapshotData    Json // serialized OwnerSnapshot (summary, cashPosition, trends, etc.)
+  snapshotHash    String // SHA-256 of canonical snapshot JSON. Used by audit + change detection.
+  /// Non-null means: the underlying journal for this period changed after `publishedAt`,
+  /// and the accountant should re-publish. Set by import/delete services, cleared by publish.
+  /// Index supports "list stale periods for this client" in O(log n).
+  staleSince      DateTime?
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  publisher User   @relation(fields: [publishedBy], references: [id])
+
+  @@unique([clientId, year, month])
+  @@index([clientId, year(sort: Desc), month(sort: Desc)])
+  @@index([clientId, publishedAt(sort: Desc)])
+  @@index([clientId, staleSince])
 }
 
 /// Timeline of tax regime transitions for a client.
