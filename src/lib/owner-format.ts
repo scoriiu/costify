@@ -35,8 +35,10 @@ export function leiShort(value: number): string {
   return fmtRon0.format(value);
 }
 
-/** "+4,2%" or "-12,3%" with sign and one decimal. */
-export function pctSigned(value: number): string {
+/** "+4,2%" or "-12,3%" with sign and one decimal. Null = previous baseline
+ *  missing or zero, rendered as "n/a". */
+export function pctSigned(value: number | null): string {
+  if (value === null) return "n/a";
   if (value === 0) return "0%";
   const sign = value > 0 ? "+" : "";
   return `${sign}${fmtPct1.format(value)}%`;

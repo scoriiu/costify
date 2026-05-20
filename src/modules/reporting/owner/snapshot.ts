@@ -21,6 +21,12 @@ import {
   computeOwnerWithdrawals,
   computeOutstanding,
   computeInsights,
+  computeExpenseBreakdown,
+  computeRevenueBreakdown,
+  computeTopMonthlyExpenses,
+  computeRunway,
+  computeSalaryAffordability,
+  computeYoy,
 } from "./compute";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
@@ -125,7 +131,20 @@ export async function loadOwnerSnapshot(
     kpis.tvaDePlata,
     kpis.marjaOperationala
   );
+  // Trends are needed both for the chart and for the YoY + runway computations
+  // below — compute once and reuse.
   const trends = await computeMonthlyTrends(clientId, year, month, catalog, 12);
+
+  const expenseBreakdown = computeExpenseBreakdown(rows, catalog);
+  const revenueBreakdown = computeRevenueBreakdown(rows, catalog);
+  const topMonthlyExpenses = computeTopMonthlyExpenses(rows, catalog, 10);
+  const runway = computeRunway(summary, trends, 3);
+  const salaryAffordability = computeSalaryAffordability(
+    rows,
+    catalog,
+    summary.soldRegistruCasa + summary.soldConturiBancare
+  );
+  const yoy = computeYoy(trends, year, month, summary);
 
   return {
     meta: {
@@ -143,5 +162,11 @@ export async function loadOwnerSnapshot(
     trends,
     insights,
     outstanding,
+    expenseBreakdown,
+    revenueBreakdown,
+    topMonthlyExpenses,
+    runway,
+    salaryAffordability,
+    yoy,
   };
 }

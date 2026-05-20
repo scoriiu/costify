@@ -75,6 +75,71 @@ export interface OutstandingPartner {
   sold: number;
 }
 
+/**
+ * One slice of the expense (class 6) or revenue (class 7) breakdown.
+ * Aggregated by 2-digit account base; `label` is the patron-facing Romanian
+ * phrase ("Salarii si contributii", "Vanzari produse"). `percent` is share of
+ * total expenses or revenues that month (0..100).
+ */
+export interface CategoryBreakdownItem {
+  code: string;
+  label: string;
+  value: number;
+  percent: number;
+}
+
+/**
+ * One row in "Top cheltuieli ale lunii": a single leaf 6x account with its
+ * monthly rulajD. Used for the patron to see specifically what cost most.
+ */
+export interface TopMonthlyExpense {
+  cont: string;
+  denumire: string;
+  value: number;
+  /** Share of total monthly expenses (0..100). */
+  percent: number;
+}
+
+/**
+ * Burn rate analysis: how long can the firm operate at the current expense
+ * pace given the cash on hand? Used by the "Runway" card.
+ *
+ * `monthlyBurnRate` = average monthly expenses across the trailing window.
+ * `monthsRemaining` = cash / burn (Infinity if burn==0).
+ * `status` is a coarse classification for UI tone.
+ */
+export interface RunwayProjection {
+  cashAvailable: number;
+  monthlyBurnRate: number;
+  monthsRemaining: number;
+  windowMonths: number;
+  status: "comfortable" | "tight" | "critical" | "unknown";
+}
+
+/**
+ * "Mai poate firma sa plateasca salariile luna asta?"
+ *  monthsCovered = cash / monthlyPayroll.
+ */
+export interface SalaryAffordability {
+  monthlyPayroll: number;
+  cashAvailable: number;
+  monthsCovered: number;
+  status: "comfortable" | "tight" | "critical" | "no_payroll";
+}
+
+/**
+ * Same metric for this month vs the same month one year ago. `delta` is the
+ * absolute change, `deltaPct` the percentage change (null when previous year
+ * was zero or missing).
+ */
+export interface YearOverYearComparison {
+  revenue: { current: number; previous: number; delta: number; deltaPct: number | null };
+  expenses: { current: number; previous: number; delta: number; deltaPct: number | null };
+  profit: { current: number; previous: number; delta: number; deltaPct: number | null };
+  cashEnd: { current: number; previous: number; delta: number; deltaPct: number | null };
+  hasPreviousYear: boolean;
+}
+
 export interface OwnerSnapshot {
   meta: {
     clientId: string;
@@ -94,4 +159,16 @@ export interface OwnerSnapshot {
     clienti: OutstandingPartner[];
     furnizori: OutstandingPartner[];
   };
+  /** Patron-facing breakdown of monthly expenses by 2-digit account class. */
+  expenseBreakdown: CategoryBreakdownItem[];
+  /** Patron-facing breakdown of monthly revenues by 2-digit account class. */
+  revenueBreakdown: CategoryBreakdownItem[];
+  /** Top 10 individual expense accounts that drove the month. */
+  topMonthlyExpenses: TopMonthlyExpense[];
+  /** Cash runway projection at current burn rate. */
+  runway: RunwayProjection;
+  /** Can the firm cover its payroll? */
+  salaryAffordability: SalaryAffordability;
+  /** This month vs same month last year. */
+  yoy: YearOverYearComparison;
 }

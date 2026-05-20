@@ -26,6 +26,10 @@ import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
 import { OutstandingTable } from "./outstanding-table";
 import { InsightsList } from "./insights-list";
+import { CategoryBreakdownCard } from "./category-breakdown-card";
+import { TopExpensesList } from "./top-expenses-list";
+import { RunwayAndSalaryCards } from "./runway-cards";
+import { YoyComparison } from "./yoy-comparison";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
@@ -34,7 +38,21 @@ interface OwnerViewProps {
 }
 
 export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewProps) {
-  const { meta, summary, cashPosition, ownerWithdrawals, trends, insights, outstanding } = snapshot;
+  const {
+    meta,
+    summary,
+    cashPosition,
+    ownerWithdrawals,
+    trends,
+    insights,
+    outstanding,
+    expenseBreakdown,
+    revenueBreakdown,
+    topMonthlyExpenses,
+    runway,
+    salaryAffordability,
+    yoy,
+  } = snapshot;
 
   const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
   const profit = summary.cifraAfaceriTotal - summary.cheltuieliTotal;
@@ -111,6 +129,42 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
             />
           </KpiCardLink>
         </div>
+      </section>
+
+      {yoy.hasPreviousYear && (
+        <section className="mb-10">
+          <YoyComparison yoy={yoy} />
+        </section>
+      )}
+
+      <section className="mb-10">
+        <RunwayAndSalaryCards runway={runway} salary={salaryAffordability} />
+      </section>
+
+      <section className="mb-10">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <CategoryBreakdownCard
+            title="Unde s-au dus banii"
+            subtitle={`Cheltuielile lunii ${monthLabel(meta.year, meta.month)}, grupate.`}
+            items={expenseBreakdown}
+            tone="expenses"
+            emptyMessage="Nicio cheltuiala inregistrata luna aceasta."
+          />
+          <CategoryBreakdownCard
+            title="De unde au venit banii"
+            subtitle={`Veniturile lunii ${monthLabel(meta.year, meta.month)}, grupate.`}
+            items={revenueBreakdown}
+            tone="revenue"
+            emptyMessage="Niciun venit inregistrat luna aceasta."
+          />
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <TopExpensesList
+          items={topMonthlyExpenses}
+          subtitle="Cele mai mari plati ale lunii, ordonate descrescator."
+        />
       </section>
 
       <SectionWithLink href={buildPageHref(context, "bani")} label="Vezi detalii bani" className="mb-10">

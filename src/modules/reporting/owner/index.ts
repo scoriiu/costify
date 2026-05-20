@@ -8,6 +8,11 @@ export type {
   Insight,
   OutstandingPartner,
   OwnerSnapshot,
+  CategoryBreakdownItem,
+  TopMonthlyExpense,
+  RunwayProjection,
+  SalaryAffordability,
+  YearOverYearComparison,
 } from "./types";
 
 export {
@@ -16,6 +21,12 @@ export {
   computeOwnerWithdrawals,
   computeOutstanding,
   computeInsights,
+  computeExpenseBreakdown,
+  computeRevenueBreakdown,
+  computeTopMonthlyExpenses,
+  computeRunway,
+  computeSalaryAffordability,
+  computeYoy,
 } from "./compute";
 
 export { loadOwnerSnapshot } from "./snapshot";

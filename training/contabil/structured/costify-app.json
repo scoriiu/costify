@@ -223,6 +223,42 @@
       "get_balance returneaza acum si unmappedCount si flag unmapped per rand"
     ]
   },
+  "firma_module": {
+    "description": "Modulul /firma este interfata antreprenorului (OWNER) — limbaj patron, fara coduri OMFP, fara debit/credit. Contabilul (ACCOUNTANT) acceseaza acelasi URL cu '?as=clientId' ca preview.",
+    "identity_model": {
+      "User.userRole": "OWNER | ACCOUNTANT",
+      "ClientAccess": "tabel separat: cine (User OWNER) are acces la ce client (read-only)",
+      "redirect_after_login": "OWNER cu 1 client → /firma. OWNER cu N>1 → /firma/selectie. ACCOUNTANT → /clients."
+    },
+    "publishing_model": {
+      "purpose": "OWNER nu vede date in timp real — vede doar luni pe care contabilul le-a publicat explicit. Asta evita ca antreprenorul sa vada cifre incomplete sau in lucru.",
+      "entity": "PublishedPeriod (clientId, year, month, snapshotData, snapshotHash, staleSince, publishedBy)",
+      "lifecycle": "Contabilul publica o luna → snapshot OwnerSnapshot frozen + audit. Modificari ulterioare in jurnal seteaza staleSince. Contabilul republica → snapshot nou.",
+      "ui_accountant": "Tab Balanta/CPP arata bara contextuala 'aprilie 2026 publicat de tine pe X (Re-publica | Retrage)'. Tab Setari arata sectiunea 'Publicare catre firma' cu timeline complet (default 6 luni vizibile, toggle 'Vezi toate').",
+      "ui_owner": "Banner sus 'Date publicate: aprilie 2026 · publicat pe X de Y'. Daca stale: 'Necesita re-publicare'. Daca luna selectata nu este publicata: ecran 'Asteapta sa-ti publice contabilul prima luna'."
+    },
+    "owner_home_cards": {
+      "description": "Pagina /firma (Home) arata urmatoarele sectiuni in ordine, toate calculate din balanta publicata, fara coduri OMFP:",
+      "sections": [
+        "4 KPI cards: Bani in casa si banca, De primit de la clienti, De platit furnizorilor, Profit anul acesta",
+        "Year-over-Year strip: 4 metrici (Vanzari/Cheltuieli/Profit/Cash) comparate cu aceeasi luna anul trecut, cu sageti si pct (ascuns daca nu exista date din anul precedent)",
+        "Runway + Salary cards: 'Cati bani iti ajung' (cash / burn rate mediu pe 3 luni) si 'Cate salarii poti plati' (cash / clasa 64) cu status comfortable/tight/critical",
+        "Breakdown bars: 'Unde s-au dus banii' (categorii cheltuieli 6x cu label patron — Salarii, Servicii, Energie etc) + 'De unde au venit banii' (categorii venituri 7x)",
+        "Top cheltuieli ale lunii: top 10 conturi 6x cu rulajD desc, denumire + pct + suma",
+        "Cash position card, Evolution chart (12 luni), Outstanding clienti/furnizori, Owner withdrawals, Insights"
+      ],
+      "patron_labels": "60→Marfa/materii prime, 61→Energie/apa/intretinere, 62→Servicii externe, 63→Taxe, 64→Salarii, 65→Comisioane, 66→Dobanzi, 68→Amortizare, 69→Impozit profit. Pentru venituri: 70→Vanzari, 74→Subventii, 75→Alte venituri, 76→Financiare.",
+      "implementation": "src/modules/reporting/owner/compute.ts (pure functions). Tipuri in types.ts. UI in src/components/clients/owner/. SNAPSHOT_VERSION=2 (PR-2a)."
+    },
+    "audit_visibility": {
+      "owner_view": "/firma/istoric arata cronologia traduceriilor patron-friendly (filtreaza din audit_event: import, stergere istoric, schimbare denumire cont/banca, publicare luna). NU expune internal noise (firma_dashboard preview, tax_regime transitions).",
+      "accountant_view": "Tab Setari → sectiunea 'Istoric actiuni' arata ultimele 50 evenimente cu vocabular contabil."
+    },
+    "tools_available_for_costi": [
+      "Costi NU are tools care sa atinga direct OwnerSnapshot — el opereaza in vocabular contabil (balanta/CPP/journal/F20).",
+      "Dar Costi trebuie sa stie ce vede firma (snapshot publicat) cand un patron il intreaba: foloseste get_balance/get_cpp pe luna publicata."
+    ]
+  },
   "multi_tenant": {
     "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",
     "isolation": "JournalLine are clientId direct, izolare la nivel de serviciu",

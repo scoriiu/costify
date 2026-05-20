@@ -1,7 +1,14 @@
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
 
-/** Current snapshot schema version. Bump when OwnerSnapshot's shape changes. */
-export const SNAPSHOT_VERSION = 1;
+/** Current snapshot schema version. Bump when OwnerSnapshot's shape changes.
+ *
+ *  Version history:
+ *    1 — initial: meta + summary + cashPosition + ownerWithdrawals + trends +
+ *        insights + outstanding.
+ *    2 — adds expenseBreakdown, revenueBreakdown, topMonthlyExpenses, runway,
+ *        salaryAffordability, yoy.
+ */
+export const SNAPSHOT_VERSION = 2;
 
 /**
  * Frozen representation of one published (client, year, month) period.

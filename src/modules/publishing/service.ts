@@ -303,6 +303,43 @@ function toSummary(row: RowWithPublisher): PublishedPeriodSummary {
 function toView(row: RowWithPublisher): PublishedPeriodView {
   return {
     ...toSummary(row),
-    snapshot: row.snapshotData as unknown as OwnerSnapshot,
+    snapshot: upgradeSnapshot(row.snapshotData as unknown as OwnerSnapshot),
+  };
+}
+
+/**
+ * Backwards-compatibility shim for snapshots persisted before SNAPSHOT_VERSION=2.
+ * Older payloads lack expenseBreakdown / revenueBreakdown / topMonthlyExpenses /
+ * runway / salaryAffordability / yoy — we fill them with empty defaults so the
+ * UI renders gracefully instead of throwing. Republishing the period restores
+ * the real values.
+ */
+function upgradeSnapshot(snap: OwnerSnapshot): OwnerSnapshot {
+  const s = snap as Partial<OwnerSnapshot>;
+  return {
+    ...snap,
+    expenseBreakdown: s.expenseBreakdown ?? [],
+    revenueBreakdown: s.revenueBreakdown ?? [],
+    topMonthlyExpenses: s.topMonthlyExpenses ?? [],
+    runway: s.runway ?? {
+      cashAvailable: 0,
+      monthlyBurnRate: 0,
+      monthsRemaining: 0,
+      windowMonths: 3,
+      status: "unknown",
+    },
+    salaryAffordability: s.salaryAffordability ?? {
+      monthlyPayroll: 0,
+      cashAvailable: 0,
+      monthsCovered: 0,
+      status: "no_payroll",
+    },
+    yoy: s.yoy ?? {
+      revenue: { current: 0, previous: 0, delta: 0, deltaPct: null },
+      expenses: { current: 0, previous: 0, delta: 0, deltaPct: null },
+      profit: { current: 0, previous: 0, delta: 0, deltaPct: null },
+      cashEnd: { current: 0, previous: 0, delta: 0, deltaPct: null },
+      hasPreviousYear: false,
+    },
   };
 }
