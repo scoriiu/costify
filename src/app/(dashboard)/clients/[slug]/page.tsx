@@ -15,10 +15,8 @@ import {
 } from "@/modules/publishing";
 import { listAccountantAuditTrail } from "@/modules/audit";
 import { loadMapariCashflow } from "@/modules/categories";
-import { listVerticals } from "@/modules/verticals";
 import { ClientDetail } from "@/components/clients/client-detail";
 import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
-import { VerticalsSection } from "@/components/clients/verticals-section";
 import { AccessSection } from "@/components/clients/access-section";
 import {
   PublishingSection,
@@ -168,20 +166,6 @@ export default async function ClientDetailPage(props: Props) {
         ))
       : null;
 
-  // Verticals section is shown inside Setari. Pre-fetched only when the user
-  // is on that tab to avoid an extra query on every visit.
-  const verticalsSection =
-    tab === "setari"
-      ? await listVerticals(prisma, client.id).then((verticals) => (
-          <VerticalsSection
-            clientId={client.id}
-            clientSlug={client.slug}
-            enabled={client.verticalsEnabled}
-            verticals={verticals}
-          />
-        ))
-      : null;
-
   const publishBar =
     year && month ? (
       <PublishStatusBar
@@ -252,7 +236,6 @@ export default async function ClientDetailPage(props: Props) {
       publishBar={publishBar}
       auditSection={<AuditSection rows={auditRows} />}
       mapariCashflowSection={mapariCashflowSection}
-      verticalsSection={verticalsSection}
     />
   );
 }

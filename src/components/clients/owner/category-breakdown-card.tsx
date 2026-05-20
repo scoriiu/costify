@@ -38,14 +38,19 @@ export function CategoryBreakdownCard({
     );
   }
 
-  const max = Math.max(...items.map((i) => Math.abs(i.value)));
+  // The bar visualizes the share of root-level items. Sub-categories share
+  // the bar of their parent (we don't draw a separate bar for them).
+  const rootMax = Math.max(
+    ...items.filter((i) => (i.depth ?? 0) === 0).map((i) => Math.abs(i.value)),
+    1
+  );
 
   return (
     <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
       <Header title={title} subtitle={subtitle} />
       <ul className="mt-5 space-y-3">
         {items.map((item) => (
-          <BreakdownBar key={item.code} item={item} max={max} tone={tone} />
+          <BreakdownBar key={item.code} item={item} max={rootMax} tone={tone} />
         ))}
       </ul>
     </div>
@@ -82,6 +87,31 @@ function BreakdownBar({
   max: number;
   tone: "expenses" | "revenue";
 }) {
+  const depth = item.depth ?? 0;
+  // Sub-categories: smaller, indented, no bar of their own. The patron sees
+  // them as detail-rows beneath their parent.
+  if (depth > 0) {
+    return (
+      <li
+        className="flex items-baseline justify-between gap-3"
+        style={{ paddingLeft: `${depth * 1.25}rem` }}
+      >
+        <span
+          className="text-[12px] text-gray-light truncate flex items-center gap-1.5"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          <span className="text-gray" aria-hidden>
+            ›
+          </span>
+          {item.label}
+        </span>
+        <span className="font-mono text-[12px] text-gray-light tabular-nums shrink-0">
+          {lei(item.value)}
+        </span>
+      </li>
+    );
+  }
+
   const widthPct = max > 0 ? (Math.abs(item.value) / max) * 100 : 0;
   const barColor =
     tone === "expenses"

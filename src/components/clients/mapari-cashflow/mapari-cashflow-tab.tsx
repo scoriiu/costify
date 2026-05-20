@@ -3,25 +3,28 @@
 /**
  * "Mapari Cashflow" tab — accountant-only screen on /clients/[slug].
  *
- * Two-panel layout:
- *   - Left: category tree (expense + revenue roots), with mapping counts and
- *     a button to add a new category under any node.
- *   - Right: list of class 6/7 accounts present in the firm's journal, each
- *     with a Select to pick its category and small badges showing where the
- *     mapping comes from (analytic override vs inherited from contBase).
+ * Linear, numbered three-step flow, top to bottom:
+ *
+ *   1. Categorii — how to group costs/revenues (axa A, generic OMFP defaults).
+ *   2. Verticale — optional, only if firm has multiple business lines (axa B).
+ *   3. Conturi — actual mapping of each chart-of-accounts entry to (1) and (2).
+ *
+ * The three sections live on the same page so the accountant does not need to
+ * context-switch between Setari and Mapari to configure cashflow. Every non-
+ * obvious affordance has a Tooltip explaining what it does and giving examples.
  *
  * All mutations go through server actions and the page revalidates afterwards.
- * No client-side optimistic state — feels slower by a tick but eliminates the
- * "saved but UI lies" class of bugs entirely.
+ * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
 import type {
   CostCategoryNode,
   MappingScope,
@@ -35,6 +38,13 @@ import {
   mapAccountAction,
   unmapAccountAction,
 } from "@/modules/categories/actions";
+import {
+  enableVerticalsAction,
+  disableVerticalsAction,
+  createVerticalAction,
+  renameVerticalAction,
+  deleteVerticalAction,
+} from "@/modules/verticals/actions";
 import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
 import { VerticalPicker } from "./vertical-picker";
 import type { VerticalView } from "@/modules/verticals";
@@ -48,6 +58,7 @@ type Filter = "all" | "unmapped" | "expense" | "revenue";
 export function MapariCashflowTab({ data }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
+  const onMutate = () => router.refresh();
 
   const filteredAccounts = data.accounts.filter((a) => {
     if (filter === "expense") return a.kind === "expense";
@@ -59,15 +70,48 @@ export function MapariCashflowTab({ data }: Props) {
   const unmappedCount = data.accounts.filter((a) => a.currentMapping === null).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-6xl">
       <PageHeader period={data.period} freshlySeeded={data.freshlySeeded} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
+      <StepSection
+        number={1}
+        title="Categorii"
+        helper="Cum vrei sa numesti grupurile de cheltuieli si venituri ale firmei. Acestea apar pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii'. Am pornit cu o lista OMFP standard — redenumeste sau adauga ce vrei."
+      >
         <CategoryTreePanel
           tree={data.tree}
           clientId={data.clientId}
-          onMutate={() => router.refresh()}
+          onMutate={onMutate}
         />
+      </StepSection>
+
+      <StepSection
+        number={2}
+        title="Verticale de business"
+        optional
+        helper={
+          data.verticalsEnabled
+            ? "Linii de business pe care le urmaresti separat. Conturile fara verticala alocata merg la 'Toata firma'."
+            : "Activeaza doar daca firma are mai multe linii de business (exemplu QHM21: Outsourcing, Recruitment, Coworking). Pentru majoritatea firmelor nu e necesar."
+        }
+      >
+        <VerticalsPanel
+          clientId={data.clientId}
+          enabled={data.verticalsEnabled}
+          verticals={data.verticals}
+          onMutate={onMutate}
+        />
+      </StepSection>
+
+      <StepSection
+        number={3}
+        title="Mapeaza conturile"
+        helper={
+          data.verticalsEnabled
+            ? "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie si optional la o verticala. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza."
+            : "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza."
+        }
+      >
         <AccountListPanel
           accounts={filteredAccounts}
           totalAccounts={data.accounts.length}
@@ -78,8 +122,531 @@ export function MapariCashflowTab({ data }: Props) {
           clientId={data.clientId}
           verticalsEnabled={data.verticalsEnabled}
           verticals={data.verticals}
-          onMutate={() => router.refresh()}
+          onMutate={onMutate}
         />
+      </StepSection>
+    </div>
+  );
+}
+
+function StepSection({
+  number,
+  title,
+  helper,
+  optional,
+  children,
+}: {
+  number: number;
+  title: string;
+  helper: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-3">
+        <div className="flex items-baseline gap-3">
+          <span
+            className="font-mono text-[11px] uppercase tracking-wider text-primary"
+            aria-hidden
+          >
+            Pasul {number}
+          </span>
+          <h3
+            className="text-[18px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            {title}
+          </h3>
+          {optional && (
+            <span
+              className="font-mono text-[10px] uppercase tracking-wider text-gray"
+              aria-hidden
+            >
+              optional
+            </span>
+          )}
+        </div>
+        <p
+          className="mt-1 text-[12px] text-gray max-w-3xl"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {helper}
+        </p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          VERTICALS PANEL (PASUL 2)                         */
+/* -------------------------------------------------------------------------- */
+
+function VerticalsPanel({
+  clientId,
+  enabled,
+  verticals,
+  onMutate,
+}: {
+  clientId: string;
+  enabled: boolean;
+  verticals: VerticalView[];
+  onMutate: () => void;
+}) {
+  if (!enabled) {
+    return <VerticalsOff clientId={clientId} onMutate={onMutate} />;
+  }
+  return <VerticalsOn clientId={clientId} verticals={verticals} onMutate={onMutate} />;
+}
+
+function VerticalsOff({
+  clientId,
+  onMutate,
+}: {
+  clientId: string;
+  onMutate: () => void;
+}) {
+  const [modalOpen, setModalOpen] = useState(false);
+  return (
+    <>
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+        <div className="flex items-start gap-3">
+          <Layers size={16} className="text-gray mt-1 shrink-0" />
+          <div className="flex-1">
+            <p
+              className="text-[13px] text-gray-light max-w-2xl"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Daca firma are mai multe linii distincte (Outsourcing, Recruitment,
+              Coworking, sau proiecte separate), poti vedea cat aduce si
+              cheltuieste fiecare. Datele existente raman neatinse — activezi si
+              dezactivezi oricand.
+            </p>
+            <div className="mt-3">
+              <Button variant="primary" onClick={() => setModalOpen(true)}>
+                Activeaza verticale
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {modalOpen && (
+        <ActivateVerticalsModal
+          clientId={clientId}
+          onClose={() => setModalOpen(false)}
+          onDone={() => {
+            setModalOpen(false);
+            onMutate();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function VerticalsOn({
+  clientId,
+  verticals,
+  onMutate,
+}: {
+  clientId: string;
+  verticals: VerticalView[];
+  onMutate: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function deactivate() {
+    if (
+      !confirm(
+        "Dezactivez verticalele? Datele se pastreaza si pot fi reactivate oricand."
+      )
+    )
+      return;
+    startTransition(async () => {
+      await disableVerticalsAction({ clientId });
+      onMutate();
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Layers size={14} className="text-primary" />
+          <span
+            className="text-[13px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {verticals.length} verticale active
+          </span>
+        </div>
+        <Tooltip content="Ascunde verticalele peste tot. Datele se pastreaza si pot fi reactivate oricand.">
+          <button
+            type="button"
+            onClick={deactivate}
+            disabled={pending}
+            className="text-[11px] text-gray hover:text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Dezactiveaza
+          </button>
+        </Tooltip>
+      </div>
+
+      <ul className="space-y-1">
+        {verticals.map((v) => (
+          <VerticalRow key={v.id} vertical={v} clientId={clientId} onMutate={onMutate} />
+        ))}
+      </ul>
+
+      {adding ? (
+        <AddVerticalInline
+          clientId={clientId}
+          onDone={() => {
+            setAdding(false);
+            onMutate();
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      ) : (
+        <Tooltip content="Adauga o noua linie de business (exemplu: 'Consultanta strategica' separat de 'Outsourcing tehnic').">
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-primary hover:text-primary-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <Plus size={12} /> Adauga verticala
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+function VerticalRow({
+  vertical,
+  clientId,
+  onMutate,
+}: {
+  vertical: VerticalView;
+  clientId: string;
+  onMutate: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function remove() {
+    if (
+      !confirm(
+        `Sterg verticala "${vertical.name}"? Conturile alocate aici trec automat la "Toata firma".`
+      )
+    )
+      return;
+    startTransition(async () => {
+      const r = await deleteVerticalAction({ clientId, verticalId: vertical.id });
+      if (r.error) alert(r.error);
+      else onMutate();
+    });
+  }
+
+  if (renaming) {
+    return (
+      <li>
+        <RenameVerticalInline
+          vertical={vertical}
+          clientId={clientId}
+          onDone={() => {
+            setRenaming(false);
+            onMutate();
+          }}
+          onCancel={() => setRenaming(false)}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className="group flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-dark-3/50">
+      <span
+        className="flex-1 text-[13px] text-gray-light"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {vertical.name}
+        {vertical.isDefault && (
+          <Tooltip content="Verticala implicita unde merg conturile fara alocare. Nu poti sterge, doar redenumi.">
+            <span className="ml-2 font-mono text-[10px] uppercase tracking-wider text-gray cursor-help">
+              implicit
+            </span>
+          </Tooltip>
+        )}
+      </span>
+      <span className="font-mono text-[11px] text-gray tabular-nums shrink-0">
+        {vertical.allocationCount} conturi
+      </span>
+      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+        <Tooltip content="Redenumeste">
+          <button
+            type="button"
+            onClick={() => setRenaming(true)}
+            className="p-1 text-gray hover:text-primary"
+          >
+            <Pencil size={11} />
+          </button>
+        </Tooltip>
+        {!vertical.isDefault && (
+          <Tooltip content="Sterge verticala. Conturile alocate aici trec la 'Toata firma'.">
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              className="p-1 text-gray hover:text-rose-300"
+            >
+              <Trash2 size={11} />
+            </button>
+          </Tooltip>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function RenameVerticalInline({
+  vertical,
+  clientId,
+  onDone,
+  onCancel,
+}: {
+  vertical: VerticalView;
+  clientId: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(vertical.name);
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    const trimmed = name.trim();
+    if (trimmed.length === 0 || trimmed === vertical.name) {
+      onCancel();
+      return;
+    }
+    startTransition(async () => {
+      const r = await renameVerticalAction({
+        clientId,
+        verticalId: vertical.id,
+        name: trimmed,
+      });
+      if (r.error) {
+        alert(r.error);
+        onCancel();
+      } else {
+        onDone();
+      }
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2 py-1.5 px-2">
+      <Input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={pending}
+        className="p-1 text-primary hover:text-primary-light"
+      >
+        <Check size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="p-1 text-gray hover:text-gray-light"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+function AddVerticalInline({
+  clientId,
+  onDone,
+  onCancel,
+}: {
+  clientId: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit() {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return;
+    setError(null);
+    startTransition(async () => {
+      const r = await createVerticalAction({ clientId, name: trimmed });
+      if (r.error) setError(r.error);
+      else onDone();
+    });
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <Input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Nume verticala"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <Button variant="primary" onClick={submit} disabled={pending || !name.trim()}>
+        Adauga
+      </Button>
+      <Button variant="ghost" onClick={onCancel}>
+        Renunta
+      </Button>
+      {error && <p className="text-[11px] text-rose-300">{error}</p>}
+    </div>
+  );
+}
+
+function ActivateVerticalsModal({
+  clientId,
+  onClose,
+  onDone,
+}: {
+  clientId: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [names, setNames] = useState<string[]>(["", "", ""]);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function updateName(idx: number, value: string) {
+    setNames((prev) => prev.map((n, i) => (i === idx ? value : n)));
+  }
+  function addRow() {
+    setNames((prev) => [...prev, ""]);
+  }
+  function removeRow(idx: number) {
+    setNames((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function submit() {
+    setError(null);
+    const cleaned = names.map((n) => n.trim()).filter((n) => n.length > 0);
+    if (cleaned.length === 0) {
+      setError("Adauga cel putin o verticala (exemplu: 'Outsourcing').");
+      return;
+    }
+    startTransition(async () => {
+      const enableResult = await enableVerticalsAction({ clientId });
+      if (enableResult.error) {
+        setError(enableResult.error);
+        return;
+      }
+      for (const name of cleaned) {
+        const r = await createVerticalAction({ clientId, name });
+        if (r.error) {
+          setError(`Eroare la "${name}": ${r.error}`);
+          return;
+        }
+      }
+      onDone();
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl border border-dark-3 bg-dark-2 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2
+          className="text-[18px] font-semibold text-white"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          Configureaza verticalele firmei
+        </h2>
+        <p
+          className="mt-2 text-[13px] text-gray-light"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Scrie numele liniilor de business pe care vrei sa le urmaresti. Poti
+          adauga sau modifica oricand.
+        </p>
+        <ul className="mt-5 space-y-2">
+          {names.map((name, idx) => (
+            <li key={idx} className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-gray w-5 shrink-0 tabular-nums">
+                {idx + 1}.
+              </span>
+              <Input
+                value={name}
+                onChange={(e) => updateName(idx, e.target.value)}
+                placeholder={
+                  idx === 0 ? "Outsourcing" : idx === 1 ? "Recruitment" : idx === 2 ? "Coworking" : "Alt nume"
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                }}
+              />
+              {names.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(idx)}
+                  className="p-1 text-gray hover:text-rose-300"
+                  title="Sterge"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+        <button
+          type="button"
+          onClick={addRow}
+          className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-primary hover:text-primary-light"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          <Plus size={12} /> Adauga inca una
+        </button>
+        <p
+          className="mt-5 text-[11px] text-gray italic"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Verticala &quot;Toata firma&quot; se creeaza automat ca fallback pentru
+          conturi nealocate.
+        </p>
+        {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
+            Renunta
+          </Button>
+          <Button variant="primary" onClick={submit} disabled={pending}>
+            {pending ? "Se salveaza..." : "Salveaza si continua"}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -149,19 +716,21 @@ function CategoryTreePanel({
   const revenueRoots = tree.filter((n) => n.kind === "revenue");
 
   return (
-    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5 self-start">
-      <CategorySection
-        title="Cheltuieli"
-        subtitle="Cum vede patronul iesirile firmei"
-        kind="expense"
-        roots={expenseRoots}
-        clientId={clientId}
-        onMutate={onMutate}
-      />
-      <div className="border-t border-dark-3 pt-5">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+        <CategorySection
+          title="Cheltuieli"
+          subtitle="Iesirile firmei"
+          kind="expense"
+          roots={expenseRoots}
+          clientId={clientId}
+          onMutate={onMutate}
+        />
+      </div>
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
         <CategorySection
           title="Venituri"
-          subtitle="Cum vede patronul intrarile firmei"
+          subtitle="Intrarile firmei"
           kind="revenue"
           roots={revenueRoots}
           clientId={clientId}
@@ -293,35 +862,38 @@ function CategoryTreeNode({
               {node.name}
             </span>
             {node.isOmfpDefault && (
-              <span
-                className="font-mono text-[9px] uppercase tracking-wider text-gray shrink-0"
-                title="Categorie default OMFP"
-              >
-                OMFP
-              </span>
+              <Tooltip content="Categorie generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-gray shrink-0 cursor-help">
+                  OMFP
+                </span>
+              </Tooltip>
             )}
             {node.mappingCount > 0 && (
-              <span className="font-mono text-[10px] text-gray tabular-nums shrink-0">
-                {node.mappingCount}
-              </span>
+              <Tooltip content={`${node.mappingCount} conturi mapate direct la aceasta categorie.`}>
+                <span className="font-mono text-[10px] text-gray tabular-nums shrink-0 cursor-help">
+                  {node.mappingCount}
+                </span>
+              </Tooltip>
             )}
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setAddingAt(node.id)}
-                title="Adauga subcategorie"
-                className="p-1 text-gray hover:text-primary"
-              >
-                <Plus size={11} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setRenaming(true)}
-                title="Redenumeste"
-                className="p-1 text-gray hover:text-primary"
-              >
-                <Pencil size={11} />
-              </button>
+              <Tooltip content="Adauga sub-categorie. Va aparea indentata sub aceasta categorie pe /firma.">
+                <button
+                  type="button"
+                  onClick={() => setAddingAt(node.id)}
+                  className="p-1 text-gray hover:text-primary"
+                >
+                  <Plus size={11} />
+                </button>
+              </Tooltip>
+              <Tooltip content="Redenumeste categoria.">
+                <button
+                  type="button"
+                  onClick={() => setRenaming(true)}
+                  className="p-1 text-gray hover:text-primary"
+                >
+                  <Pencil size={11} />
+                </button>
+              </Tooltip>
               <DeleteCategoryButton
                 node={node}
                 clientId={clientId}
@@ -520,20 +1092,21 @@ function DeleteCategoryButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={submit}
-      disabled={pending}
-      title={error ?? "Sterge categoria"}
-      className="p-1 text-gray hover:text-rose-300"
-    >
-      <Trash2 size={11} />
-    </button>
+    <Tooltip content={error ?? "Sterge categoria. Trebuie sa muti intai conturile alocate la alta categorie."}>
+      <button
+        type="button"
+        onClick={submit}
+        disabled={pending}
+        className="p-1 text-gray hover:text-rose-300"
+      >
+        <Trash2 size={11} />
+      </button>
+    </Tooltip>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           RIGHT — ACCOUNT LIST                             */
+/*                           ACCOUNT LIST (PASUL 3)                            */
 /* -------------------------------------------------------------------------- */
 
 function AccountListPanel({
@@ -719,21 +1292,24 @@ function AccountRow({
           </span>
         </div>
         <div className="flex items-center gap-3 mt-0.5">
-          <span className="font-mono text-[11px] text-gray tabular-nums">
-            rulaj {formatRon(rulaj)}
-          </span>
-          {account.currentMapping === null && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-rose-300">
-              <AlertTriangle size={10} /> Nemapat
+          <Tooltip content="Rulajul contului din ultima luna inregistrata. Reper rapid sa vezi ce conturi merita atentie.">
+            <span className="font-mono text-[11px] text-gray tabular-nums cursor-help">
+              rulaj {formatRon(rulaj)}
             </span>
+          </Tooltip>
+          {account.currentMapping === null && (
+            <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
+              <span className="inline-flex items-center gap-1 text-[10px] text-rose-300 cursor-help">
+                <AlertTriangle size={10} /> Nemapat
+              </span>
+            </Tooltip>
           )}
           {account.hasAnalyticOverride && (
-            <span
-              className="text-[10px] text-amber-300"
-              title="Acest cont analitic are o mapare proprie diferita de cea a bazei"
-            >
-              override analitic
-            </span>
+            <Tooltip content="Acest cont analitic are propria mapare, diferita de cea a contului de baza.">
+              <span className="text-[10px] text-amber-300 cursor-help">
+                override analitic
+              </span>
+            </Tooltip>
           )}
         </div>
       </div>
@@ -789,23 +1365,26 @@ function ScopeToggle({
   }
   const active = scope === "analytic";
   return (
-    <button
-      type="button"
-      onClick={() => onChange(active ? "contBase" : "analytic")}
-      disabled={disabled}
-      title={
+    <Tooltip
+      content={
         active
-          ? "Acest cont este mapat individual. Click pentru a folosi maparea bazei."
-          : "Acest cont mosteneste maparea bazei. Click pentru a-l mapa individual."
+          ? "Acest cont analitic are propria mapare. Click pentru a-l face sa mosteneasca maparea bazei (ex: 628 = 'Servicii externe' pentru toate 628.xx)."
+          : "Acest cont analitic mosteneste maparea bazei. Click pentru a-l mapa individual (ex: 628.01 NOLICH = 'Outsourcing IT' separat de restul 628.xx)."
       }
-      className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
-        active
-          ? "border-amber-300/30 bg-amber-300/10 text-amber-300"
-          : "border-dark-3 bg-dark-3/50 text-gray hover:text-gray-light"
-      }`}
     >
-      {active ? "individual" : "din baza"}
-    </button>
+      <button
+        type="button"
+        onClick={() => onChange(active ? "contBase" : "analytic")}
+        disabled={disabled}
+        className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+          active
+            ? "border-amber-300/30 bg-amber-300/10 text-amber-300"
+            : "border-dark-3 bg-dark-3/50 text-gray hover:text-gray-light"
+        }`}
+      >
+        {active ? "individual" : "din baza"}
+      </button>
+    </Tooltip>
   );
 }
 

@@ -728,10 +728,11 @@ function computeBreakdownByCategory(
   const leaves = rows.filter((r) => r.isLeaf);
   const classDigit = kind === "expense" ? "6" : "7";
 
-  // Two parallel buckets: one keyed by ROOT category id (label = root name)
-  // for mapped accounts, one keyed by fallback OMFP 2-digit code for the
-  // long tail. Both rendered together so the patron sees their full month.
-  const byRoot = new Map<string, { label: string; value: number }>();
+  // Accumulate by EXACT category id (the one the mapping points at). Children
+  // and ancestors are tracked separately so the patron can see both the rolled-
+  // up total ("Salarii: 50.000 lei") and the sub-totals ("Brut: 35.000",
+  // "Bonus: 15.000") indented underneath.
+  const byCategoryId = new Map<string, { value: number; node: typeof resolver.byId extends Map<string, infer N> ? N : never }>();
   const byFallbackCode = new Map<string, number>();
 
   for (const row of leaves) {
@@ -754,13 +755,13 @@ function computeBreakdownByCategory(
 
     const resolved = resolveCategoryForCont(row.cont, resolver);
     if (resolved) {
-      const root = resolved.path[0];
-      if (root.kind !== kind) continue; // mapping wrong-kinded — shouldn't happen, defensive
-      const existing = byRoot.get(root.id);
+      const matched = resolved.category;
+      if (resolved.path[0].kind !== kind) continue; // defensive
+      const existing = byCategoryId.get(matched.id);
       if (existing) {
         existing.value += amount;
       } else {
-        byRoot.set(root.id, { label: root.name, value: amount });
+        byCategoryId.set(matched.id, { value: amount, node: matched });
       }
     } else {
       const code = base.substring(0, 2);
@@ -768,30 +769,76 @@ function computeBreakdownByCategory(
     }
   }
 
+  // Roll-up ancestor totals: if "Salarii brut" got 35k mapped to it, the parent
+  // "Salarii" should reflect 35k (plus its own direct mappings, if any).
+  // Walk each touched node up the parent chain and accumulate.
+  const rolledUp = new Map<string, number>();
+  for (const { value, node } of byCategoryId.values()) {
+    let cur: typeof node | undefined = node;
+    while (cur) {
+      rolledUp.set(cur.id, (rolledUp.get(cur.id) ?? 0) + value);
+      cur = cur.parentId ? resolver.byId.get(cur.parentId) : undefined;
+    }
+  }
+
+  // Build display items: a depth-first walk over the category tree, emitting
+  // a row for every node that has either a direct mapping or a non-zero
+  // rolled-up total. Root → indented children.
+  const items: CategoryBreakdownItem[] = [];
+  const visited = new Set<string>();
+
+  function emit(nodeId: string, depth: number): void {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+    const node = resolver.byId.get(nodeId);
+    if (!node) return;
+    const rolled = rolledUp.get(nodeId) ?? 0;
+    if (Math.abs(rolled) < 0.01) return;
+    items.push({
+      code: nodeId,
+      label: node.name,
+      value: round2(rolled),
+      percent: 0,
+      depth,
+    });
+    for (const child of node.children) {
+      emit(child.id, depth + 1);
+    }
+  }
+
+  // Find roots — nodes whose parent is null AND that have any rolled value.
+  // Need to iterate resolver state, not just byCategoryId, since a leaf-only
+  // mapping still requires emitting its ancestor roots.
+  const allRoots = Array.from(resolver.byId.values()).filter(
+    (n) => n.parentId === null && n.kind === kind
+  );
+  for (const root of allRoots) {
+    emit(root.id, 0);
+  }
+
+  // Fallback rows (no mapping in resolver) at depth 0.
   const labelsForFallback =
     kind === "expense" ? EXPENSE_LABELS_PATRON : REVENUE_LABELS_PATRON;
-
-  const items: CategoryBreakdownItem[] = [];
-  for (const [id, { label, value }] of byRoot.entries()) {
-    items.push({ code: id, label, value: round2(value), percent: 0 });
-  }
   for (const [code, value] of byFallbackCode.entries()) {
     items.push({
       code: `fallback:${code}`,
       label: labelsForFallback[code] ?? `Categoria ${code}`,
       value: round2(value),
       percent: 0,
+      depth: 0,
     });
   }
 
-  const total = items.reduce((s, i) => s + Math.abs(i.value), 0);
+  // Total for percentages = sum of ROOT items only (depth=0). Otherwise we
+  // double-count parents and children.
+  const rootSum = items
+    .filter((i) => (i.depth ?? 0) === 0)
+    .reduce((s, i) => s + Math.abs(i.value), 0);
   for (const item of items) {
-    item.percent = total > 0 ? round2((Math.abs(item.value) / total) * 100) : 0;
+    item.percent = rootSum > 0 ? round2((Math.abs(item.value) / rootSum) * 100) : 0;
   }
 
-  return items
-    .filter((i) => Math.abs(i.value) > 0.01)
-    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+  return items.filter((i) => Math.abs(i.value) > 0.01);
 }
 
 /* -------------------------------------------------------------------------- */

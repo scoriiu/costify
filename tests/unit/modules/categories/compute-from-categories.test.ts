@@ -51,7 +51,7 @@ function childNode(
 }
 
 describe("computeExpenseBreakdownFromCategories", () => {
-  it("rolls up amounts to ROOT category, even when accounts map to children", () => {
+  it("rolls up to ROOT and surfaces sub-categories indented under it", () => {
     const salarii = rootNode("c-sal", "Salarii echipa", "expense");
     const salariiBrut = childNode("c-sal-brut", "c-sal", "Brut", "expense");
     const salariiContrib = childNode("c-sal-c", "c-sal", "Contributii", "expense");
@@ -70,10 +70,18 @@ describe("computeExpenseBreakdownFromCategories", () => {
     ];
 
     const result = computeExpenseBreakdownFromCategories(rows, CATALOG, resolver);
-    expect(result).toHaveLength(1);
-    expect(result[0].label).toBe("Salarii echipa");
-    expect(result[0].value).toBe(50000);
-    expect(result[0].percent).toBe(100);
+    // 1 root (Salarii echipa) + 2 leaves (Brut, Contributii) all surfaced.
+    expect(result).toHaveLength(3);
+    const root = result.find((i) => i.label === "Salarii echipa");
+    const brut = result.find((i) => i.label === "Brut");
+    const contrib = result.find((i) => i.label === "Contributii");
+    expect(root?.value).toBe(50000);
+    expect(root?.depth).toBe(0);
+    expect(root?.percent).toBe(100);
+    expect(brut?.value).toBe(40000);
+    expect(brut?.depth).toBe(1);
+    expect(contrib?.value).toBe(10000);
+    expect(contrib?.depth).toBe(1);
   });
 
   it("falls back to OMFP 2-digit when an account has no mapping", () => {

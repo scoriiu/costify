@@ -86,6 +86,10 @@ export interface CategoryBreakdownItem {
   label: string;
   value: number;
   percent: number;
+  /** Depth in the category tree. 0 = root, 1 = first sub-category, etc.
+   *  Used by the UI to indent visually. Items from the OMFP fallback path
+   *  always have depth 0. */
+  depth?: number;
 }
 
 /**
