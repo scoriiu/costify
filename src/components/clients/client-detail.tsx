@@ -54,6 +54,8 @@ interface Props {
   auditSection?: React.ReactNode;
   /** Server-rendered "Mapari Cashflow" tab content. Lazily server-loaded. */
   mapariCashflowSection?: React.ReactNode;
+  /** Server-rendered "Verticale de business" section inside the Setari tab. */
+  verticalsSection?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -79,6 +81,7 @@ export function ClientDetail({
   publishBar,
   auditSection,
   mapariCashflowSection,
+  verticalsSection,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -188,6 +191,7 @@ export function ClientDetail({
             accessSection={accessSection}
             publishSection={publishSection}
             auditSection={auditSection}
+            verticalsSection={verticalsSection}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (

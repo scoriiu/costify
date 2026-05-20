@@ -30,6 +30,7 @@ import { CategoryBreakdownCard } from "./category-breakdown-card";
 import { TopExpensesList } from "./top-expenses-list";
 import { RunwayAndSalaryCards } from "./runway-cards";
 import { YoyComparison } from "./yoy-comparison";
+import { VerticalBreakdownCard } from "./vertical-breakdown-card";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
@@ -52,6 +53,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
     runway,
     salaryAffordability,
     yoy,
+    verticalBreakdown,
   } = snapshot;
 
   const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
@@ -166,6 +168,15 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
           subtitle="Cele mai mari plati ale lunii, ordonate descrescator."
         />
       </section>
+
+      {verticalBreakdown.length > 0 && (
+        <section className="mb-10">
+          <VerticalBreakdownCard
+            items={verticalBreakdown}
+            periodLabel={monthLabel(meta.year, meta.month)}
+          />
+        </section>
+      )}
 
       <SectionWithLink href={buildPageHref(context, "bani")} label="Vezi detalii bani" className="mb-10">
         <CashPositionCard data={cashPosition} />

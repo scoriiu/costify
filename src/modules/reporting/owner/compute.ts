@@ -16,6 +16,8 @@ import type { BalanceRowView } from "@/modules/balances";
 import type { CatalogAccount } from "@/modules/accounts";
 import type { ResolverState } from "@/modules/categories";
 import { resolveCategoryForCont } from "@/modules/categories";
+import type { VerticalResolverState } from "@/modules/verticals";
+import { resolveAllocationForCont, applySplit } from "@/modules/verticals";
 import type {
   FinancialSummary,
   CashPosition,
@@ -30,6 +32,7 @@ import type {
   SalaryAffordability,
   YearOverYearComparison,
   MonthlyTrendPoint,
+  VerticalBreakdownItem,
 } from "./types";
 
 /**
@@ -789,4 +792,89 @@ function computeBreakdownByCategory(
   return items
     .filter((i) => Math.abs(i.value) > 0.01)
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+}
+
+/* -------------------------------------------------------------------------- */
+/*            VERTICAL BREAKDOWN (Axa B) — PR-2c                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Decompose this month's revenue and expenses across the firm's verticals.
+ *
+ * For every leaf class 6 / 7 account:
+ *   1. Determine the monthly amount (rulajD for expenses, rulajC for revenues,
+ *      contra-account 609/709 subtracts).
+ *   2. Resolve the cont through the VerticalResolver to get its splits.
+ *   3. Apply the percentages and add the slices to each vertical's bucket.
+ *
+ * Verticals with zero in both revenue and expenses are still returned with all
+ * zeros — the UI may want to show them so the patron sees "yes, my Coworking
+ * line is silent this month" rather than wondering if it broke.
+ */
+export function computeVerticalBreakdown(
+  rows: BalanceRowView[],
+  catalog: Map<string, CatalogAccount>,
+  resolver: VerticalResolverState,
+  verticals: Array<{ id: string; name: string; isDefault: boolean }>
+): VerticalBreakdownItem[] {
+  const totals = new Map<string, { revenue: number; expenses: number }>();
+  for (const v of verticals) totals.set(v.id, { revenue: 0, expenses: 0 });
+
+  const leaves = rows.filter((r) => r.isLeaf);
+  for (const row of leaves) {
+    const base = row.contBase;
+    const first = base.charAt(0);
+    if (first !== "6" && first !== "7") continue;
+    const meta = lookupByBase(base, catalog);
+    if (meta?.isClosing || meta?.isExtraBilantier) continue;
+
+    let amount: number;
+    let bucket: "revenue" | "expenses";
+    if (first === "6") {
+      if (base.startsWith("609")) {
+        amount = -row.rulajC; // contra-expense
+      } else {
+        amount = row.rulajD;
+      }
+      bucket = "expenses";
+    } else {
+      const code2 = base.substring(0, 2);
+      if (code2 === "71" || code2 === "72") continue;
+      if (base.startsWith("709")) {
+        amount = -row.rulajD;
+      } else {
+        amount = row.rulajC;
+      }
+      bucket = "revenue";
+    }
+    if (Math.abs(amount) < 0.01) continue;
+
+    const allocation = resolveAllocationForCont(row.cont, resolver);
+    const slices = applySplit(amount, allocation.splits);
+    for (const slice of slices) {
+      const entry = totals.get(slice.verticalId);
+      if (!entry) continue;
+      entry[bucket] += slice.amount;
+    }
+  }
+
+  const totalExpensesAll = Array.from(totals.values()).reduce(
+    (s, t) => s + t.expenses,
+    0
+  );
+
+  return verticals.map((v) => {
+    const t = totals.get(v.id) ?? { revenue: 0, expenses: 0 };
+    const revenue = round2(t.revenue);
+    const expenses = round2(t.expenses);
+    return {
+      verticalId: v.id,
+      name: v.name,
+      revenue,
+      expenses,
+      profit: round2(revenue - expenses),
+      expenseSharePct:
+        totalExpensesAll > 0 ? round2((t.expenses / totalExpensesAll) * 100) : 0,
+    };
+  });
 }

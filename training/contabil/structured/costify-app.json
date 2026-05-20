@@ -284,6 +284,31 @@
       "Posibil viitor: get_category_mapping(client_name) -> lista mapping-urilor active."
     ]
   },
+  "verticals_module": {
+    "description": "PR-2c. Axa B (linii de business) per firma. Activabila prin flag Client.verticalsEnabled. Permite contabilului sa imparta cheltuieli si venituri intre 'verticale' specifice firmei (QHM21: Outsourcing/Recruitment/Coworking; o firma de constructii: Proiect Bucuresti/Cluj/Service).",
+    "axa_A_vs_axa_B": "Axa A (categorii) e in mapari_cashflow_module. Axa B (verticale) e aici. Sunt ORTOGONALE: aceeasi Electricitate (categorie) se poate imparti 60/40 intre doua verticale. NU se incorporeaza in numele categoriei.",
+    "scope": "Verticalele sunt STRICT per Client. Doi clienti diferiti pot avea fiecare 'Outsourcing' fara interferenta — sunt rows separate izolate prin clientId. Nu exista template global.",
+    "data_model": {
+      "Vertical": "clientId + name + position + isDefault. Pe activare se creeaza automat 'Toata firma' cu isDefault=true ca fallback pentru conturi nealocate.",
+      "VerticalAllocation": "clientId + scope ('contBase' | 'analytic') + cont + splits (JSON array). Splits = [{verticalId, percent}], sum=100, 1-5 entries, integer percent 1..100. Unique pe (clientId, cont). Analytic castiga peste contBase la resolve."
+    },
+    "resolver_algorithm": [
+      "1. Analytic exact match pentru cont complet",
+      "2. ContBase match pe getContBase(cont)",
+      "3. Prefix walk pana la 1 digit",
+      "4. Fallback: default vertical la 100%"
+    ],
+    "ui_accountant": {
+      "setari_section": "Sectiune 'Verticale de business' in tab Setari. OFF state arata pitch + buton 'Activeaza verticale' (deschide modal cu input pentru 1-3 nume initiale). ON state arata lista cu Add/Rename/Delete + link 'Dezactiveaza' (soft, pastreaza datele).",
+      "mapari_cashflow_column": "Cand verticalsEnabled=true, tab-ul Mapari Cashflow primeste a doua coloana 'Verticala' langa 'Categorie'. Dropdown simplu per cont. Pentru splits: optiune 'Impartit intre mai multe verticale...' deschide popover cu input % per verticala, validare sum=100 live, buton 'imparte egal' ca shortcut."
+    },
+    "ui_owner": "Pe /firma sub Top Cheltuieli apare cardul 'Pe linii de business' cu revenue/expenses/profit per verticala. Profit verde daca pozitiv, rosu daca negativ. Card-ul e ascuns automat cand verticalsEnabled=false sau cand nu exista date.",
+    "snapshot_field": "OwnerSnapshot.verticalBreakdown: VerticalBreakdownItem[]. Empty cand flag off. Calculat la publicare ca: pentru fiecare leaf cont 6x/7x, resolva alocarea -> aplica splits pe rulaj -> agregheaza pe verticala.",
+    "tools_available_for_costi": [
+      "Costi nu are inca tools dedicate pentru verticale. Pentru intrebari ca 'cum sta Outsourcing-ul?', el poate citi din publishedPeriod.snapshotData.verticalBreakdown (snapshot publicat). Pentru live, get_balance + cunoasterea alocarilor.",
+      "Viitor PR-2d: tools de buget per (categorie x verticala x luna)."
+    ]
+  },
   "multi_tenant": {
     "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",
     "isolation": "JournalLine are clientId direct, izolare la nivel de serviciu",

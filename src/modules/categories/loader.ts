@@ -15,6 +15,14 @@
 import { prisma } from "@/lib/db";
 import { listCategoryTree, listMappings } from "./service";
 import { getAvailablePeriods, getBalanceRows } from "@/modules/balances";
+import {
+  listVerticals,
+  listAllocations,
+  type VerticalView,
+  type AllocationView,
+  type AllocationSplit,
+  type AllocationScope,
+} from "@/modules/verticals";
 import type { CostCategoryNode, MappingScope } from "./types";
 
 export interface AccountListItem {
@@ -37,6 +45,13 @@ export interface AccountListItem {
   } | null;
   /** True when this cont has an analytic-scope override of the base. */
   hasAnalyticOverride: boolean;
+  /** Current vertical allocation, if any. null = inherits the firm default. */
+  currentAllocation: {
+    scope: AllocationScope;
+    splits: AllocationSplit[];
+  } | null;
+  /** True when this analytic cont has its own allocation row (overrides base). */
+  hasAnalyticVerticalOverride: boolean;
 }
 
 export interface MapariCashflowData {
@@ -51,6 +66,11 @@ export interface MapariCashflowData {
   /** True when this load triggered an OMFP auto-seed (UI can show a one-shot
    *  toast: "Am pornit cu taxonomia OMFP. Editeaz-o cum vrei."). */
   freshlySeeded: boolean;
+  /** True when the client has verticalsEnabled. UI shows the second column
+   *  only in this case. */
+  verticalsEnabled: boolean;
+  /** The list of verticals for this client. Empty when the flag is off. */
+  verticals: VerticalView[];
 }
 
 export async function loadMapariCashflow(
@@ -61,9 +81,23 @@ export async function loadMapariCashflow(
   });
   const mappings = await listMappings(prisma, clientId);
 
+  // Fetch vertical state (flag, list, allocations) in parallel.
+  const [clientFlag, verticals, allocations] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { verticalsEnabled: true },
+    }),
+    listVerticals(prisma, clientId),
+    listAllocations(prisma, clientId),
+  ]);
+  const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
+
   // Index mappings for O(1) lookup per cont.
   const byCont = new Map<string, { categoryId: string; scope: MappingScope }>();
   for (const m of mappings) byCont.set(m.cont, { categoryId: m.categoryId, scope: m.scope });
+
+  const allocByCont = new Map<string, AllocationView>();
+  for (const a of allocations) allocByCont.set(a.cont, a);
 
   // Find the latest period the client has data for. If none, return early —
   // the tab will show an empty-state and the accountant uploads a journal
@@ -76,6 +110,8 @@ export async function loadMapariCashflow(
       period: null,
       accounts: [],
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
+      verticalsEnabled,
+      verticals,
     };
   }
 
@@ -88,6 +124,8 @@ export async function loadMapariCashflow(
       period: { year: latest.year, month: latest.month },
       accounts: [],
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
+      verticalsEnabled,
+      verticals,
     };
   }
 
@@ -102,6 +140,15 @@ export async function loadMapariCashflow(
     const base = byCont.get(row.contBase);
     const current = analytic ?? base ?? null;
 
+    const analyticAlloc = allocByCont.get(row.cont);
+    const baseAlloc = allocByCont.get(row.contBase);
+    const allocation =
+      analyticAlloc?.scope === "analytic"
+        ? analyticAlloc
+        : baseAlloc?.scope === "contBase"
+        ? baseAlloc
+        : null;
+
     accounts.push({
       cont: row.cont,
       contBase: row.contBase,
@@ -111,6 +158,10 @@ export async function loadMapariCashflow(
       rulajC: row.rulajC,
       currentMapping: current,
       hasAnalyticOverride: analytic !== undefined,
+      currentAllocation: allocation
+        ? { scope: allocation.scope, splits: allocation.splits }
+        : null,
+      hasAnalyticVerticalOverride: analyticAlloc !== undefined,
     });
   }
 
@@ -128,5 +179,7 @@ export async function loadMapariCashflow(
     period: { year: latest.year, month: latest.month },
     accounts,
     freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
+    verticalsEnabled,
+    verticals,
   };
 }

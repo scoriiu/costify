@@ -36,6 +36,8 @@ import {
   unmapAccountAction,
 } from "@/modules/categories/actions";
 import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
+import { VerticalPicker } from "./vertical-picker";
+import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
   data: MapariCashflowData;
@@ -74,6 +76,8 @@ export function MapariCashflowTab({ data }: Props) {
           onFilterChange={setFilter}
           tree={data.tree}
           clientId={data.clientId}
+          verticalsEnabled={data.verticalsEnabled}
+          verticals={data.verticals}
           onMutate={() => router.refresh()}
         />
       </div>
@@ -540,6 +544,8 @@ function AccountListPanel({
   onFilterChange,
   tree,
   clientId,
+  verticalsEnabled,
+  verticals,
   onMutate,
 }: {
   accounts: AccountListItem[];
@@ -549,6 +555,8 @@ function AccountListPanel({
   onFilterChange: (v: Filter) => void;
   tree: CostCategoryNode[];
   clientId: string;
+  verticalsEnabled: boolean;
+  verticals: VerticalView[];
   onMutate: () => void;
 }) {
   const expensePicker = flattenTreeForPicker(tree, "expense");
@@ -606,6 +614,8 @@ function AccountListPanel({
                 account.kind === "expense" ? expensePicker : revenuePicker
               }
               clientId={clientId}
+              verticalsEnabled={verticalsEnabled}
+              verticals={verticals}
               onMutate={onMutate}
             />
           ))}
@@ -619,11 +629,15 @@ function AccountRow({
   account,
   picker,
   clientId,
+  verticalsEnabled,
+  verticals,
   onMutate,
 }: {
   account: AccountListItem;
   picker: FlatNode[];
   clientId: string;
+  verticalsEnabled: boolean;
+  verticals: VerticalView[];
   onMutate: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -730,13 +744,28 @@ function AccountRow({
           onChange={handleScopeChange}
           disabled={pending}
         />
-        <div className="w-64">
+        <div className="w-56">
           <Select
             value={value}
             options={options}
             onChange={handleChange}
           />
         </div>
+        {verticalsEnabled && (
+          <div className="w-48">
+            <VerticalPicker
+              clientId={clientId}
+              cont={account.cont}
+              contBase={account.contBase}
+              scope={
+                account.hasAnalyticVerticalOverride ? "analytic" : "contBase"
+              }
+              verticals={verticals}
+              currentSplits={account.currentAllocation?.splits ?? null}
+              defaultVertical={verticals.find((v) => v.isDefault) ?? null}
+            />
+          </div>
+        )}
       </div>
     </li>
   );

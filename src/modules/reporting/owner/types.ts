@@ -128,6 +128,23 @@ export interface SalaryAffordability {
 }
 
 /**
+ * One row in the per-vertical breakdown — what each business line contributed
+ * to the month, derived by applying allocation splits to each cont's rulaj.
+ *
+ * `revenue`, `expenses`, `profit` are all positive numbers (expenses positive
+ * for readability; profit is revenue - expenses and may be negative).
+ */
+export interface VerticalBreakdownItem {
+  verticalId: string;
+  name: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  /** Share of total monthly expenses attributable to this vertical (0..100). */
+  expenseSharePct: number;
+}
+
+/**
  * Same metric for this month vs the same month one year ago. `delta` is the
  * absolute change, `deltaPct` the percentage change (null when previous year
  * was zero or missing).
@@ -171,4 +188,7 @@ export interface OwnerSnapshot {
   salaryAffordability: SalaryAffordability;
   /** This month vs same month last year. */
   yoy: YearOverYearComparison;
+  /** Per-vertical decomposition of the month (PR-2c). Empty array when the
+   *  client doesn't have verticalsEnabled or has no allocations yet. */
+  verticalBreakdown: VerticalBreakdownItem[];
 }

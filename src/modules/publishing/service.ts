@@ -341,5 +341,6 @@ function upgradeSnapshot(snap: OwnerSnapshot): OwnerSnapshot {
       cashEnd: { current: 0, previous: 0, delta: 0, deltaPct: null },
       hasPreviousYear: false,
     },
+    verticalBreakdown: s.verticalBreakdown ?? [],
   };
 }

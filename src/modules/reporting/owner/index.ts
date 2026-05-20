@@ -13,6 +13,7 @@ export type {
   RunwayProjection,
   SalaryAffordability,
   YearOverYearComparison,
+  VerticalBreakdownItem,
 } from "./types";
 
 export {
@@ -29,6 +30,7 @@ export {
   computeRunway,
   computeSalaryAffordability,
   computeYoy,
+  computeVerticalBreakdown,
 } from "./compute";
 
 export { loadOwnerSnapshot } from "./snapshot";

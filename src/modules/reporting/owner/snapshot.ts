@@ -29,6 +29,7 @@ import {
   computeRunway,
   computeSalaryAffordability,
   computeYoy,
+  computeVerticalBreakdown,
 } from "./compute";
 import { prisma } from "@/lib/db";
 import {
@@ -36,6 +37,11 @@ import {
   listMappings,
   buildResolverState,
 } from "@/modules/categories";
+import {
+  listVerticals,
+  listAllocations,
+  buildVerticalResolver,
+} from "@/modules/verticals";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
 
@@ -175,6 +181,30 @@ export async function loadOwnerSnapshot(
   );
   const yoy = computeYoy(trends, year, month, summary);
 
+  // Verticals (axa B, PR-2c). Empty array when the flag is off or when no
+  // verticals exist — owner UI hides the card in that case.
+  const clientRow = await prisma.client.findUnique({
+    where: { id: clientId },
+    select: { verticalsEnabled: true },
+  });
+  let verticalBreakdown: ReturnType<typeof computeVerticalBreakdown> = [];
+  if (clientRow?.verticalsEnabled) {
+    const [verticals, allocations] = await Promise.all([
+      listVerticals(prisma, clientId),
+      listAllocations(prisma, clientId),
+    ]);
+    const defaultV = verticals.find((v) => v.isDefault);
+    if (defaultV) {
+      const vResolver = buildVerticalResolver(allocations, defaultV.id);
+      verticalBreakdown = computeVerticalBreakdown(
+        rows,
+        catalog,
+        vResolver,
+        verticals.map((v) => ({ id: v.id, name: v.name, isDefault: v.isDefault }))
+      );
+    }
+  }
+
   return {
     meta: {
       clientId,
@@ -197,5 +227,6 @@ export async function loadOwnerSnapshot(
     runway,
     salaryAffordability,
     yoy,
+    verticalBreakdown,
   };
 }

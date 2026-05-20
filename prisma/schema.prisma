@@ -55,21 +55,30 @@ model Client {
   cui        String?
   caen       String?
   /// @deprecated Use TaxRegimePeriod timeline instead. Kept as fallback until all clients have at least one TaxRegimePeriod row.
-  taxRegime  String   @default("profit_standard")
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  taxRegime         String  @default("profit_standard")
+  active            Boolean @default(true)
+  /// PR-2c. When true, the firm tracks costs and revenues per business
+  /// vertical (Outsourcing, Recruitment, Coworking for QHM21; project
+  /// names for a construction firm; service lines for a SaaS). Most small
+  /// firms have only one implicit vertical — leave this false. When
+  /// flipped on, a default "Toata firma" Vertical is auto-created so
+  /// every account immediately has somewhere to land.
+  verticalsEnabled  Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journalLines        JournalLine[]
-  importEvents        ImportEvent[]
-  journalPartners     JournalPartner[]
-  clientAccounts      ClientAccount[]
-  taxRegimePeriods    TaxRegimePeriod[]
-  accesses            ClientAccess[]
-  publishedPeriods    PublishedPeriod[]
-  costCategories      CostCategory[]
-  accountCategoryMaps AccountCategoryMapping[]
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines          JournalLine[]
+  importEvents          ImportEvent[]
+  journalPartners       JournalPartner[]
+  clientAccounts        ClientAccount[]
+  taxRegimePeriods      TaxRegimePeriod[]
+  accesses              ClientAccess[]
+  publishedPeriods      PublishedPeriod[]
+  costCategories        CostCategory[]
+  accountCategoryMaps   AccountCategoryMapping[]
+  verticals             Vertical[]
+  verticalAllocations   VerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -136,6 +145,76 @@ model PublishedPeriod {
   @@index([clientId, year(sort: Desc), month(sort: Desc)])
   @@index([clientId, publishedAt(sort: Desc)])
   @@index([clientId, staleSince])
+}
+
+/// PR-2c. A business vertical (axa B) for one client.
+///
+/// Verticals are strictly per-firm: QHM21 has Outsourcing/Recruitment/
+/// Coworking; a construction firm has Proiect-Bucuresti/Proiect-Cluj.
+/// Two different clients can have a Vertical with the same `name` — they
+/// are isolated by `clientId`. There is no global template.
+///
+/// Lifecycle:
+///   - Verticals exist only when Client.verticalsEnabled = true. Disabling
+///     the flag hides them everywhere but keeps the rows for safe re-enable.
+///   - One vertical per client carries `isDefault = true` ("Toata firma" by
+///     convention). It catches accounts with no explicit allocation so the
+///     totals always reconcile. Default is auto-created on activation.
+///   - Accountant freely renames, reorders and adds verticals. They cannot
+///     delete the default — they can only rename it.
+model Vertical {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  position  Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  allocations VerticalAllocation[]
+
+  @@unique([clientId, name])
+  @@index([clientId])
+}
+
+/// PR-2c. Maps a Romanian chart-of-accounts entry to one or more Verticals
+/// with percentages, scoped to one client.
+///
+/// Two scopes supported (same convention as AccountCategoryMapping):
+///   - "contBase":  applies to every analytic under the 3-digit base unless
+///                  an analytic-scope row overrides it.
+///   - "analytic":  applies to the full analytic cont and wins over base.
+///
+/// `splits` shape: `[{ "verticalId": "...", "percent": 60 }, ...]`.
+/// Invariants enforced in the service layer (validation on every write):
+///   - 1 to 5 entries,
+///   - all percent values are integers 1..100,
+///   - sum(percent) === 100,
+///   - all verticalIds belong to the same client and exist.
+///
+/// Accounts WITHOUT a matching row roll up to the client's default Vertical
+/// (the "Toata firma" one). This guarantees totals reconcile across breakdowns.
+model VerticalAllocation {
+  id        String   @id @default(cuid())
+  clientId  String
+  scope     String // "contBase" | "analytic"
+  cont      String
+  splits    Json // [{ verticalId, percent }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Convenience FK so cascading deletes (vertical removed) can be detected by
+  // the service layer. Not all splits link here — only the first one. This is
+  // an indexing/audit helper, not a uniqueness constraint.
+  primaryVerticalId String?
+  primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, cont])
+  @@index([clientId])
+  @@index([primaryVerticalId])
 }
 
 /// Hierarchical patron-facing taxonomy for one client. The accountant edits
