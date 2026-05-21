@@ -47,9 +47,9 @@ export function Tooltip({
     const rect = el.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     if (side === "top") {
-      setCoords({ top: rect.top + window.scrollY - 8, left: centerX + window.scrollX });
+      setCoords({ top: rect.top + window.scrollY - 2, left: centerX + window.scrollX });
     } else {
-      setCoords({ top: rect.bottom + window.scrollY + 8, left: centerX + window.scrollX });
+      setCoords({ top: rect.bottom + window.scrollY + 2, left: centerX + window.scrollX });
     }
   }
 
@@ -109,7 +109,7 @@ export function Tooltip({
         <span
           id={id}
           role="tooltip"
-          className={`pointer-events-none fixed z-[9999] w-max max-w-[280px] -translate-x-1/2 rounded-lg border border-dark-3 bg-dark-2 px-3 py-2 font-mono text-[11px] leading-relaxed text-gray-light shadow-xl shadow-black/40 ${
+          className={`pointer-events-none fixed z-[9999] w-max max-w-[280px] -translate-x-1/2 rounded-md border border-dark-3 bg-dark-2 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-gray-light shadow-lg shadow-black/40 ${
             side === "top" ? "-translate-y-full" : ""
           }`}
           style={{

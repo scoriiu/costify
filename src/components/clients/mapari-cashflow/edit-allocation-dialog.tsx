@@ -281,6 +281,10 @@ function EditMode({
   const [rows, setRows] = useState<AllocationSplit[]>(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // When true, Salveaza will clear the allocation (send back to default
+  // vertical) instead of writing rows. Lets the contabil stage the change
+  // and commit it with the same Salveaza button as everything else.
+  const [stagedClear, setStagedClear] = useState(false);
 
   const total = rows.reduce(
     (s, r) => s + (Number.isFinite(r.percent) ? r.percent : 0),
@@ -327,6 +331,13 @@ function EditMode({
 
   function submit() {
     setError(null);
+    if (stagedClear) {
+      startTransition(async () => {
+        await clearAllocationAction({ clientId, cont: account.cont });
+        onSaved();
+      });
+      return;
+    }
     if (!valid) {
       setError(`Procentele trebuie sa sumeze 100 (acum ${total})`);
       return;
@@ -343,8 +354,128 @@ function EditMode({
     });
   }
 
+  function stageDefault() {
+    setError(null);
+    setStagedClear(true);
+  }
+
+  function unstageDefault() {
+    setStagedClear(false);
+  }
+
+  const defaultVertical = verticals.find((v) => v.isDefault);
+  const isAlreadyOnDefault =
+    !account.currentAllocation ||
+    account.currentAllocation.splits.length === 0;
+
+  const canSave = stagedClear || valid;
+
   return (
     <div className="p-5 space-y-4">
+      {stagedClear ? (
+        <StagedClearNotice
+          defaultName={defaultVertical?.name ?? "Toata firma"}
+          onUndo={unstageDefault}
+        />
+      ) : (
+        <SplitEditor
+          rows={rows}
+          splittable={splittable}
+          verticals={verticals}
+          total={total}
+          updateVertical={updateVertical}
+          updatePercent={updatePercent}
+          removeRow={removeRow}
+          addRow={addRow}
+          balance={balance}
+          defaultVertical={defaultVertical}
+          isAlreadyOnDefault={isAlreadyOnDefault}
+          onStageDefault={stageDefault}
+        />
+      )}
+
+      {error && (
+        <p className="text-[12px] text-rose-700 dark:text-rose-300" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-dark-3">
+        <Button variant="ghost" onClick={onCancel} disabled={pending}>
+          Renunta
+        </Button>
+        <Button onClick={submit} disabled={pending || !canSave}>
+          Salveaza
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function StagedClearNotice({
+  defaultName,
+  onUndo,
+}: {
+  defaultName: string;
+  onUndo: () => void;
+}) {
+  return (
+    <div className="rounded-lg border border-dark-3 bg-dark-3/30 p-4 space-y-2">
+      <h4
+        className="font-mono text-[10px] uppercase tracking-wider text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Trimitere catre {defaultName}
+      </h4>
+      <p
+        className="text-[13px] text-gray-light"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Cand apesi <strong className="text-white">Salveaza</strong>, alocarea
+        explicita pentru acest cont va fi stearsa si rulajul va merge integral
+        catre <strong className="text-white">{defaultName}</strong>.
+      </p>
+      <button
+        type="button"
+        onClick={onUndo}
+        className="text-[11px] text-primary hover:text-primary-light underline underline-offset-2"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Anuleaza, vreau sa pastrez alocarea
+      </button>
+    </div>
+  );
+}
+
+function SplitEditor({
+  rows,
+  splittable,
+  verticals,
+  total,
+  updateVertical,
+  updatePercent,
+  removeRow,
+  addRow,
+  balance,
+  defaultVertical,
+  isAlreadyOnDefault,
+  onStageDefault,
+}: {
+  rows: AllocationSplit[];
+  splittable: VerticalView[];
+  verticals: VerticalView[];
+  total: number;
+  updateVertical: (idx: number, v: string) => void;
+  updatePercent: (idx: number, p: number) => void;
+  removeRow: (idx: number) => void;
+  addRow: () => void;
+  balance: () => void;
+  defaultVertical: VerticalView | undefined;
+  isAlreadyOnDefault: boolean;
+  onStageDefault: () => void;
+}) {
+  return (
+    <>
       <div>
         <h4
           className="font-mono text-[10px] uppercase tracking-wider text-gray mb-1"
@@ -398,7 +529,7 @@ function EditMode({
       </ul>
 
       <div className="flex items-center justify-between text-[11px]">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
           {rows.length < 5 && rows.length < splittable.length && (
             <button
               type="button"
@@ -419,6 +550,17 @@ function EditMode({
               Imparte egal
             </button>
           )}
+          {defaultVertical && !isAlreadyOnDefault && (
+            <button
+              type="button"
+              onClick={onStageDefault}
+              className="text-gray hover:text-gray-light underline underline-offset-2"
+              style={{ letterSpacing: "-0.02em" }}
+              title={`Trimite acest cont la ${defaultVertical.name}.`}
+            >
+              Trimite la {defaultVertical.name}
+            </button>
+          )}
         </div>
         <span
           className={`font-mono tabular-nums ${
@@ -428,22 +570,7 @@ function EditMode({
           Total: {total}%
         </span>
       </div>
-
-      {error && (
-        <p className="text-[12px] text-rose-700 dark:text-rose-300" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="flex justify-end gap-2 pt-2 border-t border-dark-3">
-        <Button variant="ghost" onClick={onCancel} disabled={pending}>
-          Renunta
-        </Button>
-        <Button onClick={submit} disabled={pending || !valid}>
-          Salveaza
-        </Button>
-      </div>
-    </div>
+    </>
   );
 }
 
