@@ -408,7 +408,7 @@ function SplitPopover({
           </div>
           <span
             className={`font-mono text-[12px] tabular-nums ${
-              total === 100 ? "text-emerald-300" : "text-amber-300"
+              total === 100 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
             }`}
           >
             Total: {total}%
@@ -416,7 +416,7 @@ function SplitPopover({
         </div>
 
         {error && (
-          <p className="mt-2 text-[11px] text-rose-300">{error}</p>
+          <p className="mt-2 text-[11px] text-rose-700 dark:text-rose-300">{error}</p>
         )}
 
         <div className="mt-5 flex justify-end gap-2">

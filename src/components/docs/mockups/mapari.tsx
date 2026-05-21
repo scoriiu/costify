@@ -150,7 +150,7 @@ export function MockActivateModal() {
         </button>
       </div>
       <MockBanner tone="info">
-        Verticala &quot;Toata firma&quot; se creeaza automat ca fallback pentru conturi nealocate.
+        Verticala &quot;Toata firma&quot; se creeaza automat pentru conturile care nu sunt atribuite niciunei linii de business.
       </MockBanner>
       <div className="flex justify-end gap-2 mt-5">
         <button className="text-[12px] text-gray hover:text-gray-light px-4 py-2">Renunta</button>

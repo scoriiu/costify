@@ -3,22 +3,31 @@
 /**
  * "Mapari Cashflow" tab — accountant-only screen on /clients/[slug].
  *
- * Linear, numbered three-step flow, top to bottom:
+ * Wizard with two tabs, one per modelling axis:
  *
- *   1. Categorii — how to group costs/revenues (axa A, generic OMFP defaults).
- *   2. Verticale — optional, only if firm has multiple business lines (axa B).
- *   3. Conturi — actual mapping of each chart-of-accounts entry to (1) and (2).
+ *   Categorii (axa A)         — how to group costs/revenues for the patron.
+ *                               Always present, obligatory. Sub-page contains
+ *                               a collapsible "Numele grupurilor" + the full
+ *                               account list with the category column only.
  *
- * The three sections live on the same page so the accountant does not need to
- * context-switch between Setari and Mapari to configure cashflow. Every non-
- * obvious affordance has a Tooltip explaining what it does and giving examples.
+ *   Linii de business (axa B) — optional firm-specific verticals (Outsourcing,
+ *                               Recruitment, Coworking, etc). Sub-page
+ *                               contains the verticals panel + the same
+ *                               account list, this time with the vertical
+ *                               column. Empty state with CTA when the firm
+ *                               has not activated verticals yet.
+ *
+ * Active tab is persisted in the URL as ?cashflow-tab=categorii|verticale so
+ * the contabil can refresh / deep-link without losing context. Filter state
+ * (Toate / Nemapate / Cheltuieli / Venituri) persists across tab switches —
+ * same conturi, different axis focus.
  *
  * All mutations go through server actions and the page revalidates afterwards.
  * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +58,7 @@ import {
 } from "@/modules/verticals/actions";
 import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
 import { VerticalPicker } from "./vertical-picker";
+import { EditAllocationDialog } from "./edit-allocation-dialog";
 import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
@@ -57,10 +67,28 @@ interface Props {
 
 type Filter = "all" | "unmapped" | "expense" | "revenue";
 
+type CashflowTab = "categorii" | "verticale";
+
 export function MapariCashflowTab({ data }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [filter, setFilter] = useState<Filter>("all");
   const onMutate = () => router.refresh();
+
+  // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
+  // so the contabil can deep-link straight to "Linii de business" and refresh
+  // without losing context. Default = categorii (the obligatory axis A).
+  const urlTab = searchParams.get("cashflow-tab");
+  const activeTab: CashflowTab = urlTab === "verticale" ? "verticale" : "categorii";
+
+  function setActiveTab(next: CashflowTab) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "categorii") params.delete("cashflow-tab");
+    else params.set("cashflow-tab", next);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const filteredAccounts = data.accounts.filter((a) => {
     if (filter === "expense") return a.kind === "expense";
@@ -70,91 +98,218 @@ export function MapariCashflowTab({ data }: Props) {
   });
 
   const unmappedCount = data.accounts.filter((a) => a.currentMapping === null).length;
+
+  return (
+    <div className="space-y-6 max-w-6xl">
+      <PageHeader period={data.period} freshlySeeded={data.freshlySeeded} />
+
+      <CashflowTabBar
+        active={activeTab}
+        onChange={setActiveTab}
+        verticalsEnabled={data.verticalsEnabled}
+        unmappedCount={unmappedCount}
+      />
+
+      {activeTab === "categorii" ? (
+        <CategoryAxisContent
+          data={data}
+          filteredAccounts={filteredAccounts}
+          unmappedCount={unmappedCount}
+          filter={filter}
+          setFilter={setFilter}
+          onMutate={onMutate}
+        />
+      ) : (
+        <VerticalAxisContent
+          data={data}
+          filteredAccounts={filteredAccounts}
+          unmappedCount={unmappedCount}
+          filter={filter}
+          setFilter={setFilter}
+          onMutate={onMutate}
+        />
+      )}
+    </div>
+  );
+}
+
+function CashflowTabBar({
+  active,
+  onChange,
+  verticalsEnabled,
+  unmappedCount,
+}: {
+  active: CashflowTab;
+  onChange: (t: CashflowTab) => void;
+  verticalsEnabled: boolean;
+  unmappedCount: number;
+}) {
+  const tabs: {
+    id: CashflowTab;
+    label: string;
+    hint: string;
+    badge?: { text: string; tone: "danger" | "neutral" };
+  }[] = [
+    {
+      id: "categorii",
+      label: "Categorii",
+      hint: "Cum se grupeaza cheltuielile si veniturile pentru patron",
+      badge:
+        unmappedCount > 0
+          ? { text: `${unmappedCount} nemapate`, tone: "danger" }
+          : undefined,
+    },
+    {
+      id: "verticale",
+      label: "Linii de business",
+      hint: verticalsEnabled
+        ? "Cum se imparte firma pe linii de business"
+        : "Optional · activeaza daca firma are mai multe linii",
+    },
+  ];
+
+  return (
+    <div className="border-b border-dark-3">
+      <div className="flex items-end gap-1">
+        {tabs.map((tab) => {
+          const isActive = active === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onChange(tab.id)}
+              className={`group relative px-4 pt-3 pb-3 text-left transition-colors ${
+                isActive
+                  ? "text-white"
+                  : "text-gray hover:text-gray-light"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[14px] font-semibold"
+                  style={{ letterSpacing: "-0.04em" }}
+                >
+                  {tab.label}
+                </span>
+                {tab.badge && (
+                  <span
+                    className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                      tab.badge.tone === "danger"
+                        ? "bg-danger/15 text-danger"
+                        : "bg-dark-3 text-gray-light"
+                    }`}
+                  >
+                    {tab.badge.text}
+                  </span>
+                )}
+              </div>
+              <div
+                className="text-[11px] text-gray mt-0.5"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                {tab.hint}
+              </div>
+              <span
+                aria-hidden
+                className={`absolute -bottom-px left-0 right-0 h-0.5 transition-colors ${
+                  isActive ? "bg-primary" : "bg-transparent"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CategoryAxisContent({
+  data,
+  filteredAccounts,
+  unmappedCount,
+  filter,
+  setFilter,
+  onMutate,
+}: {
+  data: MapariCashflowData;
+  filteredAccounts: AccountListItem[];
+  unmappedCount: number;
+  filter: Filter;
+  setFilter: (v: Filter) => void;
+  onMutate: () => void;
+}) {
   const expenseRootCount = data.tree.filter((n) => n.kind === "expense").length;
   const revenueRootCount = data.tree.filter((n) => n.kind === "revenue").length;
   const customCount = data.tree.filter((n) => !n.isOmfpDefault).length;
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <PageHeader period={data.period} freshlySeeded={data.freshlySeeded} />
-
-      <StepSection
-        number={1}
-        title="Cum se grupeaza cheltuielile si veniturile"
-        optional
-        collapsible
-        collapsedSummary={
+    <div className="space-y-6">
+      <CollapsibleSection
+        title="Numele grupurilor (cum apar pe /firma)"
+        summary={
           customCount > 0
             ? `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
             : `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
         }
         helper={
           <>
-            Acestea sunt numele pe care le vede patronul pe /firma. Pentru
-            majoritatea firmelor, defaults-urile OMFP sunt suficiente.
-            Modifica doar daca patronul cere ceva specific (exemplu:
-            &apos;Marketing online&apos; separat de &apos;Servicii
-            externe&apos;).{" "}
+            Acestea sunt etichetele pe care le vede patronul pe /firma. Pentru
+            majoritatea firmelor, defaults-urile OMFP sunt suficiente.{" "}
             <DocsLink href={DocsLinks.categories}>Despre categorii</DocsLink>
           </>
         }
+        defaultCollapsed
       >
         <CategoryTreePanel
           tree={data.tree}
           clientId={data.clientId}
           onMutate={onMutate}
         />
-      </StepSection>
+      </CollapsibleSection>
 
-      <StepSection
-        number={2}
-        title="Verticale de business"
-        optional
-        helper={
-          data.verticalsEnabled ? (
-            <>
-              Linii de business pe care le urmaresti separat. Conturile fara
-              verticala alocata merg la &apos;Toata firma&apos;.{" "}
-              <DocsLink href={DocsLinks.verticals}>Despre verticale</DocsLink>
-            </>
-          ) : (
-            <>
-              Activeaza doar daca firma are mai multe linii de business
-              (exemplu QHM21: Outsourcing, Recruitment, Coworking). Pentru
-              majoritatea firmelor nu e necesar.{" "}
-              <DocsLink href={DocsLinks.verticals}>
-                Cand am nevoie de verticale?
-              </DocsLink>
-            </>
-          )
-        }
-      >
-        <VerticalsPanel
-          clientId={data.clientId}
-          enabled={data.verticalsEnabled}
-          verticals={data.verticals}
-          onMutate={onMutate}
-        />
-      </StepSection>
+      <AccountListPanel
+        accounts={filteredAccounts}
+        totalAccounts={data.accounts.length}
+        unmappedCount={unmappedCount}
+        filter={filter}
+        onFilterChange={setFilter}
+        tree={data.tree}
+        clientId={data.clientId}
+        verticalsEnabled={data.verticalsEnabled}
+        verticals={data.verticals}
+        mode="category"
+        onMutate={onMutate}
+      />
+    </div>
+  );
+}
 
-      <StepSection
-        number={3}
-        title="Aseaza fiecare cont in grupul potrivit"
-        helper={
-          <>
-            Aici legi conturile din planul firmei de grupurile pe care le vede
-            patronul. Daca defaults-urile OMFP sunt corecte (cazul comun), nu
-            schimbi nimic — verifici doar conturile mari{" "}
-            {data.verticalsEnabled
-              ? "si le aloci la verticala potrivita. "
-              : ". "}
-            Lista e sortata dupa rulajul lunii (cele mai mari sus).{" "}
-            <DocsLink href={DocsLinks.exampleQhm21}>
-              Vezi exemplu real (QHM21)
-            </DocsLink>
-          </>
-        }
-      >
+function VerticalAxisContent({
+  data,
+  filteredAccounts,
+  unmappedCount,
+  filter,
+  setFilter,
+  onMutate,
+}: {
+  data: MapariCashflowData;
+  filteredAccounts: AccountListItem[];
+  unmappedCount: number;
+  filter: Filter;
+  setFilter: (v: Filter) => void;
+  onMutate: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <VerticalsPanel
+        clientId={data.clientId}
+        enabled={data.verticalsEnabled}
+        verticals={data.verticals}
+        accounts={data.accounts}
+        onMutate={onMutate}
+      />
+
+      {data.verticalsEnabled && (
         <AccountListPanel
           accounts={filteredAccounts}
           totalAccounts={data.accounts.length}
@@ -165,112 +320,101 @@ export function MapariCashflowTab({ data }: Props) {
           clientId={data.clientId}
           verticalsEnabled={data.verticalsEnabled}
           verticals={data.verticals}
+          mode="vertical"
           onMutate={onMutate}
         />
-      </StepSection>
+      )}
     </div>
   );
 }
 
-function StepSection({
-  number,
+/**
+ * Generic collapsible section used inside a wizard tab — replaces the old
+ * "StepSection" wrapper. No step numbering since the tabs themselves are the
+ * navigation; just a clean expandable card with title, helper, and summary
+ * line shown while collapsed.
+ */
+function CollapsibleSection({
   title,
   helper,
-  optional,
-  collapsible,
-  collapsedSummary,
+  summary,
+  defaultCollapsed,
   children,
 }: {
-  number: number;
   title: string;
   helper: React.ReactNode;
-  optional?: boolean;
-  /** When true, the section renders collapsed by default with a small chevron
-   *  button that expands it. Used for advanced/optional configuration the
-   *  accountant rarely needs to touch (e.g. patron labels — OMFP defaults
-   *  are good enough for 95% of firms). */
-  collapsible?: boolean;
-  /** One-line summary shown next to the chevron when collapsed. */
-  collapsedSummary?: string;
+  summary?: string;
+  defaultCollapsed?: boolean;
   children: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(!collapsible);
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
 
   return (
-    <section>
-      <div className="mb-3">
-        <div className="flex items-baseline gap-3">
-          <span
-            className="font-mono text-[11px] uppercase tracking-wider text-primary"
-            aria-hidden
-          >
-            Pasul {number}
-          </span>
-          <h3
-            className="text-[18px] font-semibold text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            {title}
-          </h3>
-          {optional && (
-            <span
-              className="font-mono text-[10px] uppercase tracking-wider text-gray"
-              aria-hidden
-            >
-              optional
-            </span>
-          )}
-          {collapsible && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="ml-auto text-[12px] text-primary hover:text-primary-light inline-flex items-center gap-1"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              {expanded ? "Ascunde" : "Personalizeaza"}
-              <span aria-hidden>{expanded ? "▴" : "▾"}</span>
-            </button>
-          )}
-        </div>
-        <p
-          className="mt-1 text-[12px] text-gray max-w-3xl"
+    <section className="rounded-xl border border-dark-3 bg-dark-2/40 p-5">
+      <div className="flex items-baseline gap-3">
+        <h3
+          className="text-[15px] font-semibold text-white"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          {title}
+        </h3>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="ml-auto text-[12px] text-primary hover:text-primary-light inline-flex items-center gap-1"
           style={{ letterSpacing: "-0.02em" }}
         >
-          {helper}
-        </p>
-        {collapsible && !expanded && collapsedSummary && (
-          <p
-            className="mt-2 text-[12px] text-gray-light italic"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            {collapsedSummary}
-          </p>
-        )}
+          {expanded ? "Ascunde" : "Personalizeaza"}
+          <span aria-hidden>{expanded ? "▴" : "▾"}</span>
+        </button>
       </div>
-      {expanded && children}
+      <p
+        className="mt-1 text-[12px] text-gray max-w-3xl"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {helper}
+      </p>
+      {!expanded && summary && (
+        <p
+          className="mt-2 text-[12px] text-gray-light italic"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {summary}
+        </p>
+      )}
+      {expanded && <div className="mt-4">{children}</div>}
     </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          VERTICALS PANEL (PASUL 2)                         */
+/*                          VERTICALS PANEL                                   */
 /* -------------------------------------------------------------------------- */
 
 function VerticalsPanel({
   clientId,
   enabled,
   verticals,
+  accounts,
   onMutate,
 }: {
   clientId: string;
   enabled: boolean;
   verticals: VerticalView[];
+  accounts: AccountListItem[];
   onMutate: () => void;
 }) {
   if (!enabled) {
     return <VerticalsOff clientId={clientId} onMutate={onMutate} />;
   }
-  return <VerticalsOn clientId={clientId} verticals={verticals} onMutate={onMutate} />;
+  return (
+    <VerticalsOn
+      clientId={clientId}
+      verticals={verticals}
+      accounts={accounts}
+      onMutate={onMutate}
+    />
+  );
 }
 
 function VerticalsOff({
@@ -321,10 +465,12 @@ function VerticalsOff({
 function VerticalsOn({
   clientId,
   verticals,
+  accounts,
   onMutate,
 }: {
   clientId: string;
   verticals: VerticalView[];
+  accounts: AccountListItem[];
   onMutate: () => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -343,16 +489,44 @@ function VerticalsOn({
     });
   }
 
+  const realCount = verticals.filter((v) => !v.isDefault).length;
+  // Default to "Toata firma" expanded so the contabil immediately sees which
+  // conturi are inheriting the fallback — the bucket most likely to need work.
+  const defaultVerticalId = verticals.find((v) => v.isDefault)?.id ?? null;
+  const [expandedId, setExpandedId] = useState<string | null>(defaultVerticalId);
+  const [editingCont, setEditingCont] = useState<string | null>(null);
+  const editingAccount = editingCont
+    ? accounts.find((a) => a.cont === editingCont) ?? null
+    : null;
+  // Pre-compute which conturi land in which vertical so an expanded column
+  // can reveal its own contents. Accounts with no explicit allocation fall
+  // into the default vertical (Toata firma). This map is also the source of
+  // truth for the per-vertical count shown in headers — backend's stored
+  // allocationCount only counts explicit allocation rows and misses every
+  // account that inherits the default, which would underreport drastically.
+  const accountsByVertical = buildAccountsByVertical(verticals, accounts);
+  const totalAccounts = Array.from(accountsByVertical.values()).reduce(
+    (s, list) => s + list.length,
+    0
+  );
+
   return (
     <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <Layers size={14} className="text-primary" />
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-5">
+        <div className="flex items-baseline gap-3">
+          <h3
+            className="text-[15px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            {realCount}{" "}
+            {realCount === 1 ? "linie de business" : "linii de business"}
+          </h3>
           <span
-            className="text-[13px] text-gray-light"
+            className="font-mono text-[11px] text-gray"
             style={{ letterSpacing: "-0.02em" }}
           >
-            {verticals.length} verticale active
+            {totalAccounts}{" "}
+            {totalAccounts === 1 ? "cont alocat" : "conturi alocate"}
           </span>
         </div>
         <Tooltip content="Ascunde verticalele peste tot. Datele se pastreaza si pot fi reactivate oricand.">
@@ -360,7 +534,7 @@ function VerticalsOn({
             type="button"
             onClick={deactivate}
             disabled={pending}
-            className="text-[11px] text-gray hover:text-gray-light"
+            className="text-[11px] text-gray hover:text-rose-300 underline underline-offset-2"
             style={{ letterSpacing: "-0.02em" }}
           >
             Dezactiveaza
@@ -368,33 +542,396 @@ function VerticalsOn({
         </Tooltip>
       </div>
 
-      <ul className="space-y-1">
-        {verticals.map((v) => (
-          <VerticalRow key={v.id} vertical={v} clientId={clientId} onMutate={onMutate} />
+      {/* Horizontal accordion. Each vertical is a tall column with its name
+          rotated 90deg. Clicking opens that column, sliding the others into
+          narrow collapsed columns. The expanded column reveals the list of
+          accounts allocated to that vertical — no extra page, no modal. */}
+      <div
+        className="flex gap-2 h-[420px]"
+        role="tablist"
+        aria-label="Verticale firmei"
+      >
+        {verticals.map((v, i) => (
+          <VerticalColumn
+            key={v.id}
+            vertical={v}
+            colorIndex={i}
+            accounts={accountsByVertical.get(v.id) ?? []}
+            expanded={expandedId === v.id}
+            anyExpanded={expandedId !== null}
+            onToggle={() =>
+              setExpandedId((curr) => (curr === v.id ? null : v.id))
+            }
+            onAccountClick={(cont) => setEditingCont(cont)}
+            clientId={clientId}
+            onMutate={onMutate}
+          />
         ))}
-      </ul>
+        {adding ? (
+          <div className="flex items-center rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 min-w-[260px]">
+            <AddVerticalInline
+              clientId={clientId}
+              onDone={() => {
+                setAdding(false);
+                onMutate();
+              }}
+              onCancel={() => setAdding(false)}
+            />
+          </div>
+        ) : (
+          <Tooltip content="Adauga o noua linie de business (exemplu: 'Consultanta strategica' separat de 'Outsourcing tehnic').">
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="w-12 rounded-lg border border-dashed border-dark-3 hover:border-primary/60 hover:text-primary text-gray transition-colors flex flex-col items-center justify-center gap-2 shrink-0"
+              style={{ letterSpacing: "-0.02em" }}
+              aria-label="Adauga verticala"
+            >
+              <Plus size={16} />
+              <span
+                className="font-mono text-[10px] uppercase tracking-wider"
+                style={{
+                  writingMode: "vertical-rl",
+                  transform: "rotate(180deg)",
+                }}
+              >
+                Adauga
+              </span>
+            </button>
+          </Tooltip>
+        )}
+      </div>
 
-      {adding ? (
-        <AddVerticalInline
+      {editingAccount && (
+        <EditAllocationDialog
+          open
+          account={editingAccount}
+          verticals={verticals}
           clientId={clientId}
-          onDone={() => {
-            setAdding(false);
+          onClose={() => setEditingCont(null)}
+          onSaved={() => {
+            setEditingCont(null);
             onMutate();
           }}
-          onCancel={() => setAdding(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Group accounts by the vertical they primarily allocate to. An account with a
+ *  split allocation appears in every vertical it touches. Accounts with no
+ *  explicit allocation fall into the firm's default vertical (Toata firma). */
+function buildAccountsByVertical(
+  verticals: VerticalView[],
+  accounts: AccountListItem[]
+): Map<string, AccountListItem[]> {
+  const result = new Map<string, AccountListItem[]>();
+  for (const v of verticals) result.set(v.id, []);
+  const defaultId = verticals.find((v) => v.isDefault)?.id;
+
+  for (const a of accounts) {
+    if (a.currentAllocation && a.currentAllocation.splits.length > 0) {
+      for (const split of a.currentAllocation.splits) {
+        const bucket = result.get(split.verticalId);
+        if (bucket) bucket.push(a);
+      }
+    } else if (defaultId) {
+      result.get(defaultId)!.push(a);
+    }
+  }
+  return result;
+}
+
+/** Color accent per vertical — a single 2px top stripe on the column. Same
+ *  order as SplitBar so each vertical reads consistent across the app. The
+ *  default (Toata firma) gets neutral gray so it visibly differs from real
+ *  business lines without screaming for attention. */
+const VERTICAL_ACCENTS = [
+  "bg-primary",
+  "bg-amber-400",
+  "bg-sky-400",
+  "bg-emerald-400",
+  "bg-rose-400",
+] as const;
+const DEFAULT_ACCENT = "bg-gray/40";
+
+/** A vertical literally drawn as a vertical column. Closed = narrow column
+ *  with name rotated 90deg + count at top. Open = expands horizontally and
+ *  reveals the list of accounts allocated to this vertical. The pattern is
+ *  intentional: makes the user *feel* the verticality of the concept.
+ *  Inspired by horizontal accordion / image-strip galleries. */
+function VerticalColumn({
+  vertical,
+  colorIndex,
+  accounts,
+  expanded,
+  anyExpanded,
+  onToggle,
+  onAccountClick,
+  clientId,
+  onMutate,
+}: {
+  vertical: VerticalView;
+  colorIndex: number;
+  accounts: AccountListItem[];
+  expanded: boolean;
+  anyExpanded: boolean;
+  onToggle: () => void;
+  onAccountClick: (cont: string) => void;
+  clientId: string;
+  onMutate: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  const accent = vertical.isDefault
+    ? DEFAULT_ACCENT
+    : VERTICAL_ACCENTS[colorIndex % VERTICAL_ACCENTS.length];
+
+  function remove(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (
+      !confirm(
+        `Sterg verticala "${vertical.name}"? Conturile alocate aici trec automat la "Toata firma".`
+      )
+    )
+      return;
+    startTransition(async () => {
+      const r = await deleteVerticalAction({ clientId, verticalId: vertical.id });
+      if (r.error) alert(r.error);
+      else onMutate();
+    });
+  }
+
+  return (
+    <div
+      role="tab"
+      aria-selected={expanded}
+      onClick={onToggle}
+      className={`group relative h-full rounded-lg border bg-dark/40 cursor-pointer overflow-hidden transition-all duration-300 ease-out ${
+        expanded
+          ? "flex-1 border-dark-3"
+          : anyExpanded
+          ? "w-14 border-dark-3/60 hover:border-dark-3"
+          : "flex-1 border-dark-3/80 hover:border-dark-3"
+      }`}
+    >
+      {/* Top accent stripe — the only color on the whole column */}
+      <div className={`absolute top-0 inset-x-0 h-0.5 ${accent}`} aria-hidden />
+
+      {expanded ? (
+        <ExpandedColumn
+          vertical={vertical}
+          accounts={accounts}
+          renaming={renaming}
+          onStartRename={() => setRenaming(true)}
+          onEndRename={() => {
+            setRenaming(false);
+            onMutate();
+          }}
+          onCancelRename={() => setRenaming(false)}
+          onRemove={remove}
+          onAccountClick={onAccountClick}
+          pending={pending}
+          clientId={clientId}
         />
       ) : (
-        <Tooltip content="Adauga o noua linie de business (exemplu: 'Consultanta strategica' separat de 'Outsourcing tehnic').">
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-primary hover:text-primary-light"
+        <CollapsedColumn
+          vertical={vertical}
+          contCount={accounts.length}
+          narrow={anyExpanded}
+        />
+      )}
+    </div>
+  );
+}
+
+function CollapsedColumn({
+  vertical,
+  contCount,
+  narrow,
+}: {
+  vertical: VerticalView;
+  contCount: number;
+  narrow: boolean;
+}) {
+  return (
+    <div className="h-full flex flex-col items-center justify-between py-4 px-2">
+      <span className="font-mono text-[18px] font-bold text-white tabular-nums leading-none">
+        {contCount}
+      </span>
+
+      <div
+        className="flex-1 flex items-center justify-center min-h-0"
+        style={
+          narrow
+            ? {
+                writingMode: "vertical-rl",
+                transform: "rotate(180deg)",
+              }
+            : undefined
+        }
+      >
+        <span
+          className={`font-semibold text-white text-center ${
+            narrow ? "text-[14px]" : "text-[18px]"
+          }`}
+          style={{ letterSpacing: "-0.04em" }}
+          title={vertical.name}
+        >
+          {vertical.name}
+        </span>
+      </div>
+
+      <span
+        className="font-mono text-[9px] uppercase tracking-wider text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {contCount === 1 ? "cont" : "conturi"}
+      </span>
+    </div>
+  );
+}
+
+function ExpandedColumn({
+  vertical,
+  accounts,
+  renaming,
+  onStartRename,
+  onEndRename,
+  onCancelRename,
+  onRemove,
+  onAccountClick,
+  pending,
+  clientId,
+}: {
+  vertical: VerticalView;
+  accounts: AccountListItem[];
+  renaming: boolean;
+  onStartRename: () => void;
+  onEndRename: () => void;
+  onCancelRename: () => void;
+  onRemove: (e: React.MouseEvent) => void;
+  onAccountClick: (cont: string) => void;
+  pending: boolean;
+  clientId: string;
+}) {
+  return (
+    <div
+      className="h-full flex flex-col"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-2 px-4 pt-4 pb-3 border-b border-dark-3">
+        <div className="min-w-0">
+          {renaming ? (
+            <RenameVerticalInline
+              vertical={vertical}
+              clientId={clientId}
+              onDone={onEndRename}
+              onCancel={onCancelRename}
+            />
+          ) : (
+            <>
+              <h4
+                className="text-[16px] font-semibold text-white truncate"
+                style={{ letterSpacing: "-0.04em" }}
+                title={vertical.name}
+              >
+                {vertical.name}
+              </h4>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="font-mono text-[11px] text-gray-light tabular-nums">
+                  {accounts.length}{" "}
+                  {accounts.length === 1 ? "cont alocat" : "conturi alocate"}
+                </span>
+                {vertical.isDefault && (
+                  <Tooltip content="Verticala implicita unde merg conturile fara alocare explicita. Nu poti sterge, doar redenumi.">
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-gray cursor-help">
+                      implicit
+                    </span>
+                  </Tooltip>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        {!renaming && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip content="Redenumeste">
+              <button
+                type="button"
+                onClick={onStartRename}
+                className="p-1.5 text-gray hover:text-white rounded"
+                disabled={pending}
+              >
+                <Pencil size={13} />
+              </button>
+            </Tooltip>
+            {!vertical.isDefault && (
+              <Tooltip content="Sterge verticala. Conturile alocate aici trec la 'Toata firma'.">
+                <button
+                  type="button"
+                  onClick={onRemove}
+                  className="p-1.5 text-gray hover:text-rose-300 rounded"
+                  disabled={pending}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </Tooltip>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {accounts.length === 0 ? (
+          <p
+            className="p-4 text-[12px] text-gray italic text-center"
             style={{ letterSpacing: "-0.02em" }}
           >
-            <Plus size={12} /> Adauga verticala
-          </button>
-        </Tooltip>
-      )}
+            Niciun cont alocat la aceasta verticala inca.
+          </p>
+        ) : (
+          <ul>
+            {accounts.map((a) => {
+              const rulaj = a.kind === "expense" ? a.rulajD : a.rulajC;
+              const split = a.currentAllocation?.splits.find(
+                (s) => s.verticalId === vertical.id
+              );
+              const percent = split?.percent ?? 100;
+              return (
+                <li key={a.cont} className="border-b border-dark-3/40 last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => onAccountClick(a.cont)}
+                    className="w-full flex items-baseline gap-3 px-4 py-2 text-left hover:bg-dark-3/40 transition-colors"
+                    title="Click pentru a edita alocarea"
+                  >
+                    <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[50px]">
+                      {a.cont}
+                    </span>
+                    <span
+                      className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
+                      style={{ letterSpacing: "-0.02em" }}
+                      title={a.denumire}
+                    >
+                      {a.denumire}
+                    </span>
+                    <span className="font-mono text-[10px] tabular-nums shrink-0 w-10 text-right text-gray">
+                      {percent}%
+                    </span>
+                    <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0 min-w-[110px] text-right">
+                      {formatRon(rulaj * (percent / 100))}{" "}
+                      <span className="text-gray">lei</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -593,7 +1130,7 @@ function AddVerticalInline({
       <Button variant="ghost" onClick={onCancel}>
         Renunta
       </Button>
-      {error && <p className="text-[11px] text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
     </div>
   );
 }
@@ -708,10 +1245,10 @@ function ActivateVerticalsModal({
           className="mt-5 text-[11px] text-gray italic"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Verticala &quot;Toata firma&quot; se creeaza automat ca fallback pentru
-          conturi nealocate.
+          Verticala &quot;Toata firma&quot; se creeaza automat pentru conturile
+          care nu sunt atribuite niciunei linii de business.
         </p>
-        {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
+        {error && <p className="mt-3 text-[12px] text-rose-700 dark:text-rose-300">{error}</p>}
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Renunta
@@ -1163,7 +1700,7 @@ function NewCategoryRow({
         </Button>
       </div>
       {error && (
-        <p className="text-[11px] text-rose-300 mt-1">{error}</p>
+        <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-1">{error}</p>
       )}
     </div>
   );
@@ -1273,7 +1810,7 @@ function DeleteCategoryButton({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           ACCOUNT LIST (PASUL 3)                            */
+/*                           ACCOUNT LIST                                     */
 /* -------------------------------------------------------------------------- */
 
 function AccountListPanel({
@@ -1286,6 +1823,7 @@ function AccountListPanel({
   clientId,
   verticalsEnabled,
   verticals,
+  mode,
   onMutate,
 }: {
   accounts: AccountListItem[];
@@ -1297,10 +1835,23 @@ function AccountListPanel({
   clientId: string;
   verticalsEnabled: boolean;
   verticals: VerticalView[];
+  /** Which axis this list is editing — controls which row column is shown
+   *  + the surface header copy + the "Nemapat" definition (category mode
+   *  flags conturi without category; vertical mode does not). */
+  mode: "category" | "vertical";
   onMutate: () => void;
 }) {
   const expensePicker = flattenTreeForPicker(tree, "expense");
   const revenuePicker = flattenTreeForPicker(tree, "revenue");
+
+  const headerTitle =
+    mode === "category"
+      ? "Conturile firmei — pe grupuri"
+      : "Conturile firmei — pe linii de business";
+  const headerSubtitle =
+    mode === "category"
+      ? "Aseaza fiecare cont in grupul potrivit pentru patron. Lista e sortata dupa rulaj — incepe cu cele mai mari."
+      : "Aloca fiecare cont pe verticala potrivita (sau lasa la 'Toata firma' daca e cheltuiala generala). Lista e sortata dupa rulaj.";
 
   return (
     <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-4">
@@ -1310,26 +1861,27 @@ function AccountListPanel({
             className="text-[14px] font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
-            Conturile firmei
+            {headerTitle}
           </h3>
           <p
-            className="text-[11px] text-gray mt-0.5"
+            className="text-[11px] text-gray mt-0.5 max-w-2xl"
             style={{ letterSpacing: "-0.02em" }}
           >
+            {totalAccounts}{" "}
             {totalAccounts === 1
-              ? "1 cont de cheltuieli/venituri"
-              : `${totalAccounts} conturi de cheltuieli si venituri`}
-            {unmappedCount > 0 && (
+              ? "cont de cheltuieli/venituri"
+              : "conturi de cheltuieli si venituri"}
+            {mode === "category" && unmappedCount > 0 && (
               <>
                 ,{" "}
-                <span className="text-rose-300">
+                <span className="text-rose-700 dark:text-rose-300">
                   {unmappedCount === 1
                     ? "1 fara grupare"
                     : `${unmappedCount} fara grupare`}
                 </span>
               </>
             )}
-            . Sumele sunt rulajul lunii — incepe cu cele mai mari.
+            . {headerSubtitle}
           </p>
         </div>
         <ToggleGroup<Filter>
@@ -1337,12 +1889,18 @@ function AccountListPanel({
           onChange={onFilterChange}
           options={[
             { value: "all", label: "Toate" },
-            {
-              value: "unmapped",
-              label: "Nemapate",
-              count: unmappedCount,
-              countTone: unmappedCount > 0 ? "danger" : "neutral",
-            },
+            ...(mode === "category"
+              ? ([
+                  {
+                    value: "unmapped",
+                    label: "Nemapate",
+                    count: unmappedCount,
+                    countTone: (unmappedCount > 0 ? "danger" : "neutral") as
+                      | "danger"
+                      | "neutral",
+                  },
+                ] as const)
+              : []),
             { value: "expense", label: "Cheltuieli" },
             { value: "revenue", label: "Venituri" },
           ]}
@@ -1357,7 +1915,7 @@ function AccountListPanel({
           Niciun cont pentru filtrul curent.
         </p>
       ) : (
-        <ul className="divide-y divide-dark-3">
+        <ul className="space-y-2">
           {accounts.map((account) => (
             <AccountRow
               key={account.cont}
@@ -1368,6 +1926,7 @@ function AccountListPanel({
               clientId={clientId}
               verticalsEnabled={verticalsEnabled}
               verticals={verticals}
+              mode={mode}
               onMutate={onMutate}
             />
           ))}
@@ -1383,6 +1942,7 @@ function AccountRow({
   clientId,
   verticalsEnabled,
   verticals,
+  mode,
   onMutate,
 }: {
   account: AccountListItem;
@@ -1390,6 +1950,9 @@ function AccountRow({
   clientId: string;
   verticalsEnabled: boolean;
   verticals: VerticalView[];
+  /** Which axis this row is showing controls for. The other axis is hidden
+   *  so the contabil focuses on one concern at a time. */
+  mode: "category" | "vertical";
   onMutate: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -1457,7 +2020,7 @@ function AccountRow({
   const isAnalytic = account.cont !== account.contBase;
 
   return (
-    <li className="py-4">
+    <li className="rounded-lg border border-dark-3 bg-dark/40 hover:bg-dark/60 hover:border-dark-3 transition-colors p-4">
       {/* Row 1 — account identity (cont, name, rulaj, status badges) */}
       <div className="flex items-baseline gap-3 mb-3">
         <span className="font-mono text-[12px] text-white tabular-nums shrink-0 min-w-[60px]">
@@ -1477,67 +2040,65 @@ function AccountRow({
         </Tooltip>
         {account.currentMapping === null && (
           <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
-            <span className="inline-flex items-center gap-1 text-[10px] text-rose-300 cursor-help shrink-0">
+            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 dark:text-rose-300 cursor-help shrink-0">
               <AlertTriangle size={10} /> Nemapat
             </span>
           </Tooltip>
         )}
         {account.hasAnalyticOverride && (
           <Tooltip content="Acest cont analitic are propria mapare, diferita de cea a contului de baza.">
-            <span className="text-[10px] text-amber-300 cursor-help shrink-0">
+            <span className="text-[10px] text-amber-700 dark:text-amber-300 cursor-help shrink-0">
               override analitic
             </span>
           </Tooltip>
         )}
       </div>
 
-      {/* Row 2 — controls. Grid keeps the three control columns aligned across
-          all account rows. Vertical column is only rendered when verticals
-          are active for this firm. */}
-      <div
-        className={`grid gap-3 items-start ${
-          verticalsEnabled
-            ? "grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]"
-            : "grid-cols-[140px_minmax(0,1fr)]"
-        }`}
-      >
-        <div>
-          <FieldLabel
-            text="Cum se aplica"
-            tooltip="'Pentru toate sub-conturile cu acest prefix' (cont de baza, ex. 628) sau 'doar pentru acest cont specific' (analitic, ex. 628.01)."
-          />
-          <div className="flex justify-start mt-1">
-            {isAnalytic ? (
-              <ScopeToggle
-                scope={scope}
-                isAnalytic={isAnalytic}
-                onChange={handleScopeChange}
-                disabled={pending}
-              />
-            ) : (
-              <span
-                className="font-mono text-[11px] text-gray italic h-10 flex items-center"
-                style={{ letterSpacing: "-0.02em" }}
-              >
-                din baza
-              </span>
-            )}
-          </div>
-        </div>
-        <div>
-          <FieldLabel
-            text="Grup patron"
-            tooltip="Cum apare contul pe pagina /firma (ex. 'Servicii externe', 'Salarii brut')."
-          />
-          <div className="mt-1">
-            <Select
-              value={value}
-              options={options}
-              onChange={handleChange}
+      {/* Row 2 — controls relevant to the active axis. Category mode shows
+          'Cum se aplica' + 'Grup patron'; vertical mode shows only the
+          vertical picker on the full width. This keeps the screen focused
+          on one decision at a time. */}
+      {mode === "category" ? (
+        <div className="grid gap-3 items-start grid-cols-[260px_minmax(0,1fr)]">
+          <div>
+            <FieldLabel
+              text="Cum se aplica"
+              tooltip="'Pentru toate sub-conturile cu acest prefix' (cont de baza, ex. 628) sau 'doar pentru acest cont specific' (analitic, ex. 628.01)."
             />
+            <div className="mt-1">
+              {isAnalytic ? (
+                <ScopeToggle
+                  scope={scope}
+                  isAnalytic={isAnalytic}
+                  onChange={handleScopeChange}
+                  disabled={pending}
+                />
+              ) : (
+                <span
+                  className="font-mono text-[12px] text-gray italic h-10 px-4 flex items-center rounded-[10px] border border-dark-3 bg-dark-2/40"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  Din contul de baza
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <FieldLabel
+              text="Grup patron"
+              tooltip="Cum apare contul pe pagina /firma (ex. 'Servicii externe', 'Salarii brut')."
+            />
+            <div className="mt-1">
+              <Select
+                value={value}
+                options={options}
+                onChange={handleChange}
+              />
+            </div>
           </div>
         </div>
-        {verticalsEnabled && (
+      ) : (
+        verticalsEnabled && (
           <div>
             <FieldLabel
               text="Linie de business"
@@ -1557,8 +2118,8 @@ function AccountRow({
               />
             </div>
           </div>
-        )}
-      </div>
+        )
+      )}
     </li>
   );
 }
@@ -1593,28 +2154,15 @@ function ScopeToggle({
     // makes no sense — always contBase.
     return null;
   }
-  const active = scope === "analytic";
   return (
-    <Tooltip
-      content={
-        active
-          ? "Acest cont analitic are propria mapare. Click pentru a-l face sa mosteneasca maparea bazei (ex: 628 = 'Servicii externe' pentru toate 628.xx)."
-          : "Acest cont analitic mosteneste maparea bazei. Click pentru a-l mapa individual (ex: 628.01 NOLICH = 'Outsourcing IT' separat de restul 628.xx)."
-      }
-    >
-      <button
-        type="button"
-        onClick={() => onChange(active ? "contBase" : "analytic")}
-        disabled={disabled}
-        className={`font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
-          active
-            ? "border-amber-300/30 bg-amber-300/10 text-amber-300"
-            : "border-dark-3 bg-dark-3/50 text-gray hover:text-gray-light"
-        }`}
-      >
-        {active ? "individual" : "din baza"}
-      </button>
-    </Tooltip>
+    <Select
+      value={scope}
+      onChange={(v) => !disabled && onChange(v as MappingScope)}
+      options={[
+        { value: "contBase", label: "Din contul de baza" },
+        { value: "analytic", label: "Individual (doar acest cont)" },
+      ]}
+    />
   );
 }
 
