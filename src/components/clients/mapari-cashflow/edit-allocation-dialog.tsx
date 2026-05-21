@@ -237,7 +237,7 @@ function ViewMode({
             type="button"
             onClick={backToDefault}
             disabled={pending}
-            className="text-[12px] text-gray hover:text-rose-300 underline underline-offset-2"
+            className="text-[12px] text-gray hover:text-neg underline underline-offset-2"
             style={{ letterSpacing: "-0.02em" }}
           >
             Inapoi la implicit
@@ -395,7 +395,7 @@ function EditMode({
       )}
 
       {error && (
-        <p className="text-[12px] text-rose-700 dark:text-rose-300" role="alert">
+        <p className="text-[12px] text-neg" role="alert">
           {error}
         </p>
       )}
@@ -518,7 +518,7 @@ function SplitEditor({
               <button
                 type="button"
                 onClick={() => removeRow(idx)}
-                className="p-1.5 text-gray hover:text-rose-300"
+                className="p-1.5 text-gray hover:text-neg"
                 aria-label="Sterge"
               >
                 <X size={14} />
@@ -564,7 +564,7 @@ function SplitEditor({
         </div>
         <span
           className={`font-mono tabular-nums ${
-            total === 100 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
+            total === 100 ? "text-pos" : "text-tone-warn"
           }`}
         >
           Total: {total}%

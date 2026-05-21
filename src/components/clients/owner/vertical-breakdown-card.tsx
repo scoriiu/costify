@@ -60,9 +60,9 @@ export function VerticalBreakdownCard({ items, periodLabel }: Props) {
 function VerticalRow({ item }: { item: VerticalBreakdownItem }) {
   const profitTone =
     item.profit > 0
-      ? "text-emerald-300"
+      ? "text-pos"
       : item.profit < 0
-      ? "text-rose-300"
+      ? "text-neg"
       : "text-gray-light";
 
   return (

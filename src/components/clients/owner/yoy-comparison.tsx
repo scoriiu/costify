@@ -72,9 +72,9 @@ function YoySlot({
 
   const toneClass =
     tone === "positive"
-      ? "text-emerald-300"
+      ? "text-pos"
       : tone === "negative"
-      ? "text-rose-300"
+      ? "text-neg"
       : "text-gray";
 
   const Icon = data.delta > 0 ? ArrowUp : data.delta < 0 ? ArrowDown : Minus;

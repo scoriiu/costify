@@ -203,14 +203,14 @@ function KpiCard({
         className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-gray"
         style={{ letterSpacing: "-0.02em" }}
       >
-        <span className={tone === "danger" ? "text-rose-700 dark:text-rose-300" : ""}>
+        <span className={tone === "danger" ? "text-neg" : ""}>
           {icon}
         </span>
         {label}
       </div>
       <div
         className={`font-mono text-[22px] font-bold tabular-nums mt-1 ${
-          tone === "danger" && value !== "0" ? "text-rose-700 dark:text-rose-300" : "text-white"
+          tone === "danger" && value !== "0" ? "text-neg" : "text-white"
         }`}
         style={{ letterSpacing: "-0.04em" }}
       >
@@ -305,7 +305,7 @@ function PublishedBadge({
   if (published.isStale) {
     return (
       <div
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-900 dark:text-amber-300"
+        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-tone-warn"
         style={{ letterSpacing: "-0.02em" }}
       >
         <AlertTriangle size={11} />

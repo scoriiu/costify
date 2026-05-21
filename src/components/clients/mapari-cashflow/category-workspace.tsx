@@ -205,7 +205,7 @@ function WorkspaceHeader({
             {unmappedCount > 0 && (
               <>
                 {" "}
-                <span className="text-rose-700 dark:text-rose-300">
+                <span className="text-neg">
                   {unmappedCount === 1
                     ? "1 cont nu e inca asezat in niciun grup."
                     : `${unmappedCount} conturi nu sunt inca asezate in niciun grup.`}
@@ -273,7 +273,7 @@ function UnmappedAccountsCallout({
   if (accounts.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-rose-300/30 bg-rose-500/5 p-4 space-y-3">
+    <div className="rounded-lg border border-neg-border bg-neg-bg p-4 space-y-3">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -281,7 +281,7 @@ function UnmappedAccountsCallout({
       >
         {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <span
-          className="text-[13px] font-semibold text-rose-700 dark:text-rose-300"
+          className="text-[13px] font-semibold text-neg"
           style={{ letterSpacing: "-0.04em" }}
         >
           {accounts.length === 1
@@ -711,7 +711,7 @@ function AccountRow({
               type="button"
               onClick={unmap}
               disabled={pending}
-              className="p-1.5 text-gray hover:text-rose-300"
+              className="p-1.5 text-gray hover:text-neg"
             >
               <X size={14} />
             </button>
@@ -782,7 +782,7 @@ function NewCategoryInline({
       <Button variant="ghost" onClick={onCancel} disabled={pending}>
         Renunta
       </Button>
-      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
 }
@@ -839,7 +839,7 @@ function RenameCategoryInline({
       <Button variant="ghost" onClick={onCancel} disabled={pending}>
         Renunta
       </Button>
-      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
 }
@@ -878,7 +878,7 @@ function DeleteCategoryButton({
         type="button"
         onClick={confirmDelete}
         disabled={pending}
-        className="p-1.5 text-gray hover:text-rose-300"
+        className="p-1.5 text-gray hover:text-neg"
       >
         <Trash2 size={14} />
       </button>
@@ -963,7 +963,7 @@ function AddAccountToCategory({
           Renunta
         </Button>
       </div>
-      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
 }
@@ -1045,7 +1045,7 @@ function MoveAccountInline({
       <Button variant="ghost" onClick={onCancel} disabled={pending}>
         Renunta
       </Button>
-      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
 }

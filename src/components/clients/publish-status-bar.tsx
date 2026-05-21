@@ -95,7 +95,7 @@ export function PublishStatusBar({ clientId, year, month, status }: Props) {
     return (
       <BarShell tone="warn">
         <div className="flex items-center gap-2 min-w-0">
-          <AlertCircle size={14} className="text-amber-300 shrink-0" />
+          <AlertCircle size={14} className="text-tone-warn shrink-0" />
           <span
             className="text-[13px] text-gray-light"
             style={{ letterSpacing: "-0.02em" }}
@@ -119,7 +119,7 @@ export function PublishStatusBar({ clientId, year, month, status }: Props) {
     return (
       <BarShell tone="warn">
         <div className="flex items-center gap-2 min-w-0">
-          <AlertTriangle size={14} className="text-amber-300 shrink-0" />
+          <AlertTriangle size={14} className="text-tone-warn shrink-0" />
           <span
             className="text-[13px] text-gray-light truncate"
             style={{ letterSpacing: "-0.02em" }}
@@ -141,7 +141,7 @@ export function PublishStatusBar({ clientId, year, month, status }: Props) {
   return (
     <BarShell tone="ok">
       <div className="flex items-center gap-2 min-w-0">
-        <CheckCircle2 size={14} className="text-emerald-300 shrink-0" />
+        <CheckCircle2 size={14} className="text-pos shrink-0" />
         <span
           className="text-[13px] text-gray-light truncate"
           style={{ letterSpacing: "-0.02em" }}
@@ -179,8 +179,8 @@ export function PublishStatusBar({ clientId, year, month, status }: Props) {
 }
 
 function BarShell({ tone, children }: { tone: "ok" | "warn"; children: React.ReactNode }) {
-  const border = tone === "ok" ? "border-emerald-400/20" : "border-amber-300/20";
-  const bg = tone === "ok" ? "bg-emerald-500/5" : "bg-amber-300/5";
+  const border = tone === "ok" ? "border-pos-border" : "border-tone-warn-border";
+  const bg = tone === "ok" ? "bg-pos-bg" : "bg-tone-warn-bg";
   return (
     <div className={`flex items-center justify-between gap-3 rounded-[10px] border ${border} ${bg} px-4 py-2.5`}>
       {children}
@@ -191,7 +191,7 @@ function BarShell({ tone, children }: { tone: "ok" | "warn"; children: React.Rea
 function ErrorChip({ msg }: { msg: string }) {
   return (
     <span
-      className="text-[11px] text-red-300 border border-red-500/30 bg-red-500/10 rounded px-2 py-0.5 max-w-[260px] truncate"
+      className="text-[11px] text-neg border border-neg-border bg-neg-bg rounded px-2 py-0.5 max-w-[260px] truncate"
       title={msg}
       style={{ letterSpacing: "-0.02em" }}
     >

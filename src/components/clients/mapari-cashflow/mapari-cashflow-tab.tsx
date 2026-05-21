@@ -507,7 +507,7 @@ function VerticalsOn({
             type="button"
             onClick={deactivate}
             disabled={pending}
-            className="text-[11px] text-gray hover:text-rose-300 underline underline-offset-2"
+            className="text-[11px] text-gray hover:text-neg underline underline-offset-2"
             style={{ letterSpacing: "-0.02em" }}
           >
             Dezactiveaza
@@ -846,7 +846,7 @@ function ExpandedColumn({
                 <button
                   type="button"
                   onClick={onRemove}
-                  className="p-1.5 text-gray hover:text-rose-300 rounded"
+                  className="p-1.5 text-gray hover:text-neg rounded"
                   disabled={pending}
                 >
                   <Trash2 size={13} />
@@ -985,7 +985,7 @@ function VerticalRow({
               type="button"
               onClick={remove}
               disabled={pending}
-              className="p-1 text-gray hover:text-rose-300"
+              className="p-1 text-gray hover:text-neg"
             >
               <Trash2 size={11} />
             </button>
@@ -1103,7 +1103,7 @@ function AddVerticalInline({
       <Button variant="ghost" onClick={onCancel}>
         Renunta
       </Button>
-      {error && <p className="text-[11px] text-rose-700 dark:text-rose-300">{error}</p>}
+      {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
 }
@@ -1197,7 +1197,7 @@ function ActivateVerticalsModal({
                 <button
                   type="button"
                   onClick={() => removeRow(idx)}
-                  className="p-1 text-gray hover:text-rose-300"
+                  className="p-1 text-gray hover:text-neg"
                   title="Sterge"
                 >
                   <X size={14} />
@@ -1221,7 +1221,7 @@ function ActivateVerticalsModal({
           Verticala &quot;Toata firma&quot; se creeaza automat pentru conturile
           care nu sunt atribuite niciunei linii de business.
         </p>
-        {error && <p className="mt-3 text-[12px] text-rose-700 dark:text-rose-300">{error}</p>}
+        {error && <p className="mt-3 text-[12px] text-neg">{error}</p>}
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Renunta
@@ -1673,7 +1673,7 @@ function NewCategoryRow({
         </Button>
       </div>
       {error && (
-        <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-1">{error}</p>
+        <p className="text-[11px] text-neg mt-1">{error}</p>
       )}
     </div>
   );
@@ -1774,7 +1774,7 @@ function DeleteCategoryButton({
         type="button"
         onClick={submit}
         disabled={pending}
-        className="p-1 text-gray hover:text-rose-300"
+        className="p-1 text-gray hover:text-neg"
       >
         <Trash2 size={11} />
       </button>
@@ -1900,7 +1900,7 @@ function AccountListPanel({
           {mode === "category" && unmappedCount > 0 && (
             <>
               ,{" "}
-              <span className="text-rose-700 dark:text-rose-300">
+              <span className="font-semibold text-neg">
                 {unmappedCount === 1
                   ? "1 fara grupare"
                   : `${unmappedCount} fara grupare`}
@@ -1910,7 +1910,7 @@ function AccountListPanel({
           {mode === "vertical" && unallocatedCount > 0 && (
             <>
               ,{" "}
-              <span className="text-rose-700 dark:text-rose-300">
+              <span className="font-semibold text-neg">
                 {unallocatedCount === 1
                   ? `1 doar pe ${defaultVerticalName}`
                   : `${unallocatedCount} doar pe ${defaultVerticalName}`}
@@ -2094,14 +2094,14 @@ function AccountRow({
         </Tooltip>
         {account.currentMapping === null && (
           <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
-            <span className="inline-flex items-center gap-1 text-[10px] text-rose-700 dark:text-rose-300 cursor-help shrink-0">
+            <span className="inline-flex items-center gap-1 text-[10px] text-neg cursor-help shrink-0">
               <AlertTriangle size={10} /> Nemapat
             </span>
           </Tooltip>
         )}
         {account.hasAnalyticOverride && (
           <Tooltip content="Acest cont analitic are propria mapare, diferita de cea a contului de baza.">
-            <span className="text-[10px] text-amber-700 dark:text-amber-300 cursor-help shrink-0">
+            <span className="text-[10px] text-tone-warn cursor-help shrink-0">
               override analitic
             </span>
           </Tooltip>

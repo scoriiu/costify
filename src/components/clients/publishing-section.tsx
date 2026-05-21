@@ -221,7 +221,7 @@ function PublishRow({
   if (!row.isPublished) {
     status = (
       <span
-        className="font-mono text-[10px] uppercase tracking-wider text-amber-300/80"
+        className="font-mono text-[10px] uppercase tracking-wider text-tone-warn"
         aria-hidden
       >
         Nepublicat
@@ -229,14 +229,14 @@ function PublishRow({
     );
   } else if (row.stale) {
     status = (
-      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-300">
+      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-tone-warn">
         <AlertTriangle size={10} />
         Modificat dupa publicare
       </span>
     );
   } else {
     status = (
-      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-300/80">
+      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-pos">
         <CheckCircle2 size={10} />
         Publicat {formatRoDate(row.publishedAt!)}
         {row.publisherName ? ` · ${row.publisherName}` : ""}
@@ -256,7 +256,7 @@ function PublishRow({
         <div className="mt-0.5">{status}</div>
         {error && (
           <p
-            className="mt-1 text-[11px] text-red-300"
+            className="mt-1 text-[11px] text-neg"
             style={{ letterSpacing: "-0.02em" }}
           >
             {error}

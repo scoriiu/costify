@@ -224,9 +224,9 @@ function AddAccessForm({
           />
         </div>
         {error && (
-          <div className="flex items-start gap-2 rounded border border-red-500/20 bg-red-500/5 p-2">
-            <AlertTriangle size={12} className="mt-0.5 text-red-400" />
-            <p className="text-[12px] text-red-300" style={{ letterSpacing: "-0.02em" }}>
+          <div className="flex items-start gap-2 rounded border border-neg-border bg-neg-bg p-2">
+            <AlertTriangle size={12} className="mt-0.5 text-neg" />
+            <p className="text-[12px] text-neg" style={{ letterSpacing: "-0.02em" }}>
               {error}
             </p>
           </div>
@@ -284,7 +284,7 @@ function AccessRowItem({
         </p>
         <p className="font-mono text-[11px] text-gray truncate">{access.userEmail}</p>
         {error && (
-          <p className="mt-1 text-[11px] text-red-300" style={{ letterSpacing: "-0.02em" }}>
+          <p className="mt-1 text-[11px] text-neg" style={{ letterSpacing: "-0.02em" }}>
             {error}
           </p>
         )}
@@ -307,7 +307,7 @@ function AccessRowItem({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="inline-flex items-center gap-1.5 rounded-[10px] border border-dark-3 bg-dark px-3 py-2 text-[12px] font-medium text-gray-light hover:text-red-300 hover:border-red-500/40 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-dark-3 bg-dark px-3 py-2 text-[12px] font-medium text-gray-light hover:text-neg hover:border-neg-border transition-colors"
             aria-label={`Revoca acces pentru ${access.userEmail}`}
           >
             <Trash2 size={12} />

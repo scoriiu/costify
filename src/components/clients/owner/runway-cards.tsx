@@ -39,11 +39,11 @@ function formatMonths(months: number): string {
 function toneClasses(status: string): { bg: string; text: string; label: string } {
   switch (status) {
     case "comfortable":
-      return { bg: "bg-emerald-500/10 border-emerald-400/20", text: "text-emerald-300", label: "Confortabil" };
+      return { bg: "bg-pos-bg border-pos-border", text: "text-pos", label: "Confortabil" };
     case "tight":
-      return { bg: "bg-amber-300/10 border-amber-300/20", text: "text-amber-300", label: "Atentie" };
+      return { bg: "bg-tone-warn-bg border-tone-warn-border", text: "text-tone-warn", label: "Atentie" };
     case "critical":
-      return { bg: "bg-rose-500/10 border-rose-400/20", text: "text-rose-300", label: "Critic" };
+      return { bg: "bg-neg-bg border-neg-border", text: "text-neg", label: "Critic" };
     default:
       return { bg: "bg-dark-2 border-dark-3", text: "text-gray", label: "Insuficient istoric" };
   }

@@ -61,7 +61,7 @@ export function PublishedPeriodBanner({
         </span>
         {stale && (
           <span
-            className="font-mono text-[10px] font-medium uppercase tracking-wider text-amber-300 border border-amber-300/30 bg-amber-300/5 px-1.5 py-0.5 rounded"
+            className="font-mono text-[10px] font-medium uppercase tracking-wider text-tone-warn border border-tone-warn-border bg-tone-warn-bg px-1.5 py-0.5 rounded"
             title="Jurnalul s-a modificat dupa publicare. Contabilul poate re-publica."
           >
             Necesita re-publicare

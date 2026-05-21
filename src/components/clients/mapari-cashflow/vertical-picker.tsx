@@ -117,7 +117,7 @@ export function VerticalPicker({
           title={label}
           className={`flex flex-col w-full text-left rounded-[10px] border bg-dark-2 px-3 font-mono text-sm transition-colors ${
             isSplit
-              ? "border-amber-500/40 hover:border-amber-400/60 gap-1.5 py-2 min-h-[40px]"
+              ? "border-tone-warn-border hover:border-tone-warn-border gap-1.5 py-2 min-h-[40px]"
               : "border-dark-3 hover:border-primary/40 h-10 justify-center"
           } ${isInherited ? "text-gray italic" : "text-gray-light"}`}
           style={{ letterSpacing: "-0.02em" }}
@@ -375,7 +375,7 @@ function SplitPopover({
                 <button
                   type="button"
                   onClick={() => removeRow(idx)}
-                  className="p-1 text-gray hover:text-rose-300"
+                  className="p-1 text-gray hover:text-neg"
                   title="Sterge"
                 >
                   <X size={12} />
@@ -408,7 +408,7 @@ function SplitPopover({
           </div>
           <span
             className={`font-mono text-[12px] tabular-nums ${
-              total === 100 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"
+              total === 100 ? "text-pos" : "text-tone-warn"
             }`}
           >
             Total: {total}%
@@ -416,7 +416,7 @@ function SplitPopover({
         </div>
 
         {error && (
-          <p className="mt-2 text-[11px] text-rose-700 dark:text-rose-300">{error}</p>
+          <p className="mt-2 text-[11px] text-neg">{error}</p>
         )}
 
         <div className="mt-5 flex justify-end gap-2">
