@@ -4,12 +4,12 @@
  * CPP tab — Cont de Profit si Pierdere.
  *
  * Shows the active regime for the selected period as a read-only label.
- * The regime is computed server-side from the client's TaxRegimePeriod
- * timeline (managed in Setari). Users change the regime there, not here.
+ * The regime is detected server-side from the client's registru jurnal —
+ * specifically from which tax account (691/698/697/695) the accountant
+ * booked the impozit on in that period. No manual configuration needed.
  */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { CppView } from "@/components/datasets/cpp-view";
 import { CppF20View } from "@/components/datasets/cpp-f20-view";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -17,11 +17,10 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { CppData, CppF20Data } from "@/modules/reporting";
 import type { BalanceRowView } from "@/modules/balances";
 import type { TaxRegime } from "@/modules/accounts";
-import { Info, Settings2 } from "lucide-react";
+import { Info } from "lucide-react";
 
 interface Props {
   clientId: string;
-  clientSlug: string;
   year: number;
   month: number;
   onUnmappedFound?: (rows: BalanceRowView[]) => void;
@@ -73,12 +72,7 @@ const REGIME_INFO: Record<TaxRegime, { label: string; formula: string; cont: str
   },
 };
 
-const MONTH_NAMES = [
-  "Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie",
-  "Iulie", "August", "Septembrie", "Octombrie", "Noiembrie", "Decembrie",
-];
-
-export function CppTab({ clientId, clientSlug, year, month, onUnmappedFound }: Props) {
+export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
   const [cpp, setCpp] = useState<CppData | null>(null);
   const [cppF20, setCppF20] = useState<CppF20Data | null>(null);
   const [taxRegime, setTaxRegime] = useState<TaxRegime>("profit_standard");
@@ -123,7 +117,6 @@ export function CppTab({ clientId, clientSlug, year, month, onUnmappedFound }: P
       : cppF20 && cppF20.lines.length > 0;
 
   const info = REGIME_INFO[taxRegime];
-  const periodLabel = `${MONTH_NAMES[month - 1]} ${year}`;
 
   return (
     <div className="space-y-4">
@@ -134,7 +127,7 @@ export function CppTab({ clientId, clientSlug, year, month, onUnmappedFound }: P
           onChange={(v) => setViewMode(v)}
         />
         <div className="ml-auto flex items-center gap-3">
-          <RegimeLabel info={info} periodLabel={periodLabel} clientSlug={clientSlug} />
+          <RegimeLabel info={info} />
         </div>
       </div>
 
@@ -173,14 +166,10 @@ function LegacyF20Notice({ year }: { year: number }) {
 
 function RegimeLabel({
   info,
-  periodLabel,
-  clientSlug,
 }: {
   info: (typeof REGIME_INFO)[TaxRegime];
-  periodLabel: string;
-  clientSlug: string;
 }) {
-  const tooltipContent = `${info.formula}  ·  Cont ${info.cont}\n${info.description}`;
+  const tooltipContent = `${info.formula}  ·  Cont ${info.cont}\n${info.description}\n\nDetectat automat din registru jurnal.`;
   return (
     <div className="flex items-center gap-2" data-testid="cpp-regime-label">
       <span
@@ -201,15 +190,6 @@ function RegimeLabel({
           <span className="text-gray">· Cont {info.cont}</span>
         </span>
       </Tooltip>
-      <Link
-        href={`/clients/${clientSlug}?tab=setari#regim-fiscal`}
-        className="inline-flex items-center gap-1 text-[12px] text-gray transition-colors hover:text-primary"
-        title={`Gestioneaza regim fiscal pentru ${periodLabel}`}
-        data-testid="regime-manage-link"
-      >
-        <Settings2 size={13} />
-        <span className="hidden sm:inline">Gestioneaza</span>
-      </Link>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
-import { SetariTab, type TransitionView } from "@/components/clients/setari-tab";
+import { SetariTab } from "@/components/clients/setari-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
@@ -42,7 +42,6 @@ interface Props {
   activeTab: string;
   selectedYear?: number;
   selectedMonth?: number;
-  transitions: TransitionView[];
   /** Server-rendered "Acces clientului" section shown inside the Setari tab. */
   accessSection?: React.ReactNode;
   /** Server-rendered "Publicare" section shown inside the Setari tab. */
@@ -73,7 +72,6 @@ export function ClientDetail({
   activeTab,
   selectedYear,
   selectedMonth,
-  transitions,
   accessSection,
   publishSection,
   publishBar,
@@ -174,7 +172,6 @@ export function ClientDetail({
         {tab === "cpp" && selectedYear && selectedMonth && (
           <CppTab
             clientId={client.id}
-            clientSlug={client.slug}
             year={selectedYear}
             month={selectedMonth}
             onUnmappedFound={setUnmappedRows}
@@ -193,7 +190,6 @@ export function ClientDetail({
           <SetariTab
             client={client}
             entryCount={entryCount}
-            transitions={transitions}
             onOpenDeleteModal={() => setDeleteOpen(true)}
             accessSection={accessSection}
             publishSection={publishSection}

@@ -3,7 +3,6 @@ import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAvailablePeriods } from "@/modules/balances";
-import { getTransitions } from "@/modules/clients/tax-regime";
 import { computeKpis } from "@/modules/reporting";
 import { getBalanceRows } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
@@ -42,6 +41,7 @@ interface Props {
     month?: string;
     view?: string;
     page?: string;
+    "cashflow-year"?: string;
   }>;
 }
 
@@ -122,8 +122,7 @@ export default async function ClientDetailPage(props: Props) {
   }
 
   // Default: accountant view with tabs
-  const [transitions, accesses, publishedPeriods, currentStatus, auditRows] = await Promise.all([
-    getTransitions(client.id),
+  const [accesses, publishedPeriods, currentStatus, auditRows] = await Promise.all([
     listAccessesForClient(client.id),
     listPublishedPeriods(client.id),
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
@@ -162,7 +161,11 @@ export default async function ClientDetailPage(props: Props) {
   // for the latest period) on every page visit.
   let mapariCashflowSection: ReactNode = null;
   if (tab === "mapari-cashflow") {
-    const mapariData = await loadMapariCashflow(client.id);
+    const cashflowYearRaw = searchParams["cashflow-year"];
+    const cashflowYear = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : undefined;
+    const mapariData = await loadMapariCashflow(client.id, {
+      year: Number.isFinite(cashflowYear) ? cashflowYear : undefined,
+    });
     mapariCashflowSection = <MapariCashflowTab data={mapariData} />;
   }
 
@@ -207,12 +210,6 @@ export default async function ClientDetailPage(props: Props) {
       activeTab={tab}
       selectedYear={year}
       selectedMonth={month}
-      transitions={transitions.map((t) => ({
-        id: t.id,
-        startDate: t.startDate.toISOString(),
-        taxRegime: t.taxRegime,
-        reason: t.reason,
-      }))}
       accessSection={
         <AccessSection
           clientId={client.id}

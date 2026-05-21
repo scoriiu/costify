@@ -117,26 +117,15 @@ function classifyFailure(f: Failure): FailureNote {
     };
   }
 
-  if (baseAcct === "5311" && f.dimension === "sold inițial".replace("inițial", "initial") as "sold initial") {
-    return {
-      category: "Cont orfan: sold de casă fără înregistrări în jurnal",
-      severity: "missing-data",
-      explanation:
-        "Contul 5311 (Casa în lei) apare în balanță cu sold " +
-        f.expected.toFixed(2) +
-        " RON dar nu are nicio înregistrare în registrul jurnal. " +
-        "Soldul provine din exercițiile anterioare prin operațiuni Saga de preluare sold care nu sunt incluse în exportul standard.",
-    };
-  }
-
   if (acct === "5311") {
     return {
-      category: "Cont 5311: diferență agregată din lipsă sold inițial",
+      category: "Cont 5311: diferenta din istoric (jurnal incomplet pre-perioada)",
       severity: "missing-data",
       explanation:
-        "Costify calculează rulaj/sold final greșit pentru 5311 pentru că **soldul inițial al casei din exercițiul anterior lipsește din jurnal**. " +
-        "Toate operațiile pe casă din perioada curentă sunt corecte în Costify, dar baza de pornire (sold inițial) e necunoscută. " +
-        "Vezi nota pe sold inițial 5311 — aceeași cauză rădăcină.",
+        "Contul 5311 (Casa in lei) ARE inregistrari in jurnal (sute de operatii pe ani multipli), dar cumulativul jurnalului inainte de perioada e mai mic decat soldul Saga cu " +
+        Math.abs(f.expected - f.received).toFixed(2) +
+        " RON. Operatiile din perioada curenta reconcilieaza exact; diferenta vine dintr-o operatiune istorica (regularizare, preluare manuala, ajustare la inchidere) care a modificat soldul Saga fara sa apara in exportul standard al registrului jurnal. " +
+        "Trebuie sa identificam ce operatiune lipseste — probabil o nota contabila sau o preluare de sold dintr-un an anterior.",
     };
   }
 
