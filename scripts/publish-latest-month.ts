@@ -19,12 +19,14 @@ import { publishPeriod } from "../src/modules/publishing";
 interface Args {
   clientSlug: string | null;
   dryRun: boolean;
+  force: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { clientSlug: null, dryRun: false };
+  const args: Args = { clientSlug: null, dryRun: false, force: false };
   for (const a of argv) {
     if (a === "--dry-run") args.dryRun = true;
+    else if (a === "--force") args.force = true;
     else if (a.startsWith("--client=")) args.clientSlug = a.slice("--client=".length);
   }
   return args;
@@ -76,9 +78,9 @@ async function main() {
       select: { id: true, publishedAt: true },
     });
 
-    if (existing) {
+    if (existing && !args.force) {
       console.log(
-        `- ${client.slug}: ${latest.year}-${String(latest.month).padStart(2, "0")} already published (skip)`
+        `- ${client.slug}: ${latest.year}-${String(latest.month).padStart(2, "0")} already published (skip; use --force to republish)`
       );
       skipped += 1;
       continue;

@@ -39,10 +39,17 @@
 import type { PrismaClient } from "@prisma/client";
 
 interface SeedDef {
-  /** 2-digit account class (e.g. "60", "70"). */
+  /** Account class code mapped to this category. Root nodes use a 2-digit
+   *  class (e.g. "60", "70"); child nodes use a finer 3-digit code (e.g.
+   *  "641", "642") so the prefix-walking resolver routes the rulaj to the
+   *  most specific sub-category first, then falls back to the parent. */
   code: string;
   /** Patron-friendly label, identical to PR-2a copy. */
   label: string;
+  /** Optional explicit sub-categories. Each child gets its own mapping on a
+   *  more specific account code. The parent keeps its 2-digit mapping as a
+   *  catch-all for sub-codes that don't have their own child. */
+  children?: SeedDef[];
 }
 
 const EXPENSE_SEEDS: SeedDef[] = [
@@ -50,7 +57,16 @@ const EXPENSE_SEEDS: SeedDef[] = [
   { code: "61", label: "Energie, apa, intretinere" },
   { code: "62", label: "Servicii externe (chirie, IT, contabilitate)" },
   { code: "63", label: "Taxe si impozite (altele decat profit)" },
-  { code: "64", label: "Salarii si contributii" },
+  {
+    code: "64",
+    label: "Salarii si contributii",
+    children: [
+      { code: "641", label: "Salarii brut" },
+      { code: "642", label: "Tichete si avantaje in natura" },
+      { code: "645", label: "Asigurari sociale (CAS, CASS, somaj)" },
+      { code: "646", label: "Ajutoare materiale" },
+    ],
+  },
   { code: "65", label: "Comisioane bancare si diferente curs" },
   { code: "66", label: "Dobanzi si cheltuieli financiare" },
   { code: "67", label: "Cheltuieli exceptionale" },
@@ -86,9 +102,9 @@ export async function seedOmfpDefaults(
   ]) {
     for (let i = 0; i < seeds.length; i++) {
       const seed = seeds[i];
-      const result = await seedOne(prisma, clientId, kind, seed, i);
-      if (result.categoryCreated) categoriesCreated++;
-      if (result.mappingCreated) mappingsCreated++;
+      const result = await seedOne(prisma, clientId, kind, seed, i, null);
+      categoriesCreated += result.categoriesCreated;
+      mappingsCreated += result.mappingsCreated;
     }
   }
 
@@ -100,16 +116,17 @@ async function seedOne(
   clientId: string,
   kind: "expense" | "revenue",
   seed: SeedDef,
-  position: number
-): Promise<{ categoryCreated: boolean; mappingCreated: boolean }> {
-  let categoryCreated = false;
-  let mappingCreated = false;
+  position: number,
+  parentId: string | null
+): Promise<SeedReport> {
+  let categoriesCreated = 0;
+  let mappingsCreated = 0;
 
-  // Idempotent: only create the root category if no node with this exact
-  // (clientId, parentId=null, name) tuple exists. The accountant might have
+  // Idempotent: only create the category if no node with this exact
+  // (clientId, parentId, name) tuple exists. The accountant might have
   // renamed our seed last week — in that case we do nothing.
   const existing = await prisma.costCategory.findFirst({
-    where: { clientId, parentId: null, name: seed.label },
+    where: { clientId, parentId, name: seed.label },
   });
 
   let categoryId = existing?.id;
@@ -117,7 +134,7 @@ async function seedOne(
     const created = await prisma.costCategory.create({
       data: {
         clientId,
-        parentId: null,
+        parentId,
         name: seed.label,
         kind,
         position,
@@ -125,7 +142,7 @@ async function seedOne(
       },
     });
     categoryId = created.id;
-    categoryCreated = true;
+    categoriesCreated++;
   }
 
   // Idempotent: only insert the mapping if the cont isn't already mapped
@@ -142,10 +159,31 @@ async function seedOne(
         categoryId,
       },
     });
-    mappingCreated = true;
+    mappingsCreated++;
   }
 
-  return { categoryCreated, mappingCreated };
+  // Recurse into children. Each child inherits the parent's kind and gets
+  // its own mapping on a more specific account code (e.g. "641" under
+  // root "64"). The resolver will route 641.x to the child first, falling
+  // back to the parent root mapping for any 64.x code without an explicit
+  // sub-category.
+  if (seed.children && categoryId) {
+    for (let i = 0; i < seed.children.length; i++) {
+      const childSeed = seed.children[i];
+      const childResult = await seedOne(
+        prisma,
+        clientId,
+        kind,
+        childSeed,
+        i,
+        categoryId
+      );
+      categoriesCreated += childResult.categoriesCreated;
+      mappingsCreated += childResult.mappingsCreated;
+    }
+  }
+
+  return { categoriesCreated, mappingsCreated };
 }
 
 export { EXPENSE_SEEDS, REVENUE_SEEDS };
