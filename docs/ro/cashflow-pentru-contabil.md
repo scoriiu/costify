@@ -94,34 +94,24 @@ Daca un cont (de exemplu Electricitate pe sediu comun) acopera mai multe linii d
 
 ## Cum se vede pe `/firma`
 
-Dupa ce ai mapat conturile si publici luna, antreprenorul vede:
+Dupa ce ai mapat conturile si publici luna, antreprenorul vede exact ce e mai jos. Limbajul este de antreprenor, **nu apar coduri OMFP nicaieri** (D7).
 
-```
-/firma  (ce vede patronul)
-┌──────────────────────────────────────────────────────────────────┐
-│ QHM21 NETWORK SRL — aprilie 2026                                 │
-│ Date publicate: aprilie 2026 · de tine, pe 20 mai                │
-├──────────────────────────────────────────────────────────────────┤
-│ KPI cards: Bani in cont · De primit · De platit · Profit         │
-│                                                                  │
-│ Unde s-au dus banii (luna aprilie)                              │
-│   Salarii si contributii      45.000 lei  ████████████          │
-│   Servicii externe            23.000 lei  ███████              │
-│   Electricitate, apa           8.000 lei  ███                   │
-│   ...                                                            │
-│                                                                  │
-│ Top cheltuieli ale lunii                                         │
-│   1. NOLICH SRL              23.451 lei                          │
-│   ...                                                            │
-│                                                                  │
-│ Pe linii de business    ← (doar daca ai verticale activate)     │
-│   Outsourcing:  venituri 320k · chelt. 250k · profit  70k        │
-│   Recruitment:  venituri  80k · chelt.  60k · profit  20k        │
-│   Coworking:    venituri  40k · chelt.  35k · profit   5k        │
-└──────────────────────────────────────────────────────────────────┘
-```
+:::mockup published-banner
+:::
 
-Limbajul este de antreprenor, **nu apar coduri OMFP nicaieri** (D7).
+:::mockup kpi-cards
+:::
+
+:::mockup expense-breakdown
+:::
+
+:::mockup top-expenses
+:::
+
+:::mockup vertical-breakdown
+:::
+
+Sectiunea "Pe linii de business" apare doar daca ai verticale activate.
 
 ---
 

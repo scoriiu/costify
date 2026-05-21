@@ -4,12 +4,8 @@ Modulul **Cashflow** este partea din Costify care traduce datele contabile (jurn
 
 Acelasi jurnal genereaza doua vederi paralele:
 
-| Vede contabilul | Vede antreprenorul |
-|-----------------|--------------------|
-| Balanta de verificare cu solduri pe conturi OMFP | "Bani in casa si banca" / "De primit de la clienti" |
-| Cont de profit si pierdere (CPP) clasa 6/7 | "Cat ai castigat" / "Marja" |
-| Conturile 628, 605, 641... | "Servicii externe", "Energie", "Salarii"... |
-| Conturile 411.NOLICH, 401.MONTBLANC... | "NOLICH iti datoreaza X" / "Datorezi catre MONT BLANC" |
+:::mockup two-languages
+:::
 
 Aceleasi cifre, doua limbaje. **Nimic nu se inventeaza, doar se traduce.**
 
@@ -60,21 +56,8 @@ Aceeasi cheltuiala (de exemplu Electricitate pe sediu) poate sa fie:
 - Categoria: **Electricitate** (axa A)
 - Verticala: **60% Outsourcing + 40% Coworking** (axa B)
 
-```
-                                    QHM21 NETWORK SRL — aprilie 2026
-
-   AXA A (categorii)         ×        AXA B (verticale)        =     Owner view
-   ────────────────                   ──────────────────              ──────────────
-   • Salarii                          • Outsourcing                   "Pe linii de business"
-   • Servicii externe                 • Recruitment                     ├─ Outsourcing
-   • Electricitate                    • Coworking                       │   venituri  320k
-   • Chirie                                                             │   chelt.    250k
-   • ...                                                                │   profit     70k
-                                                                        ├─ Recruitment
-                                                                        │   ...
-                                                                        └─ Coworking
-                                                                            ...
-```
+:::mockup axes-diagram
+:::
 
 NU se incorporeaza una in alta. "Electricitate Outsourcing" ca nume de categorie e o gresala — colapseaza modelul.
 

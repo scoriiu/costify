@@ -29,23 +29,8 @@ Verticala NU este:
 
 Verticalele si categoriile sunt **ortogonale**. Aceeasi cheltuiala poate exista pe ambele simultan:
 
-```
-                     QHM21 NETWORK SRL — aprilie 2026
-
-                  AXA A: Categorii                AXA B: Verticale
-
-                  ┌─────────────────┐             ┌─────────────────┐
-                  │ Salarii         │             │ Outsourcing     │
-   Plata          │ Electricitate   │             │ Recruitment     │
-   "Electricitate │ Servicii ext.   │   ×         │ Coworking       │
-   sediu = 12k"   │ Marfa           │             │ Toata firma     │
-                  │ ...             │             │                 │
-                  └─────────────────┘             └─────────────────┘
-
-                  apare la: Electricitate         apare la: 60% Coworking
-                  (categoria 12k cu bara)         40% Outsourcing
-                                                  (split pe verticale)
-```
+:::mockup axes-diagram
+:::
 
 **De ce e important**: poti raspunde la doua intrebari diferite cu acelasi numar:
 - "Cat platim pe electricitate in total?" → 12.000 lei (axa A — categorie)
@@ -73,26 +58,15 @@ Fara verticale, raspunsul la a doua intrebare nu exista. Tot ce vezi sunt totale
 
 ## Activarea (pasul 2 in Mapari Cashflow)
 
-Click pe **Activeaza verticale**. Apare modalul de bootstrap:
+Click pe **Activeaza verticale**. Apare modalul de bootstrap unde scrii numele initiale ale liniilor de business:
 
-```
-Configureaza verticalele firmei
-─────────────────────────────────
-Scrie numele liniilor de business pe care vrei sa le urmaresti.
-Vor aparea pe pagina /firma sub "Pe linii de business".
+:::mockup activate-modal
+:::
 
-1. [Outsourcing                     ]
-2. [Recruitment                     ]
-3. [Coworking                       ]
-+ adauga inca una (max 5 initiale)
+Save → sistemul creeaza N row-uri vizibile + 1 "Toata firma" (implicita, nu poate fi stearsa). Toate conturile devin alocate la "Toata firma" pana le mutam. Sectiunea Verticalele firmei arata acum:
 
-Verticala "Toata firma" se creeaza automat ca fallback
-pentru conturi nealocate.
-
-                    [Renunta]  [Salveaza si continua]
-```
-
-Save → sistemul creeaza N row-uri vizibile + 1 "Toata firma" (implicita, nu poate fi stearsa). Toate conturile devin alocate la "Toata firma" pana le mutam.
+:::mockup verticals-list
+:::
 
 ---
 
@@ -117,31 +91,22 @@ Fiecare cont (la Pasul 3 in Mapari Cashflow) poate fi alocat la verticale in 2 m
 
 ### 1. Alocare simpla (100% intr-o verticala)
 
-```
-Cont 704.REC                rulaj 80.000 lei
-  Verticala: Recruitment    ← 100%, alegere directa
-```
+Tot rulajul contului merge intr-o singura verticala. Cel mai comun pattern pentru conturi analitice specifice unei linii — de exemplu cont 704.REC (rulaj 80.000 lei) → 100% Recruitment.
 
-Tot rulajul contului merge intr-o singura verticala. Cel mai comun pattern pentru conturi analitice specifice unei linii.
+:::mockup account-row
+:::
 
 ### 2. Alocare cu split (procente intre 2-5 verticale)
 
-```
-Cont 641 Salarii            rulaj 50.000 lei
-  Click dropdown → "Impartit intre mai multe verticale..."
+Pentru un cont partajat (ex. 641 Salarii cu rulaj 50.000 lei distribuit 70/30 intre Outsourcing si Recruitment), click pe dropdown-ul Verticala → "Impartit intre mai multe verticale...". Apare popover-ul:
 
-  Popover Split:
-  ─────────────────────────────────────
-    Outsourcing      [▬▬▬▬▬▬▬░░░] 70 %
-    Recruitment      [▬▬▬░░░░░░░] 30 %
-    + adauga verticala
+:::mockup split-popover
+:::
 
-    Total: 100%                  [Salveaza]
-```
+Sistemul aplica automat split-ul pe fiecare rulaj:
 
-Sistemul aplica automat split-ul pe fiecare rulaj. In cazul de sus:
-- Outsourcing primeste 35.000 lei (70% × 50.000)
-- Recruitment primeste 15.000 lei (30% × 50.000)
+:::mockup split-math
+:::
 
 ### Reguli pentru split
 
@@ -157,63 +122,33 @@ Sistemul aplica automat split-ul pe fiecare rulaj. In cazul de sus:
 
 ### Sectiunea "Pe linii de business"
 
-```
-Pe linii de business — aprilie 2026
-─────────────────────────────────────
-  Outsourcing                       │ ████████████████  bara mare
-    venituri    320.000 lei         │
-    cheltuieli  250.000 lei         │
-    profit       70.000 lei  +22%   │ marja
-                                    │
-  Recruitment                       │ ████      bara mica
-    venituri     80.000 lei         │
-    cheltuieli   60.000 lei         │
-    profit       20.000 lei  +25%   │
-                                    │
-  Coworking                         │ ██
-    venituri     40.000 lei         │
-    cheltuieli   35.000 lei         │
-    profit        5.000 lei  +12%   │
-                                    │
-  Toata firma                       │ █
-    venituri     20.000 lei         │
-    cheltuieli   18.000 lei         │
-    profit        2.000 lei         │
-```
+:::mockup vertical-breakdown
+:::
 
 Verticalele sunt sortate descrescator dupa venituri. Verticala implicita "Toata firma" apare intotdeauna ultima.
 
 ### "Top cheltuieli ale lunii" arata verticala
 
-```
-1. NOLICH SRL                      23.451 lei  (Outsourcing)
-2. Salarii decembrie               18.000 lei  (Outsourcing 70%, Recr. 30%)
-3. MONT BLANC INDUSTRI              5.300 lei  (Outsourcing)
-4. Chirie Eminescu 1                6.000 lei  (Coworking 60%, Outs. 40%)
-```
+:::mockup top-expenses
+:::
 
-Patronul vede instantaneu pe ce linie de business merge fiecare plata mare.
+Patronul vede instantaneu pe ce linie de business merge fiecare plata mare, inclusiv ce procente sunt din ce verticala atunci cand contul are split.
 
 ---
 
 ## Workflow tipic de configurare
 
-```mermaid
-flowchart TD
-    A[Activezi verticalele] --> B[Sistemul creeaza N vizibile<br/>+ Toata firma implicita]
-    B --> C[Toate conturile = Toata firma]
-    C --> D{Identifici conturile mari}
-    D --> E[Cont cu o singura linie?<br/>ex. 704.REC = Recruitment]
-    D --> F[Cont partajat?<br/>ex. 641 Salarii = 70/30]
-    E --> G[Alocare simpla 100%]
-    F --> H[Split popover<br/>Procente la suta]
-    G --> I[Rest conturi mici<br/>raman pe Toata firma]
-    H --> I
-    I --> J[Publici luna]
-    J --> K[Patronul vede defalcarea<br/>pe linii de business]
-```
+Pas cu pas, dupa ce activezi verticalele:
 
-**Best practice**: aloca doar conturile cu rulaj mare (>5.000 lei/luna). Restul lasa-le pe "Toata firma". Configurarea pe fiecare cont mic e munca inutila — nu schimba decizii operationale.
+1. Sistemul creeaza N verticale vizibile + "Toata firma" implicita. Toate conturile sunt initial alocate la "Toata firma".
+2. Identifici **conturile mari** (rulaj > 5.000 lei/luna) — pe astea le aloci explicit.
+3. Pentru fiecare cont mare iti pui o singura intrebare: este pentru o singura linie de business sau pentru mai multe?
+   - **O singura linie** (ex. cont 704.REC pentru Recruitment) → alocare simpla 100%.
+   - **Mai multe linii** (ex. cont 641 Salarii impartit 70/30 Outsourcing/Recruitment) → split popover cu procente.
+4. Conturile mici (sub 5.000 lei/luna) raman pe "Toata firma". Nu pierde timp pe ele.
+5. Publici luna. Patronul vede defalcarea pe linii de business pe `/firma`.
+
+**Best practice**: aloca doar conturile cu rulaj mare. Configurarea pe fiecare cont mic e munca inutila — nu schimba decizii operationale.
 
 ---
 
@@ -262,27 +197,19 @@ Daca reactivezi mai tarziu, totul revine exact cum era. Datele sunt prezervate.
 
 ## Cum se aplica matematic la calcul
 
-Cand sistemul calculeaza "Pe linii de business" pentru o luna:
+Cand sistemul calculeaza "Pe linii de business" pentru o luna, pentru fiecare cont contabilizat:
 
-```
-Pentru fiecare cont contabilizat in luna:
-  rulaj = absolutValue(rulajD − rulajC)   // depinde de tip cont
-  allocation = getAllocation(cont)         // analitic → contBase → "Toata firma" fallback
+1. Calculeaza **rulajul net** al lunii (debit minus credit, in absolut).
+2. Cauta **alocarea** — intai pe analitic, apoi pe contBase, fallback la "Toata firma".
+3. Daca alocarea este split, suma se imparte proportional pe verticalele din split (ultimul slice primeste remainder-ul rotunjirii).
+4. Daca alocarea este simpla, toata suma merge la o singura verticala.
 
-  Daca allocation este split:
-    Pentru fiecare slice in split:
-      vertical[slice.id] += rulaj × slice.percent / 100
+In final, pentru fiecare verticala se calculeaza:
 
-  Altfel (alocare simpla):
-    vertical[allocation.id] += rulaj
-
-Output:
-  Pentru fiecare verticala:
-    venituri = suma rulaje clasa 7 alocate
-    cheltuieli = suma rulaje clasa 6 alocate
-    profit = venituri − cheltuieli
-    marja = profit / venituri × 100
-```
+- **venituri** = suma rulaje clasa 7 alocate
+- **cheltuieli** = suma rulaje clasa 6 alocate
+- **profit** = venituri − cheltuieli
+- **marja** = profit ÷ venituri × 100
 
 Functia: `computeVerticalBreakdown` in `src/modules/reporting/owner/compute.ts`.
 
@@ -292,53 +219,45 @@ Functia: `computeVerticalBreakdown` in `src/modules/reporting/owner/compute.ts`.
 
 ### Restaurant cu 3 canale
 
-```
-Verticale:
-  • Sala         • Catering        • Delivery      • Toata firma
+Verticale: **Sala**, **Catering**, **Delivery**, *Toata firma*.
 
-Splituri tipice:
-  • 641 Salarii bucatari → 60/30/10
-  • 605 Electricitate    → 70/20/10
-  • 624 Transport        → 100% Delivery
-  • 628 Software POS     → 70/20/10 (proportional cu volumul)
-```
+| Cont | Strategie |
+|------|-----------|
+| 641 Salarii bucatari | Split 60/30/10 (Sala/Catering/Delivery) |
+| 605 Electricitate | Split 70/20/10 |
+| 624 Transport | 100% Delivery |
+| 628 Software POS | Split 70/20/10 (proportional cu volumul) |
 
 ### Constructii cu 2 proiecte mari
 
-```
-Verticale:
-  • Proiect Bucuresti     • Proiect Cluj    • Service    • Toata firma
+Verticale: **Proiect Bucuresti**, **Proiect Cluj**, **Service**, *Toata firma*.
 
-Strategie:
-  • Materiale (605 cu cont analitic pe proiect) → 100% per proiect
-  • Manopera (641) → split lunar pe pondere ore pontate
-  • Echipa management → ramane pe Toata firma
-```
+| Cont | Strategie |
+|------|-----------|
+| 605 Materiale (cu analitic pe proiect) | 100% per proiect |
+| 641 Manopera | Split lunar pe pondere ore pontate |
+| Echipa management | Ramane pe Toata firma |
 
 ### SaaS cu 2 produse
 
-```
-Verticale:
-  • Produs A     • Produs B     • Consultanta    • Toata firma
+Verticale: **Produs A**, **Produs B**, **Consultanta**, *Toata firma*.
 
-Strategie:
-  • Servere AWS A si B (conturi analitice 628.AWS-A, 628.AWS-B) → 100% per produs
-  • Salarii dev specifice (641 cu analitic 641.PRODA, 641.PRODB) → 100%
-  • Salarii echipa core (641 fara analitic) → ramane pe Toata firma
-  • Marketing global (623) → split aproximativ (60/30/10 in functie de prioritate)
-```
+| Cont | Strategie |
+|------|-----------|
+| 628.AWS-A si 628.AWS-B | 100% per produs (conturi analitice dedicate) |
+| 641.PRODA si 641.PRODB | 100% per produs (salarii dev specifice) |
+| 641 echipa core | Ramane pe Toata firma |
+| 623 Marketing global | Split aproximativ 60/30/10 in functie de prioritate |
 
 ### Coworking cu 2 locatii
 
-```
-Verticale:
-  • Eminescu 1     • Eminescu 2    • Toata firma
+Verticale: **Eminescu 1**, **Eminescu 2**, *Toata firma*.
 
-Strategie:
-  • Chirie + utilitati cu cont analitic per locatie → 100% per locatie
-  • Salarii receptie cu pontaj → split lunar
-  • Marketing comun → ramane pe Toata firma sau split 50/50
-```
+| Cont | Strategie |
+|------|-----------|
+| Chirie + utilitati (analitic per locatie) | 100% per locatie |
+| 641 Salarii receptie | Split lunar pe pontaj |
+| Marketing comun | Toata firma sau split 50/50 |
 
 ---
 

@@ -34,23 +34,12 @@ Daca incepi sa creezi categorii cu nume ca "Cheltuieli Outsourcing" sau "Vanzari
 
 ## Structura ierarhica
 
-Categoriile suporta **un singur nivel de sub-categorii** (parinte → copii). Adancimea mai mare e blocata pentru ca devine ilizibil pentru patron.
-
-```
-Salarii si contributii                  (parinte)
-  ├── Salarii brut                     (copil)
-  ├── Bonusuri si comisioane           (copil)
-  └── Contributii angajat              (copil)
-```
+Categoriile suporta **un singur nivel de sub-categorii** (parinte → copii). Adancimea mai mare e blocata pentru ca devine ilizibil pentru patron. De exemplu sub *Salarii si contributii* poti avea sub-categoriile *Salarii brut*, *Bonusuri si comisioane*, *Contributii angajat*.
 
 Pe `/firma`, parintele apare cu totalul rolled-up + bara, copiii apar indentati ca detail rows:
 
-```
-Salarii si contributii      45.000 lei  ████████████  53%
-  › Salarii brut            35.000 lei
-  › Bonusuri                 7.000 lei
-  › Contributii              3.000 lei
-```
+:::mockup expense-breakdown
+:::
 
 ---
 
@@ -126,14 +115,8 @@ Fiecare categorie are 0..N conturi mapate. Maparea poate fi:
 
 Cand un cont apare in jurnal, motorul cauta maparea **in ordinea asta**:
 
-```mermaid
-flowchart TD
-    A[Cont 628.01.NOLICH apare] --> B{Exista mapare<br/>analitica<br/>628.01.NOLICH?}
-    B -->|Da| C[Foloseste mapare analitica]
-    B -->|Nu| D{Exista mapare<br/>contBase 628?}
-    D -->|Da| E[Foloseste mapare contBase]
-    D -->|Nu| F[Marcheaza ca NEMAPAT<br/>badge rosu in UI]
-```
+:::mockup resolution-flow
+:::
 
 Astfel, default-urile OMFP merg pe contBase (cuvant scurt, prinde tot), iar overridurile specifice merg pe analitic.
 
@@ -143,33 +126,17 @@ Astfel, default-urile OMFP merg pe contBase (cuvant scurt, prinde tot), iar over
 
 ### "Unde s-au dus banii"
 
-Lista descendenta a cheltuielilor lunii pe categorii, cu bara orizontala proportionala:
+Lista descendenta a cheltuielilor lunii pe categorii, cu bara orizontala proportionala. Sub-categoriile (daca exista) apar indentate ca detail rows:
 
-```
-Salarii si contributii      45.000 lei  ████████████████████  53%
-Servicii externe            23.000 lei  ████████████          27%
-Electricitate, apa           8.000 lei  ████                   9%
-Marfa, materii prime         5.000 lei  ██                     6%
-Taxe si impozite             4.500 lei  ██                     5%
-```
+:::mockup expense-breakdown
+:::
 
 ### "De unde au venit banii"
 
 Acelasi format, pentru clasa 7:
 
-```
-Vanzari                    420.000 lei  ████████████████████  84%
-Servicii de recrutare       80.000 lei  ████                  16%
-```
-
-### Sub-categorii indentate
-
-```
-Salarii si contributii      45.000 lei  ████████████          53%
-  › Salarii brut            35.000 lei
-  › Bonusuri                 7.000 lei
-  › Contributii              3.000 lei
-```
+:::mockup revenue-breakdown
+:::
 
 ### Categorii cu mai multe verticale
 

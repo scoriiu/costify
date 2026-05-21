@@ -20,22 +20,15 @@ Cand intri prima data, vezi 6 sectiuni mari, in ordinea utilitatii:
 
 ### 1. Banner sus
 
-```
-Date publicate: aprilie 2026 · de Coriiu Solomon, pe 20 mai
-```
+:::mockup published-banner
+:::
 
 Iti spune ce luna vezi si cine ti-a publicat-o. Daca contabilul lucreaza pe corectii si nu a republicat inca, vei vedea "necesita re-publicare" — cifrele sunt valabile, dar au modificari ulterioare in jurnal.
 
 ### 2. KPI cards — 4 numere mari
 
-```
-┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐
-│ Bani in casa     │ De primit de la │ De platit         │ Profit anul       │
-│ si banca         │ clienti          │ furnizorilor      │ acesta            │
-│                  │                  │                   │                   │
-│ 84.500 lei       │ 121.000 lei      │ 90.069 lei        │ +42.300 lei       │
-└─────────────────┴─────────────────┴─────────────────┴─────────────────┘
-```
+:::mockup kpi-cards
+:::
 
 - **Bani in casa si banca** — cat ai DISPONIBIL acum. Suma soldurilor conturilor 512x (banca) + 531x (casa).
 - **De primit de la clienti** — cati bani iti datoreaza clientii (facturi emise dar neincasate). Suma conturilor 4111 cu sold debitor.
@@ -46,11 +39,17 @@ Iti spune ce luna vezi si cine ti-a publicat-o. Daca contabilul lucreaza pe core
 
 Mic strip cu 4 metrici (Vanzari, Cheltuieli, Profit, Cash la final) comparate cu acelasi tip de luna acum un an. Vezi rapid: aprilie 2026 vs aprilie 2025.
 
+:::mockup yoy-strip
+:::
+
 Apare doar daca exista date din anul trecut pentru aceeasi luna. Sageata verde = mai bine, rosie = mai slab.
 
 ### 4. "Cati bani iti ajung" + "Cate salarii poti plati"
 
 Doua carduri side-by-side care raspund la intrebari fundamentale:
+
+:::mockup runway-salary
+:::
 
 - **Cati bani iti ajung** — daca nu mai intra venituri, cati ani/luni de operare poti acoperi cu banii din cont la ritmul actual de cheltuieli.
 - **Cate salarii poti plati** — banii din cont impartiti la nota lunara de salarii. Cate luni de salarii poti onora din cash-ul de azi.
@@ -64,16 +63,11 @@ Culoare:
 
 Doua bare orizontale care arata pe ce s-au cheltuit banii (clasa 6) si de unde au venit (clasa 7) in luna respectiva.
 
-```
-Unde s-au dus banii (aprilie 2026)
-  Salarii si contributii      45.000 lei  ████████████  53%
-    › Salarii brut             35.000 lei                      ← sub-categorie indentata
-    › Bonus QHM                10.000 lei
-  Servicii externe            23.000 lei  ████████      27%
-  Electricitate, apa           8.000 lei  ███            9%
-  Marfa, materii prime         5.000 lei  ██             6%
-  Taxe si impozite             4.500 lei  █              5%
-```
+:::mockup expense-breakdown
+:::
+
+:::mockup revenue-breakdown
+:::
 
 Sub-categoriile (cele indentate cu `›`) apar doar daca contabilul a decompus o categorie mai mare.
 
@@ -81,24 +75,15 @@ Sub-categoriile (cele indentate cu `›`) apar doar daca contabilul a decompus o
 
 Lista cu top 10 cheltuieli individuale (cele mai mari plati), in ordine descrescatoare. Iti spune EXACT pe ce furnizor sau cont s-a dus cea mai mare suma.
 
-```
-1. NOLICH SRL                  23.451 lei  (cont 628.01)
-2. MONT BLANC INDUSTRI         12.300 lei
-3. Salarii decembrie           10.000 lei
-...
-```
+:::mockup top-expenses
+:::
 
 ### 7. "Pe linii de business" (doar daca firma ta are verticale activate)
 
 Daca contabilul a configurat verticale (de exemplu pentru QHM21: Outsourcing, Recruitment, Coworking), aici vezi cat aduce si cat cheltuieste fiecare separat.
 
-```
-Pe linii de business
-  Outsourcing:   venituri 320k · cheltuieli 250k · profit  70k  ✓
-  Recruitment:   venituri  80k · cheltuieli  60k · profit  20k  ✓
-  Coworking:     venituri  40k · cheltuieli  35k · profit   5k  ✓
-  Toata firma:   venituri  20k · cheltuieli  18k · profit   2k     ← nealocat
-```
+:::mockup vertical-breakdown
+:::
 
 "Toata firma" e fallback pentru cheltuieli si venituri pe care contabilul nu le-a impartit pe linii specifice (de exemplu salariul de la contabilitate, comisioane bancare).
 
@@ -128,16 +113,7 @@ Sunt insight-uri automate calculate din cifre. Le vezi din prima si stii pe ce s
 
 ## Pagina "Istoric"
 
-Click pe **Istoric** in meniul de sus. Vezi cronologic ce a facut contabilul tau cu datele firmei in ultimele luni:
-
-```
-20 mai 2026 — Contabilul tau a publicat luna aprilie 2026
-15 mai 2026 — Contabilul tau a incarcat un nou jurnal (322 intrari)
-10 mai 2026 — Contabilul tau a redenumit contul "BT Cont curent" -> "BT Business Lei"
-...
-```
-
-Util ca sa stii cand au aparut noile cifre si ce s-a schimbat.
+Click pe **Istoric** in meniul de sus. Vezi cronologic ce a facut contabilul tau cu datele firmei in ultimele luni — fiecare publicare, fiecare import nou de jurnal, fiecare redenumire de cont. Util ca sa stii cand au aparut noile cifre si ce s-a schimbat.
 
 ---
 
