@@ -24,7 +24,7 @@ Categoriile traduc **natura economica** a unei cheltuieli/venit — cu cuvinte p
 
 Categoria **NU este o linie de business**. NU spune "din ce activitate au venit banii" — spune doar "ce fel de plata a fost".
 
-- ✗ "Outsourcing IT" NU e categorie. Este verticala. Vezi [verticale.md](./verticale.md).
+- ✗ "Outsourcing IT" NU e categorie. Este verticala. Vezi [Verticale (axa B)](/docs/cashflow-verticale).
 - ✗ "Proiect Bucuresti" NU e categorie. Este verticala.
 - ✓ "Salarii", "Electricitate", "Vanzari" SUNT categorii.
 
@@ -109,7 +109,7 @@ Aceste categorii primesc badge **OMFP** in UI si **nu pot fi sterse** — sunt f
 
 ### Cazuri pe care **NU** trebuie sa le rezolvi cu categorii
 
-- **"Vreau sa vad cat aduce Outsourcing-ul vs Coworking-ul"** → astea sunt VERTICALE, nu categorii. Vezi [verticale.md](./verticale.md).
+- **"Vreau sa vad cat aduce Outsourcing-ul vs Coworking-ul"** → astea sunt VERTICALE, nu categorii. Vezi [Verticale (axa B)](/docs/cashflow-verticale).
 - **"Vreau sa stiu cat a platit firma catre NOLICH SRL"** → NU creezi o categorie "NOLICH". In Pasul 3, alocare individuala pe contul analitic 401.NOLICH, sau folosesti "Top cheltuieli ale lunii" care arata top 10 parteneri automat.
 - **"Vreau sa filtrez pe luni"** → este deja in pagina `/firma`, nu se rezolva cu categorii.
 
@@ -173,7 +173,7 @@ Salarii si contributii      45.000 lei  ████████████    
 
 ### Categorii cu mai multe verticale
 
-Categoriile sunt **ortogonale** cu verticalele. Aceeasi categorie *Electricitate* poate fi divizata 60/40 intre Outsourcing si Coworking pe axa B, fara sa fie nevoie de doua categorii "Electricitate Outsourcing" + "Electricitate Coworking". Vezi [verticale.md](./verticale.md).
+Categoriile sunt **ortogonale** cu verticalele. Aceeasi categorie *Electricitate* poate fi divizata 60/40 intre Outsourcing si Coworking pe axa B, fara sa fie nevoie de doua categorii "Electricitate Outsourcing" + "Electricitate Coworking". Vezi [Verticale (axa B)](/docs/cashflow-verticale).
 
 ---
 
@@ -210,4 +210,4 @@ Categoriile sunt **ortogonale** cu verticalele. Aceeasi categorie *Electricitate
 
 ---
 
-*Vezi si: [verticale.md](./verticale.md) (axa B, ortogonala) si [exemplu-qhm21.md](../exemplu-qhm21.md) (caz real complet)*
+*Vezi si: [Verticale (axa B)](/docs/cashflow-verticale) (axa B, ortogonala) si [Exemplu QHM21](./docs/cashflow-exemplu-qhm21) (caz real complet)*

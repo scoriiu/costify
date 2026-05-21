@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -159,12 +160,11 @@ export default async function ClientDetailPage(props: Props) {
   // Lazy-load the "Mapari Cashflow" tab content only when the user is on
   // that tab. This avoids running the loader (which fetches balance rows
   // for the latest period) on every page visit.
-  const mapariCashflowSection =
-    tab === "mapari-cashflow"
-      ? await loadMapariCashflow(client.id).then((data) => (
-          <MapariCashflowTab data={data} />
-        ))
-      : null;
+  let mapariCashflowSection: ReactNode = null;
+  if (tab === "mapari-cashflow") {
+    const mapariData = await loadMapariCashflow(client.id);
+    mapariCashflowSection = <MapariCashflowTab data={mapariData} />;
+  }
 
   const publishBar =
     year && month ? (

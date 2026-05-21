@@ -30,6 +30,19 @@ export const DOC_NAVIGATION: DocCategory[] = [
     ],
   },
   {
+    id: "cashflow",
+    label: "Modulul Cashflow",
+    description: "Categoriile, verticalele si pagina /firma pentru antreprenor",
+    pages: [
+      { slug: "cashflow-introducere", title: "Introducere in modulul Cashflow", description: "Cele doua axe (categorii si verticale) si cum traduc datele contabile" },
+      { slug: "cashflow-pentru-contabil", title: "Ghid pentru contabil", description: "Setup in 60 de secunde, workflow lunar, cei 3 pasi din Mapari Cashflow" },
+      { slug: "cashflow-pentru-antreprenor", title: "Ghid pentru antreprenor", description: "Cum citesti pagina /firma si fiecare numar de pe ea" },
+      { slug: "cashflow-exemplu-qhm21", title: "Exemplu complet: QHM21 NETWORK SRL", description: "Walkthrough real cu 3 verticale, splituri si maparile finale" },
+      { slug: "cashflow-categorii", title: "Categorii (axa A)", description: "Etichetele pe care le vede patronul; defaults OMFP; cand le modifici" },
+      { slug: "cashflow-verticale", title: "Verticale (axa B)", description: "Linii de business per firma; cand activezi; alocari simple si splituri" },
+    ],
+  },
+  {
     id: "ghiduri",
     label: "Ghiduri",
     description: "Cum sa folosesti Costify pas cu pas",

@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 /**
- * Inline "Afla mai mult" link to a documentation page. Always opens in a new
- * tab so the user doesn't lose context. Used inside tooltips, helper text
- * and section descriptions across the Mapari Cashflow flow.
+ * Inline "Afla mai mult" link to a documentation page. Opens the in-app docs
+ * viewer in a new tab so the user can read without losing the current screen
+ * context (mapping flow, owner home, etc).
  */
 export function DocsLink({
   href,
@@ -14,11 +14,13 @@ export function DocsLink({
   children?: React.ReactNode;
   className?: string;
 }) {
+  const isExternal = /^https?:\/\//i.test(href);
+
   return (
     <Link
       href={href}
       target="_blank"
-      rel="noopener noreferrer"
+      rel={isExternal ? "noopener noreferrer" : undefined}
       className={
         className ??
         "inline-flex items-center gap-0.5 text-primary hover:text-primary-light underline-offset-2 hover:underline"

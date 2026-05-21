@@ -18,7 +18,7 @@ Verticala raspunde la intrebarea: **"cati bani aduce si cati bani cheltuieste FI
 
 Verticala NU este:
 
-- ✗ **O categorie de cheltuiala** (acelea sunt pe axa A — *Salarii*, *Electricitate*, etc.). Vezi [categorii.md](./categorii.md).
+- ✗ **O categorie de cheltuiala** (acelea sunt pe axa A — *Salarii*, *Electricitate*, etc.). Vezi [Categorii (axa A)](/docs/cashflow-categorii).
 - ✗ **Un client mare** (acelea apar automat in "Top cheltuieli / Top clienti", nu necesita verticala).
 - ✗ **O perioada de timp** (luni, trimestre — sunt deja in pagina, nu necesita verticale).
 - ✗ **Un departament intern** (HR, IT, Vanzari) — daca patronul vrea sa vada cat costa HR-ul, e o sub-categorie de Salarii, nu o verticala. Verticala = **sursa de venit**, nu cost center.
@@ -365,4 +365,4 @@ Strategie:
 
 ---
 
-*Vezi si: [categorii.md](./categorii.md) (axa A, ortogonala) si [exemplu-qhm21.md](../exemplu-qhm21.md) (configurare reala pe firma cu 3 verticale)*
+*Vezi si: [Categorii (axa A)](/docs/cashflow-categorii) (axa A, ortogonala) si [Exemplu QHM21](./docs/cashflow-exemplu-qhm21) (configurare reala pe firma cu 3 verticale)*

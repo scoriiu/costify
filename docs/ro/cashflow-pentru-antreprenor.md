@@ -178,4 +178,4 @@ Vezi data publicarii in banner-ul de sus. Daca a trecut peste o luna fara o noua
 
 ---
 
-*Vezi si: [pentru-contabil.md](./pentru-contabil.md), [exemplu-qhm21.md](./exemplu-qhm21.md)*
+*Vezi si: [Ghid pentru contabil](/docs/cashflow-pentru-contabil), [Exemplu QHM21](/docs/cashflow-exemplu-qhm21)*

@@ -46,7 +46,7 @@ Pentru 95% din firme **nu trebuie sa modifici nimic aici**. Pasul este colapsat 
 - Patronul nu intelege "diferente curs" → redenumesti categoria 65 in *Comisioane si curs valutar* sau ce suna mai natural.
 - Vrei sa decompui o categorie mare: sub *Salarii*, creezi sub-categorii *Salarii brut* + *Bonus* + *Contributii*. Acestea apar indentate pe `/firma`.
 
-Citeste [concepte/categorii.md](./concepte/categorii.md) pentru detalii.
+Citeste [Categorii (axa A)](/docs/cashflow-categorii) pentru detalii.
 
 ### Pasul 2 — Verticale (optional)
 
@@ -63,7 +63,7 @@ Daca firma are **mai multe linii de business** pe care patronul vrea sa le vada 
 
 La activare, completezi numele celor 1-3 verticale initiale intr-un modal. Sistemul creeaza automat si o verticala implicita "Toata firma" ca fallback pentru conturi nealocate.
 
-Citeste [concepte/verticale.md](./concepte/verticale.md) pentru detalii.
+Citeste [Verticale (axa B)](/docs/cashflow-verticale) pentru detalii.
 
 ### Pasul 3 — Mapeaza conturile (obligatoriu)
 
@@ -158,4 +158,4 @@ NU exista mapping direct pe partener in MVP-ul curent. Solutie: creezi cont anal
 
 ---
 
-*Vezi si: [pentru-antreprenor.md](./pentru-antreprenor.md), [exemplu-qhm21.md](./exemplu-qhm21.md)*
+*Vezi si: [Ghid pentru antreprenor](/docs/cashflow-pentru-antreprenor), [Exemplu QHM21](/docs/cashflow-exemplu-qhm21)*

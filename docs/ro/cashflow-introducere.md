@@ -19,15 +19,15 @@ Aceleasi cifre, doua limbaje. **Nimic nu se inventeaza, doar se traduce.**
 
 ### Esti **contabil**
 
-Citeste **[pentru-contabil.md](./pentru-contabil.md)** — setup pas-cu-pas in mai putin de 60 de secunde pentru o firma noua, plus workflow lunar.
+Citeste **[Ghid pentru contabil](/docs/cashflow-pentru-contabil)** — setup pas-cu-pas in mai putin de 60 de secunde pentru o firma noua, plus workflow lunar.
 
 ### Esti **antreprenor**
 
-Citeste **[pentru-antreprenor.md](./pentru-antreprenor.md)** — ce vezi pe pagina ta `/firma` si cum citesti fiecare numar.
+Citeste **[Ghid pentru antreprenor](/docs/cashflow-pentru-antreprenor)** — ce vezi pe pagina ta `/firma` si cum citesti fiecare numar.
 
 ### Vrei un exemplu real
 
-Citeste **[exemplu-qhm21.md](./exemplu-qhm21.md)** — walkthrough complet pe firma QHM21 NETWORK SRL, cu cele 3 verticale ale lor (Outsourcing, Recruitment, Coworking) si maparile reale.
+Citeste **[Exemplu QHM21](/docs/cashflow-exemplu-qhm21)** — walkthrough complet pe firma QHM21 NETWORK SRL, cu cele 3 verticale ale lor (Outsourcing, Recruitment, Coworking) si maparile reale.
 
 ---
 
@@ -41,7 +41,7 @@ Modulul Cashflow se construieste pe doua axe independente.
 
 Orice firma — fie ca face outsourcing IT, fie ca vinde paine, fie ca administreaza un coworking — are aceste categorii. Sunt aliniate la OMFP (planul de conturi standard) si vin precompletate la prima vizita.
 
-Citeste **[concepte/categorii.md](./concepte/categorii.md)**.
+Citeste **[Categorii (axa A)](/docs/cashflow-categorii)**.
 
 ### Axa B — Verticale ("linii de business")
 
@@ -52,7 +52,7 @@ Citeste **[concepte/categorii.md](./concepte/categorii.md)**.
 
 Majoritatea firmelor NU au nevoie de verticale — au o singura linie. Verticalele se activeaza explicit per firma.
 
-Citeste **[concepte/verticale.md](./concepte/verticale.md)**.
+Citeste **[Verticale (axa B)](/docs/cashflow-verticale)**.
 
 ### Cele doua axe sunt INDEPENDENTE
 
@@ -100,11 +100,11 @@ NU se incorporeaza una in alta. "Electricitate Outsourcing" ca nume de categorie
 
 ## Mai jos in documentatie
 
-- **[pentru-contabil.md](./pentru-contabil.md)** — task guide pentru contabil
-- **[pentru-antreprenor.md](./pentru-antreprenor.md)** — task guide pentru antreprenor
-- **[exemplu-qhm21.md](./exemplu-qhm21.md)** — walkthrough complet pe un caz real
-- **[concepte/categorii.md](./concepte/categorii.md)** — axa A in detaliu
-- **[concepte/verticale.md](./concepte/verticale.md)** — axa B in detaliu
+- **[Ghid pentru contabil](/docs/cashflow-pentru-contabil)** — task guide pentru contabil
+- **[Ghid pentru antreprenor](/docs/cashflow-pentru-antreprenor)** — task guide pentru antreprenor
+- **[Exemplu QHM21](/docs/cashflow-exemplu-qhm21)** — walkthrough complet pe un caz real
+- **[Categorii (axa A)](/docs/cashflow-categorii)** — axa A in detaliu
+- **[Verticale (axa B)](/docs/cashflow-verticale)** — axa B in detaliu
 
 ---
 

@@ -353,4 +353,4 @@ Strategia:
 
 ---
 
-*Vezi si: [concepte/categorii.md](./concepte/categorii.md), [concepte/verticale.md](./concepte/verticale.md)*
+*Vezi si: [Categorii (axa A)](/docs/cashflow-categorii), [Verticale (axa B)](/docs/cashflow-verticale)*

@@ -1,22 +1,20 @@
 /**
- * Central registry of documentation links surfaced from the UI.
+ * Central registry of in-app documentation links surfaced from the UI.
  *
- * For now we link directly to the GitHub blob view of the markdown files in
- * `docs/cashflow/`. When we ship an in-app `/docs` viewer, only the base
- * needs to change here — all call sites stay the same.
+ * All routes resolve to `/docs/<slug>` served by the existing in-app docs
+ * viewer (see `src/app/(dashboard)/docs/[slug]/page.tsx`). Slugs and titles
+ * for these pages live in `src/lib/docs-navigation.ts`.
  */
 
-const REPO_BASE = "https://github.com/scoriiu/costify/blob/main";
-
 export const DocsLinks = {
-  cashflowHome: `${REPO_BASE}/docs/cashflow/README.md`,
+  cashflowHome: "/docs/cashflow-introducere",
 
-  forAccountant: `${REPO_BASE}/docs/cashflow/pentru-contabil.md`,
-  forOwner: `${REPO_BASE}/docs/cashflow/pentru-antreprenor.md`,
-  exampleQhm21: `${REPO_BASE}/docs/cashflow/exemplu-qhm21.md`,
+  forAccountant: "/docs/cashflow-pentru-contabil",
+  forOwner: "/docs/cashflow-pentru-antreprenor",
+  exampleQhm21: "/docs/cashflow-exemplu-qhm21",
 
-  categories: `${REPO_BASE}/docs/cashflow/concepte/categorii.md`,
-  verticals: `${REPO_BASE}/docs/cashflow/concepte/verticale.md`,
+  categories: "/docs/cashflow-categorii",
+  verticals: "/docs/cashflow-verticale",
 } as const;
 
 export type DocsLinkKey = keyof typeof DocsLinks;
