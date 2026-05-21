@@ -142,7 +142,17 @@ export function ClientDetail({
         </div>
       </div>
 
-      <TabBar active={tab} onTabChange={(t) => navigate({ tab: t, year: selectedYear, month: selectedMonth })} />
+      <TabBar
+        active={tab}
+        onTabChange={(t) => {
+          const needsPeriodNext = t === "balanta" || t === "cpp";
+          navigate(
+            needsPeriodNext
+              ? { tab: t, year: selectedYear, month: selectedMonth }
+              : { tab: t }
+          );
+        }}
+      />
 
       {(tab === "balanta" || tab === "cpp") && selectedYear && selectedMonth && publishBar && (
         <div className="mt-4">{publishBar}</div>
