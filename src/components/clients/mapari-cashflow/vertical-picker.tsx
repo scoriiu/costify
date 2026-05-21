@@ -73,6 +73,16 @@ export function VerticalPicker({
   const isInherited = currentSplits === null;
   const isSplit = currentSplits !== null && currentSplits.length > 1;
 
+  // For split allocations, build the segment data once for the bar. The
+  // bar itself communicates the split visually — text only summarises count.
+  const splitSegments = isSplit
+    ? buildSplitSegments(currentSplits, verticals)
+    : null;
+
+  // Splits are only possible when the firm has at least 2 real (non-default)
+  // verticals. With 1 or 0 there is nothing meaningful to split.
+  const canSplit = verticals.filter((v) => !v.isDefault).length >= 2;
+
   function assignSingle(verticalId: string) {
     setOpen(false);
     startTransition(async () => {
@@ -104,15 +114,28 @@ export function VerticalPicker({
           type="button"
           onClick={() => setOpen((v) => !v)}
           disabled={pending}
-          className={`flex items-center gap-1.5 w-full text-left rounded-[10px] border border-dark-3 bg-dark-2 px-3 h-10 font-mono text-sm ${
-            isInherited ? "text-gray italic" : "text-gray-light"
-          } ${isSplit ? "text-amber-300" : ""}`}
+          title={label}
+          className={`flex flex-col w-full text-left rounded-[10px] border bg-dark-2 px-3 font-mono text-sm transition-colors ${
+            isSplit
+              ? "border-amber-500/40 hover:border-amber-400/60 gap-1.5 py-2 min-h-[40px]"
+              : "border-dark-3 hover:border-primary/40 h-10 justify-center"
+          } ${isInherited ? "text-gray italic" : "text-gray-light"}`}
           style={{ letterSpacing: "-0.02em" }}
         >
-          <span className="flex-1 truncate" title={label}>
-            {label}
-          </span>
-          <ChevronDown size={12} className="text-gray shrink-0" />
+          {isSplit && splitSegments ? (
+            <>
+              <div className="flex items-center gap-1.5 leading-none">
+                <SplitBar segments={splitSegments} />
+                <ChevronDown size={12} className="text-gray shrink-0" />
+              </div>
+              <SplitLegend segments={splitSegments} />
+            </>
+          ) : (
+            <div className="flex items-center gap-1.5 h-full">
+              <span className="flex-1 truncate">{label}</span>
+              <ChevronDown size={12} className="text-gray shrink-0" />
+            </div>
+          )}
         </button>
         {open && (
           <div
@@ -151,19 +174,21 @@ export function VerticalPicker({
                 {defaultVertical.name}
               </button>
             )}
-            <div className="border-t border-dark-3 mt-1 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setSplitOpen(true);
-                }}
-                className="block w-full text-left px-3 py-2 text-[13px] text-primary hover:bg-dark-3"
-                style={{ letterSpacing: "-0.02em" }}
-              >
-                Impartit intre mai multe verticale...
-              </button>
-            </div>
+            {canSplit && (
+              <div className="border-t border-dark-3 mt-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setSplitOpen(true);
+                  }}
+                  className="block w-full text-left px-3 py-2 text-[13px] text-primary hover:bg-dark-3"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  Impartit intre mai multe verticale...
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -223,11 +248,18 @@ function SplitPopover({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  // The split popover ONLY deals with real business verticals. "Toata firma"
+  // (the implicit default vertical) is the fallback for un-allocated rulaj;
+  // splitting against it makes no sense. If the contabil wants the cont to
+  // fall back to the default, they use "Inapoi la implicit" in the main
+  // picker, not the split popover.
+  const splittableVerticals = verticals.filter((v) => !v.isDefault);
+
   // Pre-fill the popover with current splits, or with the first 2 non-default
   // verticals at 50/50 when starting from a clean inherit state.
   const initial = initialSplits.length >= 1
     ? initialSplits
-    : pickInitialDefaults(verticals);
+    : pickInitialDefaults(splittableVerticals);
 
   const [rows, setRows] = useState<AllocationSplit[]>(initial);
   const [error, setError] = useState<string | null>(null);
@@ -252,7 +284,7 @@ function SplitPopover({
 
   function addRow() {
     const used = new Set(rows.map((r) => r.verticalId));
-    const available = verticals.find((v) => !used.has(v.id));
+    const available = splittableVerticals.find((v) => !used.has(v.id));
     if (!available) return;
     setRows((prev) => [...prev, { verticalId: available.id, percent: 0 }]);
   }
@@ -303,7 +335,15 @@ function SplitPopover({
           className="mt-1 text-[12px] text-gray"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Cont {scope === "analytic" ? cont : contBase}. Procentele trebuie sa sumeze 100.
+          Cont {scope === "analytic" ? cont : contBase}. Procentele trebuie sa sumeze 100%.
+        </p>
+        <p
+          className="mt-2 text-[11px] text-gray italic"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Splitul distribuie rulajul exclusiv intre liniile de business reale.
+          Daca vrei sa-l lasi in general (Toata firma), inchide modalul si alege
+          &quot;Inapoi la implicit&quot;.
         </p>
 
         <ul className="mt-4 space-y-2">
@@ -316,7 +356,7 @@ function SplitPopover({
                 style={{ letterSpacing: "-0.02em" }}
               >
                 <option value="">— alege verticala —</option>
-                {verticals.map((v) => (
+                {splittableVerticals.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
                   </option>
@@ -347,23 +387,23 @@ function SplitPopover({
 
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-3">
-            {rows.length < 5 && rows.length < verticals.length && (
+            {rows.length < 5 && rows.length < splittableVerticals.length && (
               <button
                 type="button"
                 onClick={addRow}
-                className="text-[11px] text-primary hover:text-primary-light"
+                className="text-[11px] text-primary hover:text-primary-light underline underline-offset-2"
                 style={{ letterSpacing: "-0.02em" }}
               >
-                + adauga verticala
+                + Adauga verticala
               </button>
             )}
             <button
               type="button"
               onClick={balance}
-              className="text-[11px] text-gray hover:text-gray-light"
+              className="text-[11px] text-primary hover:text-primary-light underline underline-offset-2"
               style={{ letterSpacing: "-0.02em" }}
             >
-              imparte egal
+              Imparte egal
             </button>
           </div>
           <span
@@ -393,6 +433,83 @@ function SplitPopover({
         </div>
       </div>
     </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          SPLIT VISUALISATION                               */
+/* -------------------------------------------------------------------------- */
+
+interface SplitSegment {
+  verticalId: string;
+  name: string;
+  percent: number;
+  color: string;
+}
+
+/** Stable color palette for vertical segments. Order is intentional — first
+ *  segment gets teal (primary brand), second amber, third sky, etc. — so a
+ *  60/40 split always reads "primary line + secondary line" visually. */
+const SEGMENT_COLORS = [
+  "bg-primary/70",
+  "bg-amber-400/70",
+  "bg-sky-400/70",
+  "bg-emerald-400/70",
+  "bg-rose-400/70",
+] as const;
+
+function buildSplitSegments(
+  splits: AllocationSplit[],
+  verticals: VerticalView[]
+): SplitSegment[] {
+  return splits.map((s, i) => {
+    const v = verticals.find((x) => x.id === s.verticalId);
+    return {
+      verticalId: s.verticalId,
+      name: v?.name ?? "?",
+      percent: s.percent,
+      color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+    };
+  });
+}
+
+function SplitBar({ segments }: { segments: SplitSegment[] }) {
+  return (
+    <div className="flex flex-1 min-w-0 h-1.5 overflow-hidden rounded-full bg-dark-3">
+      {segments.map((seg) => (
+        <div
+          key={seg.verticalId}
+          className={`h-full ${seg.color} transition-opacity hover:opacity-80`}
+          style={{ width: `${seg.percent}%` }}
+          title={`${seg.percent}% ${seg.name}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SplitLegend({ segments }: { segments: SplitSegment[] }) {
+  return (
+    <ul className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight">
+      {segments.map((seg) => (
+        <li
+          key={seg.verticalId}
+          className="flex items-center gap-1 min-w-0"
+          title={`${seg.percent}% ${seg.name}`}
+        >
+          <span
+            className={`inline-block h-2 w-2 rounded-sm shrink-0 ${seg.color}`}
+            aria-hidden
+          />
+          <span className="text-gray-light tabular-nums shrink-0">
+            {seg.percent}%
+          </span>
+          <span className="text-gray truncate" style={{ letterSpacing: "-0.02em" }}>
+            {seg.name}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

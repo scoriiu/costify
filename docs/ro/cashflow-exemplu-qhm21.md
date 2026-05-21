@@ -39,7 +39,7 @@ Daca firma ar fi avut o singura linie de business, Coriiu ar fi terminat aici. P
 
 ---
 
-## Pasul 1 — Personalizare etichete (optional)
+## Pasul 1 — Personalizare grupare cheltuieli si venituri (optional)
 
 Sorin ii spune lui Coriiu: "vreau sa vad clar **Recrutarea** ca venit separat, nu in masa de Servicii".
 

@@ -12,7 +12,7 @@ export function MockMapariFlow() {
   const steps = [
     {
       n: 1,
-      title: "Etichete patron",
+      title: "Cum se grupeaza cheltuielile si veniturile",
       optional: true,
       collapsed: true,
       summary: "10 categorii cheltuieli · 6 venituri — toate sunt defaults OMFP. Click pentru a personaliza.",

@@ -80,20 +80,20 @@ export function MapariCashflowTab({ data }: Props) {
 
       <StepSection
         number={1}
-        title="Etichete patron"
+        title="Cum se grupeaza cheltuielile si veniturile"
         optional
         collapsible
         collapsedSummary={
           customCount > 0
-            ? `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
-            : `${expenseRootCount} categorii cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
+            ? `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
+            : `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
         }
         helper={
           <>
-            Acestea sunt etichetele pe care le vede patronul pe /firma. Daca
-            defaults-urile OMFP suna bine pentru aceasta firma, nu trebuie sa
-            faci nimic aici. Modifica doar daca patronul cere ceva specific
-            (exemplu: &apos;Marketing online&apos; separat de &apos;Servicii
+            Acestea sunt numele pe care le vede patronul pe /firma. Pentru
+            majoritatea firmelor, defaults-urile OMFP sunt suficiente.
+            Modifica doar daca patronul cere ceva specific (exemplu:
+            &apos;Marketing online&apos; separat de &apos;Servicii
             externe&apos;).{" "}
             <DocsLink href={DocsLinks.categories}>Despre categorii</DocsLink>
           </>
@@ -139,12 +139,16 @@ export function MapariCashflowTab({ data }: Props) {
 
       <StepSection
         number={3}
-        title="Mapeaza conturile"
+        title="Aseaza fiecare cont in grupul potrivit"
         helper={
           <>
+            Aici legi conturile din planul firmei de grupurile pe care le vede
+            patronul. Daca defaults-urile OMFP sunt corecte (cazul comun), nu
+            schimbi nimic — verifici doar conturile mari{" "}
             {data.verticalsEnabled
-              ? "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie si optional la o verticala. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza. "
-              : "Conturile firmei din ultima luna inregistrata. Aloca fiecare la o categorie. Sumele sunt rulajul lunii — reper rapid sa vezi ce conturi conteaza. "}
+              ? "si le aloci la verticala potrivita. "
+              : ". "}
+            Lista e sortata dupa rulajul lunii (cele mai mari sus).{" "}
             <DocsLink href={DocsLinks.exampleQhm21}>
               Vezi exemplu real (QHM21)
             </DocsLink>
@@ -1312,8 +1316,20 @@ function AccountListPanel({
             className="text-[11px] text-gray mt-0.5"
             style={{ letterSpacing: "-0.02em" }}
           >
-            {totalAccounts} conturi clasa 6 si 7 cu rulaj. {unmappedCount}{" "}
-            nemapate.
+            {totalAccounts === 1
+              ? "1 cont de cheltuieli/venituri"
+              : `${totalAccounts} conturi de cheltuieli si venituri`}
+            {unmappedCount > 0 && (
+              <>
+                ,{" "}
+                <span className="text-rose-300">
+                  {unmappedCount === 1
+                    ? "1 fara grupare"
+                    : `${unmappedCount} fara grupare`}
+                </span>
+              </>
+            )}
+            . Sumele sunt rulajul lunii — incepe cu cele mai mari.
           </p>
         </div>
         <ToggleGroup<Filter>
@@ -1438,75 +1454,126 @@ function AccountRow({
   }
 
   const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
+  const isAnalytic = account.cont !== account.contBase;
 
   return (
-    <li className="flex items-center gap-3 py-3">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[11px] text-gray tabular-nums shrink-0">
-            {account.cont}
+    <li className="py-4">
+      {/* Row 1 — account identity (cont, name, rulaj, status badges) */}
+      <div className="flex items-baseline gap-3 mb-3">
+        <span className="font-mono text-[12px] text-white tabular-nums shrink-0 min-w-[60px]">
+          {account.cont}
+        </span>
+        <span
+          className="flex-1 min-w-0 text-[13px] text-gray-light truncate"
+          style={{ letterSpacing: "-0.02em" }}
+          title={account.denumire}
+        >
+          {account.denumire}
+        </span>
+        <Tooltip content="Rulajul contului din ultima luna inregistrata. Reper rapid sa vezi ce conturi merita atentie.">
+          <span className="font-mono text-[12px] text-gray tabular-nums cursor-help shrink-0">
+            rulaj {formatRon(rulaj)}
           </span>
-          <span
-            className="text-[13px] text-gray-light truncate"
-            style={{ letterSpacing: "-0.02em" }}
-            title={account.denumire}
-          >
-            {account.denumire}
-          </span>
-        </div>
-        <div className="flex items-center gap-3 mt-0.5">
-          <Tooltip content="Rulajul contului din ultima luna inregistrata. Reper rapid sa vezi ce conturi merita atentie.">
-            <span className="font-mono text-[11px] text-gray tabular-nums cursor-help">
-              rulaj {formatRon(rulaj)}
+        </Tooltip>
+        {account.currentMapping === null && (
+          <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
+            <span className="inline-flex items-center gap-1 text-[10px] text-rose-300 cursor-help shrink-0">
+              <AlertTriangle size={10} /> Nemapat
             </span>
           </Tooltip>
-          {account.currentMapping === null && (
-            <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
-              <span className="inline-flex items-center gap-1 text-[10px] text-rose-300 cursor-help">
-                <AlertTriangle size={10} /> Nemapat
-              </span>
-            </Tooltip>
-          )}
-          {account.hasAnalyticOverride && (
-            <Tooltip content="Acest cont analitic are propria mapare, diferita de cea a contului de baza.">
-              <span className="text-[10px] text-amber-300 cursor-help">
-                override analitic
-              </span>
-            </Tooltip>
-          )}
-        </div>
+        )}
+        {account.hasAnalyticOverride && (
+          <Tooltip content="Acest cont analitic are propria mapare, diferita de cea a contului de baza.">
+            <span className="text-[10px] text-amber-300 cursor-help shrink-0">
+              override analitic
+            </span>
+          </Tooltip>
+        )}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <ScopeToggle
-          scope={scope}
-          isAnalytic={account.cont !== account.contBase}
-          onChange={handleScopeChange}
-          disabled={pending}
-        />
-        <div className="w-56">
-          <Select
-            value={value}
-            options={options}
-            onChange={handleChange}
+
+      {/* Row 2 — controls. Grid keeps the three control columns aligned across
+          all account rows. Vertical column is only rendered when verticals
+          are active for this firm. */}
+      <div
+        className={`grid gap-3 items-start ${
+          verticalsEnabled
+            ? "grid-cols-[140px_minmax(0,1fr)_minmax(0,1fr)]"
+            : "grid-cols-[140px_minmax(0,1fr)]"
+        }`}
+      >
+        <div>
+          <FieldLabel
+            text="Cum se aplica"
+            tooltip="'Pentru toate sub-conturile cu acest prefix' (cont de baza, ex. 628) sau 'doar pentru acest cont specific' (analitic, ex. 628.01)."
           />
+          <div className="flex justify-start mt-1">
+            {isAnalytic ? (
+              <ScopeToggle
+                scope={scope}
+                isAnalytic={isAnalytic}
+                onChange={handleScopeChange}
+                disabled={pending}
+              />
+            ) : (
+              <span
+                className="font-mono text-[11px] text-gray italic h-10 flex items-center"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                din baza
+              </span>
+            )}
+          </div>
+        </div>
+        <div>
+          <FieldLabel
+            text="Grup patron"
+            tooltip="Cum apare contul pe pagina /firma (ex. 'Servicii externe', 'Salarii brut')."
+          />
+          <div className="mt-1">
+            <Select
+              value={value}
+              options={options}
+              onChange={handleChange}
+            />
+          </div>
         </div>
         {verticalsEnabled && (
-          <div className="w-48">
-            <VerticalPicker
-              clientId={clientId}
-              cont={account.cont}
-              contBase={account.contBase}
-              scope={
-                account.hasAnalyticVerticalOverride ? "analytic" : "contBase"
-              }
-              verticals={verticals}
-              currentSplits={account.currentAllocation?.splits ?? null}
-              defaultVertical={verticals.find((v) => v.isDefault) ?? null}
+          <div>
+            <FieldLabel
+              text="Linie de business"
+              tooltip="La care verticala a firmei contribuie acest cont (ex. Outsourcing 100% sau split 60/40 intre 2 verticale)."
             />
+            <div className="mt-1">
+              <VerticalPicker
+                clientId={clientId}
+                cont={account.cont}
+                contBase={account.contBase}
+                scope={
+                  account.hasAnalyticVerticalOverride ? "analytic" : "contBase"
+                }
+                verticals={verticals}
+                currentSplits={account.currentAllocation?.splits ?? null}
+                defaultVertical={verticals.find((v) => v.isDefault) ?? null}
+              />
+            </div>
           </div>
         )}
       </div>
     </li>
+  );
+}
+
+function FieldLabel({ text, tooltip }: { text: string; tooltip: string }) {
+  return (
+    <div
+      className="font-mono text-[9px] uppercase tracking-wider text-gray"
+      style={{ letterSpacing: "-0.02em" }}
+    >
+      {text}
+      <Tooltip content={tooltip}>
+        <span className="ml-1 text-gray-light cursor-help">?</span>
+      </Tooltip>
+    </div>
   );
 }
 

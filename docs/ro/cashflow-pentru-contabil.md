@@ -29,9 +29,9 @@ Antreprenorul primeste imediat noul snapshot pe `/firma`. Tu vezi ce data si ce 
 
 ## Cele 3 pasi din tab-ul Mapari Cashflow
 
-Tab-ul Mapari Cashflow este structurat ca un flow ghidat de sus in jos: **Etichete patron** → **Verticale** → **Mapeaza conturile**. Fiecare pas are un rol clar.
+Tab-ul Mapari Cashflow este structurat ca un flow ghidat de sus in jos: **Cum se grupeaza cheltuielile si veniturile** → **Verticale** → **Mapeaza conturile**. Fiecare pas are un rol clar.
 
-### Pasul 1 — Etichete patron (optional, colapsat default)
+### Pasul 1 — Cum se grupeaza cheltuielile si veniturile (optional, colapsat default)
 
 Aici stabilesti **cum se numesc** pe pagina `/firma` grupurile de cheltuieli si venituri.
 
