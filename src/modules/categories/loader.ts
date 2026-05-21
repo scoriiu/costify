@@ -14,6 +14,7 @@
 
 import { prisma } from "@/lib/db";
 import { listCategoryTree, listMappings } from "./service";
+import { buildResolverState, resolveCategoryForCont } from "./resolver";
 import { getAvailablePeriods, getBalanceRows } from "@/modules/balances";
 import {
   listVerticals,
@@ -92,9 +93,11 @@ export async function loadMapariCashflow(
   ]);
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
 
-  // Index mappings for O(1) lookup per cont.
-  const byCont = new Map<string, { categoryId: string; scope: MappingScope }>();
-  for (const m of mappings) byCont.set(m.cont, { categoryId: m.categoryId, scope: m.scope });
+  // Build a full resolver state so the UI uses the same prefix-walk semantics
+  // as the snapshot computation. A leaf cont like "704" must resolve to the
+  // 2-digit root mapping on "70", and "641.001" must resolve to the 3-digit
+  // sub-category mapping on "641" before falling back to "64".
+  const resolverState = buildResolverState(tree, mappings);
 
   const allocByCont = new Map<string, AllocationView>();
   for (const a of allocations) allocByCont.set(a.cont, a);
@@ -115,7 +118,11 @@ export async function loadMapariCashflow(
     };
   }
 
-  const latest = periods[0]; // already sorted desc by service
+  // getAvailablePeriods returns periods ASC (oldest first). Take the last
+  // entry so we always show the most recent month with journal data — that's
+  // what the contabil wants to configure (current state of the firm), not
+  // the founding month from years ago.
+  const latest = periods[periods.length - 1];
   const balanceResult = await getBalanceRows(clientId, latest.year, latest.month);
   if (!balanceResult.ok) {
     return {
@@ -136,9 +143,19 @@ export async function loadMapariCashflow(
     const first = row.contBase.charAt(0);
     if (first !== "6" && first !== "7") continue;
 
-    const analytic = byCont.get(row.cont);
-    const base = byCont.get(row.contBase);
-    const current = analytic ?? base ?? null;
+    // Resolve the mapping via the full prefix-walk semantics — so "704"
+    // finds the "70" root, "641.001" finds the "641" sub-category, etc.
+    // matchedScope is null only for the hardcoded OMFP fallback path, which
+    // we treat as a real "contBase" match here for UI purposes (the row is
+    // mapped, just not through a user-editable mapping row).
+    const resolved = resolveCategoryForCont(row.cont, resolverState);
+    const current = resolved
+      ? {
+          categoryId: resolved.category.id,
+          scope: resolved.matchedScope ?? "contBase",
+        }
+      : null;
+    const hasAnalyticOverride = resolved?.matchedScope === "analytic";
 
     const analyticAlloc = allocByCont.get(row.cont);
     const baseAlloc = allocByCont.get(row.contBase);
@@ -157,7 +174,7 @@ export async function loadMapariCashflow(
       rulajD: row.rulajD,
       rulajC: row.rulajC,
       currentMapping: current,
-      hasAnalyticOverride: analytic !== undefined,
+      hasAnalyticOverride,
       currentAllocation: allocation
         ? { scope: allocation.scope, splits: allocation.splits }
         : null,
