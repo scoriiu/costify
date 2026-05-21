@@ -31,6 +31,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -59,13 +60,14 @@ import {
 import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
 import { VerticalPicker } from "./vertical-picker";
 import { EditAllocationDialog } from "./edit-allocation-dialog";
+import { CategoryWorkspace } from "./category-workspace";
 import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
   data: MapariCashflowData;
 }
 
-type Filter = "all" | "unmapped" | "expense" | "revenue";
+type Filter = "all" | "unmapped" | "expense" | "revenue" | "unallocated" | "split";
 
 type CashflowTab = "categorii" | "verticale";
 
@@ -74,6 +76,7 @@ export function MapariCashflowTab({ data }: Props) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
   const onMutate = () => router.refresh();
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
@@ -90,14 +93,16 @@ export function MapariCashflowTab({ data }: Props) {
     router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }
 
-  const filteredAccounts = data.accounts.filter((a) => {
-    if (filter === "expense") return a.kind === "expense";
-    if (filter === "revenue") return a.kind === "revenue";
-    if (filter === "unmapped") return a.currentMapping === null;
-    return true;
-  });
-
+  const filteredAccounts = filterAccounts(data.accounts, filter, query);
   const unmappedCount = data.accounts.filter((a) => a.currentMapping === null).length;
+  const unallocatedCount = data.accounts.filter(
+    (a) => a.currentAllocation === null || a.currentAllocation.splits.length === 0
+  ).length;
+  const splitCount = data.accounts.filter(
+    (a) =>
+      a.currentAllocation !== null &&
+      a.currentAllocation.splits.length > 1
+  ).length;
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -111,21 +116,18 @@ export function MapariCashflowTab({ data }: Props) {
       />
 
       {activeTab === "categorii" ? (
-        <CategoryAxisContent
-          data={data}
-          filteredAccounts={filteredAccounts}
-          unmappedCount={unmappedCount}
-          filter={filter}
-          setFilter={setFilter}
-          onMutate={onMutate}
-        />
+        <CategoryAxisContent data={data} onMutate={onMutate} />
       ) : (
         <VerticalAxisContent
           data={data}
           filteredAccounts={filteredAccounts}
           unmappedCount={unmappedCount}
+          unallocatedCount={unallocatedCount}
+          splitCount={splitCount}
           filter={filter}
           setFilter={setFilter}
+          query={query}
+          setQuery={setQuery}
           onMutate={onMutate}
         />
       )}
@@ -225,62 +227,18 @@ function CashflowTabBar({
 
 function CategoryAxisContent({
   data,
-  filteredAccounts,
-  unmappedCount,
-  filter,
-  setFilter,
   onMutate,
 }: {
   data: MapariCashflowData;
-  filteredAccounts: AccountListItem[];
-  unmappedCount: number;
-  filter: Filter;
-  setFilter: (v: Filter) => void;
   onMutate: () => void;
 }) {
-  const expenseRootCount = data.tree.filter((n) => n.kind === "expense").length;
-  const revenueRootCount = data.tree.filter((n) => n.kind === "revenue").length;
-  const customCount = data.tree.filter((n) => !n.isOmfpDefault).length;
-
   return (
-    <div className="space-y-6">
-      <CollapsibleSection
-        title="Numele grupurilor (cum apar pe /firma)"
-        summary={
-          customCount > 0
-            ? `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri (${customCount} personalizate de tine)`
-            : `${expenseRootCount} grupuri cheltuieli · ${revenueRootCount} venituri — toate sunt defaults OMFP. Click pentru a personaliza.`
-        }
-        helper={
-          <>
-            Acestea sunt etichetele pe care le vede patronul pe /firma. Pentru
-            majoritatea firmelor, defaults-urile OMFP sunt suficiente.{" "}
-            <DocsLink href={DocsLinks.categories}>Despre categorii</DocsLink>
-          </>
-        }
-        defaultCollapsed
-      >
-        <CategoryTreePanel
-          tree={data.tree}
-          clientId={data.clientId}
-          onMutate={onMutate}
-        />
-      </CollapsibleSection>
-
-      <AccountListPanel
-        accounts={filteredAccounts}
-        totalAccounts={data.accounts.length}
-        unmappedCount={unmappedCount}
-        filter={filter}
-        onFilterChange={setFilter}
-        tree={data.tree}
-        clientId={data.clientId}
-        verticalsEnabled={data.verticalsEnabled}
-        verticals={data.verticals}
-        mode="category"
-        onMutate={onMutate}
-      />
-    </div>
+    <CategoryWorkspace
+      tree={data.tree}
+      accounts={data.accounts}
+      clientId={data.clientId}
+      onMutate={onMutate}
+    />
   );
 }
 
@@ -288,15 +246,23 @@ function VerticalAxisContent({
   data,
   filteredAccounts,
   unmappedCount,
+  unallocatedCount,
+  splitCount,
   filter,
   setFilter,
+  query,
+  setQuery,
   onMutate,
 }: {
   data: MapariCashflowData;
   filteredAccounts: AccountListItem[];
   unmappedCount: number;
+  unallocatedCount: number;
+  splitCount: number;
   filter: Filter;
   setFilter: (v: Filter) => void;
+  query: string;
+  setQuery: (v: string) => void;
   onMutate: () => void;
 }) {
   return (
@@ -314,8 +280,15 @@ function VerticalAxisContent({
           accounts={filteredAccounts}
           totalAccounts={data.accounts.length}
           unmappedCount={unmappedCount}
+          unallocatedCount={unallocatedCount}
+          splitCount={splitCount}
+          defaultVerticalName={
+            data.verticals.find((v) => v.isDefault)?.name ?? "Toata firma"
+          }
           filter={filter}
           onFilterChange={setFilter}
+          query={query}
+          onQueryChange={setQuery}
           tree={data.tree}
           clientId={data.clientId}
           verticalsEnabled={data.verticalsEnabled}
@@ -1817,8 +1790,13 @@ function AccountListPanel({
   accounts,
   totalAccounts,
   unmappedCount,
+  unallocatedCount,
+  splitCount,
+  defaultVerticalName,
   filter,
   onFilterChange,
+  query,
+  onQueryChange,
   tree,
   clientId,
   verticalsEnabled,
@@ -1829,8 +1807,16 @@ function AccountListPanel({
   accounts: AccountListItem[];
   totalAccounts: number;
   unmappedCount: number;
+  unallocatedCount: number;
+  splitCount: number;
+  /** Display name of the firm's implicit vertical (usually "Toata firma" but
+   *  the contabil may have renamed it). Used in the filter label and in the
+   *  vertical-mode header copy. */
+  defaultVerticalName: string;
   filter: Filter;
   onFilterChange: (v: Filter) => void;
+  query: string;
+  onQueryChange: (v: string) => void;
   tree: CostCategoryNode[];
   clientId: string;
   verticalsEnabled: boolean;
@@ -1853,59 +1839,127 @@ function AccountListPanel({
       ? "Aseaza fiecare cont in grupul potrivit pentru patron. Lista e sortata dupa rulaj — incepe cu cele mai mari."
       : "Aloca fiecare cont pe verticala potrivita (sau lasa la 'Toata firma' daca e cheltuiala generala). Lista e sortata dupa rulaj.";
 
+  const filterOptions: {
+    value: Filter;
+    label: string;
+    count?: number;
+    countTone?: "danger" | "neutral";
+  }[] = [
+    { value: "all", label: "Toate" },
+    ...(mode === "category"
+      ? [
+          {
+            value: "unmapped" as Filter,
+            label: "Nemapate",
+            count: unmappedCount,
+            countTone: (unmappedCount > 0 ? "danger" : "neutral") as
+              | "danger"
+              | "neutral",
+          },
+        ]
+      : [
+          {
+            value: "unallocated" as Filter,
+            label: `Doar ${defaultVerticalName}`,
+            count: unallocatedCount,
+            countTone: (unallocatedCount > 0 ? "danger" : "neutral") as
+              | "danger"
+              | "neutral",
+          },
+          {
+            value: "split" as Filter,
+            label: "Split",
+            count: splitCount,
+            countTone: "neutral" as "danger" | "neutral",
+          },
+        ]),
+    { value: "expense", label: "Cheltuieli" },
+    { value: "revenue", label: "Venituri" },
+  ];
+
+  const visibleCount = accounts.length;
+  const filterActive = filter !== "all" || query.trim() !== "";
+
   return (
     <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3
-            className="text-[14px] font-semibold text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            {headerTitle}
-          </h3>
-          <p
-            className="text-[11px] text-gray mt-0.5 max-w-2xl"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            {totalAccounts}{" "}
-            {totalAccounts === 1
-              ? "cont de cheltuieli/venituri"
-              : "conturi de cheltuieli si venituri"}
-            {mode === "category" && unmappedCount > 0 && (
-              <>
-                ,{" "}
-                <span className="text-rose-700 dark:text-rose-300">
-                  {unmappedCount === 1
-                    ? "1 fara grupare"
-                    : `${unmappedCount} fara grupare`}
-                </span>
-              </>
-            )}
-            . {headerSubtitle}
-          </p>
-        </div>
+      <div>
+        <h3
+          className="text-[14px] font-semibold text-white"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          {headerTitle}
+        </h3>
+        <p
+          className="text-[11px] text-gray mt-0.5 max-w-2xl"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {totalAccounts}{" "}
+          {totalAccounts === 1
+            ? "cont de cheltuieli/venituri"
+            : "conturi de cheltuieli si venituri"}
+          {mode === "category" && unmappedCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-rose-700 dark:text-rose-300">
+                {unmappedCount === 1
+                  ? "1 fara grupare"
+                  : `${unmappedCount} fara grupare`}
+              </span>
+            </>
+          )}
+          {mode === "vertical" && unallocatedCount > 0 && (
+            <>
+              ,{" "}
+              <span className="text-rose-700 dark:text-rose-300">
+                {unallocatedCount === 1
+                  ? `1 doar pe ${defaultVerticalName}`
+                  : `${unallocatedCount} doar pe ${defaultVerticalName}`}
+              </span>
+            </>
+          )}
+          . {headerSubtitle}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchInput
+          value={query}
+          onChange={onQueryChange}
+          placeholder="Cauta dupa cont sau denumire..."
+          className="flex-1 min-w-[240px] max-w-md"
+        />
         <ToggleGroup<Filter>
           value={filter}
           onChange={onFilterChange}
-          options={[
-            { value: "all", label: "Toate" },
-            ...(mode === "category"
-              ? ([
-                  {
-                    value: "unmapped",
-                    label: "Nemapate",
-                    count: unmappedCount,
-                    countTone: (unmappedCount > 0 ? "danger" : "neutral") as
-                      | "danger"
-                      | "neutral",
-                  },
-                ] as const)
-              : []),
-            { value: "expense", label: "Cheltuieli" },
-            { value: "revenue", label: "Venituri" },
-          ]}
+          options={filterOptions}
         />
       </div>
+
+      {filterActive && (
+        <p
+          className="text-[11px] text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {visibleCount === 0
+            ? "Niciun cont nu se potriveste."
+            : `${visibleCount} din ${totalAccounts} ${
+                totalAccounts === 1 ? "cont" : "conturi"
+              } afisate.`}{" "}
+          {filterActive && (
+            <button
+              type="button"
+              onClick={() => {
+                onFilterChange("all");
+                onQueryChange("");
+              }}
+              className="text-primary hover:text-primary-light underline underline-offset-2"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Reseteaza filtrele
+            </button>
+          )}
+        </p>
+      )}
 
       {accounts.length === 0 ? (
         <p
@@ -2175,6 +2229,48 @@ const RON = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 0 });
 function formatRon(value: number): string {
   if (value === 0) return "0";
   return RON.format(Math.round(value));
+}
+
+/** Apply the category-toggle filter + the fuzzy search query against an
+ *  account list. Search matches on cont, contBase, and denumire — all
+ *  case-insensitive, diacritic-insensitive, and supports partial matches.
+ *  The toggle filter is applied first (cheaper), then the search. */
+function filterAccounts(
+  accounts: AccountListItem[],
+  filter: Filter,
+  query: string
+): AccountListItem[] {
+  const byCategory = accounts.filter((a) => {
+    if (filter === "expense") return a.kind === "expense";
+    if (filter === "revenue") return a.kind === "revenue";
+    if (filter === "unmapped") return a.currentMapping === null;
+    if (filter === "unallocated")
+      return (
+        a.currentAllocation === null || a.currentAllocation.splits.length === 0
+      );
+    if (filter === "split")
+      return (
+        a.currentAllocation !== null && a.currentAllocation.splits.length > 1
+      );
+    return true;
+  });
+
+  const trimmed = query.trim();
+  if (trimmed.length === 0) return byCategory;
+
+  const needle = stripDiacritics(trimmed.toLowerCase());
+  return byCategory.filter((a) => {
+    const haystack = stripDiacritics(
+      `${a.cont} ${a.contBase} ${a.denumire}`.toLowerCase()
+    );
+    return haystack.includes(needle);
+  });
+}
+
+/** Remove Romanian diacritics so 'sosele' matches 'sosele' and 'cheltuieli'
+ *  matches 'cheltuieli'. Uses NFD decomposition + combining mark removal. */
+function stripDiacritics(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 const MONTHS = [
