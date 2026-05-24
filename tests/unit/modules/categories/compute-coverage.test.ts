@@ -134,4 +134,37 @@ describe("computeCoverage", () => {
     expect(result.totalRulaj).toBe(0.3); // not 0.30000000000000004
     expect(result.mappedRulaj).toBe(0.3);
   });
+
+  it("realistic firm shape — 70/20/10 mapped/unmapped/zero spread", () => {
+    const result = computeCoverage([
+      // The big mapped accounts — what coverage should largely reflect.
+      account({ cont: "641.001", contBase: "641", denumire: "Salarii brut",
+                kind: "expense", rulajD: 360_728,
+                currentMapping: { categoryId: "salarii", scope: "contBase" } }),
+      account({ cont: "645.001", contBase: "645", denumire: "Asigurari sociale",
+                kind: "expense", rulajD: 95_000,
+                currentMapping: { categoryId: "salarii", scope: "contBase" } }),
+      account({ cont: "6022", contBase: "6022", denumire: "Combustibil",
+                kind: "expense", rulajD: 32_500,
+                currentMapping: { categoryId: "combustibil", scope: "contBase" } }),
+      // Two unmapped accounts mid-size — what should trigger the warning.
+      account({ cont: "628.x", contBase: "628", denumire: "Servicii diverse",
+                kind: "expense", rulajD: 8_000,
+                currentMapping: null }),
+      account({ cont: "658", contBase: "658", denumire: "Cheltuieli exceptionale",
+                kind: "expense", rulajD: 2_000,
+                currentMapping: null }),
+      // Revenue mapped — contributes to total + mapped on the C side.
+      account({ cont: "707", contBase: "707", denumire: "Vanzari marfa",
+                kind: "revenue", rulajC: 500_000,
+                currentMapping: { categoryId: "vanzari", scope: "contBase" } }),
+    ]);
+
+    expect(result.totalAccountCount).toBe(6);
+    expect(result.unmappedCount).toBe(2);
+    expect(result.totalRulaj).toBe(998_228); // 360728+95000+32500+8000+2000+500000
+    expect(result.mappedRulaj).toBe(988_228); // total - 10_000 unmapped
+    expect(result.unmappedRulaj).toBe(10_000);
+    expect(result.percent).toBe(99); // 988228/998228 ≈ 0.9899
+  });
 });
