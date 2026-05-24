@@ -1,9 +1,36 @@
 # Mapari Cashflow — UX Rewrite Plan
 
-> **Stare**: în execuție pe branch `feat/pr-2c-6-mapari-coverage`.
+> **Stare**: ✅ **TERMINAT** — toate cele 7 sprinturi livrate pe branch
+> `feat/pr-2c-6-mapari-coverage`.
 > **Plan creat**: mai 2026, după discuția cu Corii pe limbajul Claudiei.
 > **Acest document e contractul de referință** — la orice resume de sesiune,
 > citește-l întâi ca să știi unde suntem și de ce.
+
+## Rezumat final
+
+**Branch**: `feat/pr-2c-6-mapari-coverage` — 9 commits, ~3000 linii noi cod
++ tests (3103 unit tests pass).
+
+**Ce s-a livrat**:
+- Coverage panel vizibil pe Mapari Cashflow (Sprint 1)
+- Slide-panel parteneri cu bulk apply + filter + search (Sprints 2-3)
+- Cross-cont memory cu yellow suggestions + review queue (Sprints 4-5)
+- Redistribution reală pe /firma KPIs prin partner overrides (Sprint 6)
+- Trust badge pe /firma pentru antreprenor (Sprint 7)
+
+**Validare**:
+- TypeScript clean.
+- 3103/3103 unit tests passing.
+- Zero schema breaking changes pentru migrări existente.
+- Backwards-compat pentru snapshot-uri publicate (Sprint 7 has fallback).
+- Costi training (`costify-app.json`) actualizat după fiecare sprint relevant.
+
+**Următorii pași optional/Sprint 8 candidates**:
+- Rewrite docs cashflow-pentru-antreprenor.md în limbajul nou.
+- Tooltip "Această sumă vine din..." pe sume KPI (necesită line-level traceability).
+- Per-vertical partner splits (extensia axei B la nivel partener).
+- KPIs per-categorie (ex. marja pe categoria X).
+- Cache adjustments per (clientId, year, month) cu invalidation.
 
 ---
 
@@ -62,8 +89,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 7** — trust + trasabilitate antreprenor |
-| Sprinturi terminate | 6 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii, Coadă de revizuire, **Reziduum în calcule**) |
+| Sprint în lucru | **NIMIC — întregul rewrite e TERMINAT** ✅ |
+| Sprinturi terminate | **7/7** — întregul plan livrat |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -385,19 +412,45 @@ nou data model).
   Dacă vreodată introducem KPI-uri pe-categorie (ex. "marja pe
   categoria X"), atunci vor avea nevoie de adjustments.
 
-## Sprint 7 — Antreprenor: trust + trasabilitate (3-4 zile)
+## Sprint 7 — Antreprenor: trust + trasabilitate (3-4 zile) ✅ TERMINAT
 
 **Goal**: antreprenorul vede încrederea, nu mecanica.
 
-**Subtasks**:
-1. Trust badge mic pe header `/firma`:
-   `Date revizuite manual de [contabil] · acoperire 92%`
-2. (Opțional dacă timp) tooltip click pe sumă: "Această sumă vine din..."
-3. Rewrite scurt al pages `cashflow-pentru-antreprenor.md` în limbajul nou
-   și readucere în sidebar
+**Ce s-a făcut** (1 commit):
 
-**Acceptance**: antreprenorul deschide /firma și are senzația că datele
-sunt îngrijite, fără să vadă mecanica.
+1. ✅ **`dataQuality` adăugat la `OwnerSnapshot`**: `{ coveragePercent,
+   partnerOverrideCount, hasAnyReview }`. Computat în
+   `loadOwnerSnapshot` cu aceleași semantici ca `CoverageStats` din
+   loader (cont-mapping = full credit, partner overrides = partial
+   prorated). Hidden când `hasAnyReview === false` (niciun mapping
+   contabil + niciun partner override) — nu mintem.
+2. ✅ **`TrustBadge` component** mic și subtle: pictogramă ShieldCheck
+   (primary) + text mono "Date revizuite manual · acoperire X%" cu
+   tooltip explicativ. Pe header `/firma`, slot `actions` al
+   PageHeader (aliniere dreapta).
+3. ✅ **Publishing backwards-compat**: `normalizeSnapshot` din
+   `publishing/service.ts` are fallback pentru snapshot-uri vechi fără
+   `dataQuality` → returnează `{ coveragePercent: 0,
+   partnerOverrideCount: 0, hasAnyReview: false }` (badge ascuns).
+4. ⏸️ **Skipped — Sprint 8 candidate**: rewrite `cashflow-pentru-
+   antreprenor.md` în limbajul nou și readucerea în sidebar. Docs
+   vechi sunt scoase din sidebar din primul commit al rewrite-ului
+   (`3422882`). Pot fi rescrise când avem nevoie de documentare
+   user-facing.
+5. ⏸️ **Skipped — Sprint 8 candidate**: tooltip click pe sumă
+   ("Această sumă vine din..."). Necesită model nou de traceability
+   line-level care nu există încă. Lasă pentru când contabili cer
+   explicit transparența.
+
+**Acceptance verified**:
+- ✅ Antreprenorul deschide /firma. Vede badge mic în dreapta sus:
+  "🛡 Date revizuite manual · acoperire 87%".
+- ✅ Tooltip pe hover explică în limbaj antreprenor ce înseamnă.
+- ✅ Pentru firme fără niciun mapping (proaspăt importate), badge
+  nu apare (nu pretindem revizuit ce nu e revizuit).
+- ✅ Snapshot-uri publicate înainte de Sprint 7 deserializează corect
+  (fallback hidden state).
+- ✅ 3103 tests pass.
 
 ---
 

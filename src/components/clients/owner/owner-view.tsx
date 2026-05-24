@@ -20,6 +20,7 @@ import type { OwnerContext } from "./owner-layout";
 import { buildPageHref } from "./owner-context";
 import { lei, monthLabel } from "@/lib/owner-format";
 import { PageHeader } from "./page-header";
+import { TrustBadge } from "./trust-badge";
 import { KpiCard } from "./kpi-card";
 import { CashPositionCard } from "./cash-position-card";
 import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
@@ -54,6 +55,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
     salaryAffordability,
     yoy,
     verticalBreakdown,
+    dataQuality,
   } = snapshot;
 
   const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
@@ -81,6 +83,15 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       <PageHeader
         title={`Cum sta firma in ${monthLabel(meta.year, meta.month)}`}
         subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele sunt actualizate de fiecare data cand contabilul incarca un nou jurnal."
+        actions={
+          dataQuality ? (
+            <TrustBadge
+              coveragePercent={dataQuality.coveragePercent}
+              partnerOverrideCount={dataQuality.partnerOverrideCount}
+              hasAnyReview={dataQuality.hasAnyReview}
+            />
+          ) : undefined
+        }
       />
 
       {/* KPI grid — each card links to its detail page */}

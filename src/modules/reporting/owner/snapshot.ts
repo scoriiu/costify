@@ -36,7 +36,10 @@ import {
   listCategoryTree,
   listMappings,
   buildResolverState,
+  resolveCategoryForCont,
+  type ResolverState,
 } from "@/modules/categories";
+import type { BalanceRowView } from "@/modules/balances";
 import {
   listVerticals,
   listAllocations,
@@ -256,6 +259,79 @@ export async function loadOwnerSnapshot(
     salaryAffordability,
     yoy,
     verticalBreakdown,
+    dataQuality: computeDataQuality(
+      rows,
+      catalog,
+      resolverState,
+      partnerOverrides,
+      partnerAdjustments
+    ),
+  };
+}
+
+/**
+ * Sprint 7 trust signal. Computes the same coverage % as the Mapari
+ * Cashflow loader but inline here so we don't double-fetch — the rows,
+ * resolver, overrides and adjustments are already loaded.
+ *
+ * Semantics match CoverageStats.percent in src/modules/categories/loader.ts:
+ *   rulaj = |natural-side| per class 6+7 leaf cont
+ *   mapped = cont has a category mapping OR has partner-overridden rulaj
+ *   percent = mappedRulaj / totalRulaj rounded
+ *
+ * Hidden in the UI when hasAnyReview is false — a 0% coverage badge
+ * would actively damage trust.
+ */
+function computeDataQuality(
+  rows: BalanceRowView[],
+  _catalog: Map<string, CatalogAccount>,
+  resolverState: ResolverState | null,
+  partnerOverrides: Awaited<ReturnType<typeof listOverridesForClient>>,
+  partnerAdjustments: Awaited<ReturnType<typeof computePartnerCategoryAdjustments>>
+) {
+  // Per-analytic partner-overridden rulaj for the period.
+  const overriddenByAnalytic = new Map<string, number>();
+  for (const adj of partnerAdjustments) {
+    overriddenByAnalytic.set(
+      adj.analyticCont,
+      (overriddenByAnalytic.get(adj.analyticCont) ?? 0) + adj.amount
+    );
+  }
+
+  let totalRulaj = 0;
+  let mappedRulaj = 0;
+
+  for (const row of rows) {
+    if (!row.isLeaf) continue;
+    const first = row.contBase.charAt(0);
+    if (first !== "6" && first !== "7") continue;
+    const rulaj = Math.abs(first === "6" ? row.rulajTD : row.rulajTC);
+    if (rulaj < 0.01) continue;
+    totalRulaj += rulaj;
+
+    const hasContMapping =
+      resolverState !== null &&
+      resolveCategoryForCont(row.cont, resolverState) !== null;
+    if (hasContMapping) {
+      mappedRulaj += rulaj;
+    } else {
+      const overridden = overriddenByAnalytic.get(row.cont) ?? 0;
+      mappedRulaj += Math.min(Math.abs(overridden), rulaj);
+    }
+  }
+
+  const percent =
+    totalRulaj === 0 ? 100 : Math.round((mappedRulaj / totalRulaj) * 100);
+
+  // hasAnyReview: at least one cont-mapping OR one partner override exists.
+  // Used by the UI to hide the badge entirely on freshly-imported firms
+  // where claiming 'reviewed' would be dishonest.
+  const hasAnyMapping = resolverState !== null && resolverState.byCont.size > 0;
+
+  return {
+    coveragePercent: percent,
+    partnerOverrideCount: partnerOverrides.length,
+    hasAnyReview: hasAnyMapping || partnerOverrides.length > 0,
   };
 }
 

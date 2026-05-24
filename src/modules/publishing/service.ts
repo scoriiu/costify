@@ -342,5 +342,13 @@ function upgradeSnapshot(snap: OwnerSnapshot): OwnerSnapshot {
       hasPreviousYear: false,
     },
     verticalBreakdown: s.verticalBreakdown ?? [],
+    // Sprint 7 added dataQuality. Published snapshots from before this
+    // shipped don't have it; fall back to a hidden-badge state so the
+    // antreprenor's published view stays valid.
+    dataQuality: s.dataQuality ?? {
+      coveragePercent: 0,
+      partnerOverrideCount: 0,
+      hasAnyReview: false,
+    },
   };
 }

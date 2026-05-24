@@ -195,4 +195,22 @@ export interface OwnerSnapshot {
   /** Per-vertical decomposition of the month (PR-2c). Empty array when the
    *  client doesn't have verticalsEnabled or has no allocations yet. */
   verticalBreakdown: VerticalBreakdownItem[];
+  /** Sprint 7: a small trust signal for the antreprenor showing that the
+   *  numbers they're looking at come from data the contabil has reviewed,
+   *  not raw unreviewed bank statements. Drives the small badge in the
+   *  /firma header. Hidden when nothing has been mapped at all (the
+   *  trust signal would be a lie). */
+  dataQuality: {
+    /** Percent of class 6+7 rulaj that's covered by an explicit category
+     *  mapping or a partner override (same definition as CoverageStats.
+     *  percent in the Mapari Cashflow loader). */
+    coveragePercent: number;
+    /** Total count of partner-level overrides the contabil has created
+     *  across all conts. Higher = more granular review. */
+    partnerOverrideCount: number;
+    /** True when there's at least one cont-mapping or one partner override.
+     *  When false the trust badge is hidden — claiming 'reviewed' on a
+     *  firm where nothing has been reviewed would be dishonest. */
+    hasAnyReview: boolean;
+  };
 }
