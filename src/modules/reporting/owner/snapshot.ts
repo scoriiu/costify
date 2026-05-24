@@ -42,6 +42,11 @@ import {
   listAllocations,
   buildVerticalResolver,
 } from "@/modules/verticals";
+import {
+  listOverridesForClient,
+  computePartnerCategoryAdjustments,
+  type JournalLineForAggregation,
+} from "@/modules/partner-mappings";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
 
@@ -157,20 +162,43 @@ export async function loadOwnerSnapshot(
   // come from the accountant opening the Mapari Cashflow tab explicitly.
   // If the firm has no categories yet, fall through to the PR-2a hardcoded
   // breakdown so the patron view still works.
-  const [categoryTreeResult, mappings] = await Promise.all([
+  const [categoryTreeResult, mappings, partnerOverrides] = await Promise.all([
     listCategoryTree(prisma, clientId, { autoSeed: false }),
     listMappings(prisma, clientId),
+    listOverridesForClient(prisma, clientId),
   ]);
   const useCategoryBreakdown = mappings.length > 0;
   const resolverState = useCategoryBreakdown
     ? buildResolverState(categoryTreeResult.tree, mappings)
     : null;
 
+  // Sprint 6: compute partner-override redistribution adjustments for the
+  // period. Each adjustment redirects a slice of an analytic cont's rulaj
+  // from the cont's default category to the partner's chosen category.
+  // Only fetches journal lines + partner names if we actually have any
+  // overrides to apply — keeps the no-overrides path identical to before.
+  const partnerAdjustments = await loadPartnerAdjustmentsForPeriod(
+    clientId,
+    year,
+    month,
+    partnerOverrides
+  );
+
   const expenseBreakdown = resolverState
-    ? computeExpenseBreakdownFromCategories(rows, catalog, resolverState)
+    ? computeExpenseBreakdownFromCategories(
+        rows,
+        catalog,
+        resolverState,
+        partnerAdjustments
+      )
     : computeExpenseBreakdown(rows, catalog);
   const revenueBreakdown = resolverState
-    ? computeRevenueBreakdownFromCategories(rows, catalog, resolverState)
+    ? computeRevenueBreakdownFromCategories(
+        rows,
+        catalog,
+        resolverState,
+        partnerAdjustments
+      )
     : computeRevenueBreakdown(rows, catalog);
   const topMonthlyExpenses = computeTopMonthlyExpenses(rows, catalog, 10);
   const runway = computeRunway(summary, trends, 3);
@@ -229,4 +257,64 @@ export async function loadOwnerSnapshot(
     yoy,
     verticalBreakdown,
   };
+}
+
+/**
+ * Fetches journal lines + partner names for the YTD-cumulated period and
+ * computes the PartnerCategoryAdjustment[] used by the category breakdown.
+ *
+ * Skips both the journal-line query and the partner-name query entirely
+ * when there are no overrides — preserves the no-overrides hot path with
+ * zero extra DB load.
+ */
+async function loadPartnerAdjustmentsForPeriod(
+  clientId: string,
+  year: number,
+  month: number,
+  overrides: Awaited<ReturnType<typeof listOverridesForClient>>
+) {
+  if (overrides.length === 0) return [];
+
+  const [lineRows, partnerRows] = await Promise.all([
+    prisma.journalLine.findMany({
+      where: {
+        clientId,
+        year,
+        month: { lte: month },
+        deletedAt: null,
+        OR: [
+          { contDBase: { startsWith: "6" } },
+          { contCBase: { startsWith: "7" } },
+        ],
+      },
+      select: {
+        contD: true,
+        contDBase: true,
+        contC: true,
+        contCBase: true,
+        suma: true,
+      },
+    }),
+    prisma.journalPartner.findMany({
+      where: { clientId },
+      select: { analyticAccount: true, partnerName: true },
+    }),
+  ]);
+
+  const lines: JournalLineForAggregation[] = lineRows.map((r) => ({
+    contD: r.contD,
+    contDBase: r.contDBase,
+    contC: r.contC,
+    contCBase: r.contCBase,
+    suma: Number(r.suma),
+  }));
+
+  const partnerNames = new Map<string, string>();
+  for (const r of partnerRows) {
+    if (r.partnerName && r.partnerName.trim() !== "") {
+      partnerNames.set(r.analyticAccount, r.partnerName.trim());
+    }
+  }
+
+  return computePartnerCategoryAdjustments(lines, partnerNames, overrides);
 }

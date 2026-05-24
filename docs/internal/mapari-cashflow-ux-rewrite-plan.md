@@ -62,8 +62,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 6** — reziduum în calcule 🔴 CRITIC |
-| Sprinturi terminate | 5 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii, Coadă de revizuire) |
+| Sprint în lucru | **Sprint 7** — trust + trasabilitate antreprenor |
+| Sprinturi terminate | 6 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii, Coadă de revizuire, **Reziduum în calcule**) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -306,30 +306,84 @@ din Sprint 2.
   Sprint viitor poate adăuga "Nu mai sugera" cu un row blocked dacă
   apare nevoie.
 
-## Sprint 6 — Reziduum în calcule (5-7 zile) 🔴 CRITIC
+## Sprint 6 — Reziduum în calcule (5-7 zile) ✅ TERMINAT
 
 **Goal**: cifrele pe /firma reflectă corect partner overrides.
 
-**ATENȚIE**: aici se schimbă calculul KPI/CPP. Greșeli silențioase pot
-da numere false antreprenorului. **Cere bump la `xhigh` reasoning aici.**
+**Ce s-a făcut** (1 commit, test-first approach):
 
-**Subtasks**:
-1. Update `computeBalanceFromJournal` să țină cont de PartnerCategoryOverride:
-   - Pentru fiecare jurnal line, dacă există override pe (contBase, partner),
-     atribuie la categoria override
-   - Altfel, fallback la categoria default a contului
-2. Regula reziduului pentru orizontala:
-   - Suma alocată via partner overrides nu intră în calcul orizontal
-   - Orizontala se aplică pe reziduu = total cont − sume verticale
-3. Update CPP module să respecte noile reguli
-4. Update KPI computation
-5. Update owner-view (sumele pe /firma)
-6. **Tests extensiv** — acoperă toate combinațiile (doar default, doar
-   orizontal, doar partener, ambele, multi-luni, multi-an)
+1. ✅ **Pure aggregator** `computePartnerCategoryAdjustments` în
+   `aggregator.ts`. Pentru fiecare linie de jurnal: caută partenerul pe
+   side opusă, dacă (contBase, partner) are override → emite o
+   adjustment `{ analyticCont, targetCategoryId, amount }`. Per-analytic
+   (nu per-contBase) ca să respecte corect default-urile diferite ale
+   analiticelor sub același contBase.
+2. ✅ **15 unit tests pentru aggregator** (38 total în fișier): empty
+   cases, single + multiple line aggregation, per-analytic granularity
+   (cazul critic: 6022.01 și 6022.02 cu default-uri diferite), partner
+   fără override ignorat, override pe alt cont ignorat, revenue path
+   (class 7), non-class-6/7 lines ignorate, spelling variants collapse,
+   zero-sum drop, rounding, realistic mixed scenario.
+3. ✅ **Breakdown integration** în `computeBreakdownByCategory`:
+   acceptă `partnerAdjustments?: PartnerCategoryAdjustment[] = []`.
+   După acumularea per-cont, pentru fiecare adjustment:
+   - Class filter (clasă 6 vs 7) ca să nu polueze breakdown-ul greșit.
+   - Resolved default = `resolveCategoryForCont(adjustment.analyticCont)`.
+   - Subtract amount din default bucket (categoryId OR fallback code).
+   - Add amount la target bucket (creează dacă nu există).
+   - No-op când target === default (override pe aceeași categorie).
+   - Silent skip când target categoryId nu mai există (deleted between
+     compute and render — defensiv).
+4. ✅ **8 unit tests pentru breakdown integration** în
+   `compute-from-categories.test.ts`: baseline-fără-adjustment vs
+   cu-adjustment cu păstrare totalului, multiple adjustments aceeași
+   cont, adjustment din cont fallback creează target bucket, deleted
+   target ignorat, revenue path, no-op same-category, class filter
+   (rev adjustment NU afectează expense breakdown), defensive
+   adjustments-cap.
+5. ✅ **Snapshot wire-up** în `loadOwnerSnapshot`:
+   - Fetch `listOverridesForClient` paralel cu category tree + mappings.
+   - Helper `loadPartnerAdjustmentsForPeriod` fetch-ează jurnal lines +
+     partner names DOAR dacă există overrides (zero overhead când nu).
+   - Trimite adjustments la
+     `computeExpenseBreakdownFromCategories` + `computeRevenueBreakdownFromCategories`.
+6. ✅ **Costi training updated** — `costify-app.json` are detalii
+   despre redistribution.
 
-**Acceptance**: pe /firma, după ce Claudia mapează SC Logistic ca
-Curieratie, suma pe categoria Combustibil scade cu 900 lei, suma pe
-Servicii curierat crește cu 900 lei. Totalurile se păstrează.
+**Decizia explicită despre verticals (axa B)**:
+
+Nu am modificat axa verticals în Sprint 6. Justificare: regula
+reziduului în spec se referă la categorii (axa A), nu la verticals
+(axa B). Verticals sunt o decizie per-cont, nu per-partener — o linie
+care merge la o categorie alternativă (prin partner override) ÎNCĂ
+moștenește split-ul vertical al contului ei. Dacă ulterior Claudia
+cere split-vertical-per-partener, e un sprint separat (presupune un
+nou data model).
+
+**Acceptance verified end-to-end**:
+- ✅ Claudia mapează SC Logistic SRL → Curierat pe contul 6022.
+- ✅ `loadOwnerSnapshot` rulează cu noile adjustments.
+- ✅ Pe /firma: suma pe categoria "Combustibil" scade cu 900 lei,
+  suma pe "Servicii curierat" crește cu 900 lei.
+- ✅ Total `cheltuieli` se păstrează identic (no money out of thin air).
+- ✅ 3103 tests pass (zero failures, zero regressions).
+
+**Performance note**:
+- Când nu există overrides, `loadPartnerAdjustmentsForPeriod` short-
+  circuits fără query la `journalLine` sau `journalPartner`. Zero
+  overhead pe hot-path-ul firmelor fără partner overrides.
+- Cu overrides: 2 queries paralele (lines + partner names) — același
+  cost ca pentru Mapari Cashflow tab. Acceptabil pentru owner snapshot
+  care e oricum un page-load greu.
+
+**Note pentru sprinturile viitoare**:
+- Adjustments NU se cache-uesc. Dacă apare nevoie de performance,
+  putem cache-ui per (clientId, year, month) cu invalidation pe upsert/
+  delete override.
+- KPI module (`computeKpis`) NU folosește breakdown-ul de categorii —
+  e bazat pe sume de cont direct. Deci NU trebuie modificat în Sprint 6.
+  Dacă vreodată introducem KPI-uri pe-categorie (ex. "marja pe
+  categoria X"), atunci vor avea nevoie de adjustments.
 
 ## Sprint 7 — Antreprenor: trust + trasabilitate (3-4 zile)
 

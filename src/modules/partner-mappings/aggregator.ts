@@ -306,3 +306,108 @@ function inferContBaseFromLines(
   if (lines.length === 0) return null;
   return contKind === "expense" ? lines[0].contDBase : lines[0].contCBase;
 }
+
+/* -------------------------------------------------------------------------- */
+/*                       SPRINT 6 — REDISTRIBUTION ADJUSTMENTS                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One adjustment: on a specific analytic cont, an explicit partner override
+ * redirects `amount` lei from whatever category the cont would have resolved
+ * to (the contBase / analytic resolved default) to `targetCategoryId`.
+ *
+ * Per-analytic granularity (not just per-contBase) so the redistribution math
+ * is exact even when different analytics under the same contBase resolve to
+ * different default categories. Example: 6022.01 has its own analytic
+ * mapping to "Combustibil flota", 6022.02 has none and falls back to
+ * "Combustibil generic" via contBase; a partner override for 6022 → "Curierat"
+ * must subtract its rulaj from the RIGHT default category for each analytic.
+ */
+export interface PartnerCategoryAdjustment {
+  /** Full analytic cont as it appears in JournalLine (e.g. "6022.01"). */
+  analyticCont: string;
+  /** Category the partner-overridden rulaj is being redirected TO. */
+  targetCategoryId: string;
+  /** Absolute amount being redistributed. Always positive — the sign
+   *  follows the cont's natural side (D for class 6, C for class 7). */
+  amount: number;
+}
+
+/**
+ * For each journal line whose opposite-side analytic resolves to a partner
+ * with an override on this cont, emit one (analyticCont, targetCategoryId,
+ * amount) adjustment. Multiple lines for the same (analyticCont, partner)
+ * fold into a single adjustment via summation.
+ *
+ * Pure — no I/O. The caller (the owner snapshot loader) provides:
+ *   - the journal lines for the period
+ *   - the partner-name map (analyticAccount → name)
+ *   - all PartnerCategoryOverrides for the client
+ * and routes the resulting adjustments into computeBreakdownByCategory.
+ */
+export function computePartnerCategoryAdjustments(
+  lines: JournalLineForAggregation[],
+  partnerNames: Map<string, string>,
+  allOverrides: PartnerCategoryOverrideRow[]
+): PartnerCategoryAdjustment[] {
+  if (allOverrides.length === 0 || lines.length === 0) return [];
+
+  // Index overrides by (contBase, partnerNameNormalized) for O(1) lookup
+  // during the line walk.
+  type OverrideKey = string; // `${contBase}|${partnerNameNormalized}`
+  const overrideByKey = new Map<OverrideKey, PartnerCategoryOverrideRow>();
+  for (const o of allOverrides) {
+    overrideByKey.set(`${o.contBase}|${o.partnerNameNormalized}`, o);
+  }
+
+  // Bucket adjustments by (analyticCont, targetCategoryId) so we sum
+  // multiple lines of the same partner into one row.
+  type BucketKey = string; // `${analyticCont}|${targetCategoryId}`
+  const buckets = new Map<BucketKey, PartnerCategoryAdjustment>();
+
+  for (const line of lines) {
+    // Determine which side is the cost/revenue cont vs the partner cont.
+    // Expense lines: contD = 6xx (cost), contC = 4xx (partner).
+    // Revenue lines: contC = 7xx (revenue), contD = 4xx (partner).
+    const isExpense = line.contDBase.startsWith("6");
+    const isRevenue = line.contCBase.startsWith("7");
+    if (!isExpense && !isRevenue) continue;
+
+    const ownAnalytic = isExpense ? line.contD : line.contC;
+    const ownContBase = isExpense ? line.contDBase : line.contCBase;
+    const partnerAnalytic = isExpense ? line.contC : line.contD;
+
+    const rawName = partnerNames.get(partnerAnalytic);
+    if (!rawName || rawName.trim() === "") continue;
+    const partnerKey = normalizePartnerName(rawName);
+    if (partnerKey === "") continue;
+
+    const override = overrideByKey.get(`${ownContBase}|${partnerKey}`);
+    if (!override) continue;
+
+    const bucketKey: BucketKey = `${ownAnalytic}|${override.categoryId}`;
+    const existing = buckets.get(bucketKey);
+    if (existing) {
+      existing.amount += line.suma;
+    } else {
+      buckets.set(bucketKey, {
+        analyticCont: ownAnalytic,
+        targetCategoryId: override.categoryId,
+        amount: line.suma,
+      });
+    }
+  }
+
+  // Final pass: round + drop zero-sum (e.g. perfectly canceling refunds).
+  const out: PartnerCategoryAdjustment[] = [];
+  for (const adj of buckets.values()) {
+    const rounded = round2(adj.amount);
+    if (Math.abs(rounded) < 0.01) continue;
+    out.push({
+      analyticCont: adj.analyticCont,
+      targetCategoryId: adj.targetCategoryId,
+      amount: rounded,
+    });
+  }
+  return out;
+}

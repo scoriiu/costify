@@ -18,6 +18,7 @@ import type { ResolverState } from "@/modules/categories";
 import { resolveCategoryForCont } from "@/modules/categories";
 import type { VerticalResolverState } from "@/modules/verticals";
 import { resolveAllocationForCont, applySplit } from "@/modules/verticals";
+import type { PartnerCategoryAdjustment } from "@/modules/partner-mappings";
 import type {
   FinancialSummary,
   CashPosition,
@@ -706,24 +707,39 @@ export function computeYoy(
 export function computeExpenseBreakdownFromCategories(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>,
-  resolver: ResolverState
+  resolver: ResolverState,
+  partnerAdjustments: PartnerCategoryAdjustment[] = []
 ): CategoryBreakdownItem[] {
-  return computeBreakdownByCategory(rows, catalog, resolver, "expense");
+  return computeBreakdownByCategory(
+    rows,
+    catalog,
+    resolver,
+    "expense",
+    partnerAdjustments
+  );
 }
 
 export function computeRevenueBreakdownFromCategories(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>,
-  resolver: ResolverState
+  resolver: ResolverState,
+  partnerAdjustments: PartnerCategoryAdjustment[] = []
 ): CategoryBreakdownItem[] {
-  return computeBreakdownByCategory(rows, catalog, resolver, "revenue");
+  return computeBreakdownByCategory(
+    rows,
+    catalog,
+    resolver,
+    "revenue",
+    partnerAdjustments
+  );
 }
 
 function computeBreakdownByCategory(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>,
   resolver: ResolverState,
-  kind: "expense" | "revenue"
+  kind: "expense" | "revenue",
+  partnerAdjustments: PartnerCategoryAdjustment[] = []
 ): CategoryBreakdownItem[] {
   const leaves = rows.filter((r) => r.isLeaf);
   const classDigit = kind === "expense" ? "6" : "7";
@@ -766,6 +782,61 @@ function computeBreakdownByCategory(
     } else {
       const code = base.substring(0, 2);
       byFallbackCode.set(code, (byFallbackCode.get(code) ?? 0) + amount);
+    }
+  }
+
+  // Sprint 6: apply partner-override redistribution.
+  //
+  // For each (analyticCont, targetCategoryId, amount) adjustment, subtract
+  // `amount` from whatever category the analytic cont currently lives at
+  // (its resolved default OR its OMFP fallback) and add it to the target
+  // category. The net effect: the partner's slice of that cont's rulaj
+  // flows to the chosen category instead of the cont's default.
+  //
+  // This runs BEFORE the ancestor roll-up so the parent totals reflect the
+  // redistributed values. Adjustments for analytics outside this kind's
+  // class are silently ignored (the line wasn't included in the loop
+  // above and won't be in the maps).
+  for (const adjustment of partnerAdjustments) {
+    // Class-filter: an adjustment on cont 6022 is for expense breakdown,
+    // not revenue. Skip mismatches.
+    const adjBase = adjustment.analyticCont.split(".")[0]
+      .replace(/[^0-9]/g, "");
+    if (!adjBase.startsWith(classDigit)) continue;
+
+    const resolved = resolveCategoryForCont(adjustment.analyticCont, resolver);
+    const target =
+      adjustment.targetCategoryId === resolved?.category.id
+        ? null // no-op: override matches the cont's default category
+        : resolver.byId.get(adjustment.targetCategoryId);
+    if (!target) continue; // target category not in tree (deleted?) — skip safely
+
+    // Subtract from the default bucket (categoryId OR fallback code).
+    if (resolved) {
+      const existing = byCategoryId.get(resolved.category.id);
+      if (existing) {
+        existing.value -= adjustment.amount;
+      }
+      // No else: if the cont didn't contribute to its default bucket (no
+      // rulaj, no row), we can't subtract — but the addition still applies
+      // because the adjustment came from real lines we may or may not have
+      // in `rows` (e.g. analytic without a balance entry but with journal
+      // activity). This is defensive; in normal flow `rows` and `lines`
+      // come from the same period query.
+    } else {
+      const code = adjBase.substring(0, 2);
+      byFallbackCode.set(
+        code,
+        (byFallbackCode.get(code) ?? 0) - adjustment.amount
+      );
+    }
+
+    // Add to the target bucket.
+    const existingTarget = byCategoryId.get(target.id);
+    if (existingTarget) {
+      existingTarget.value += adjustment.amount;
+    } else {
+      byCategoryId.set(target.id, { value: adjustment.amount, node: target });
     }
   }
 

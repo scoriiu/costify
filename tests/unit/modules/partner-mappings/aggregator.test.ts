@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   aggregatePartnersForCont,
   summarizePartnersForCont,
+  computePartnerCategoryAdjustments,
   type JournalLineForAggregation,
   type ContKind,
 } from "@/modules/partner-mappings/aggregator";
@@ -548,5 +549,364 @@ describe("summarizePartnersForCont", () => {
     expect(result.partnerCount).toBe(3);
     expect(result.mappedPartnerCount).toBe(1); // SC Logistic
     expect(result.suggestedPartnerCount).toBe(1); // OMV via memory
+  });
+});
+
+/* ========================================================================== */
+/*                  SPRINT 6 — computePartnerCategoryAdjustments              */
+/* ========================================================================== */
+
+describe("computePartnerCategoryAdjustments", () => {
+  it("returns empty when there are no overrides", () => {
+    const lines = [line({ contC: "401.001", suma: 500 })];
+    const names = new Map([["401.001", "OMV"]]);
+    expect(computePartnerCategoryAdjustments(lines, names, [])).toEqual([]);
+  });
+
+  it("returns empty when there are no journal lines", () => {
+    const overrides = [override()];
+    expect(
+      computePartnerCategoryAdjustments([], new Map(), overrides)
+    ).toEqual([]);
+  });
+
+  it("emits one adjustment per (analyticCont, targetCategory) bucket", () => {
+    const lines = [
+      // SC Logistic on 6022.01 → 900 lei. Override redirects to Curierat.
+      line({
+        contD: "6022.01",
+        contDBase: "6022",
+        contC: "401.001",
+        suma: 900,
+      }),
+    ];
+    const names = new Map([["401.001", "SC Logistic SRL"]]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(1);
+    expect(adjustments[0]).toEqual({
+      analyticCont: "6022.01",
+      targetCategoryId: "cat-curierat",
+      amount: 900,
+    });
+  });
+
+  it("sums multiple lines of the same (analyticCont, partner) into one adjustment", () => {
+    const lines = [
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.001", suma: 500 }),
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.001", suma: 300 }),
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.001", suma: 100 }),
+    ];
+    const names = new Map([["401.001", "SC Logistic SRL"]]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(1);
+    expect(adjustments[0].amount).toBe(900);
+  });
+
+  it("emits separate adjustments for different analytics under the same contBase", () => {
+    // Critical correctness case — 6022.01 and 6022.02 resolve to different
+    // default categories (one has analytic mapping, one falls back), so
+    // adjustments must be per-analytic to subtract from the right default.
+    const lines = [
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.001", suma: 500 }),
+      line({ contD: "6022.02", contDBase: "6022", contC: "401.001", suma: 200 }),
+    ];
+    const names = new Map([["401.001", "SC Logistic SRL"]]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(2);
+    const byAnalytic = new Map(
+      adjustments.map((a) => [a.analyticCont, a.amount])
+    );
+    expect(byAnalytic.get("6022.01")).toBe(500);
+    expect(byAnalytic.get("6022.02")).toBe(200);
+  });
+
+  it("ignores lines whose partner does NOT have an override", () => {
+    const lines = [
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 900 }),
+      line({ contD: "6022", contDBase: "6022", contC: "401.002", suma: 500 }),
+    ];
+    const names = new Map([
+      ["401.001", "SC Logistic SRL"],
+      ["401.002", "OMV"],
+    ]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+      // OMV has no override → its 500 lei stays on the cont default.
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(1);
+    expect(adjustments[0].amount).toBe(900);
+  });
+
+  it("ignores partner overrides for a different contBase even if the partner matches", () => {
+    // SC Logistic has an override on cont 611, but the line is on cont 6022.
+    // The override doesn't fire for 6022 because the (contBase, partner) key
+    // doesn't match.
+    const lines = [
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 900 }),
+    ];
+    const names = new Map([["401.001", "SC Logistic SRL"]]);
+    const overrides = [
+      override({
+        contBase: "611", // different cont
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toEqual([]);
+  });
+
+  it("handles revenue conts (class 7) — partner on debit side", () => {
+    // Client invoice: debit 411.001 (client) / credit 707 (vanzari marfa).
+    // Override redirects this client's revenue to a different category.
+    const lines = [
+      line({
+        contD: "411.001",
+        contDBase: "411",
+        contC: "707",
+        contCBase: "707",
+        suma: 10000,
+      }),
+    ];
+    const names = new Map([["411.001", "Client Alpha SRL"]]);
+    const overrides = [
+      override({
+        contBase: "707",
+        partnerNameNormalized: "client alpha",
+        categoryId: "cat-vanzari-curierat",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(1);
+    expect(adjustments[0]).toEqual({
+      analyticCont: "707",
+      targetCategoryId: "cat-vanzari-curierat",
+      amount: 10000,
+    });
+  });
+
+  it("ignores lines that aren't class 6 expense or class 7 revenue", () => {
+    const lines = [
+      // Transfer between bank accounts — not class 6 or 7
+      line({
+        contD: "5121",
+        contDBase: "5121",
+        contC: "5311",
+        contCBase: "5311",
+        suma: 1000,
+      }),
+    ];
+    const names = new Map([["5311", "Casa"]]);
+    const overrides: ReturnType<typeof override>[] = [];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toEqual([]);
+  });
+
+  it("collapses spelling variants via the partner normalizer", () => {
+    const lines = [
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 500 }),
+      line({ contD: "6022", contDBase: "6022", contC: "401.002", suma: 300 }),
+    ];
+    // Same logical partner under two spellings — both should match the override.
+    const names = new Map([
+      ["401.001", "OMV PETROM SRL"],
+      ["401.002", "OMV Petrom S.R.L."],
+    ]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "omv petrom",
+        categoryId: "cat-combustibil-special",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toHaveLength(1);
+    expect(adjustments[0].amount).toBe(800);
+  });
+
+  it("drops adjustments that round to zero (perfectly canceling refunds)", () => {
+    const lines = [
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 500 }),
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: -500 }), // refund cancels
+    ];
+    const names = new Map([["401.001", "OMV"]]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "omv",
+        categoryId: "cat-x",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments).toEqual([]);
+  });
+
+  it("rounds adjustment amount to 2 decimals (no float drift)", () => {
+    const lines = [
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 0.1 }),
+      line({ contD: "6022", contDBase: "6022", contC: "401.001", suma: 0.2 }),
+    ];
+    const names = new Map([["401.001", "OMV"]]);
+    const overrides = [
+      override({
+        contBase: "6022",
+        partnerNameNormalized: "omv",
+        categoryId: "cat-x",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    expect(adjustments[0].amount).toBe(0.3);
+  });
+
+  it("realistic mixed scenario — multiple conts, multiple partners, multiple overrides", () => {
+    const lines = [
+      // 6022: SC Logistic 900 (override), OMV 12300 (no override on 6022),
+      //       MOL 4500 (no override at all)
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.001", suma: 900 }),
+      line({ contD: "6022.01", contDBase: "6022", contC: "401.002", suma: 12300 }),
+      line({ contD: "6022.02", contDBase: "6022", contC: "401.003", suma: 4500 }),
+      // 628: SC Logistic 1500 (override on different cont)
+      line({ contD: "628", contDBase: "628", contC: "401.001", suma: 1500 }),
+      // 707: Client Alpha 10000 (override redirects to special)
+      line({
+        contD: "411.001",
+        contDBase: "411",
+        contC: "707",
+        contCBase: "707",
+        suma: 10000,
+      }),
+    ];
+    const names = new Map([
+      ["401.001", "SC Logistic SRL"],
+      ["401.002", "OMV"],
+      ["401.003", "MOL"],
+      ["411.001", "Client Alpha"],
+    ]);
+    const overrides = [
+      override({
+        id: "o1",
+        contBase: "6022",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+      override({
+        id: "o2",
+        contBase: "628",
+        partnerNameNormalized: "logistic",
+        categoryId: "cat-curierat",
+      }),
+      override({
+        id: "o3",
+        contBase: "707",
+        partnerNameNormalized: "client alpha",
+        categoryId: "cat-vanzari-special",
+      }),
+    ];
+
+    const adjustments = computePartnerCategoryAdjustments(
+      lines,
+      names,
+      overrides
+    );
+
+    // 3 adjustments expected:
+    //   - 6022.01 → Curierat 900 (SC Logistic on 6022)
+    //   - 628 → Curierat 1500 (SC Logistic on 628)
+    //   - 707 → Vanzari-special 10000 (Client Alpha on 707)
+    expect(adjustments).toHaveLength(3);
+
+    const byCont = new Map(
+      adjustments.map((a) => [`${a.analyticCont}|${a.targetCategoryId}`, a.amount])
+    );
+    expect(byCont.get("6022.01|cat-curierat")).toBe(900);
+    expect(byCont.get("628|cat-curierat")).toBe(1500);
+    expect(byCont.get("707|cat-vanzari-special")).toBe(10000);
+    // Total redistributed = 12400 (OMV 12300 + MOL 4500 + own-cont stays put)
   });
 });

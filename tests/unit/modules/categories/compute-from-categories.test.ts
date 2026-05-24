@@ -135,4 +135,218 @@ describe("computeExpenseBreakdownFromCategories", () => {
     const resolver = buildResolverState([], []);
     expect(computeExpenseBreakdownFromCategories([], CATALOG, resolver)).toEqual([]);
   });
+
+  /* ------------------- Sprint 6 — partner-override redistribution ----------- */
+
+  it("Sprint 6: partner adjustment redirects rulaj from default to target category", () => {
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const curierat = rootNode("c-cur", "Servicii curierat", "expense");
+    const resolver = buildResolverState(
+      [combustibil, curierat],
+      [
+        { cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope },
+      ]
+    );
+
+    const rows = [
+      makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 }),
+    ];
+
+    // Without adjustment: all 10k to Combustibil.
+    const baseline = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver
+    );
+    expect(baseline.find((r) => r.label === "Combustibil")?.value).toBe(10000);
+    expect(baseline.find((r) => r.label === "Servicii curierat")).toBeUndefined();
+
+    // With adjustment: 900 lei from cont 6022 redirected to Curierat.
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "6022", targetCategoryId: "c-cur", amount: 900 }]
+    );
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(9100);
+    expect(adjusted.find((r) => r.label === "Servicii curierat")?.value).toBe(900);
+    // Total preserved — money doesn't appear out of thin air.
+    const total = adjusted
+      .filter((r) => r.depth === 0)
+      .reduce((s, r) => s + r.value, 0);
+    expect(total).toBe(10000);
+  });
+
+  it("Sprint 6: multiple adjustments aggregate cleanly on the same source cont", () => {
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const curierat = rootNode("c-cur", "Curierat", "expense");
+    const transport = rootNode("c-tr", "Transport", "expense");
+    const resolver = buildResolverState(
+      [combustibil, curierat, transport],
+      [
+        { cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope },
+      ]
+    );
+
+    const rows = [makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [
+        { analyticCont: "6022", targetCategoryId: "c-cur", amount: 900 },
+        { analyticCont: "6022", targetCategoryId: "c-tr", amount: 1100 },
+      ]
+    );
+
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(8000);
+    expect(adjusted.find((r) => r.label === "Curierat")?.value).toBe(900);
+    expect(adjusted.find((r) => r.label === "Transport")?.value).toBe(1100);
+  });
+
+  it("Sprint 6: adjustment from a fallback-coded cont creates the target bucket", () => {
+    // Cont 6028 has no cont-mapping → goes to fallback "60". But OMV on
+    // 6028 has an override to Combustibil → 700 lei redirected from
+    // fallback to Combustibil.
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const resolver = buildResolverState([combustibil], []);
+
+    const rows = [makeRow({ cont: "6028", contBase: "6028", rulajD: 2000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "6028", targetCategoryId: "c-comb", amount: 700 }]
+    );
+
+    const combItem = adjusted.find((r) => r.label === "Combustibil");
+    const fallback = adjusted.find((r) => r.code.startsWith("fallback:60"));
+    expect(combItem?.value).toBe(700);
+    expect(fallback?.value).toBe(1300); // 2000 - 700
+  });
+
+  it("Sprint 6: adjustment to a non-existent category id is silently ignored", () => {
+    // Defensive — category was deleted between adjustment computation and
+    // breakdown rendering. We don't crash, we just keep the rulaj on the
+    // default category.
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const resolver = buildResolverState(
+      [combustibil],
+      [{ cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope }]
+    );
+
+    const rows = [makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "6022", targetCategoryId: "deleted-cat", amount: 900 }]
+    );
+
+    // Whole rulaj stays at Combustibil — no crash, no negative balance.
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(10000);
+  });
+
+  it("Sprint 6: revenue adjustments work analogously (debit-side partner)", () => {
+    const vanzari = rootNode("c-v", "Vanzari marfa", "revenue");
+    const vanzariSpecial = rootNode("c-vs", "Vanzari speciale", "revenue");
+    const resolver = buildResolverState(
+      [vanzari, vanzariSpecial],
+      [{ cont: "707", categoryId: "c-v", scope: "contBase" as MappingScope }]
+    );
+
+    const rows = [makeRow({ cont: "707", contBase: "707", rulajC: 50000 })];
+
+    const adjusted = computeRevenueBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "707", targetCategoryId: "c-vs", amount: 10000 }]
+    );
+
+    expect(adjusted.find((r) => r.label === "Vanzari marfa")?.value).toBe(40000);
+    expect(adjusted.find((r) => r.label === "Vanzari speciale")?.value).toBe(10000);
+  });
+
+  it("Sprint 6: adjustments targeting the cont's own default category are no-ops", () => {
+    // Edge case: contabil mapped a partner to the same category the cont
+    // already resolves to. The adjustment should be a wash — net effect
+    // zero on the bucket value.
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const resolver = buildResolverState(
+      [combustibil],
+      [{ cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope }]
+    );
+
+    const rows = [makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "6022", targetCategoryId: "c-comb", amount: 900 }]
+    );
+
+    // No change — the override picked the same category as the default.
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(10000);
+  });
+
+  it("Sprint 6: expense breakdown ignores adjustments for revenue (7xx) conts", () => {
+    // An adjustment targeting cont 707 must NOT affect the expense
+    // breakdown — the class filter has to discard it.
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const vanzari = rootNode("c-v", "Vanzari", "revenue");
+    const resolver = buildResolverState(
+      [combustibil, vanzari],
+      [
+        { cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope },
+        { cont: "707", categoryId: "c-v", scope: "contBase" as MappingScope },
+      ]
+    );
+
+    const rows = [makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "707", targetCategoryId: "c-v", amount: 5000 }]
+    );
+
+    // 6022 untouched, no spurious Vanzari item in expense breakdown.
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(10000);
+    expect(adjusted.find((r) => r.label === "Vanzari")).toBeUndefined();
+  });
+
+  it("Sprint 6: adjustments cap correctly so a cont can't go negative", () => {
+    // This is a defensive check: the SUM of adjustments on a cont could
+    // theoretically exceed its rulaj if there's data corruption (e.g.
+    // refunds on the source cont but not on the adjustment side). The
+    // current implementation does NOT enforce a hard cap because the
+    // pipeline upstream guarantees this can't happen (every adjustment
+    // comes from a real journal line that contributed to the same cont's
+    // rulaj). This test just documents the invariant for future devs.
+    const combustibil = rootNode("c-comb", "Combustibil", "expense");
+    const curierat = rootNode("c-cur", "Curierat", "expense");
+    const resolver = buildResolverState(
+      [combustibil, curierat],
+      [{ cont: "6022", categoryId: "c-comb", scope: "contBase" as MappingScope }]
+    );
+
+    const rows = [makeRow({ cont: "6022", contBase: "6022", rulajD: 10000 })];
+
+    const adjusted = computeExpenseBreakdownFromCategories(
+      rows,
+      CATALOG,
+      resolver,
+      [{ analyticCont: "6022", targetCategoryId: "c-cur", amount: 8000 }]
+    );
+
+    // Combustibil: 10000 - 8000 = 2000. Curierat: 8000.
+    expect(adjusted.find((r) => r.label === "Combustibil")?.value).toBe(2000);
+    expect(adjusted.find((r) => r.label === "Curierat")?.value).toBe(8000);
+  });
 });

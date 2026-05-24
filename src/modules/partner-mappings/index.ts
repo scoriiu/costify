@@ -21,10 +21,12 @@ export {
 export {
   aggregatePartnersForCont,
   summarizePartnersForCont,
+  computePartnerCategoryAdjustments,
   type ContKind,
   type JournalLineForAggregation,
   type PartnerAggregationResult,
   type PartnerSummary,
+  type PartnerCategoryAdjustment,
 } from "./aggregator";
 
 // Actions are server actions ("use server"). Import via the
