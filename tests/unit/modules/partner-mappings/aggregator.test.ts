@@ -231,6 +231,163 @@ describe("aggregatePartnersForCont", () => {
     });
   });
 
+  describe("Sprint 4 — cross-cont suggestions", () => {
+    it("suggests a category when partner has exactly one override on another cont", () => {
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "SC Logistic SRL"]]);
+      const crossCont: ReturnType<typeof override>[] = [
+        override({
+          id: "override-other-cont",
+          contBase: "628",
+          partnerNameNormalized: "logistic",
+          categoryId: "cat-curierat",
+        }),
+      ];
+
+      const result = aggregatePartnersForCont(
+        "expense",
+        lines,
+        names,
+        [],
+        crossCont
+      );
+
+      expect(result.partners[0].override).toBeNull();
+      expect(result.partners[0].suggestedCategoryId).toBe("cat-curierat");
+    });
+
+    it("does NOT suggest when multiple categories compete (50/50 split)", () => {
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "Ambiguous SRL"]]);
+      const crossCont = [
+        override({
+          id: "o1",
+          contBase: "628",
+          partnerNameNormalized: "ambiguous",
+          categoryId: "cat-a",
+        }),
+        override({
+          id: "o2",
+          contBase: "611",
+          partnerNameNormalized: "ambiguous",
+          categoryId: "cat-b",
+        }),
+      ];
+
+      const result = aggregatePartnersForCont(
+        "expense",
+        lines,
+        names,
+        [],
+        crossCont
+      );
+
+      expect(result.partners[0].suggestedCategoryId).toBeNull();
+    });
+
+    it("suggests when one category has strict majority across multiple conts", () => {
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "OMV"]]);
+      const crossCont = [
+        override({
+          id: "o1",
+          contBase: "611",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+        override({
+          id: "o2",
+          contBase: "628",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+        override({
+          id: "o3",
+          contBase: "658",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-altele", // dissenter
+        }),
+      ];
+
+      const result = aggregatePartnersForCont(
+        "expense",
+        lines,
+        names,
+        [],
+        crossCont
+      );
+
+      // 2 votes Combustibil vs 1 vote Altele → strict majority wins.
+      expect(result.partners[0].suggestedCategoryId).toBe("cat-combustibil");
+    });
+
+    it("does NOT suggest when partner already has an override on THIS cont", () => {
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "OMV"]]);
+      const ownCont = [
+        override({
+          contBase: "6022",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+      ];
+      const crossCont = [
+        ...ownCont,
+        override({
+          id: "elsewhere",
+          contBase: "628",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-altele",
+        }),
+      ];
+
+      const result = aggregatePartnersForCont(
+        "expense",
+        lines,
+        names,
+        ownCont,
+        crossCont
+      );
+
+      expect(result.partners[0].override).not.toBeNull();
+      expect(result.partners[0].suggestedCategoryId).toBeNull();
+    });
+
+    it("returns no suggestion when only override on the same cont exists (no other-cont signal)", () => {
+      // Edge case: there's a cross-cont array passed but the only entry
+      // for this partner is on THIS cont — that's not a cross-cont
+      // suggestion source.
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "NewPartner"]]);
+      const crossCont = [
+        override({
+          contBase: "6022", // same as current cont
+          partnerNameNormalized: "newpartner",
+          categoryId: "cat-x",
+        }),
+      ];
+
+      const result = aggregatePartnersForCont(
+        "expense",
+        lines,
+        names,
+        [], // no override on current cont (caller didn't pass it)
+        crossCont
+      );
+
+      expect(result.partners[0].suggestedCategoryId).toBeNull();
+    });
+
+    it("default (no crossContOverrides arg) preserves Sprint 2 behavior — no suggestions", () => {
+      const lines = [line({ contC: "401.001", suma: 500 })];
+      const names = new Map([["401.001", "Whoever"]]);
+
+      const result = aggregatePartnersForCont("expense", lines, names, []);
+
+      expect(result.partners[0].suggestedCategoryId).toBeNull();
+    });
+  });
+
   describe("edge cases", () => {
     it("returns empty result for an empty lines array", () => {
       const result = aggregatePartnersForCont(
@@ -276,6 +433,7 @@ describe("summarizePartnersForCont", () => {
     expect(result).toEqual({
       partnerCount: 0,
       mappedPartnerCount: 0,
+      suggestedPartnerCount: 0,
       totalPartnerRulaj: 0,
       overriddenRulaj: 0,
       unresolvedRulaj: 0,
@@ -349,5 +507,46 @@ describe("summarizePartnersForCont", () => {
     expect(result.mappedPartnerCount).toBe(1);
     expect(result.totalPartnerRulaj).toBe(0);
     expect(result.overriddenRulaj).toBe(0);
+  });
+
+  it("Sprint 4: counts suggested partners separately from mapped partners", () => {
+    const lines = [
+      line({ contC: "401.001", suma: 100 }),
+      line({ contC: "401.002", suma: 200 }),
+      line({ contC: "401.003", suma: 300 }),
+    ];
+    const names = new Map([
+      ["401.001", "OMV"], // suggested via cross-cont
+      ["401.002", "PETROM"], // unmapped + no cross signal
+      ["401.003", "SC Logistic SRL"], // already overridden on this cont
+    ]);
+    const overridesForCont = [
+      override({
+        partnerNameNormalized: "logistic",
+        partnerNameOriginal: "SC Logistic SRL",
+        categoryId: "cat-curierat",
+      }),
+    ];
+    const crossCont = [
+      ...overridesForCont,
+      override({
+        id: "other",
+        contBase: "611",
+        partnerNameNormalized: "omv",
+        categoryId: "cat-combustibil",
+      }),
+    ];
+
+    const result = summarizePartnersForCont(
+      "expense",
+      lines,
+      names,
+      overridesForCont,
+      crossCont
+    );
+
+    expect(result.partnerCount).toBe(3);
+    expect(result.mappedPartnerCount).toBe(1); // SC Logistic
+    expect(result.suggestedPartnerCount).toBe(1); // OMV via memory
   });
 });

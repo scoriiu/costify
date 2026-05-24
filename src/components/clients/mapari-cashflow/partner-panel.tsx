@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   loadPartnerPanelAction,
   upsertPartnerOverrideAction,
@@ -588,8 +589,18 @@ function PartnerRow({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sprint 4: when there's a suggestion (no override yet but inferred from
+  // another cont), pre-fill the Select with the suggested category so the
+  // contabil's click on "Confirma" (or just picking anything) writes a
+  // real override. The visual treatment makes it obvious this row is
+  // unconfirmed.
+  const isSuggested =
+    partner.override === null && partner.suggestedCategoryId !== null;
+
   const currentValue =
-    partner.override?.categoryId ?? DEFAULT_OPTION_VALUE;
+    partner.override?.categoryId ??
+    partner.suggestedCategoryId ??
+    DEFAULT_OPTION_VALUE;
 
   const options = useMemo(
     () => [
@@ -638,7 +649,19 @@ function PartnerRow({
   }
 
   return (
-    <li className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-dark-2/40">
+    <li
+      className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-dark-2/40 ${
+        isSuggested ? "bg-tone-warn/[0.05] border-l-2 border-tone-warn" : ""
+      }`}
+    >
+      {isSuggested && (
+        <Tooltip content="Sugerat din memoria contului. Confirma sau alege alta categorie.">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-tone-warn shrink-0"
+            aria-label="Sugerat"
+          />
+        </Tooltip>
+      )}
       <span
         className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
         style={{ letterSpacing: "-0.02em" }}

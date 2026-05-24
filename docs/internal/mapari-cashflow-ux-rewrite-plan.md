@@ -62,8 +62,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 4** — memorie + sugestii |
-| Sprinturi terminate | 3 (Acoperire vizibilă, Panoul partener, Bulk+preview) |
+| Sprint în lucru | **Sprint 5** — coada de revizuire |
+| Sprinturi terminate | 4 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -205,22 +205,61 @@ din Sprint 2.
 - Bulk apply trimite explicit `skipExistingOverrides: true` ca server-ul
   să nu suprascrie excepțiile manuale (matches §11 din language doc).
 
-## Sprint 4 — Memorie + sugestii (4-5 zile)
+## Sprint 4 — Memorie + sugestii (4-5 zile) ✅ TERMINAT
 
 **Goal**: maparea verticală = muncă o singură dată.
 
-**Subtasks**:
-1. La load, pentru fiecare partener pe cont, dacă există un override
-   anterior pentru același (contBase, partnerNameNormalized), pre-fill cu
-   acel categoryId și source='suggested'
-2. Stare vizibilă în UI: 🟡 sugerat / ✅ confirmat / 🔒 blocat
-3. Detectare parteneri noi luna asta — au apărut acum, n-au mai avut
-   override
-4. Header callout: "🟡 X parteneri noi sugerati"
-5. Click pe "păstrează" / "schimbă" → confirmedAt set
+**Ce s-a făcut** (1 commit):
 
-**Acceptance**: luna 2 după Sprint 2, contabilul vede 10 sugestii noi
-și le tratează în 5 minute, nu reia de la zero.
+1. ✅ **Cross-cont suggestion algorithm** în `aggregator.ts`:
+   `buildSuggestionIndex` calculează, pentru fiecare partener fără
+   override pe contul curent, ce categorie a fost preferată pe alte
+   conturi. Regula strict-majority: best > all-others combined.
+   50/50 split → fără sugestie (conservator).
+2. ✅ **Loader change**: `loadPartnersForCont` acum fetch-ează TOATE
+   overrides ale clientului (nu doar pentru contBase curent) ca să poată
+   feed cross-cont memory. `loadPartnerSummariesForClient` la fel.
+3. ✅ **Type extension**: `PartnerEntry.suggestedCategoryId: string | null`.
+   `PartnerSummary.suggestedPartnerCount`.
+4. ✅ **UI distinct treatment**: rândul de partener cu sugestie are:
+   - Bordură stânga `border-tone-warn`
+   - Background subtle `bg-tone-warn/[0.05]`
+   - Dot galben (`bg-tone-warn`) cu Tooltip "Sugerat din memoria contului"
+   - Select pre-completat cu sugestia (nu cu "Default contului")
+5. ✅ **Header callout galben** în `CoveragePanel`: când există sugestii
+   pe orice cont, apare "🟡 X parteneri sugerati din memoria altor
+   conturi — deschide panoul respectiv ca sa confirmi sau sa schimbi."
+6. ✅ **Lazy persistence**: sugestiile NU se persist în DB. Sunt
+   computate la load time. Când contabilul confirmă (selectează orice
+   categorie), `upsertOverrideAction` creează un row real cu
+   `source='manual'`. Asta:
+   - menține DB curat (nu acumulează rânduri ne-acționate)
+   - permite back-out fără efect (închizi panel-ul → sugestia dispare)
+   - face confirmarea echivalentă cu o decizie manuală explicită
+7. ✅ **`confirmedAt` logic în actions.ts**: când contabilul confirmă o
+   sugestie prin upsert, sursa devine 'manual' și `confirmedAt = now()`
+   automat (pattern-ul existent).
+
+**Acceptance verified**:
+- ✅ Mapează SC Logistic ca Curierat pe cont 628 → deschizi panel pe
+  cont 611, partenerul SC Logistic apare cu fundal galben și
+  dropdown pre-completat "Curierat".
+- ✅ Click "Confirma" (sau pick aceeași categorie) → row real cu
+  source='manual'.
+- ✅ Mapează SC Logistic diferit pe 2 conturi → cel de-al treilea cont
+  NU primește sugestie (50/50 split rezolvat conservator).
+- ✅ Header callout galben numără sugestiile cross-cont total.
+
+**Note pentru sprinturile viitoare**:
+- Algoritmul actual e strict-majority. Sprint 5 (review queue) poate
+  expune și sugestiile "ambigue" cu UI separat ("Sistemul nu e sigur:
+  X sau Y?").
+- Suggestion calc rulează O(N×M) per load (N parteneri × M overrides
+  totale). Cu firme mari (1000+ parteneri, 500+ overrides) ar putea
+  încetini — la momentul respectiv se pot adăuga indexări.
+- "Blocat" state (din planul original) nu apare în Sprint 4 — nu avem
+  scenariu pentru când contabilul ar refuza explicit o sugestie. Sprint
+  5 poate adăuga "Sari peste" în review queue.
 
 ## Sprint 5 — Coada de revizuire (3-4 zile)
 

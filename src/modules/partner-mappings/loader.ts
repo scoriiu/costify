@@ -158,13 +158,25 @@ export async function loadPartnersForCont(
     return { partners: [], partnerRulaj: 0, unresolvedRulaj: 0 };
   }
 
-  const [lines, partnerNames, overrides] = await Promise.all([
+  // Sprint 4: fetch ALL client overrides (not just this cont's) so the
+  // aggregator can compute cross-cont suggestions for partners who appear
+  // here for the first time but have been classified elsewhere. The
+  // aggregator splits them internally — overrides on this cont attach
+  // directly, overrides on other conts feed the suggestion index.
+  const [lines, partnerNames, allOverrides] = await Promise.all([
     fetchLinesForCont(prisma, clientId, contBase, kind, year, month),
     fetchPartnerNames(prisma, clientId),
-    listOverridesForCont(prisma, clientId, contBase),
+    listOverridesForClient(prisma, clientId),
   ]);
+  const overridesForCont = allOverrides.filter((o) => o.contBase === contBase);
 
-  return aggregatePartnersForCont(kind, lines, partnerNames, overrides);
+  return aggregatePartnersForCont(
+    kind,
+    lines,
+    partnerNames,
+    overridesForCont,
+    allOverrides
+  );
 }
 
 /**
@@ -230,7 +242,8 @@ export async function loadPartnerSummariesForClient(
       kind,
       lines,
       partnerNames,
-      overrides
+      overrides,
+      allOverrides
     );
   }
 

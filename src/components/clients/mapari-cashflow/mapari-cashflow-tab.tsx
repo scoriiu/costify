@@ -111,6 +111,7 @@ export function MapariCashflowTab({ data }: Props) {
         period={data.period}
         availableYears={data.availableYears}
         coverage={data.coverage}
+        partnerSummariesByCont={data.partnerSummariesByCont}
         freshlySeeded={data.freshlySeeded}
         onJumpToUnmapped={() => setActiveTab("categorii")}
       />
@@ -1275,15 +1276,24 @@ function PageHeader({
   period,
   availableYears,
   coverage,
+  partnerSummariesByCont,
   freshlySeeded,
   onJumpToUnmapped,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
   coverage: CoverageStats;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
 }) {
+  // Sprint 4: roll up suggested partner count across all conts. Anything > 0
+  // surfaces as a yellow callout that nudges the contabil toward the panels
+  // that have suggestions waiting.
+  const suggestedCount = Object.values(partnerSummariesByCont).reduce(
+    (sum, s) => sum + s.suggestedPartnerCount,
+    0
+  );
   const periodDescription = period
     ? period.month === 12
       ? `anul ${period.year} complet`
@@ -1326,7 +1336,11 @@ function PageHeader({
       </div>
 
       {coverage.totalAccountCount > 0 && (
-        <CoveragePanel coverage={coverage} onJumpToUnmapped={onJumpToUnmapped} />
+        <CoveragePanel
+          coverage={coverage}
+          suggestedCount={suggestedCount}
+          onJumpToUnmapped={onJumpToUnmapped}
+        />
       )}
 
       {freshlySeeded && (
@@ -1359,9 +1373,11 @@ function PageHeader({
  */
 function CoveragePanel({
   coverage,
+  suggestedCount,
   onJumpToUnmapped,
 }: {
   coverage: CoverageStats;
+  suggestedCount: number;
   onJumpToUnmapped: () => void;
 }) {
   const allMapped = coverage.unmappedCount === 0;
@@ -1442,6 +1458,28 @@ function CoveragePanel({
           >
             Mapeaza →
           </button>
+        </div>
+      )}
+
+      {suggestedCount > 0 && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2"
+          role="status"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-tone-warn mt-1.5 shrink-0" aria-hidden />
+          <p
+            className="flex-1 text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span className="font-semibold text-tone-warn">
+              {suggestedCount}{" "}
+              {suggestedCount === 1
+                ? "partener sugerat"
+                : "parteneri sugerati"}
+            </span>{" "}
+            din memoria altor conturi — deschide panoul respectiv ca sa confirmi sau sa
+            schimbi.
+          </p>
         </div>
       )}
     </div>

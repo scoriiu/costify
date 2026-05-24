@@ -101,10 +101,12 @@ describe("loadPartnersForCont", () => {
     expect(call.where.contDBase).toBeUndefined();
   });
 
-  it("queries overrides scoped to the specific contBase", async () => {
+  it("Sprint 4: fetches ALL client overrides so the aggregator can compute cross-cont suggestions", async () => {
     await loadPartnersForCont(prisma, "client-1", "6022", 2026, 4);
     const call = prisma._spies.overrideFindMany.mock.calls[0][0];
-    expect(call.where).toEqual({ clientId: "client-1", contBase: "6022" });
+    // Pre-Sprint 4 this was scoped to a single contBase. Now we fetch all
+    // overrides for the client so suggestions can fire from other conts.
+    expect(call.where).toEqual({ clientId: "client-1" });
   });
 
   it("integrates lines + partner names + overrides end-to-end", async () => {

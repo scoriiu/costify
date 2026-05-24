@@ -39,4 +39,14 @@ export interface PartnerEntry {
   rulaj: number;
   /** Override that decides this partner's category, if any. */
   override: PartnerCategoryOverrideRow | null;
+  /** Sprint 4 memory: when there's no override on THIS cont but the same
+   *  partner has been overridden on ANOTHER cont in this client, this is
+   *  the inferred category id. The UI shows it as a "sugerat" (yellow)
+   *  pre-fill; the contabil confirms or changes.
+   *
+   *  This is NOT a persisted override row — only a hint computed at read
+   *  time. The first time the contabil picks any category (including
+   *  confirming the suggestion), a real PartnerCategoryOverride is created
+   *  via upsertOverride. */
+  suggestedCategoryId: string | null;
 }
