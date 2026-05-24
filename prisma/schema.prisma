@@ -75,10 +75,11 @@ model Client {
   taxRegimePeriods      TaxRegimePeriod[]
   accesses              ClientAccess[]
   publishedPeriods      PublishedPeriod[]
-  costCategories        CostCategory[]
-  accountCategoryMaps   AccountCategoryMapping[]
-  verticals             Vertical[]
-  verticalAllocations   VerticalAllocation[]
+  costCategories            CostCategory[]
+  accountCategoryMaps       AccountCategoryMapping[]
+  partnerCategoryOverrides  PartnerCategoryOverride[]
+  verticals                 Vertical[]
+  verticalAllocations       VerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -244,10 +245,11 @@ model CostCategory {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  client   Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  parent   CostCategory?             @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children CostCategory[]            @relation("CostCategoryTree")
-  mappings AccountCategoryMapping[]
+  client            Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent            CostCategory?             @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children          CostCategory[]            @relation("CostCategoryTree")
+  mappings          AccountCategoryMapping[]
+  partnerOverrides  PartnerCategoryOverride[]
 
   @@unique([clientId, parentId, name])
   @@index([clientId])
@@ -284,6 +286,48 @@ model AccountCategoryMapping {
 
   @@unique([clientId, cont])
   @@index([clientId])
+  @@index([categoryId])
+}
+
+/// Partner-level override of the cont's default category. When a journal line
+/// hits a cont where a partner-override exists for the partner involved, the
+/// override category wins (precedence "Nivel 1 — Regulă pe partener", see
+/// docs/ro/cashflow-limbajul-mapari.md).
+///
+/// Grain: (clientId, contBase, partnerNameNormalized). One row per partner
+/// per cont base — not per analytic — because the override expresses a
+/// business semantic decision ("OMV always means combustibil on cont 6022"),
+/// and analytic splits in Saga are usually project/location, not partner.
+///
+/// `partnerNameNormalized` is produced by src/lib/partner-normalize.ts and
+/// is the matching key. `partnerNameOriginal` keeps one representative spelling
+/// for display in the UI ("OMV PETROM SRL") — it's the spelling at the time
+/// the override was created and is not updated on subsequent occurrences.
+///
+/// `source` distinguishes how the override was created so the UI can surface
+/// state (Nivel "auto-sugerată" vs "confirmată", see §9 of the language doc):
+///   - "manual"    — contabilul mapat explicit.
+///   - "bulk"      — vine din "aplica la toti" — confirmedAt set imediat.
+///   - "suggested" — sistemul a pre-completat din memorie sau matching;
+///                  confirmedAt este null pana cand contabilul valideaza.
+model PartnerCategoryOverride {
+  id                    String   @id @default(cuid())
+  clientId              String
+  contBase              String
+  partnerNameNormalized String
+  partnerNameOriginal   String
+  categoryId            String
+  source                String   // "manual" | "bulk" | "suggested"
+  confirmedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, contBase, partnerNameNormalized])
+  @@index([clientId])
+  @@index([clientId, contBase])
   @@index([categoryId])
 }
 
