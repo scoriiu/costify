@@ -272,6 +272,7 @@ function CategoryAxisContent({
       tree={data.tree}
       accounts={data.accounts}
       clientId={data.clientId}
+      period={data.period}
       onMutate={onMutate}
     />
   );

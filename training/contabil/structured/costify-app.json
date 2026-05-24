@@ -279,11 +279,19 @@
       "4. Fallback la OMFP hardcoded 2-digit labels din PR-2a"
     ],
     "seed_strategy": "Lista categoriilor default e in src/modules/categories/seed.ts (NU in DB). Idempotent: la prima deschidere a tab-ului, daca clientul are 0 categorii, creem 10 expense + 6 revenue. Daca exista deja vreo categorie, nu atingem nimic. Defaults se modifica prin PR review.",
-    "ui_accountant": "Two-panel: stanga arbore Cheltuieli + Venituri (cu Plus/Pencil/Trash pe hover), dreapta lista conturilor 6x/7x cu rulajul ultimei luni si dropdown Categorie. Filter Toate/Nemapate/Cheltuieli/Venituri. Pentru cont analitic: buton 'din baza / individual' (creeaza override analytic).",
-    "owner_view": "Patronul NU vede acest tab. Vede doar rezultatul pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii' — labels-urile devin numele categoriilor patron, amounts rolup la nivelul ROOT.",
+    "ui_accountant": "Two-panel: stanga arbore Cheltuieli + Venituri (cu Plus/Pencil/Trash pe hover), dreapta lista conturilor 6x/7x cu rulajul ultimei luni si dropdown Categorie. Filter Toate/Nemapate/Cheltuieli/Venituri. Pentru cont analitic: buton 'din baza / individual' (creeaza override analytic). PR Sprint 1-2 mapari-cashflow-rewrite: header arata 'Acoperire generala' (bar tonal + cifre + callout neg/pos). Pe rand cont apare badge 'X parteneri · Y mapati' cand cont are >=3 parteneri.",
+    "partner_overrides": {
+      "description": "PR Sprint 2 al rewrite-ului Mapari Cashflow. Permite contabilului sa mape un partener specific pe un cont la o categorie diferita de default-ul contului. Exemplu: contul 6022 (Combustibil) are default Combustibil, dar partenerul SC Logistic SRL pe 6022 este Servicii curierat — nu combustibil.",
+      "data_model": "PartnerCategoryOverride: (clientId, contBase, partnerNameNormalized) UNIQUE. partnerNameOriginal pentru afisare, source ('manual'|'bulk'|'suggested'), confirmedAt.",
+      "normalizer": "src/lib/partner-normalize.ts: lowercase, strip puncutuatie, drop legal forms (SRL, SRL-D, SA, SC, etc.). 'FAN COURIER SRL' si 'Fan Courier S.R.L.' colapseaza la 'fan courier'. NU strip diacritics.",
+      "ui_slide_panel": "Slide-in panel din dreapta (~480px wide) deschis cu click pe badge 'X parteneri' pe randul contului. Antet: cod cont + denumire + rulaj total + buton X close. Coverage detail: cati lei mapati explicit / pe default / fara partener. Lista parteneri sortata DESC dupa rulaj cu Select(categorie) per rand: prima optiune 'Default contului (X)' care la pick sterge override-ul. Inferior: linie 'Fara partener identificat: X lei' pentru lines fara JournalPartner (TVA, dobanzi, transferuri).",
+      "coverage_extension": "computeCoverage din Sprint 1 acum trateaza ca 'mapat' rulajul de pe parteneri cu override. Cont fara cont-mapping dar cu acoperire partiala de parteneri = 'partial mapat' (mappedRulaj proportional, dar NU in unmappedCount). Cont cu cont-mapping ignora partner overrides la calculul coverage (cont-mapping castiga). Sprint 6 va folosi partner-overrides pentru a redirectiona rulajul la categoria corecta pe /firma.",
+      "scope_per_contBase": "Override e per (contBase, partner), nu per analytic. Decizia exprima semantica de business ('OMV inseamna combustibil pe 6022'), iar analytic-ul in Saga e de regula proiect/locatie. Multiple analytics sub aceeasi contBase share aceeasi suma de partener overrides."
+    },
+    "owner_view": "Patronul NU vede acest tab. Vede doar rezultatul pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii' — labels-urile devin numele categoriilor patron, amounts rolup la nivelul ROOT. Sprint 7 va adauga trust badge mic ('Date revizuite manual · acoperire X%').",
     "tools_available_for_costi": [
-      "Costi nu are inca tools dedicate. Pentru a raspunde 'cum e mapat X?', poate citi din DB direct prin get_balance (vede conturile + rulajele).",
-      "Posibil viitor: get_category_mapping(client_name) -> lista mapping-urilor active."
+      "Costi nu are inca tools dedicate pentru partner overrides. Pentru a raspunde 'cati parteneri am pe contul X?', poate citi din DB direct prin get_balance (vede conturile + rulajele) sau cere context contabilului.",
+      "Posibil viitor: get_category_mapping(client_name), get_partner_overrides(client_name, cont_base)."
     ]
   },
   "verticals_module": {

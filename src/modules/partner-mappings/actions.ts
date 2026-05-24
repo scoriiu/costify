@@ -16,7 +16,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import * as service from "./service";
-import type { PartnerCategoryOverrideRow } from "./types";
+import * as loader from "./loader";
+import type { PartnerCategoryOverrideRow, PartnerEntry } from "./types";
 import { normalizePartnerName } from "@/lib/partner-normalize";
 
 type ActionResult<T = void> = { error?: string; data?: T };
@@ -77,6 +78,56 @@ function kindForCont(contBase: string): "expense" | "revenue" | null {
   if (first === "6") return "expense";
   if (first === "7") return "revenue";
   return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                LOAD PANEL                                  */
+/* -------------------------------------------------------------------------- */
+
+const loadPanelSchema = z.object({
+  clientId: z.string().min(1),
+  contBase: z.string().min(1).max(20),
+  year: z.number().int().min(1900).max(2100),
+  month: z.number().int().min(1).max(12),
+});
+
+export interface PartnerPanelData {
+  contBase: string;
+  partners: PartnerEntry[];
+  partnerRulaj: number;
+  unresolvedRulaj: number;
+}
+
+/**
+ * On-demand fetch when the slide-panel opens. Auth-checked wrapper around
+ * loader.loadPartnersForCont. We keep this as a server action (not just a
+ * server function call from a page) so the panel can re-fetch after a save
+ * to show updated state without reloading the entire Mapari Cashflow page.
+ */
+export async function loadPartnerPanelAction(
+  input: z.infer<typeof loadPanelSchema>
+): Promise<ActionResult<PartnerPanelData>> {
+  const parsed = loadPanelSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  const result = await loader.loadPartnersForCont(
+    prisma,
+    parsed.data.clientId,
+    parsed.data.contBase,
+    parsed.data.year,
+    parsed.data.month
+  );
+
+  return {
+    data: {
+      contBase: parsed.data.contBase,
+      partners: result.partners,
+      partnerRulaj: result.partnerRulaj,
+      unresolvedRulaj: result.unresolvedRulaj,
+    },
+  };
 }
 
 /* -------------------------------------------------------------------------- */

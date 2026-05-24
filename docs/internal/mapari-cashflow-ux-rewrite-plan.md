@@ -62,8 +62,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 2** — panoul partener |
-| Sprinturi terminate | 1 (Acoperire vizibilă) |
+| Sprint în lucru | **Sprint 3** — bulk + preview |
+| Sprinturi terminate | 2 (Acoperire vizibilă, Panoul partener) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -114,36 +114,62 @@ din Sprint 2.
   bani.
 - Bar-ul tonal poate fi reutilizat în Sprint 2 pentru per-cont coverage bars.
 
-## Sprint 2 — Panoul partener (5-7 zile)
+## Sprint 2 — Panoul partener (5-7 zile) ✅ TERMINAT
 
 **Goal**: featura centrală a specului — partener-pe-cont mapping.
 
-**Tehnic**:
-1. Schema: tabel nou `PartnerCategoryOverride`
-   ```
-   { id, clientId, contBase, partnerNameNormalized,
-     partnerNameOriginal, categoryId, source, confirmedAt,
-     createdAt, updatedAt }
-   ```
-   - `source`: 'manual' | 'suggested' | 'bulk'
-   - Unique constraint: (clientId, contBase, partnerNameNormalized)
-2. Modul `partner-mappings/` cu actions: create / update / delete / bulk
-3. Normalizator partener nume (uppercase, fără SRL/SA/etc, fără spații)
-4. Loader: returnează `partnersByCont: Map<contBase, PartnerEntry[]>` cu rulaj
-   per partener (cross-period summing — toți partenerii care apar pe contul
-   ăsta în anul selectat)
-5. UI slide-panel:
-   - Click pe `[Vezi parteneri →]` (apare pe conturile cu >5 parteneri sau
-     coverage <90%)
-   - Header: nume cont + sumă + categoria de bază + linii (deja existente)
-   - Acoperire detaliată cu cifre concrete
-   - Listă parteneri sortată desc după rulaj
-   - Dropdown categorie per rând
-   - Save → server action
+**Ce s-a făcut** (7 commits pe branch `feat/pr-2c-6-mapari-coverage`):
 
-**Acceptance**: Claudia poate spune "SC Logistic SRL pe contul 6022 e
-Curieratie, nu Combustibil". Salvarea funcționează. KPI-urile pe /firma
-NU se schimbă încă (Sprint 6).
+1. ✅ **Schema**: `PartnerCategoryOverride` cu (clientId, contBase,
+   partnerNameNormalized) UNIQUE, FKs cascade.
+2. ✅ **Normalizator** `src/lib/partner-normalize.ts` + 13 unit tests:
+   collapse SRL/SA/etc, strip dotted forms (s.r.l. → srl), preserve
+   diacritics, idempotent.
+3. ✅ **Modul `partner-mappings/`** cu service.ts (6 CRUD funcții),
+   actions.ts (5 server actions: load panel, upsert, confirm, delete,
+   bulkApply), aggregator.ts (pure fn-uri agregare), loader.ts
+   (Prisma queries).
+4. ✅ **Loader extension**: `loadPartnerSummariesForClient` rulează
+   o singură dată per page load (3 queries paralele), threadat în
+   `MapariCashflowData.partnerSummariesByCont` și în fiecare
+   `AccountListItem.partnerCount/partnerOverrideCount/partnerOverriddenRulaj`.
+5. ✅ **Coverage extension**: `computeCoverage` tratează partner-overridden
+   rulaj ca mapped (prorated când contul nu e cont-mapped). Cont-mapped
+   conts ignoră partner overrides pentru coverage (Sprint 6 le va folosi
+   pentru a redirecționa rulajul). +6 unit tests pentru noile scenarii.
+6. ✅ **UI slide-panel** `partner-panel.tsx`: deschis cu click pe badge,
+   header cu cont+rulaj, coverage detail (mapat/default/fara partener),
+   listă parteneri sortată desc cu Select per rând. Prima opțiune
+   "Default contului (X)" șterge override-ul la pick. Linia "Fara
+   partener identificat" pentru unresolved rulaj. Loading skeleton,
+   error state, optimistic save+refresh.
+7. ✅ **Wire-up**: badge `[N parteneri · M mapati]` pe AccountRow când
+   `partnerCount >= 3` (threshold ca să nu poluăm conturile cu 1-2
+   parteneri). PartnerPanelContext la nivel de CategoryWorkspace evită
+   prop drilling. Badge tonal: primary când are overrides, gray
+   altfel.
+8. ✅ **Costi training updated** — `costify-app.json` are secțiunea nouă
+   `mapari_cashflow_module.partner_overrides` cu data model, normalizer,
+   slide-panel UX, coverage extension.
+
+**Acceptance verified**:
+- ✅ Claudia poate spune "SC Logistic SRL pe contul 6022 e Curieratie".
+  Salvarea funcționează prin upsertPartnerOverrideAction.
+- ✅ KPI-urile pe /firma NU se schimbă încă (Sprint 6 va aduce
+  recomputarea — partner overrides actualmente afectează doar coverage
+  panel din Mapari Cashflow, nu și sumele din owner view).
+- ✅ 3070 unit tests pass, TypeScript clean, dev server compiles.
+- ✅ Slide-panel se redeschide cu state actualizat după save fără
+  reload de pagină.
+
+**Note pentru sprinturile viitoare**:
+- `loadPartnerPanelAction` se poate apela și pentru on-demand refresh
+  fără a reîncărca pagina întreagă.
+- Badge threshold `MIN_PARTNERS_FOR_BADGE = 3` poate fi tunabil per
+  client în Sprint 3 dacă apare feedback.
+- "Fara partener identificat" bucket — Sprint 3 va putea oferi un mod
+  rapid de a clasifica acel rulaj pe categoria default sau pe o
+  categorie 'Diverse'.
 
 ## Sprint 3 — Bulk + preview (2-3 zile)
 

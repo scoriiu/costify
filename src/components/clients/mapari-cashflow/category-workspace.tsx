@@ -20,8 +20,8 @@
  * a Cheltuieli category.
  */
 
-import { useState, useTransition, useMemo } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X } from "lucide-react";
+import { useState, useTransition, useMemo, createContext, useContext } from "react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -40,6 +40,7 @@ import {
   unmapAccountAction,
 } from "@/modules/categories/actions";
 import { CategoryTreemap } from "./category-treemap";
+import { PartnerPanel } from "./partner-panel";
 
 type Filter = "all" | "unmapped" | "expense" | "revenue";
 
@@ -47,15 +48,49 @@ interface Props {
   tree: CostCategoryNode[];
   accounts: AccountListItem[];
   clientId: string;
+  period: { year: number; month: number } | null;
   onMutate: () => void;
+}
+
+/**
+ * Context for the partner-panel open trigger. Avoids drilling
+ * `onOpenPartnerPanel` through CategoryGroup → CategoryRow → nested
+ * CategoryRow → AccountRow. Any AccountRow inside CategoryWorkspace can
+ * open the panel for its own cont without the intermediaries knowing.
+ */
+const PartnerPanelContext = createContext<{
+  open: (account: AccountListItem) => void;
+} | null>(null);
+
+function usePartnerPanel() {
+  return useContext(PartnerPanelContext);
 }
 
 type ViewMode = "list" | "treemap";
 
-export function CategoryWorkspace({ tree, accounts, clientId, onMutate }: Props) {
+export function CategoryWorkspace({ tree, accounts, clientId, period, onMutate }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("list");
+  const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
+
+  // Lookup map: categoryId -> human display name. Used to label the panel's
+  // "Default contului (X)" option so the contabil sees exactly which category
+  // a partner's default would map to.
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    function walk(nodes: CostCategoryNode[]) {
+      for (const n of nodes) {
+        map.set(n.id, n.name);
+        walk(n.children);
+      }
+    }
+    walk(tree);
+    return map;
+  }, [tree]);
+  const panelContCategoryName = panelAccount?.currentMapping
+    ? categoryNameById.get(panelAccount.currentMapping.categoryId) ?? null
+    : null;
 
   // Build per-category mapping index so each row knows which accounts it owns
   // and roots can compute their aggregated rulaj including descendants.
@@ -86,58 +121,70 @@ export function CategoryWorkspace({ tree, accounts, clientId, onMutate }: Props)
   }
 
   return (
-    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
-      <WorkspaceHeader
-        totalAccounts={accounts.length}
-        unmappedCount={unmappedAccounts.length}
-        query={query}
-        onQueryChange={setQuery}
-        filter={filter}
-        onFilterChange={setFilter}
-        view={view}
-        onViewChange={setView}
+    <PartnerPanelContext.Provider value={{ open: setPanelAccount }}>
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
+        <WorkspaceHeader
+          totalAccounts={accounts.length}
+          unmappedCount={unmappedAccounts.length}
+          query={query}
+          onQueryChange={setQuery}
+          filter={filter}
+          onFilterChange={setFilter}
+          view={view}
+          onViewChange={setView}
+        />
+
+        {filter === "unmapped" || unmappedAccounts.length > 0 ? (
+          <UnmappedAccountsCallout
+            accounts={unmappedAccounts}
+            tree={tree}
+            clientId={clientId}
+            onMutate={onMutate}
+            expanded={filter === "unmapped"}
+          />
+        ) : null}
+
+        {(filter === "all" || filter === "expense" || filter === "unmapped") && (
+          <CategoryGroup
+            title="Cheltuieli"
+            subtitle="Iesirile firmei"
+            kind="expense"
+            roots={expenseRoots}
+            accountsByCategory={accountsByCategory}
+            aggregatedRulaj={aggregatedRulaj}
+            query={query}
+            accounts={accounts}
+            clientId={clientId}
+            onMutate={onMutate}
+          />
+        )}
+
+        {(filter === "all" || filter === "revenue" || filter === "unmapped") && (
+          <CategoryGroup
+            title="Venituri"
+            subtitle="Intrarile firmei"
+            kind="revenue"
+            roots={revenueRoots}
+            accountsByCategory={accountsByCategory}
+            aggregatedRulaj={aggregatedRulaj}
+            query={query}
+            accounts={accounts}
+            clientId={clientId}
+            onMutate={onMutate}
+          />
+        )}
+      </div>
+
+      <PartnerPanel
+        account={panelAccount}
+        clientId={clientId}
+        period={period}
+        tree={tree}
+        contCategoryName={panelContCategoryName}
+        onClose={() => setPanelAccount(null)}
+        onMutate={onMutate}
       />
-
-      {filter === "unmapped" || unmappedAccounts.length > 0 ? (
-        <UnmappedAccountsCallout
-          accounts={unmappedAccounts}
-          tree={tree}
-          clientId={clientId}
-          onMutate={onMutate}
-          expanded={filter === "unmapped"}
-        />
-      ) : null}
-
-      {(filter === "all" || filter === "expense" || filter === "unmapped") && (
-        <CategoryGroup
-          title="Cheltuieli"
-          subtitle="Iesirile firmei"
-          kind="expense"
-          roots={expenseRoots}
-          accountsByCategory={accountsByCategory}
-          aggregatedRulaj={aggregatedRulaj}
-          query={query}
-          accounts={accounts}
-          clientId={clientId}
-          onMutate={onMutate}
-        />
-      )}
-
-      {(filter === "all" || filter === "revenue" || filter === "unmapped") && (
-        <CategoryGroup
-          title="Venituri"
-          subtitle="Intrarile firmei"
-          kind="revenue"
-          roots={revenueRoots}
-          accountsByCategory={accountsByCategory}
-          aggregatedRulaj={aggregatedRulaj}
-          query={query}
-          accounts={accounts}
-          clientId={clientId}
-          onMutate={onMutate}
-        />
-      )}
-    </div>
+    </PartnerPanelContext.Provider>
   );
 }
 
@@ -679,6 +726,14 @@ function AccountRow({
     );
   }
 
+  const partnerPanel = usePartnerPanel();
+  // Show the partner badge only when there's enough partner activity to
+  // make the panel worth opening. Below the threshold the panel would just
+  // restate "1 partener: <name>" which is more noise than signal.
+  const showPartnersBadge =
+    partnerPanel !== null && account.partnerCount >= MIN_PARTNERS_FOR_BADGE;
+  const hasPartnerOverrides = account.partnerOverrideCount > 0;
+
   return (
     <li className={`group flex items-center gap-2 ${compact ? "py-0.5" : "px-2 py-1 rounded hover:bg-dark-3/30"}`}>
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[60px]">
@@ -694,6 +749,31 @@ function AccountRow({
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0">
         {formatRon(rulaj)} lei
       </span>
+      {showPartnersBadge && (
+        <Tooltip
+          content={
+            hasPartnerOverrides
+              ? `${account.partnerCount} parteneri · ${account.partnerOverrideCount} mapati explicit.`
+              : `${account.partnerCount} parteneri pe acest cont. Mapeaza partenerii mari individual.`
+          }
+        >
+          <button
+            type="button"
+            onClick={() => partnerPanel.open(account)}
+            disabled={pending}
+            className={`shrink-0 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              hasPartnerOverrides
+                ? "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                : "border-dark-3 text-gray hover:text-gray-light hover:border-gray"
+            }`}
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <Users size={10} />
+            {account.partnerCount}
+            {hasPartnerOverrides && ` · ${account.partnerOverrideCount}`}
+          </button>
+        </Tooltip>
+      )}
       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 transition-opacity">
         <Tooltip content="Muta acest cont la alt grup patron.">
           <button
@@ -721,6 +801,11 @@ function AccountRow({
     </li>
   );
 }
+
+/** Below this threshold (inclusive), showing a "X parteneri" badge is more
+ *  noise than signal — a cont with 1-2 parteneri is fully expressed by its
+ *  cont-mapping. Above the threshold, partners deserve their own panel. */
+const MIN_PARTNERS_FOR_BADGE = 3;
 
 /* -------------------------------------------------------------------------- */
 /*                          ADD / MOVE / RENAME INLINE                        */
