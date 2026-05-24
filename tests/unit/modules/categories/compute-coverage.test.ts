@@ -13,6 +13,9 @@ function account(overrides: Partial<AccountListItem> = {}): AccountListItem {
     hasAnalyticOverride: false,
     currentAllocation: null,
     hasAnalyticVerticalOverride: false,
+    partnerCount: 0,
+    partnerOverrideCount: 0,
+    partnerOverriddenRulaj: 0,
     ...overrides,
   };
 }
@@ -133,6 +136,128 @@ describe("computeCoverage", () => {
     ]);
     expect(result.totalRulaj).toBe(0.3); // not 0.30000000000000004
     expect(result.mappedRulaj).toBe(0.3);
+  });
+
+  /* ------------ Sprint 2 — partner-overridden rulaj counts as mapped ------ */
+
+  it("Sprint 2: cont with no mapping but full partner coverage counts 100% mapped", () => {
+    const result = computeCoverage([
+      account({
+        kind: "expense",
+        rulajD: 1000,
+        currentMapping: null,
+        partnerCount: 5,
+        partnerOverrideCount: 5,
+        partnerOverriddenRulaj: 1000,
+      }),
+    ]);
+    expect(result.percent).toBe(100);
+    expect(result.mappedRulaj).toBe(1000);
+    expect(result.unmappedCount).toBe(0); // partial-but-positive coverage doesn't count
+  });
+
+  it("Sprint 2: cont with no mapping but partial partner coverage gets prorated", () => {
+    const result = computeCoverage([
+      account({
+        kind: "expense",
+        rulajD: 1000,
+        currentMapping: null,
+        partnerCount: 5,
+        partnerOverrideCount: 2,
+        partnerOverriddenRulaj: 400, // 40% covered
+      }),
+    ]);
+    expect(result.mappedRulaj).toBe(400);
+    expect(result.unmappedRulaj).toBe(600);
+    expect(result.percent).toBe(40);
+    // Crucially: NOT counted as unmappedCount — the cont has SOMETHING.
+    expect(result.unmappedCount).toBe(0);
+  });
+
+  it("Sprint 2: a cont with cont-mapping ignores partner overrides for coverage", () => {
+    // Sprint 6 will use partner overrides to refine WHICH category gets the
+    // rulaj. For "is this cont covered?" the cont-mapping is already yes.
+    const result = computeCoverage([
+      account({
+        kind: "expense",
+        rulajD: 1000,
+        currentMapping: { categoryId: "cat-1", scope: "contBase" },
+        partnerOverrideCount: 3,
+        partnerOverriddenRulaj: 700,
+      }),
+    ]);
+    expect(result.mappedRulaj).toBe(1000); // full, not 1000 + 700
+    expect(result.percent).toBe(100);
+  });
+
+  it("Sprint 2: partner-overridden rulaj is capped at cont's natural rulaj", () => {
+    // Defensive: if for some reason a sum-of-partners exceeds the cont's
+    // total (float drift, ghost lines), we never push mapped above the cont.
+    const result = computeCoverage([
+      account({
+        kind: "expense",
+        rulajD: 1000,
+        currentMapping: null,
+        partnerOverriddenRulaj: 1500, // > cont rulaj, defensive cap
+      }),
+    ]);
+    expect(result.mappedRulaj).toBe(1000);
+    expect(result.unmappedRulaj).toBe(0);
+    expect(result.percent).toBe(100);
+  });
+
+  it("Sprint 2: zero-rulaj cont with override-only entries is fully mapped", () => {
+    // Override exists historically but partner didn't invoice this period.
+    const result = computeCoverage([
+      account({
+        kind: "expense",
+        rulajD: 0,
+        currentMapping: null,
+        partnerCount: 1,
+        partnerOverrideCount: 1,
+        partnerOverriddenRulaj: 0,
+      }),
+    ]);
+    // No rulaj to map, no rulaj overridden — but also no positive override
+    // rulaj so we fall through to the unmappedCount branch. This is the
+    // correct conservative behaviour: an override on a dormant partner
+    // doesn't itself prove the cont is covered for the period.
+    expect(result.unmappedCount).toBe(1);
+    expect(result.percent).toBe(100); // vacuous because totalRulaj === 0
+  });
+
+  it("Sprint 2: mixed firm — cont-mapped + partner-partial + fully-unmapped", () => {
+    const result = computeCoverage([
+      account({
+        cont: "641",
+        contBase: "641",
+        kind: "expense",
+        rulajD: 5000,
+        currentMapping: { categoryId: "salarii", scope: "contBase" },
+      }),
+      account({
+        cont: "6022",
+        contBase: "6022",
+        kind: "expense",
+        rulajD: 1000,
+        currentMapping: null,
+        partnerOverriddenRulaj: 600, // partial: 60%
+      }),
+      account({
+        cont: "628",
+        contBase: "628",
+        kind: "expense",
+        rulajD: 500,
+        currentMapping: null,
+        partnerOverriddenRulaj: 0, // fully unmapped
+      }),
+    ]);
+
+    expect(result.totalRulaj).toBe(6500);
+    expect(result.mappedRulaj).toBe(5600); // 5000 + 600
+    expect(result.unmappedRulaj).toBe(900); // 400 partial + 500 full
+    expect(result.unmappedCount).toBe(1); // only the 628 cont
+    expect(result.percent).toBe(86); // 5600/6500 ≈ 0.8615
   });
 
   it("realistic firm shape — 70/20/10 mapped/unmapped/zero spread", () => {

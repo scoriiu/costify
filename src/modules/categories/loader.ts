@@ -25,6 +25,10 @@ import {
   type AllocationSplit,
   type AllocationScope,
 } from "@/modules/verticals";
+import {
+  loadPartnerSummariesForClient,
+  type PartnerSummary,
+} from "@/modules/partner-mappings";
 import type { CostCategoryNode, MappingScope } from "./types";
 
 export interface AccountListItem {
@@ -54,31 +58,51 @@ export interface AccountListItem {
   } | null;
   /** True when this analytic cont has its own allocation row (overrides base). */
   hasAnalyticVerticalOverride: boolean;
+  /** Number of distinct partners that touched this cont in the period
+   *  (resolved via JournalPartner). Includes override-only partners with
+   *  zero rulaj — see PartnerSummary for details. */
+  partnerCount: number;
+  /** Of those partners, how many have an active PartnerCategoryOverride.
+   *  Drives the per-cont coverage bar in the slide-panel and the
+   *  "[Vezi parteneri →]" badge in the main listing. */
+  partnerOverrideCount: number;
+  /** Sum of rulaj that flows through partners with an active override.
+   *  Sprint 6 will use this in residual computation. */
+  partnerOverriddenRulaj: number;
 }
 
 /**
  * Overall coverage of the firm's class 6+7 accounts at the time of the
- * selected period. At Sprint 1 of the Mapari Cashflow rewrite this is
- * a binary cont-level metric — an account is either mapped to a category
- * or not. From Sprint 2 onwards (partner overrides) the meaning of
- * "mapped" extends to "covered by an explicit partner mapping OR by the
- * cont's default category"; the shape of CoverageStats stays the same so
- * the UI doesn't have to change.
+ * selected period.
+ *
+ * Sprint 2 definition of "mapped":
+ *   - The cont itself has a category mapping (Sprint 1 baseline),
+ *     OR
+ *   - The cont has at least one partner-level override and that
+ *     override's rulaj is part of the mapped total.
+ *
+ * Concretely: a cont with no cont-mapping but 3 partner overrides covering
+ * 80% of its rulaj is "80% covered" for that cont, not "0% covered". The
+ * remaining 20% of the cont's rulaj is unmapped (will fall through to
+ * "Alte" on the antreprenor view in Sprint 6).
+ *
+ * Shape unchanged from Sprint 1 — the UI doesn't need changes.
  */
 export interface CoverageStats {
   /** Sum of |rulajD| for class 6 + |rulajC| for class 7 across every
    *  active leaf account in the period. */
   totalRulaj: number;
-  /** The same sum, restricted to accounts with currentMapping !== null. */
+  /** Mapped via cont-mapping OR partner override. */
   mappedRulaj: number;
   /** totalRulaj − mappedRulaj. */
   unmappedRulaj: number;
   /** Round(mappedRulaj / totalRulaj * 100), or 100 when totalRulaj === 0
    *  (vacuously full coverage if there's nothing to map). */
   percent: number;
-  /** Count of distinct leaf accounts with currentMapping === null. */
+  /** Count of leaf accounts where currentMapping IS null AND no partner
+   *  override exists for the contBase. */
   unmappedCount: number;
-  /** Count of all leaf accounts (mapped + unmapped). */
+  /** Count of all leaf accounts. */
   totalAccountCount: number;
 }
 
@@ -107,6 +131,10 @@ export interface MapariCashflowData {
   verticalsEnabled: boolean;
   /** The list of verticals for this client. Empty when the flag is off. */
   verticals: VerticalView[];
+  /** Per-contBase partner summary for the period. Drives per-cont coverage
+   *  bars and the "[Vezi parteneri →]" badge. Missing key = no partner
+   *  activity / overrides for that cont this period. */
+  partnerSummariesByCont: Record<string, PartnerSummary>;
 }
 
 export async function loadMapariCashflow(
@@ -128,6 +156,7 @@ export async function loadMapariCashflow(
     listAllocations(prisma, clientId),
   ]);
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
+  const emptyPartnerSummaries: Record<string, PartnerSummary> = {};
 
   // Build a full resolver state so the UI uses the same prefix-walk semantics
   // as the snapshot computation. A leaf cont like "704" must resolve to the
@@ -154,6 +183,7 @@ export async function loadMapariCashflow(
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
       verticals,
+      partnerSummariesByCont: emptyPartnerSummaries,
     };
   }
 
@@ -172,7 +202,10 @@ export async function loadMapariCashflow(
     .filter((p) => p.year === targetYear)
     .map((p) => p.month);
   const latestMonth = Math.max(...monthsForYear);
-  const balanceResult = await getBalanceRows(clientId, targetYear, latestMonth);
+  const [balanceResult, partnerSummariesByCont] = await Promise.all([
+    getBalanceRows(clientId, targetYear, latestMonth),
+    loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
+  ]);
   if (!balanceResult.ok) {
     return {
       clientId,
@@ -184,6 +217,7 @@ export async function loadMapariCashflow(
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
       verticals,
+      partnerSummariesByCont,
     };
   }
 
@@ -222,6 +256,12 @@ export async function loadMapariCashflow(
     // selected year. For a closed year (e.g. 2025 Jan→Dec), this is the full
     // year. For an in-flight year (2026 Jan→Apr today), it is Jan→Apr — the
     // running total, which is the right reference point for category review.
+    // Partner summary is keyed by contBase — multiple analytic conts under
+    // the same contBase share the same summary (it's a contBase-level metric,
+    // matching the PartnerCategoryOverride grain). Missing key = no partner
+    // activity / overrides for this cont this period.
+    const partnerSummary = partnerSummariesByCont[row.contBase];
+
     accounts.push({
       cont: row.cont,
       contBase: row.contBase,
@@ -235,6 +275,9 @@ export async function loadMapariCashflow(
         ? { scope: allocation.scope, splits: allocation.splits }
         : null,
       hasAnalyticVerticalOverride: analyticAlloc !== undefined,
+      partnerCount: partnerSummary?.partnerCount ?? 0,
+      partnerOverrideCount: partnerSummary?.mappedPartnerCount ?? 0,
+      partnerOverriddenRulaj: partnerSummary?.overriddenRulaj ?? 0,
     });
   }
 
@@ -256,6 +299,7 @@ export async function loadMapariCashflow(
     freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
     verticalsEnabled,
     verticals,
+    partnerSummariesByCont,
   };
 }
 
@@ -264,13 +308,26 @@ export async function loadMapariCashflow(
  * (tests/unit/modules/categories/) can verify edge cases (empty firm, all
  * mapped, all unmapped, mixed) without hitting the database.
  *
- * Sprint 1 semantics: an account is "mapped" iff its currentMapping is
- * non-null. Rulaj is taken from the cont's natural side (rulajD for class 6,
- * rulajC for class 7). Sums are absolute values so a negative correction
- * cont doesn't subtract from coverage.
+ * Sprint 2 semantics:
  *
- * Sprint 2 will extend "mapped" to include partner-level overrides but the
- * shape of the result stays the same.
+ *   For each cont, rulaj = |rulajD| for class 6, |rulajC| for class 7.
+ *   This rulaj contributes to mappedRulaj when either:
+ *     (a) The cont itself has a category mapping (currentMapping !== null),
+ *         in which case its entire rulaj counts as mapped, OR
+ *     (b) The cont has no cont-mapping but has partner-overridden rulaj,
+ *         in which case only that overridden portion counts as mapped.
+ *
+ *   A cont is "unmapped" (counted in unmappedCount) only when BOTH:
+ *     - currentMapping is null, AND
+ *     - partnerOverriddenRulaj === 0 (no partner overrides at all).
+ *   A cont with no cont-mapping but with partner overrides is "partially
+ *   mapped" and not counted toward unmappedCount — it has SOMETHING.
+ *
+ *   For unmapped portions of a cont with partial coverage, those flow into
+ *   unmappedRulaj naturally as (totalRulaj - mappedRulaj).
+ *
+ *   Sums use absolute values so a negative correction cont doesn't
+ *   subtract from coverage.
  */
 export function computeCoverage(accounts: AccountListItem[]): CoverageStats {
   let totalRulaj = 0;
@@ -280,14 +337,25 @@ export function computeCoverage(accounts: AccountListItem[]): CoverageStats {
   for (const a of accounts) {
     const rulaj = Math.abs(a.kind === "expense" ? a.rulajD : a.rulajC);
     totalRulaj += rulaj;
+
     if (a.currentMapping !== null) {
+      // Cont-mapped: the whole rulaj is covered. Partner overrides under a
+      // cont-mapped cont are redundant for coverage purposes (Sprint 6 will
+      // use them to refine which CATEGORY the rulaj goes to, but for
+      // "is this cont covered" the answer is already yes).
       mappedRulaj += rulaj;
+    } else if (a.partnerOverriddenRulaj > 0) {
+      // Cont not mapped but partially covered by partner overrides. Only the
+      // overridden portion counts as mapped; the remainder is unmapped.
+      // Cap at rulaj so float drift doesn't push us above the cont's total.
+      mappedRulaj += Math.min(Math.abs(a.partnerOverriddenRulaj), rulaj);
     } else {
+      // Fully unmapped — no cont-mapping, no partner overrides.
       unmappedCount += 1;
     }
   }
 
-  const unmappedRulaj = totalRulaj - mappedRulaj;
+  const unmappedRulaj = Math.max(0, totalRulaj - mappedRulaj);
   const percent =
     totalRulaj === 0 ? 100 : Math.round((mappedRulaj / totalRulaj) * 100);
 
