@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState, useTransition, useMemo } from "react";
-import { X, AlertCircle, Check } from "lucide-react";
+import { X, AlertCircle, Check, Layers } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
   loadPartnerPanelAction,
   upsertPartnerOverrideAction,
   deletePartnerOverrideAction,
+  bulkApplyPartnerOverridesAction,
   type PartnerPanelData,
 } from "@/modules/partner-mappings/actions";
 import type {
@@ -221,6 +224,8 @@ function PanelError({ error }: { error: string }) {
   );
 }
 
+type PartnerFilter = "all" | "unmapped" | "top10";
+
 function PanelBody({
   data,
   account,
@@ -236,9 +241,28 @@ function PanelBody({
   contCategoryName: string | null;
   onSaved: () => Promise<void> | void;
 }) {
+  const [filter, setFilter] = useState<PartnerFilter>("all");
+  const [query, setQuery] = useState("");
+
   const overridden = data.partners.filter((p) => p.override !== null);
   const overriddenRulaj = overridden.reduce((sum, p) => sum + p.rulaj, 0);
   const defaultRulaj = data.partnerRulaj - overriddenRulaj;
+  const unmapped = data.partners.filter((p) => p.override === null);
+
+  // Filter chain: filter toggle FIRST, then search. Search is diacritic-
+  // insensitive (NFD normalize + strip marks) so "tiriac" matches "Țiriac".
+  const queryNorm = normalizeForSearch(query);
+  const visible = useMemo(() => {
+    let xs = data.partners;
+    if (filter === "unmapped") xs = xs.filter((p) => p.override === null);
+    else if (filter === "top10") xs = xs.slice(0, 10);
+    if (queryNorm) {
+      xs = xs.filter((p) =>
+        normalizeForSearch(p.nameOriginal).includes(queryNorm)
+      );
+    }
+    return xs;
+  }, [data.partners, filter, queryNorm]);
 
   return (
     <div className="p-4 space-y-4">
@@ -251,6 +275,40 @@ function PanelBody({
         totalCount={data.partners.length}
       />
 
+      {unmapped.length > 0 && (
+        <BulkActionBar
+          account={account}
+          clientId={clientId}
+          unmapped={unmapped}
+          categoryOptions={categoryOptions}
+          onSaved={onSaved}
+        />
+      )}
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Cauta partener..."
+          />
+        </div>
+        <ToggleGroup<PartnerFilter>
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: "Toti", count: data.partners.length },
+            {
+              value: "unmapped",
+              label: "Nemapati",
+              count: unmapped.length,
+              countTone: unmapped.length > 0 ? "danger" : "neutral",
+            },
+            { value: "top10", label: "Top 10" },
+          ]}
+        />
+      </div>
+
       {data.partners.length === 0 && data.unresolvedRulaj === 0 ? (
         <p
           className="text-[12px] text-gray italic"
@@ -260,20 +318,195 @@ function PanelBody({
         </p>
       ) : (
         <ul className="space-y-1">
-          {data.partners.map((partner) => (
-            <PartnerRow
-              key={partner.nameNormalized}
-              partner={partner}
-              account={account}
-              clientId={clientId}
-              categoryOptions={categoryOptions}
-              contCategoryName={contCategoryName}
-              onSaved={onSaved}
-            />
-          ))}
-          {data.unresolvedRulaj > 0 && <UnresolvedRow rulaj={data.unresolvedRulaj} />}
+          {visible.length === 0 ? (
+            <li
+              className="text-[12px] text-gray italic px-2 py-3"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Niciun partener nu se potriveste filtrului.
+            </li>
+          ) : (
+            visible.map((partner) => (
+              <PartnerRow
+                key={partner.nameNormalized}
+                partner={partner}
+                account={account}
+                clientId={clientId}
+                categoryOptions={categoryOptions}
+                contCategoryName={contCategoryName}
+                onSaved={onSaved}
+              />
+            ))
+          )}
+          {data.unresolvedRulaj > 0 && filter === "all" && !queryNorm && (
+            <UnresolvedRow rulaj={data.unresolvedRulaj} />
+          )}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Bulk apply bar: pick a category, click Aplica, preview modal opens with
+ * an exact summary ("Se vor mapa N parteneri (Y lei). M excepții manuale
+ * pastrate."), confirm runs the bulk action.
+ *
+ * Only shown when there are unmapped partners to apply to — once everything
+ * is overridden, this bar would have nothing to do.
+ */
+function BulkActionBar({
+  account,
+  clientId,
+  unmapped,
+  categoryOptions,
+  onSaved,
+}: {
+  account: AccountListItem;
+  clientId: string;
+  unmapped: PartnerEntry[];
+  categoryOptions: { value: string; label: string }[];
+  onSaved: () => Promise<void> | void;
+}) {
+  const [categoryId, setCategoryId] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const targetCount = unmapped.length;
+  const targetRulaj = unmapped.reduce((sum, p) => sum + p.rulaj, 0);
+  const targetLabel =
+    categoryOptions.find((o) => o.value === categoryId)?.label ?? "";
+
+  function runBulk() {
+    setError(null);
+    startTransition(async () => {
+      const res = await bulkApplyPartnerOverridesAction({
+        clientId,
+        contBase: account.contBase,
+        categoryId,
+        // Only send unmapped partners (skipExistingOverrides default would
+        // skip them anyway, but explicit slim payload is kinder).
+        partners: unmapped.map((p) => ({ nameOriginal: p.nameOriginal })),
+        skipExistingOverrides: true,
+      });
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      setShowPreview(false);
+      setCategoryId("");
+      await onSaved();
+    });
+  }
+
+  return (
+    <>
+      <div className="rounded-lg border border-dark-3 bg-dark-3/30 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Layers size={14} className="text-gray shrink-0" />
+          <span
+            className="font-mono text-[10px] uppercase tracking-wider text-gray"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Aplica la {targetCount} nemapati ({formatRon(targetRulaj)} lei)
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <Select
+              value={categoryId}
+              options={categoryOptions}
+              onChange={setCategoryId}
+              placeholder="Alege categoria..."
+            />
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => setShowPreview(true)}
+            disabled={!categoryId || pending}
+            className="h-10 px-4 text-[13px]"
+          >
+            Aplica
+          </Button>
+        </div>
+        {error && (
+          <p
+            className="text-[11px] text-neg"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {error}
+          </p>
+        )}
+      </div>
+
+      {showPreview && (
+        <BulkPreviewModal
+          targetCount={targetCount}
+          targetRulaj={targetRulaj}
+          categoryLabel={targetLabel}
+          onConfirm={runBulk}
+          onCancel={() => setShowPreview(false)}
+          pending={pending}
+        />
+      )}
+    </>
+  );
+}
+
+function BulkPreviewModal({
+  targetCount,
+  targetRulaj,
+  categoryLabel,
+  onConfirm,
+  onCancel,
+  pending,
+}: {
+  targetCount: number;
+  targetRulaj: number;
+  categoryLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/60"
+        onClick={pending ? undefined : onCancel}
+        aria-hidden
+      />
+      <div className="relative bg-dark-1 border border-dark-3 rounded-xl p-5 max-w-md w-full mx-4 shadow-2xl">
+        <h3
+          className="text-[16px] font-semibold text-white mb-3"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          Confirma maparea in bulk
+        </h3>
+        <p
+          className="text-[13px] text-gray-light mb-3"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Se vor mapa <strong className="text-white">{targetCount}</strong>{" "}
+          parteneri ({formatRon(targetRulaj)} lei) la categoria{" "}
+          <strong className="text-white">{categoryLabel}</strong>.
+        </p>
+        <p
+          className="text-[12px] text-gray mb-5"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Partenerii care au deja o categorie manuala vor fi pastrati ca
+          exceptii — nu sunt suprascrisi.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={pending}>
+            Anuleaza
+          </Button>
+          <Button variant="primary" onClick={onConfirm} disabled={pending}>
+            {pending ? "Se aplica..." : "Aplica"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -480,6 +713,21 @@ function walkLeaves(
       walkLeaves(node.children, kind, label, out);
     }
   }
+}
+
+/**
+ * Diacritic-insensitive lowercase normalizer for the search box. NFD splits
+ * "Țiriac" → ['T', combining cedilla], then we strip the combining marks
+ * so the result matches "tiriac". Distinct from the partner-key normalizer
+ * (which preserves diacritics on purpose — two genuinely different partners
+ * stay distinct). Here we want forgiving search, so we lose them.
+ */
+function normalizeForSearch(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 const RON = new Intl.NumberFormat("ro-RO", {

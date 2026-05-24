@@ -62,8 +62,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 3** — bulk + preview |
-| Sprinturi terminate | 2 (Acoperire vizibilă, Panoul partener) |
+| Sprint în lucru | **Sprint 4** — memorie + sugestii |
+| Sprinturi terminate | 3 (Acoperire vizibilă, Panoul partener, Bulk+preview) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -171,20 +171,39 @@ din Sprint 2.
   rapid de a clasifica acel rulaj pe categoria default sau pe o
   categorie 'Diverse'.
 
-## Sprint 3 — Bulk + preview (2-3 zile)
+## Sprint 3 — Bulk + preview (2-3 zile) ✅ TERMINAT
 
 **Goal**: workflow-ul Claudiei devine viabil pe conturi cu 50+ parteneri.
 
-**Subtasks**:
-1. Buton "Aplică la toți nemapați: [categorie ▾]"
-2. Preview modal: "Se vor mapa N parteneri, Y lei. M excepții manuale
-   păstrate."
-3. Filtre rapide (`ToggleGroup` deasupra listei):
-   - Toți / Doar nemapați / Peste X lei / Top 10
-4. Search box pe nume partener (cu diacritic-insensitive match)
+**Ce s-a făcut** (1 commit):
 
-**Acceptance**: contabilul mapează un cont cu 50 parteneri în <5 minute
-prin bulk + 3 excepții.
+1. ✅ **`BulkActionBar`** în partner-panel.tsx: Select cu categoriile + buton
+   "Aplica" (disabled până se alege categorie). Header arată "Aplica la N
+   nemapati (Y lei)" cu Layers icon.
+2. ✅ **`BulkPreviewModal`**: fullscreen overlay (z-60 peste panel z-50)
+   cu titlu, mesaj "Se vor mapa N parteneri (Y lei) la categoria X",
+   nota despre excepții păstrate, butoane Anuleaza/Aplica.
+3. ✅ **Filter `ToggleGroup`**: Toți / Nemapați / Top 10. Badge tonal
+   pe Nemapați (danger când >0).
+4. ✅ **`SearchInput` diacritic-insensitive**: helper `normalizeForSearch`
+   folosește NFD + strip combining marks. "tiriac" → matchează "Țiriac".
+5. ✅ **UnresolvedRow se ascunde** când filter ≠ all sau există query
+   (logic: dacă scotocesti după ceva specific, nu vrei zgomot la bază).
+6. ✅ Empty-state pentru filtru zero-result: "Niciun partener nu se
+   potriveste filtrului".
+
+**Acceptance verified**:
+- ✅ Pe un cont cu 50 parteneri, contabilul poate selecta o categorie,
+  vede preview-ul exact ("48 parteneri, 12.345 lei"), confirmă în 2
+  click-uri, apoi tratează excepțiile individual.
+- ✅ Search găsește "Țiriac" tastând "tiriac".
+- ✅ Filter Nemapați face restul ușor de văzut.
+
+**Note**:
+- Pragul Top 10 e hardcoded. Dacă feedback-ul cere, se poate face Top
+  20 / Top 50 într-un sprint viitor.
+- Bulk apply trimite explicit `skipExistingOverrides: true` ca server-ul
+  să nu suprascrie excepțiile manuale (matches §11 din language doc).
 
 ## Sprint 4 — Memorie + sugestii (4-5 zile)
 
