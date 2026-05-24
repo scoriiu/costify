@@ -83,11 +83,12 @@ NU se incorporeaza una in alta. "Electricitate Outsourcing" ca nume de categorie
 
 ## Mai jos in documentatie
 
+- **[Limbajul maparii](/docs/cashflow-limbajul-mapari)** — primer vizual pentru cele 4 cuvinte de baza (cont, partener, categorie, linie de business) + mapare orizontala vs verticala. **Citeste asta inainte de orice altceva.**
 - **[Ghid pentru contabil](/docs/cashflow-pentru-contabil)** — task guide pentru contabil
 - **[Ghid pentru antreprenor](/docs/cashflow-pentru-antreprenor)** — task guide pentru antreprenor
 - **[Exemplu QHM21](/docs/cashflow-exemplu-qhm21)** — walkthrough complet pe un caz real
 - **[Categorii (axa A)](/docs/cashflow-categorii)** — axa A in detaliu
-- **[Verticale (axa B)](/docs/cashflow-verticale)** — axa B in detaliu
+- **[Linii de business (axa B)](/docs/cashflow-verticale)** — axa B in detaliu
 
 ---
 

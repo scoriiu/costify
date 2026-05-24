@@ -28,7 +28,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -106,7 +106,11 @@ export function MapariCashflowTab({ data }: Props) {
 
   return (
     <div className="space-y-6 max-w-6xl">
-      <PageHeader period={data.period} freshlySeeded={data.freshlySeeded} />
+      <PageHeader
+        period={data.period}
+        availableYears={data.availableYears}
+        freshlySeeded={data.freshlySeeded}
+      />
 
       <CashflowTabBar
         active={activeTab}
@@ -150,12 +154,14 @@ function CashflowTabBar({
     id: CashflowTab;
     label: string;
     hint: string;
+    icon: typeof Layers;
     badge?: { text: string; tone: "danger" | "neutral" };
   }[] = [
     {
       id: "categorii",
       label: "Categorii",
       hint: "Cum se grupeaza cheltuielile si veniturile pentru patron",
+      icon: Layers,
       badge:
         unmappedCount > 0
           ? { text: `${unmappedCount} nemapate`, tone: "danger" }
@@ -167,56 +173,82 @@ function CashflowTabBar({
       hint: verticalsEnabled
         ? "Cum se imparte firma pe linii de business"
         : "Optional · activeaza daca firma are mai multe linii",
+      icon: Network,
     },
   ];
 
   return (
-    <div className="border-b border-dark-3">
-      <div className="flex items-end gap-1">
+    <div>
+      <div
+        className="font-mono text-[10px] uppercase tracking-wider text-gray mb-2"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Axa de lucru
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2" role="tablist">
         {tabs.map((tab) => {
           const isActive = active === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => onChange(tab.id)}
-              className={`group relative px-4 pt-3 pb-3 text-left transition-colors ${
+              className={`group relative text-left rounded-xl border p-4 transition-all ${
                 isActive
-                  ? "text-white"
-                  : "text-gray hover:text-gray-light"
+                  ? "border-primary bg-primary/[0.08] shadow-[0_0_0_3px_rgba(13,107,94,0.12)]"
+                  : "border-dark-3 bg-dark-2 hover:border-dark-4 hover:bg-dark-3/40"
               }`}
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-[14px] font-semibold"
-                  style={{ letterSpacing: "-0.04em" }}
-                >
-                  {tab.label}
-                </span>
-                {tab.badge && (
-                  <span
-                    className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      tab.badge.tone === "danger"
-                        ? "bg-danger/15 text-danger"
-                        : "bg-dark-3 text-gray-light"
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <tab.icon
+                    size={16}
+                    strokeWidth={1.75}
+                    className={`shrink-0 self-center ${
+                      isActive ? "text-white" : "text-gray-light"
                     }`}
+                    aria-hidden
+                  />
+                  <span
+                    className={`text-[16px] font-semibold ${
+                      isActive ? "text-white" : "text-gray-light"
+                    }`}
+                    style={{ letterSpacing: "-0.04em" }}
                   >
-                    {tab.badge.text}
+                    {tab.label}
+                  </span>
+                  {tab.badge && (
+                    <span
+                      className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                        tab.badge.tone === "danger"
+                          ? "bg-neg-bg text-neg"
+                          : "bg-dark-3 text-gray-light"
+                      }`}
+                    >
+                      {tab.badge.text}
+                    </span>
+                  )}
+                </div>
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="font-mono text-[10px] uppercase tracking-wider text-primary-light shrink-0"
+                    style={{ letterSpacing: "-0.02em" }}
+                  >
+                    Activ
                   </span>
                 )}
               </div>
               <div
-                className="text-[11px] text-gray mt-0.5"
+                className={`text-[12px] mt-1.5 ${
+                  isActive ? "text-gray-light" : "text-gray"
+                }`}
                 style={{ letterSpacing: "-0.02em" }}
               >
                 {tab.hint}
               </div>
-              <span
-                aria-hidden
-                className={`absolute -bottom-px left-0 right-0 h-0.5 transition-colors ${
-                  isActive ? "bg-primary" : "bg-transparent"
-                }`}
-              />
             </button>
           );
         })}
@@ -1237,27 +1269,39 @@ function ActivateVerticalsModal({
 
 function PageHeader({
   period,
+  availableYears,
   freshlySeeded,
 }: {
   period: { year: number; month: number } | null;
+  availableYears: number[];
   freshlySeeded: boolean;
 }) {
+  const periodDescription = period
+    ? period.month === 12
+      ? `anul ${period.year} complet`
+      : `${monthLabel(period.year, 1)} → ${monthLabel(period.year, period.month)}`
+    : null;
+
   return (
     <div className="space-y-3">
       <div>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <h2
             className="text-[20px] font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
             Mapari Cashflow
           </h2>
-          <div className="flex items-center gap-3 text-[12px] shrink-0">
-            <DocsLink href={DocsLinks.forAccountant}>Ghid contabil</DocsLink>
-            <span className="text-dark-3" aria-hidden>
-              ·
-            </span>
-            <DocsLink href={DocsLinks.exampleQhm21}>Exemplu QHM21</DocsLink>
+          <div className="flex items-center gap-4 shrink-0">
+            {availableYears.length > 0 && period && (
+              <YearSelector
+                availableYears={availableYears}
+                selectedYear={period.year}
+              />
+            )}
+            <div className="flex items-center gap-3 text-[12px]">
+              <DocsLink href={DocsLinks.mappingLanguage}>Limbajul maparii</DocsLink>
+            </div>
           </div>
         </div>
         <p
@@ -1266,12 +1310,10 @@ function PageHeader({
         >
           Organizeaza conturile firmei in categorii usor de inteles pentru
           antreprenor. Acestea apar pe /firma sub &quot;Unde s-au dus banii&quot;
-          si &quot;De unde au venit banii&quot;. Sumele de mai jos sunt rulajul
-          ultimei luni inregistrate
-          {period
-            ? ` (${monthLabel(period.year, period.month)})`
-            : ""}{" "}
-          — un reper rapid pentru ce conturi conteaza.
+          si &quot;De unde au venit banii&quot;. Sumele de mai jos sunt
+          rulajul cumulat
+          {periodDescription ? ` (${periodDescription})` : ""}{" "}
+          — un reper pentru ce conturi conteaza pe anul selectat.
         </p>
       </div>
 
@@ -1287,6 +1329,57 @@ function PageHeader({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              YEAR SELECTOR                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Switches the working year used to compute the rulaj cumulat shown next to
+ * every account / category in Mapari Cashflow. Year is persisted in the URL
+ * as ?cashflow-year=YYYY so the contabil can deep-link and refresh without
+ * losing context. Default (URL empty) = the newest year with journal data,
+ * resolved on the server.
+ */
+function YearSelector({
+  availableYears,
+  selectedYear,
+}: {
+  availableYears: number[];
+  selectedYear: number;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function onYearChange(value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    const yearNum = parseInt(value, 10);
+    // Always write the param explicitly (no auto-default removal) so users
+    // see exactly which year they picked in the URL. Refresh-safe.
+    params.set("cashflow-year", String(yearNum));
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="font-mono text-[10px] uppercase tracking-wider text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        An
+      </span>
+      <Select
+        value={String(selectedYear)}
+        onChange={onYearChange}
+        options={availableYears.map((y) => ({
+          value: String(y),
+          label: String(y),
+        }))}
+      />
     </div>
   );
 }

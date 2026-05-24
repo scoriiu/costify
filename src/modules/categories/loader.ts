@@ -59,9 +59,14 @@ export interface MapariCashflowData {
   clientId: string;
   /** The full category tree for this client. */
   tree: CostCategoryNode[];
-  /** Period whose rulaj amounts appear next to each account (UI hint:
-   *  "rulaj aprilie 2026"). null when the client has no journal data. */
+  /** Period whose rulaj amounts appear next to each account. The rulaj values
+   *  are YTD-cumulated through this month inside the selected year (so for
+   *  Jan→April 2026 you see the running total Jan→Apr, not just April).
+   *  null when the client has no journal data. */
   period: { year: number; month: number } | null;
+  /** All years for which the client has journal data, sorted DESC (newest
+   *  first). The UI uses this to populate the year selector. */
+  availableYears: number[];
   /** Class 6 + 7 leaves with rulaj. Sorted desc by abs(rulajD + rulajC). */
   accounts: AccountListItem[];
   /** True when this load triggered an OMFP auto-seed (UI can show a one-shot
@@ -75,7 +80,8 @@ export interface MapariCashflowData {
 }
 
 export async function loadMapariCashflow(
-  clientId: string
+  clientId: string,
+  opts?: { year?: number }
 ): Promise<MapariCashflowData> {
   const { tree, seeded } = await listCategoryTree(prisma, clientId, {
     autoSeed: true,
@@ -102,15 +108,17 @@ export async function loadMapariCashflow(
   const allocByCont = new Map<string, AllocationView>();
   for (const a of allocations) allocByCont.set(a.cont, a);
 
-  // Find the latest period the client has data for. If none, return early —
-  // the tab will show an empty-state and the accountant uploads a journal
-  // first.
+  // Find every period the client has data for. Empty -> empty-state.
   const periods = await getAvailablePeriods(clientId);
+  const availableYears = Array.from(new Set(periods.map((p) => p.year))).sort(
+    (a, b) => b - a
+  );
   if (periods.length === 0) {
     return {
       clientId,
       tree,
       period: null,
+      availableYears: [],
       accounts: [],
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
@@ -118,17 +126,28 @@ export async function loadMapariCashflow(
     };
   }
 
-  // getAvailablePeriods returns periods ASC (oldest first). Take the last
-  // entry so we always show the most recent month with journal data — that's
-  // what the contabil wants to configure (current state of the firm), not
-  // the founding month from years ago.
-  const latest = periods[periods.length - 1];
-  const balanceResult = await getBalanceRows(clientId, latest.year, latest.month);
+  // Pick the working year: explicit if provided & data exists, otherwise the
+  // newest year in the journal. Periods are ASC, so periods[N-1] is newest.
+  const newestYear = periods[periods.length - 1].year;
+  const targetYear =
+    opts?.year !== undefined && availableYears.includes(opts.year)
+      ? opts.year
+      : newestYear;
+
+  // Inside the chosen year, take the latest month with data — so YTD numbers
+  // reflect the firm's state as of the most recent close (e.g. Jan→Apr for
+  // 2026 in flight, Jan→Dec for closed years).
+  const monthsForYear = periods
+    .filter((p) => p.year === targetYear)
+    .map((p) => p.month);
+  const latestMonth = Math.max(...monthsForYear);
+  const balanceResult = await getBalanceRows(clientId, targetYear, latestMonth);
   if (!balanceResult.ok) {
     return {
       clientId,
       tree,
-      period: { year: latest.year, month: latest.month },
+      period: { year: targetYear, month: latestMonth },
+      availableYears,
       accounts: [],
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
@@ -166,13 +185,18 @@ export async function loadMapariCashflow(
         ? baseAlloc
         : null;
 
+    // Use YTD-cumulated rulaj (rulajTD/rulajTC) instead of single-month
+    // (rulajD/rulajC) so the contabil sees the year-to-date picture for the
+    // selected year. For a closed year (e.g. 2025 Jan→Dec), this is the full
+    // year. For an in-flight year (2026 Jan→Apr today), it is Jan→Apr — the
+    // running total, which is the right reference point for category review.
     accounts.push({
       cont: row.cont,
       contBase: row.contBase,
       denumire: row.denumire,
       kind: first === "6" ? "expense" : "revenue",
-      rulajD: row.rulajD,
-      rulajC: row.rulajC,
+      rulajD: row.rulajTD,
+      rulajC: row.rulajTC,
       currentMapping: current,
       hasAnalyticOverride,
       currentAllocation: allocation
@@ -193,7 +217,8 @@ export async function loadMapariCashflow(
   return {
     clientId,
     tree,
-    period: { year: latest.year, month: latest.month },
+    period: { year: targetYear, month: latestMonth },
+    availableYears,
     accounts,
     freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
     verticalsEnabled,

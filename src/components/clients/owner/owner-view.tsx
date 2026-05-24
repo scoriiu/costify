@@ -15,8 +15,6 @@
 
 import Link from "next/link";
 import { Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp, ArrowRight } from "lucide-react";
-import { DocsLink } from "@/components/ui/docs-link";
-import { DocsLinks } from "@/modules/docs/links";
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
 import type { OwnerContext } from "./owner-layout";
 import { buildPageHref } from "./owner-context";
@@ -217,12 +215,8 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
           Pentru detalii contabile (balanta, plan de conturi, F20), vorbeste cu contabilul tau. Acolo
           gasesti numere oficiale, exact cele depuse la ANAF.
         </p>
-        <p
-          className="text-[12px] text-gray max-w-2xl"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          Prima oara aici? <DocsLink href={DocsLinks.forOwner}>Cum citesc pagina mea</DocsLink>
-        </p>
+        {/* Docs link hidden until the owner-facing doc is rewritten in the
+            new vocabulary (orizontal/vertical/linie de business). */}
       </section>
     </>
   );

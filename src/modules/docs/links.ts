@@ -8,6 +8,7 @@
 
 export const DocsLinks = {
   cashflowHome: "/docs/cashflow-introducere",
+  mappingLanguage: "/docs/cashflow-limbajul-mapari",
 
   forAccountant: "/docs/cashflow-pentru-contabil",
   forOwner: "/docs/cashflow-pentru-antreprenor",
