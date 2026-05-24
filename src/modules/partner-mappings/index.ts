@@ -14,6 +14,8 @@ export {
 export {
   loadPartnersForCont,
   loadPartnerSummariesForClient,
+  loadSuggestionQueue,
+  type SuggestionQueueItem,
 } from "./loader";
 
 export {

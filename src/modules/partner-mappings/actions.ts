@@ -131,6 +131,35 @@ export async function loadPartnerPanelAction(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                       SUGGESTION QUEUE (Sprint 5)                          */
+/* -------------------------------------------------------------------------- */
+
+const queueSchema = z.object({
+  clientId: z.string().min(1),
+  year: z.number().int().min(1900).max(2100),
+  month: z.number().int().min(1).max(12),
+});
+
+export async function loadSuggestionQueueAction(
+  input: z.infer<typeof queueSchema>
+): Promise<
+  ActionResult<{ items: Awaited<ReturnType<typeof loader.loadSuggestionQueue>> }>
+> {
+  const parsed = queueSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  const items = await loader.loadSuggestionQueue(
+    prisma,
+    parsed.data.clientId,
+    parsed.data.year,
+    parsed.data.month
+  );
+  return { data: { items } };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              UPSERT (manual)                               */
 /* -------------------------------------------------------------------------- */
 

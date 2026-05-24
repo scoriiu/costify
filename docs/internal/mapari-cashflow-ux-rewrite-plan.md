@@ -62,8 +62,8 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 5** — coada de revizuire |
-| Sprinturi terminate | 4 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii) |
+| Sprint în lucru | **Sprint 6** — reziduum în calcule 🔴 CRITIC |
+| Sprinturi terminate | 5 (Acoperire vizibilă, Panoul partener, Bulk+preview, Memorie+sugestii, Coadă de revizuire) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
@@ -261,21 +261,50 @@ din Sprint 2.
   scenariu pentru când contabilul ar refuza explicit o sugestie. Sprint
   5 poate adăuga "Sari peste" în review queue.
 
-## Sprint 5 — Coada de revizuire (3-4 zile)
+## Sprint 5 — Coada de revizuire (3-4 zile) ✅ TERMINAT
 
 **Goal**: sugestiile devin un mini-flow plăcut.
 
-**Subtasks**:
-1. Agregare sugestiilor în coadă (toate auto-suggested cross-firma)
-2. Mini-flow UI card-cu-card:
-   - "Sugestie 3/8"
-   - "Pe contul X, partener Y, propunem categoria Z"
-   - "Pentru că: ..." (de ce sugerăm — alți parteneri similari etc.)
-   - Acțiuni: [Confirm] [Schimbă] [Sari peste]
-3. Progress dots, ieșire oricând fără pierdere de date
+**Ce s-a făcut** (1 commit):
 
-**Acceptance**: 8 sugestii = 5 minute de click-uri plăcute, nu o listă
-obositoare.
+1. ✅ **`loadSuggestionQueue`** în loader.ts: agregă cross-cont
+   suggestions într-o coadă singură, sortată DESC după rulaj. Pentru
+   fiecare item include `reasonContBases` (conturile care au contribuit
+   la sugestie) ca să afișăm motivul.
+2. ✅ **`SuggestionQueueItem` interface** + export prin barrel.
+3. ✅ **`loadSuggestionQueueAction`** server action cu auth check.
+4. ✅ **`ReviewQueueDialog` component** — modal centrat cu:
+   - Header: "Coada de revizuire" + counter "3 / 8" + buton X
+   - Card body cu cont + partener + sumă + sistem-propune + motiv
+   - Optional change-mode cu Select pentru categorii alternative
+   - Acțiuni: [Sari peste] [Schimba] [Confirma → ArrowRight]
+   - Progress dots la bază (extinde activeul current)
+   - ESC key handler + click backdrop pentru close
+5. ✅ **Local state advancement**: când o sugestie se rezolvă, e
+   eliminată din array-ul local fără refetch; counter și progress
+   dots se actualizează instant. Când coada se golește, dialog se
+   închide automat și triggerează onMutate.
+6. ✅ **Header wire-up**: callout-ul galben din Sprint 4 are acum un
+   buton "Revizuieste →" care deschide dialogul.
+7. ✅ **5 unit tests** pentru `loadSuggestionQueue`: empty case,
+   single suggestion with reason, partner with explicit cont override
+   nu apare, sort DESC by rulaj, multiple reason contBases.
+
+**Acceptance verified**:
+- ✅ Contabilul cu 8 sugestii poate trece prin toate în 1-2 minute
+  (un click "Confirma" per card).
+- ✅ "Sari peste" lasă sugestia pentru următoarea vizită (nu writes).
+- ✅ "Schimba" deschide Select-ul cu toate categoriile aceluiași kind
+  ca al contului — fără să se piardă contextul cardului curent.
+- ✅ Counter + progress dots dau feedback instant despre cât a mai
+  rămas.
+
+**Note**:
+- Dialog folosește `z-[55]` ca să fie deasupra Mapari Cashflow tab dar
+  potențial sub partner-panel (z-50). În practică sunt mutual exclusive.
+- "Sari peste" e idempotent — refacing reloadul aduce înapoi sugestia.
+  Sprint viitor poate adăuga "Nu mai sugera" cu un row blocked dacă
+  apare nevoie.
 
 ## Sprint 6 — Reziduum în calcule (5-7 zile) 🔴 CRITIC
 

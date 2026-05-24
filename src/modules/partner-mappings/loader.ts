@@ -249,3 +249,111 @@ export async function loadPartnerSummariesForClient(
 
   return result;
 }
+
+/* -------------------------------------------------------------------------- */
+/*                       SUGGESTION QUEUE (Sprint 5)                          */
+/* -------------------------------------------------------------------------- */
+
+export interface SuggestionQueueItem {
+  contBase: string;
+  contKind: ContKind;
+  partnerNameOriginal: string;
+  partnerNameNormalized: string;
+  /** YTD rulaj for this partner on this cont. Sort key — biggest first. */
+  rulaj: number;
+  suggestedCategoryId: string;
+  /** Other contBases where the same partner has overrides at this same
+   *  category — the reasoning we surface to the contabil
+   *  ('Pentru ca: pe conturile X, Y, partenerul a fost mapat la Z'). */
+  reasonContBases: string[];
+}
+
+/**
+ * Build the cross-cont review queue: every partner with a suggestion,
+ * across every cont, in one flat list sorted by rulaj DESC. Drives the
+ * Sprint 5 review-queue mini-flow.
+ */
+export async function loadSuggestionQueue(
+  prisma: PrismaClient,
+  clientId: string,
+  year: number,
+  month: number
+): Promise<SuggestionQueueItem[]> {
+  const [allLines, partnerNames, allOverrides] = await Promise.all([
+    fetchAllCostAndRevenueLines(prisma, clientId, year, month),
+    fetchPartnerNames(prisma, clientId),
+    listOverridesForClient(prisma, clientId),
+  ]);
+
+  // Same line/override bucketing as the summary path.
+  const linesByContBase = new Map<string, JournalLineForAggregation[]>();
+  for (const line of allLines) {
+    const contBase = line.contDBase.startsWith("6")
+      ? line.contDBase
+      : line.contCBase.startsWith("7")
+        ? line.contCBase
+        : null;
+    if (!contBase) continue;
+    const bucket = linesByContBase.get(contBase);
+    if (bucket) bucket.push(line);
+    else linesByContBase.set(contBase, [line]);
+  }
+
+  const overridesByContBase = new Map<string, typeof allOverrides>();
+  for (const o of allOverrides) {
+    const bucket = overridesByContBase.get(o.contBase);
+    if (bucket) bucket.push(o);
+    else overridesByContBase.set(o.contBase, [o]);
+  }
+
+  // Pre-index overrides by partnerNameNormalized for reason-collection.
+  const overridesByPartner = new Map<string, typeof allOverrides>();
+  for (const o of allOverrides) {
+    const bucket = overridesByPartner.get(o.partnerNameNormalized);
+    if (bucket) bucket.push(o);
+    else overridesByPartner.set(o.partnerNameNormalized, [o]);
+  }
+
+  const queue: SuggestionQueueItem[] = [];
+  for (const [contBase, lines] of linesByContBase) {
+    const kind = kindForContBase(contBase);
+    if (!kind) continue;
+    const overridesForCont = overridesByContBase.get(contBase) ?? [];
+    const { partners } = aggregatePartnersForCont(
+      kind,
+      lines,
+      partnerNames,
+      overridesForCont,
+      allOverrides
+    );
+    for (const p of partners) {
+      if (p.override !== null || p.suggestedCategoryId === null) continue;
+      // Collect the reasoning: which OTHER conts contributed an override
+      // for the same partner at the suggested category.
+      const reasonContBases =
+        overridesByPartner
+          .get(p.nameNormalized)
+          ?.filter(
+            (o) =>
+              o.contBase !== contBase &&
+              o.categoryId === p.suggestedCategoryId
+          )
+          .map((o) => o.contBase) ?? [];
+
+      queue.push({
+        contBase,
+        contKind: kind,
+        partnerNameOriginal: p.nameOriginal,
+        partnerNameNormalized: p.nameNormalized,
+        rulaj: p.rulaj,
+        suggestedCategoryId: p.suggestedCategoryId,
+        reasonContBases,
+      });
+    }
+  }
+
+  // Sort DESC by rulaj — biggest impact first. The contabil handles the
+  // 12.000 lei suggestion before the 100 lei one.
+  queue.sort((a, b) => b.rulaj - a.rulaj);
+  return queue;
+}

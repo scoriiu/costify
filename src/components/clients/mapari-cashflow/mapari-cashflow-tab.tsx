@@ -62,6 +62,7 @@ import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
 import { VerticalPicker } from "./vertical-picker";
 import { EditAllocationDialog } from "./edit-allocation-dialog";
 import { CategoryWorkspace } from "./category-workspace";
+import { ReviewQueueDialog } from "./review-queue";
 import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
@@ -78,6 +79,7 @@ export function MapariCashflowTab({ data }: Props) {
   const pathname = usePathname();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
   const onMutate = () => router.refresh();
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
@@ -114,6 +116,7 @@ export function MapariCashflowTab({ data }: Props) {
         partnerSummariesByCont={data.partnerSummariesByCont}
         freshlySeeded={data.freshlySeeded}
         onJumpToUnmapped={() => setActiveTab("categorii")}
+        onOpenReviewQueue={() => setReviewQueueOpen(true)}
       />
 
       <CashflowTabBar
@@ -136,6 +139,16 @@ export function MapariCashflowTab({ data }: Props) {
           setFilter={setFilter}
           query={query}
           setQuery={setQuery}
+          onMutate={onMutate}
+        />
+      )}
+
+      {reviewQueueOpen && data.period && (
+        <ReviewQueueDialog
+          clientId={data.clientId}
+          period={data.period}
+          tree={data.tree}
+          onClose={() => setReviewQueueOpen(false)}
           onMutate={onMutate}
         />
       )}
@@ -1279,6 +1292,7 @@ function PageHeader({
   partnerSummariesByCont,
   freshlySeeded,
   onJumpToUnmapped,
+  onOpenReviewQueue,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
@@ -1286,6 +1300,7 @@ function PageHeader({
   partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
+  onOpenReviewQueue: () => void;
 }) {
   // Sprint 4: roll up suggested partner count across all conts. Anything > 0
   // surfaces as a yellow callout that nudges the contabil toward the panels
@@ -1340,6 +1355,7 @@ function PageHeader({
           coverage={coverage}
           suggestedCount={suggestedCount}
           onJumpToUnmapped={onJumpToUnmapped}
+          onOpenReviewQueue={onOpenReviewQueue}
         />
       )}
 
@@ -1375,10 +1391,12 @@ function CoveragePanel({
   coverage,
   suggestedCount,
   onJumpToUnmapped,
+  onOpenReviewQueue,
 }: {
   coverage: CoverageStats;
   suggestedCount: number;
   onJumpToUnmapped: () => void;
+  onOpenReviewQueue: () => void;
 }) {
   const allMapped = coverage.unmappedCount === 0;
 
@@ -1463,12 +1481,12 @@ function CoveragePanel({
 
       {suggestedCount > 0 && (
         <div
-          className="flex items-start gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2"
           role="status"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-tone-warn mt-1.5 shrink-0" aria-hidden />
+          <span className="w-1.5 h-1.5 rounded-full bg-tone-warn shrink-0" aria-hidden />
           <p
-            className="flex-1 text-[12px] text-gray-light"
+            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
             style={{ letterSpacing: "-0.02em" }}
           >
             <span className="font-semibold text-tone-warn">
@@ -1477,9 +1495,16 @@ function CoveragePanel({
                 ? "partener sugerat"
                 : "parteneri sugerati"}
             </span>{" "}
-            din memoria altor conturi — deschide panoul respectiv ca sa confirmi sau sa
-            schimbi.
+            din memoria altor conturi.
           </p>
+          <button
+            type="button"
+            onClick={onOpenReviewQueue}
+            className="font-mono text-[11px] uppercase tracking-wider text-tone-warn hover:underline shrink-0"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Revizuieste →
+          </button>
         </div>
       )}
     </div>

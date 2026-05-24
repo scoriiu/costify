@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import {
   loadPartnersForCont,
   loadPartnerSummariesForClient,
+  loadSuggestionQueue,
 } from "@/modules/partner-mappings/loader";
 
 function makePrismaMock(opts: {
@@ -303,5 +304,132 @@ describe("loadPartnerSummariesForClient", () => {
     expect(result["6022"].overriddenRulaj).toBe(900);
     expect(result["611"]).toBeDefined(); // override-only cont
     expect(result["611"].mappedPartnerCount).toBe(1);
+  });
+});
+
+describe("loadSuggestionQueue", () => {
+  it("returns empty queue when there are no overrides anywhere", async () => {
+    const prisma = makePrismaMock({
+      journalLines: [jLine({ contC: "401.001", suma: 100 })],
+      journalPartners: [jPartner("401.001", "OMV")],
+      overrides: [],
+    });
+
+    const queue = await loadSuggestionQueue(prisma, "client-1", 2026, 4);
+    expect(queue).toEqual([]);
+  });
+
+  it("surfaces a suggestion for a partner with a cross-cont override", async () => {
+    const prisma = makePrismaMock({
+      journalLines: [
+        // OMV appears on cont 6022 — no override on 6022 yet:
+        jLine({ contDBase: "6022", contC: "401.001", suma: 500 }),
+      ],
+      journalPartners: [jPartner("401.001", "OMV PETROM SRL")],
+      overrides: [
+        overrideRow({
+          contBase: "611", // different cont
+          partnerNameNormalized: "omv petrom",
+          partnerNameOriginal: "OMV",
+          categoryId: "cat-combustibil",
+        }),
+      ],
+    });
+
+    const queue = await loadSuggestionQueue(prisma, "client-1", 2026, 4);
+
+    expect(queue).toHaveLength(1);
+    expect(queue[0].contBase).toBe("6022");
+    expect(queue[0].partnerNameNormalized).toBe("omv petrom");
+    expect(queue[0].suggestedCategoryId).toBe("cat-combustibil");
+    expect(queue[0].reasonContBases).toEqual(["611"]);
+    expect(queue[0].rulaj).toBe(500);
+  });
+
+  it("does NOT surface partners with explicit overrides on the current cont", async () => {
+    const prisma = makePrismaMock({
+      journalLines: [
+        jLine({ contDBase: "6022", contC: "401.001", suma: 500 }),
+      ],
+      journalPartners: [jPartner("401.001", "OMV")],
+      overrides: [
+        overrideRow({
+          contBase: "6022",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+      ],
+    });
+
+    const queue = await loadSuggestionQueue(prisma, "client-1", 2026, 4);
+    expect(queue).toEqual([]);
+  });
+
+  it("sorts queue items by rulaj DESC", async () => {
+    const prisma = makePrismaMock({
+      journalLines: [
+        jLine({ contDBase: "6022", contC: "401.001", suma: 100 }),
+        jLine({ contDBase: "6022", contC: "401.002", suma: 900 }),
+        jLine({ contDBase: "6022", contC: "401.003", suma: 500 }),
+      ],
+      journalPartners: [
+        jPartner("401.001", "Alfa"),
+        jPartner("401.002", "Beta"),
+        jPartner("401.003", "Gamma"),
+      ],
+      overrides: [
+        overrideRow({
+          id: "o1",
+          contBase: "611",
+          partnerNameNormalized: "alfa",
+          categoryId: "cat-a",
+        }),
+        overrideRow({
+          id: "o2",
+          contBase: "611",
+          partnerNameNormalized: "beta",
+          categoryId: "cat-b",
+        }),
+        overrideRow({
+          id: "o3",
+          contBase: "611",
+          partnerNameNormalized: "gamma",
+          categoryId: "cat-c",
+        }),
+      ],
+    });
+
+    const queue = await loadSuggestionQueue(prisma, "client-1", 2026, 4);
+    expect(queue.map((q) => q.partnerNameNormalized)).toEqual([
+      "beta",
+      "gamma",
+      "alfa",
+    ]);
+  });
+
+  it("collects multiple reason contBases when several conts contributed to a suggestion", async () => {
+    const prisma = makePrismaMock({
+      journalLines: [
+        jLine({ contDBase: "6022", contC: "401.001", suma: 500 }),
+      ],
+      journalPartners: [jPartner("401.001", "OMV")],
+      overrides: [
+        overrideRow({
+          id: "o1",
+          contBase: "611",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+        overrideRow({
+          id: "o2",
+          contBase: "628",
+          partnerNameNormalized: "omv",
+          categoryId: "cat-combustibil",
+        }),
+      ],
+    });
+
+    const queue = await loadSuggestionQueue(prisma, "client-1", 2026, 4);
+    expect(queue[0].reasonContBases.sort()).toEqual(["611", "628"]);
   });
 });
