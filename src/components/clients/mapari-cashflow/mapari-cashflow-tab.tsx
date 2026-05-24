@@ -42,6 +42,7 @@ import type {
   MappingScope,
   AccountListItem,
   MapariCashflowData,
+  CoverageStats,
 } from "@/modules/categories";
 import {
   createCategoryAction,
@@ -109,7 +110,9 @@ export function MapariCashflowTab({ data }: Props) {
       <PageHeader
         period={data.period}
         availableYears={data.availableYears}
+        coverage={data.coverage}
         freshlySeeded={data.freshlySeeded}
+        onJumpToUnmapped={() => setActiveTab("categorii")}
       />
 
       <CashflowTabBar
@@ -1270,11 +1273,15 @@ function ActivateVerticalsModal({
 function PageHeader({
   period,
   availableYears,
+  coverage,
   freshlySeeded,
+  onJumpToUnmapped,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
+  coverage: CoverageStats;
   freshlySeeded: boolean;
+  onJumpToUnmapped: () => void;
 }) {
   const periodDescription = period
     ? period.month === 12
@@ -1317,6 +1324,10 @@ function PageHeader({
         </p>
       </div>
 
+      {coverage.totalAccountCount > 0 && (
+        <CoveragePanel coverage={coverage} onJumpToUnmapped={onJumpToUnmapped} />
+      )}
+
       {freshlySeeded && (
         <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
           <Sparkles size={14} className="text-primary mt-0.5 shrink-0" />
@@ -1329,6 +1340,129 @@ function PageHeader({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              COVERAGE PANEL                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Top-of-page status panel that tells the contabil at a glance how much of
+ * the firm is mapped and what needs attention.
+ *
+ * Sprint 1 of the Mapari Cashflow rewrite — only the cont-level dimension
+ * exists. From Sprint 4 we'll also surface "X parteneri noi de revizuit"
+ * as a second callout, fed by the partner-overrides review queue.
+ */
+function CoveragePanel({
+  coverage,
+  onJumpToUnmapped,
+}: {
+  coverage: CoverageStats;
+  onJumpToUnmapped: () => void;
+}) {
+  const allMapped = coverage.unmappedCount === 0;
+
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-4 space-y-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Acoperire generala
+        </span>
+        <span
+          className="font-mono text-[12px] text-gray-light tabular-nums"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {coverage.percent}% atinse explicit ·{" "}
+          {Math.max(0, 100 - coverage.percent)}% pe default
+        </span>
+      </div>
+
+      <CoverageBar percent={coverage.percent} />
+
+      <div
+        className="font-mono text-[11px] text-gray tabular-nums"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {formatRon(coverage.mappedRulaj)} lei in{" "}
+        {coverage.totalAccountCount - coverage.unmappedCount} conturi mapate
+        {coverage.unmappedCount > 0 && (
+          <>
+            {" · "}
+            {formatRon(coverage.unmappedRulaj)} lei in {coverage.unmappedCount}{" "}
+            {coverage.unmappedCount === 1 ? "cont nemapat" : "conturi nemapate"}
+          </>
+        )}
+      </div>
+
+      {allMapped ? (
+        <div
+          className="flex items-center gap-2 rounded-lg border border-pos-border bg-pos-bg px-3 py-2"
+          role="status"
+        >
+          <Check size={14} className="text-pos shrink-0" />
+          <p
+            className="text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Toate conturile au o categorie. Niciun cont nemapat in aceasta
+            perioada.
+          </p>
+        </div>
+      ) : (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-neg-border bg-neg-bg px-3 py-2"
+          role="alert"
+        >
+          <AlertTriangle size={14} className="text-neg shrink-0" />
+          <p
+            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span className="font-semibold text-neg">
+              {coverage.unmappedCount}{" "}
+              {coverage.unmappedCount === 1
+                ? "cont nemapat"
+                : "conturi nemapate"}
+            </span>{" "}
+            ({formatRon(coverage.unmappedRulaj)} lei) — sunt aratate pe
+            antreprenor in &quot;Alte cheltuieli&quot; / &quot;Alte venituri&quot;.
+          </p>
+          <button
+            type="button"
+            onClick={onJumpToUnmapped}
+            className="font-mono text-[11px] uppercase tracking-wider text-neg hover:underline shrink-0"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Mapeaza →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoverageBar({ percent }: { percent: number }) {
+  const safe = Math.max(0, Math.min(100, percent));
+  const tone =
+    safe >= 90 ? "bg-pos" : safe >= 60 ? "bg-primary" : "bg-tone-warn";
+  return (
+    <div
+      className="h-2 w-full rounded-full bg-dark-3 overflow-hidden"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={safe}
+    >
+      <div
+        className={`h-full ${tone} transition-all`}
+        style={{ width: `${safe}%` }}
+      />
     </div>
   );
 }

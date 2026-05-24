@@ -62,15 +62,15 @@ implementare).
 |---|---|
 | Branch | `feat/pr-2c-6-mapari-coverage` (off `feat/pr-2c-5-wizard-tabs`) |
 | Ultimul commit pe pr-2c-5 | `3422882 feat(mapari): YTD year selector + reset docs to limbajul-mapari only` |
-| Sprint în lucru | **Sprint 1** — coverage vizibil |
-| Sprinturi terminate | 0 |
+| Sprint în lucru | **Sprint 2** — panoul partener |
+| Sprinturi terminate | 1 (Acoperire vizibilă) |
 | Mockup-uri vizuale | descrise mai jos, neimplementate |
 
 ---
 
 # Roadmap pe sprinturi
 
-## Sprint 1 — Acoperire vizibilă (2-3 zile) ⏳ ÎN LUCRU
+## Sprint 1 — Acoperire vizibilă (2-3 zile) ✅ TERMINAT
 
 **Goal**: contabilul vede instant unde să se uite. Niciun flow nou.
 
@@ -79,17 +79,40 @@ overrides pe partener, deci "coverage per categorie" e vacuous (100%
 implicit). Coverage meaningful e doar **overall**. Per-cont bars apar
 din Sprint 2.
 
-**Subtasks**:
-1. Compute overall coverage stats în `loadMapariCashflow` loader
-   - `totalRulaj`, `mappedRulaj`, `unmappedRulaj`, `percent`, `unmappedCount`
-2. Smart header în Mapari Cashflow:
-   - Bar de progres cu cifrele
-   - Callout `⚠ X conturi nemapate (Y lei)` cu CTA "[Mapeaza →]"
-   - Callout `✅ Totul mapat complet` când nu sunt unmapped
-3. Test unit pentru calculul coverage (în `tests/unit/modules/categories/`)
+**Ce s-a făcut**:
+1. ✅ `CoverageStats` interface + `computeCoverage()` pure function în
+   `src/modules/categories/loader.ts`. Sumează rulaj absolut per cont
+   (rulajD pentru clase 6, rulajC pentru clase 7), separă mapped vs
+   unmapped, returnează percent rotunjit.
+2. ✅ Threaded prin toate cele 3 return-uri ale `loadMapariCashflow`
+   (empty firm, balance error, success).
+3. ✅ `coverage: CoverageStats` adăugat la `MapariCashflowData`. Tipul
+   re-exportat din `src/modules/categories/index.ts`.
+4. ✅ Component nou `CoveragePanel` + `CoverageBar` în `mapari-cashflow-tab.tsx`.
+   Apare între titlu+intro și wizard tabs.
+   - Bar tonal: pos (≥90%) / primary (60-89%) / tone-warn (<60%)
+   - Eyebrow "Acoperire generala" + percent text "X% atinse explicit · Y% pe default"
+   - Detalii cifre: "X lei in N conturi mapate · Y lei in M conturi nemapate"
+   - Callout `pos` când totul e mapped: "Toate conturile au o categorie"
+   - Callout `neg` când există nemapate: "X conturi nemapate (Y lei)..." cu
+     buton "[Mapeaza →]" care comută la tab Categorii
+5. ✅ 10 unit tests pentru `computeCoverage` în
+   `tests/unit/modules/categories/compute-coverage.test.ts`. Acoperă: empty
+   firm, all mapped, all unmapped, mixed, expense+revenue mix, rotunjire
+   percentage, absolute values pe negative, float drift.
 
-**Acceptance**: header vizibil. Calculul corect (test). UI calmă când totul e
-mapped, alarmant când nu.
+**Acceptance verified**:
+- ✅ Header vizibil pe `/clients/[slug]?tab=mapari-cashflow`.
+- ✅ 3005 tests pass (era 2995, +10 din suita nouă).
+- ✅ TypeScript clean.
+- ✅ Funcționează cu YearSelector — schimbi anul, coverage se recompute.
+
+**Note pentru sprinturile viitoare**:
+- `CoveragePanel` are deja un prop `onJumpToUnmapped` care în Sprint 1 doar
+  schimbă tabul. Din Sprint 2 ar putea deschide direct un listing filtrat
+  pe nemapate sau panoul partener pe primul cont nemapat cu cei mai mulți
+  bani.
+- Bar-ul tonal poate fi reutilizat în Sprint 2 pentru per-cont coverage bars.
 
 ## Sprint 2 — Panoul partener (5-7 zile)
 

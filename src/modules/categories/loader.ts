@@ -13,6 +13,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { round2 } from "@/lib/money";
 import { listCategoryTree, listMappings } from "./service";
 import { buildResolverState, resolveCategoryForCont } from "./resolver";
 import { getAvailablePeriods, getBalanceRows } from "@/modules/balances";
@@ -55,6 +56,32 @@ export interface AccountListItem {
   hasAnalyticVerticalOverride: boolean;
 }
 
+/**
+ * Overall coverage of the firm's class 6+7 accounts at the time of the
+ * selected period. At Sprint 1 of the Mapari Cashflow rewrite this is
+ * a binary cont-level metric — an account is either mapped to a category
+ * or not. From Sprint 2 onwards (partner overrides) the meaning of
+ * "mapped" extends to "covered by an explicit partner mapping OR by the
+ * cont's default category"; the shape of CoverageStats stays the same so
+ * the UI doesn't have to change.
+ */
+export interface CoverageStats {
+  /** Sum of |rulajD| for class 6 + |rulajC| for class 7 across every
+   *  active leaf account in the period. */
+  totalRulaj: number;
+  /** The same sum, restricted to accounts with currentMapping !== null. */
+  mappedRulaj: number;
+  /** totalRulaj − mappedRulaj. */
+  unmappedRulaj: number;
+  /** Round(mappedRulaj / totalRulaj * 100), or 100 when totalRulaj === 0
+   *  (vacuously full coverage if there's nothing to map). */
+  percent: number;
+  /** Count of distinct leaf accounts with currentMapping === null. */
+  unmappedCount: number;
+  /** Count of all leaf accounts (mapped + unmapped). */
+  totalAccountCount: number;
+}
+
 export interface MapariCashflowData {
   clientId: string;
   /** The full category tree for this client. */
@@ -69,6 +96,9 @@ export interface MapariCashflowData {
   availableYears: number[];
   /** Class 6 + 7 leaves with rulaj. Sorted desc by abs(rulajD + rulajC). */
   accounts: AccountListItem[];
+  /** Overall mapping coverage for the selected period. Header surfaces this
+   *  as a progress bar + actionable callouts. */
+  coverage: CoverageStats;
   /** True when this load triggered an OMFP auto-seed (UI can show a one-shot
    *  toast: "Am pornit cu taxonomia OMFP. Editeaz-o cum vrei."). */
   freshlySeeded: boolean;
@@ -120,6 +150,7 @@ export async function loadMapariCashflow(
       period: null,
       availableYears: [],
       accounts: [],
+      coverage: computeCoverage([]),
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
       verticals,
@@ -149,6 +180,7 @@ export async function loadMapariCashflow(
       period: { year: targetYear, month: latestMonth },
       availableYears,
       accounts: [],
+      coverage: computeCoverage([]),
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
       verticalsEnabled,
       verticals,
@@ -220,8 +252,51 @@ export async function loadMapariCashflow(
     period: { year: targetYear, month: latestMonth },
     availableYears,
     accounts,
+    coverage: computeCoverage(accounts),
     freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
     verticalsEnabled,
     verticals,
+  };
+}
+
+/**
+ * Pure computation of overall mapping coverage. Exported so the unit suite
+ * (tests/unit/modules/categories/) can verify edge cases (empty firm, all
+ * mapped, all unmapped, mixed) without hitting the database.
+ *
+ * Sprint 1 semantics: an account is "mapped" iff its currentMapping is
+ * non-null. Rulaj is taken from the cont's natural side (rulajD for class 6,
+ * rulajC for class 7). Sums are absolute values so a negative correction
+ * cont doesn't subtract from coverage.
+ *
+ * Sprint 2 will extend "mapped" to include partner-level overrides but the
+ * shape of the result stays the same.
+ */
+export function computeCoverage(accounts: AccountListItem[]): CoverageStats {
+  let totalRulaj = 0;
+  let mappedRulaj = 0;
+  let unmappedCount = 0;
+
+  for (const a of accounts) {
+    const rulaj = Math.abs(a.kind === "expense" ? a.rulajD : a.rulajC);
+    totalRulaj += rulaj;
+    if (a.currentMapping !== null) {
+      mappedRulaj += rulaj;
+    } else {
+      unmappedCount += 1;
+    }
+  }
+
+  const unmappedRulaj = totalRulaj - mappedRulaj;
+  const percent =
+    totalRulaj === 0 ? 100 : Math.round((mappedRulaj / totalRulaj) * 100);
+
+  return {
+    totalRulaj: round2(totalRulaj),
+    mappedRulaj: round2(mappedRulaj),
+    unmappedRulaj: round2(unmappedRulaj),
+    percent,
+    unmappedCount,
+    totalAccountCount: accounts.length,
   };
 }
