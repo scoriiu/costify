@@ -239,6 +239,12 @@ const upsertSchema = z.object({
   contBase: z.string().min(1).max(20),
   partnerNameOriginal: z.string().min(1).max(200),
   categoryId: z.string().min(1),
+  /** Skip the Next.js revalidatePath call. The optimistic flow in the
+   *  slide-panel and AllExceptionsDialog patches local state and triggers
+   *  router.refresh() exactly once at close, so per-action revalidations
+   *  cause the dialog to flash mid-edit. Default false = preserve old
+   *  behavior for non-optimistic callers (review queue, etc.). */
+  skipRevalidate: z.boolean().optional(),
 });
 
 export async function upsertPartnerOverrideAction(
@@ -322,7 +328,7 @@ export async function upsertPartnerOverrideAction(
     },
   });
 
-  revalidateMapariCashflow(auth.clientSlug);
+  if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return { data: { id: row.id } };
 }
 
@@ -333,6 +339,7 @@ export async function upsertPartnerOverrideAction(
 const confirmSchema = z.object({
   clientId: z.string().min(1),
   id: z.string().min(1),
+  skipRevalidate: z.boolean().optional(),
 });
 
 export async function confirmPartnerOverrideAction(
@@ -369,7 +376,7 @@ export async function confirmPartnerOverrideAction(
     },
   });
 
-  revalidateMapariCashflow(auth.clientSlug);
+  if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return {};
 }
 
@@ -380,6 +387,7 @@ export async function confirmPartnerOverrideAction(
 const deleteSchema = z.object({
   clientId: z.string().min(1),
   id: z.string().min(1),
+  skipRevalidate: z.boolean().optional(),
 });
 
 export async function deletePartnerOverrideAction(
@@ -418,7 +426,7 @@ export async function deletePartnerOverrideAction(
     },
   });
 
-  revalidateMapariCashflow(auth.clientSlug);
+  if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return {};
 }
 
@@ -438,6 +446,7 @@ const bulkApplySchema = z.object({
     )
     .max(1000), // safety cap; a single cont with 1000+ partners is pathological
   skipExistingOverrides: z.boolean().optional(),
+  skipRevalidate: z.boolean().optional(),
 });
 
 export async function bulkApplyPartnerOverridesAction(
@@ -505,6 +514,29 @@ export async function bulkApplyPartnerOverridesAction(
     },
   });
 
-  revalidateMapariCashflow(auth.clientSlug);
+  if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return { data: result };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          REVALIDATE (deferred)                             */
+/* -------------------------------------------------------------------------- */
+
+const revalidateSchema = z.object({ clientId: z.string().min(1) });
+
+/**
+ * Trigger Next.js path revalidation for the client's Mapari Cashflow page.
+ * Used by the optimistic-save flow: per-row mutations skip revalidate to
+ * keep the modal flicker-free; the dialog calls this exactly once on
+ * close so the underlying workspace picks up the changes.
+ */
+export async function revalidateMapariCashflowAction(
+  input: z.infer<typeof revalidateSchema>
+): Promise<ActionResult> {
+  const parsed = revalidateSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+  revalidateMapariCashflow(auth.clientSlug);
+  return {};
 }

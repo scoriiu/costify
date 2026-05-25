@@ -12,6 +12,7 @@ import {
   upsertPartnerOverrideAction,
   deletePartnerOverrideAction,
   bulkApplyPartnerOverridesAction,
+  revalidateMapariCashflowAction,
   type PartnerPanelData,
 } from "@/modules/partner-mappings/actions";
 import type {
@@ -67,6 +68,10 @@ export function PartnerPanel({
 
   const handleClose = () => {
     if (hadMutationRef.current) {
+      // Per-row saves passed skipRevalidate:true to keep the slide-panel
+      // calm during edits. The server's path cache is still stale until
+      // we explicitly revalidate it on close.
+      revalidateMapariCashflowAction({ clientId });
       onMutate();
       hadMutationRef.current = false;
     }
@@ -569,6 +574,9 @@ function BulkActionBar({
         // skip them anyway, but explicit slim payload is kinder).
         partners: unmapped.map((p) => ({ nameOriginal: p.nameOriginal })),
         skipExistingOverrides: true,
+        // Same reason as the per-row saves: defer the server-tree
+        // revalidation to panel close so the panel doesn't flash.
+        skipRevalidate: true,
       });
       if (res.error) {
         setError(res.error);
@@ -875,6 +883,7 @@ function PartnerRow({
         const res = await deletePartnerOverrideAction({
           clientId,
           id: partner.override.id,
+          skipRevalidate: true,
         });
         if (res.error) {
           setError(res.error);
@@ -893,6 +902,7 @@ function PartnerRow({
           contBase: account.contBase,
           partnerNameOriginal: partner.nameOriginal,
           categoryId: valueToSave,
+          skipRevalidate: true,
         });
         if (res.error) {
           setError(res.error);

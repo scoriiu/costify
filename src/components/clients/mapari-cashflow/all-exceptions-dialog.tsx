@@ -24,6 +24,7 @@ import {
   loadMapariCashflowAuditAction,
   upsertPartnerOverrideAction,
   deletePartnerOverrideAction,
+  revalidateMapariCashflowAction,
 } from "@/modules/partner-mappings/actions";
 import type { AllExceptionsRow } from "@/modules/partner-mappings";
 import type { CostCategoryNode, AccountListItem } from "@/modules/categories";
@@ -121,9 +122,18 @@ export function AllExceptionsDialog({
     });
   }
 
-  // Close handler that flushes the deferred parent refresh once.
-  const handleClose = () => {
-    if (dirtyOnClose.current) onMutate();
+  // Close handler that flushes the deferred refresh once. The per-row
+  // mutations passed skipRevalidate:true, so the server's path cache
+  // is still stale at this point — we revalidate it on close, then
+  // tell the parent to refresh its own client-side state.
+  const handleClose = async () => {
+    if (dirtyOnClose.current) {
+      // Fire-and-forget revalidate; the parent's onMutate (router.refresh)
+      // re-reads the now-fresh server data. We don't await to keep the
+      // close instant.
+      revalidateMapariCashflowAction({ clientId });
+      onMutate();
+    }
     onClose();
   };
 
@@ -596,6 +606,7 @@ function ExceptionRow({
         const res = await deletePartnerOverrideAction({
           clientId,
           id: row.overrideId,
+          skipRevalidate: true,
         });
         if (res.error) {
           setError(res.error);
@@ -610,6 +621,7 @@ function ExceptionRow({
         contBase: row.contBase,
         partnerNameOriginal: row.partnerNameOriginal,
         categoryId: valueToSave,
+        skipRevalidate: true,
       });
       if (res.error) {
         setError(res.error);
@@ -640,6 +652,7 @@ function ExceptionRow({
       const res = await deletePartnerOverrideAction({
         clientId,
         id: row.overrideId,
+        skipRevalidate: true,
       });
       if (res.error) {
         setError(res.error);
