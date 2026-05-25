@@ -695,4 +695,77 @@ regula care a decis incadrarea — nivel 0 (default cont), nivel 1
 
 ---
 
-*Cand modifici terminologia in produs sau in alte documente, actualizeaza si aceasta pagina in acelasi PR. Limbajul comun e contractul cu utilizatorul — nu il rupe.*
+## Stare implementare (mai 2026)
+
+Aceasta pagina descrie **contractul de limbaj si comportament** asteptat
+de la modulul Mapari Cashflow. Mai jos, **harta exacta** intre ce promite
+pagina si ce este implementat azi in cod. Este actualizata la fiecare PR
+care atinge modulul; daca vezi ceva care nu se potriveste cu realitatea
+din UI, **acea promisiune este buggy si trebuie ridicata**.
+
+### Ce functioneaza azi (livrat si testat)
+
+| Promisiunea paginii | Stare | Detalii / referinte |
+|---|---|---|
+| Cele 4 obiecte: cont / partener / categorie / linie de business | ✅ | Modele Prisma: `JournalLine`, `JournalPartner`, `CostCategory`, `Vertical`. |
+| Maparea orizontala (cont → procente pe linii) | ✅ | `AccountVerticalAllocation` + UI in `edit-allocation-dialog.tsx`. Sum=100% validat la save. |
+| Maparea verticala (cont, partener) → categorie | ✅ | `PartnerCategoryOverride` + slide-panel in `partner-panel.tsx`. |
+| Bulk apply pe contul intreg | ✅ | Bara mereu vizibila in slide-panel, pre-selectata cu categoria contului. |
+| Bulk apply pe **subset filtrat** (search + Top10 + nemapati) | ✅ | Mai 2026 — Modul Claudiei item #1. Helperul `computeBulkTargets` driveaza si lista, si scope-ul bulk. |
+| Filtru materialitate "Peste X lei" + chips preset | ✅ | Mai 2026 — Modul Claudiei item #2. Input numeric + 1.000 / 5.000 / 10.000. |
+| Bare orizontale rulaj pe fiecare rand partener | ✅ | Mai 2026 — Modul Claudiei item #4. Reanchoreaza la maxim VIZIBIL cand schimbi filtrul. |
+| Indicator Pareto "Top N parteneri = X%" + separator "coada lunga" | ✅ | Mai 2026 — Modul Claudiei item #5. Ascuns pe liste mici (≤3 parteneri — no signal). |
+| Preview modal cu **breakdown explicit** (parteneri noi + exceptii existente) | ✅ | Mai 2026 — Modul Claudiei item #6. Toggle optional "Suprascrie cele M exceptii existente". |
+| Memorie cross-perioada (luna urmatoare partenerii vin pre-completati) | ✅ | Sprint 4 — coada de revizuire + lazy suggestions. |
+| Coada de revizuire ("sugestii noi cu impact mare prima") | ✅ | Sprint 5 — dialog card-by-card sortat DESC dupa rulaj. |
+| Acoperirea contului (% rulaj mapat explicit) | ✅ | Sprint 1 — bar tonal + cifre + truth-line in panel header. |
+| Trasabilitate partener override → KPI categorii pe `/firma` | ✅ | Sprint 6 — `computePartnerCategoryAdjustments` threadat in `computeBreakdownByCategory`. **Axa A corecta.** |
+| Vizualizare centralizata "Toate exceptiile pe parteneri" | ✅ | Post-Sprint-7 polish — `<AllExceptionsDialog>` cu search, edit inline, delete. |
+| Audit log pentru fiecare modificare de override | ✅ | `recordClientMutation` cu metadata enrich (contBase, partnerName, categoryName). |
+
+### Ce e partial / poate insela
+
+| Promisiunea paginii | Stare | Ce lipseste |
+|---|---|---|
+| Stari de mapare: 🟡 Auto-sugerata · ✅ Confirmata · 🔒 **Blocata** | ⚠️ Partial | Doua starile dintai exista. **Blocata pe perioade publicate NU se respecta inca** in `partner-mappings/actions.ts` — modelul `PublishedPeriod` exista in DB dar mutatiile pe override-uri nu verifica daca perioada e inchisa. Vezi roadmap mai jos. |
+| Trasabilitate per linie de jurnal ("de ce e in categoria X?") | ⚠️ Partial | La nivel de **cont** stim de ce e in categoria X (regula `AccountCategoryMapping`). La nivel de **partener** stim ce override l-a mutat (`PartnerCategoryOverride`). La nivel de **linie individuala de jurnal**, nu expunem inca un tooltip "aceasta suma provine din regula Y" in UI-ul antreprenorului. Resolver-ul are info; doar nu o afisam. |
+
+### Ce **NU** functioneaza (roadmap, prioritizat)
+
+| Promisiunea paginii | Stare | Impact | Effort |
+|---|---|---|---|
+| **Regula reziduului pe axa verticale (linii de business)** — vezi sectiunea cu acelasi nume mai sus | ❌ | **BUG SEMANTIC**. Cand un partener override muta X lei intr-o alta categorie, splitul orizontal 10/20/70 al contului se aplica pe **brut**, nu pe (brut − X). Cei X lei sunt numarati de doua ori in raportul antreprenorului (o data ca alta categorie, o data ca parte din splitul orizontal). Vezi `computeVerticalBreakdown` in `src/modules/reporting/owner/compute.ts:932` — semnatura nu primeste `partnerAdjustments`. | ~3-4h |
+| **Nivelul 2: exceptie pe tranzactie individuala** (precedenta sectiune) | ❌ | Sistemul respecta Nivel 0 (default cont) + Nivel 1 (regula partener), dar **NU exista** Nivel 2. Nu poti spune "factura asta specifica e in alta categorie decat ce zice regula partenerului". In docs e descris ca "rar" si nu blocheaza pe nimeni in real-life, dar tehnic e o promisiune neonorata. | ~6-8h (model nou `JournalLineCategoryOverride` + UI per-linie in tabul Balanta) |
+| **Blocarea modificarilor pe perioade publicate** | ❌ | Modelul `PublishedPeriod` exista. Hookul anti-modificare in `partner-mappings/actions.ts` si `verticals/actions.ts` lipseste — contabilul poate edita ininteruct un override pe martie chiar daca martie a fost raportat la patron in aprilie. Audit log inregistreaza modificarea, dar nu o opreste. | ~4-5h |
+| Tooltip "de ce e in categoria X?" pe sume in raportul antreprenorului | ❌ | Vezi sectiunea de mai sus "trasabilitate". Resolver-ul are info; trebuie expus prin hover + dialog explicativ. | ~2h |
+| Validare live "Lipseste 10% — unde merg banii astia?" pentru orizontala incompleta | ⚠️ Posibil partial | Schema permite sum != 100; mecanismul de validare la save trebuie auditat. Daca e doar la save, nu in timpul edit, nu e cu adevarat "live". | ~30 min (audit) + ~1h (live validation daca lipseste) |
+
+### Workflow recomandat de prioritizare (urmatorul PR mare)
+
+Daca ar fi sa atac aceste lipsuri grupat, ar avea cel mai mare sens un PR
+de **"Integritate cifre"** care livreaza impreuna:
+
+1. **Regula reziduului pe axa B** — corecteaza dubla-numarare.
+2. **Lock perioade publicate** — opreste editarile post-raport.
+3. Teste de integrare care reconciliaza Exemplul C din docs byte-for-byte
+   (`32.500 = Combustibil 31.600 + Servicii curierat 900` pe ambele axe).
+
+Cumulat ~8-10h. Beneficiu: raportul antreprenorului devine onest pe ambele
+axe, iar lockul previne categoria de "am uitat ca am raportat deja, am
+modificat istoricul fara sa-mi dau seama".
+
+### Surse de adevar — daca te indoiesti
+
+- **Codul** este sursa de adevar finala. Aceasta pagina o descrie.
+- **`docs/internal/mapari-cashflow-ux-rewrite-plan.md`** — plan internal cu
+  istoria sprinturilor 1-7 + Post-Sprint-7 polish + Modul Claudiei.
+- **`training/contabil/structured/costify-app.json`** — ce stie Costi
+  despre modul; actualizat in lockstep cu fiecare PR.
+- **`tests/unit/modules/partner-mappings/filters.test.ts`** — comportamentul
+  exact al filtrelor + threshold + Pareto + bulk targets, in 124 cases.
+- **`tests/ui/mapari-cashflow-partner-overrides.spec.ts`** — 20 teste
+  Playwright care verifica end-to-end ce vede contabilul in UI.
+
+---
+
+*Cand modifici terminologia in produs sau in alte documente, actualizeaza si aceasta pagina in acelasi PR. Limbajul comun e contractul cu utilizatorul — nu il rupe. La fel pentru sectiunea "Stare implementare" — orice item mutat din ❌ in ✅ ridica calitatea contractului si trebuie facut intr-un singur commit, in acelasi PR cu codul.*
