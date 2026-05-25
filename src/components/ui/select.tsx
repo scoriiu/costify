@@ -112,23 +112,36 @@ export function Select({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, close]);
 
-  // Reposition on open AND close on any scroll/resize. A drifting popover
-  // is worse than a closed one — the contabil would lose context anyway.
+  // While open, the popover TRACKS the trigger on scroll/resize — it
+  // repositions every frame so it stays attached to the trigger. Only
+  // closes when the trigger leaves the viewport (scrolled off-screen,
+  // hidden behind a sticky header, etc.) — at that point the popover
+  // would point at nothing, so closing is honest.
   useEffect(() => {
     if (!open) return;
     computePosition();
-    function handleScroll() {
-      close();
-    }
-    function handleResize() {
+    function reposition() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const triggerOffScreen =
+        rect.bottom < 0 ||
+        rect.top > window.innerHeight ||
+        rect.right < 0 ||
+        rect.left > window.innerWidth;
+      if (triggerOffScreen) {
+        close();
+        return;
+      }
       computePosition();
     }
-    // capture:true so we catch scroll events from any ancestor.
-    window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("resize", handleResize);
+    // capture:true so we catch scroll events from any ancestor (the
+    // dialog body, a slide-panel scroller, the page itself, etc.).
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     return () => {
-      window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
     };
   }, [open, close, computePosition]);
 

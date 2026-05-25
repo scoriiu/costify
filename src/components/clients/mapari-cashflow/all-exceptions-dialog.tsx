@@ -102,6 +102,22 @@ export function AllExceptionsDialog({
     return map;
   }, [accounts]);
 
+  // cont -> the categoryId currently mapped on the cont itself. Lets us
+  // surface the "Urmeaza contul ([X])" option per row so the contabil
+  // sees WHAT category the exception would revert to before clicking.
+  // In this cross-cont view each row's cont may have a different default,
+  // unlike the slide-panel where one cont anchors the whole list.
+  const contCategoryByBase = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of accounts) {
+      // Prefer base-scope mapping when present; otherwise any current
+      // mapping (analytic still tells us where it goes by default).
+      if (!a.currentMapping) continue;
+      if (!map.has(a.contBase)) map.set(a.contBase, a.currentMapping.categoryId);
+    }
+    return map;
+  }, [accounts]);
+
   // Category options grouped by expense/revenue. We use leaves only since
   // an override on a parent category has the same semantics problem as a
   // cont-mapping on a parent (already enforced as leaf-only in the panel).
@@ -216,23 +232,29 @@ export function AllExceptionsDialog({
                 </p>
               ) : (
                 <ul className="space-y-1">
-                  {visibleRows.map((row) => (
-                    <ExceptionRow
-                      key={row.overrideId}
-                      row={row}
-                      clientId={clientId}
-                      contDenumire={contDenumireByBase.get(row.contBase) ?? ""}
-                      categoryName={
-                        categoryNameById.get(row.categoryId) ?? "—"
-                      }
-                      categoryOptions={
-                        row.contKind === "expense"
-                          ? categoryOptionsByKind.expense
-                          : categoryOptionsByKind.revenue
-                      }
-                      onMutated={handleRowMutated}
-                    />
-                  ))}
+                  {visibleRows.map((row) => {
+                    const contDefaultCategoryId = contCategoryByBase.get(
+                      row.contBase
+                    );
+                    const contDefaultCategoryName = contDefaultCategoryId
+                      ? categoryNameById.get(contDefaultCategoryId) ?? null
+                      : null;
+                    return (
+                      <ExceptionRow
+                        key={row.overrideId}
+                        row={row}
+                        clientId={clientId}
+                        contDenumire={contDenumireByBase.get(row.contBase) ?? ""}
+                        contDefaultCategoryName={contDefaultCategoryName}
+                        categoryOptions={
+                          row.contKind === "expense"
+                            ? categoryOptionsByKind.expense
+                            : categoryOptionsByKind.revenue
+                        }
+                        onMutated={handleRowMutated}
+                      />
+                    );
+                  })}
                 </ul>
               )}
             </>
@@ -253,18 +275,29 @@ export function AllExceptionsDialog({
 /*                                 SUB-COMPONENTS                             */
 /* -------------------------------------------------------------------------- */
 
+/** Sentinel value used in the per-row Select to represent the "Urmeaza
+ *  contul (sterge exceptia)" option. Picking it triggers deletion of the
+ *  override, NOT an upsert. Must be impossible to collide with a real
+ *  CostCategory id (cuid2 format). */
+const DELETE_SENTINEL = "__delete__";
+
 function ExceptionRow({
   row,
   clientId,
   contDenumire,
-  categoryName,
+  contDefaultCategoryName,
   categoryOptions,
   onMutated,
 }: {
   row: AllExceptionsRow;
   clientId: string;
   contDenumire: string;
-  categoryName: string;
+  /** Name of the category the cont itself maps to. Used as the label of
+   *  the synthetic "Urmeaza contul" option so the contabil knows EXACTLY
+   *  what category the exception reverts to. Null = the cont has no
+   *  current mapping (unmapped → the option still works as "delete the
+   *  override", we just don't have a target name to advertise). */
+  contDefaultCategoryName: string | null;
   categoryOptions: { value: string; label: string }[];
   onMutated: () => void;
 }) {
@@ -272,8 +305,31 @@ function ExceptionRow({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Synthetic "delete this override" option. Prepended to the leaf-
+  // category list so the contabil can revert to the cont's default
+  // from the same Select used to change categories — symmetry with the
+  // slide-panel UX. The literal value is not a real categoryId; the
+  // change handler intercepts it and calls deletePartnerOverrideAction
+  // instead of upsertPartnerOverrideAction.
+  const optionsWithDefault = useMemo(
+    () => [
+      {
+        value: DELETE_SENTINEL,
+        label: contDefaultCategoryName
+          ? `Urmeaza contul (${contDefaultCategoryName})`
+          : "Urmeaza contul (sterge exceptia)",
+      },
+      ...categoryOptions,
+    ],
+    [categoryOptions, contDefaultCategoryName]
+  );
+
   function changeCategory(newCategoryId: string) {
     if (newCategoryId === row.categoryId) return;
+    if (newCategoryId === DELETE_SENTINEL) {
+      removeOverride({ skipConfirm: true });
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const res = await upsertPartnerOverrideAction({
@@ -292,8 +348,9 @@ function ExceptionRow({
     });
   }
 
-  function removeOverride() {
+  function removeOverride(opts?: { skipConfirm?: boolean }) {
     if (
+      !opts?.skipConfirm &&
       !confirm(
         `Sterg exceptia pentru "${row.partnerNameOriginal}" pe cont ${row.contBase}? Va reveni la categoria contului.`
       )
@@ -370,7 +427,7 @@ function ExceptionRow({
       <div className="shrink-0">
         <Select
           value={row.categoryId}
-          options={categoryOptions}
+          options={optionsWithDefault}
           onChange={changeCategory}
         />
       </div>
@@ -388,7 +445,7 @@ function ExceptionRow({
         <Tooltip content="Sterge exceptia (partenerul revine la categoria contului)">
           <button
             type="button"
-            onClick={removeOverride}
+            onClick={() => removeOverride()}
             disabled={pending}
             className="p-1.5 text-gray hover:text-neg disabled:opacity-50"
             aria-label="Sterge exceptia"
