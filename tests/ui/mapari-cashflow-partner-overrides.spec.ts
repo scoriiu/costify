@@ -626,4 +626,70 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await expect(applyBtn).toBeEnabled();
     await expect(panel.getByText(/deja default-ul contului/)).not.toBeVisible();
   });
+
+  test("14. Each partner row has a horizontal rulaj bar — largest fills 100%", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Cont 628 has ~40 partners with wide rulaj spread — perfect for
+    // exercising the bar.
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+
+    // Wait for the panel body to finish loading. The bulk sentence is
+    // part of PanelBody and only renders after data is fetched, so it's
+    // a reliable readiness signal.
+    await expect(
+      panel.getByText(/Atribuie.*parteneri.*la categoria:/)
+    ).toBeVisible({ timeout: 5000 });
+
+    // Every visible partner row carries a bar fill. Count them and read
+    // the inline width to verify proportional encoding.
+    const bars = panel.locator("[data-testid='rulaj-bar-fill']");
+    const barCount = await bars.count();
+    expect(barCount).toBeGreaterThan(2);
+
+    // Collect widths as numeric percents.
+    const widths = await bars.evaluateAll((els) =>
+      els.map((el) => parseFloat((el as HTMLElement).style.width) || 0)
+    );
+
+    // The largest visible partner must be at 100%.
+    const maxWidth = Math.max(...widths);
+    expect(maxWidth).toBe(100);
+
+    // At least one bar must be strictly less than 100 — proves we're
+    // actually scaling, not just hardcoding full width.
+    expect(widths.some((w) => w < 100 && w > 0)).toBe(true);
+
+    // Now narrow the visible list with a threshold — the bars should
+    // RE-SCALE relative to whatever's left. We pick a threshold that
+    // keeps a handful of partners.
+    await panel.getByRole("button", { name: /^5\.000$/ }).click();
+
+    // Wait for the list to settle, then re-read widths. The new max
+    // visible partner must be at 100%.
+    await page.waitForTimeout(150);
+    const barsAfter = panel.locator("[data-testid='rulaj-bar-fill']");
+    const afterCount = await barsAfter.count();
+    expect(afterCount).toBeGreaterThan(0);
+    const widthsAfter = await barsAfter.evaluateAll((els) =>
+      els.map((el) => parseFloat((el as HTMLElement).style.width) || 0)
+    );
+    expect(Math.max(...widthsAfter)).toBe(100);
+
+    // Clean up: clear threshold to leave the panel idempotent.
+    await panel.getByRole("button", { name: /Sterge pragul de rulaj/ }).click();
+  });
 });

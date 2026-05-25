@@ -5,6 +5,8 @@ import {
   splitTargetsByExistence,
   normalizeForSearch,
   sumRulaj,
+  maxRulaj,
+  rulajBarPercent,
 } from "@/modules/partner-mappings";
 import type { PartnerEntry, PartnerCategoryOverrideRow } from "@/modules/partner-mappings";
 
@@ -236,6 +238,57 @@ describe("sumRulaj", () => {
 
   it("returns 0 for empty list", () => {
     expect(sumRulaj([])).toBe(0);
+  });
+});
+
+describe("maxRulaj", () => {
+  it("returns the largest rulaj across partners", () => {
+    expect(maxRulaj(SAMPLE)).toBe(4000);
+  });
+
+  it("returns 0 for empty list", () => {
+    expect(maxRulaj([])).toBe(0);
+  });
+
+  it("returns 0 when every partner has 0 rulaj", () => {
+    const zeros = SAMPLE.map((p) => ({ ...p, rulaj: 0 }));
+    expect(maxRulaj(zeros)).toBe(0);
+  });
+
+  it("ignores negative values (defensive — rulaj is always >= 0)", () => {
+    const mixed = SAMPLE.map((p, i) => ({ ...p, rulaj: i === 0 ? -500 : p.rulaj }));
+    expect(maxRulaj(mixed)).toBe(3500); // LUKOIL is now the max
+  });
+});
+
+describe("rulajBarPercent", () => {
+  it("returns 100 when rulaj equals max", () => {
+    expect(rulajBarPercent(4000, 4000)).toBe(100);
+  });
+
+  it("returns scaled percent for smaller rulaj", () => {
+    expect(rulajBarPercent(2000, 4000)).toBe(50);
+    expect(rulajBarPercent(1000, 4000)).toBe(25);
+  });
+
+  it("returns 0 when max is 0 (avoids divide-by-zero)", () => {
+    expect(rulajBarPercent(100, 0)).toBe(0);
+  });
+
+  it("returns 0 when rulaj is 0", () => {
+    expect(rulajBarPercent(0, 4000)).toBe(0);
+  });
+
+  it("returns 0 when rulaj is negative (defensive)", () => {
+    expect(rulajBarPercent(-100, 4000)).toBe(0);
+  });
+
+  it("clamps to 100 even if rulaj exceeds max (shouldn't happen)", () => {
+    expect(rulajBarPercent(5000, 4000)).toBe(100);
+  });
+
+  it("handles small values precisely", () => {
+    expect(rulajBarPercent(1, 1000)).toBeCloseTo(0.1, 5);
   });
 });
 

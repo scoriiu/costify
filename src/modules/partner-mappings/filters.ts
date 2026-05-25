@@ -88,6 +88,29 @@ export function sumRulaj(partners: PartnerEntry[]): number {
 }
 
 /**
+ * Compute the maximum rulaj across a partners list. Used by the rulaj-bar
+ * column on each row — bars are sized relative to the biggest visible
+ * partner so they encode rank at a glance. Recomputed when filters change
+ * (so a "Peste 5.000 lei" cutoff doesn't shrink every bar to ~100%).
+ */
+export function maxRulaj(partners: PartnerEntry[]): number {
+  let m = 0;
+  for (const p of partners) if (p.rulaj > m) m = p.rulaj;
+  return m;
+}
+
+/**
+ * Compute the percent (0–100) of the rulaj bar fill for one partner row.
+ * Pure: tested in isolation. Returns 0 when there's nothing to compare
+ * against (max=0) or when this partner has no activity (rulaj<=0), so the
+ * bar appears empty rather than guessing.
+ */
+export function rulajBarPercent(rulaj: number, max: number): number {
+  if (max <= 0 || rulaj <= 0) return 0;
+  return Math.min(100, (rulaj / max) * 100);
+}
+
+/**
  * Split a target list into two groups: partners that would be NEWLY mapped
  * (no existing override) vs. those that would be OVERWRITTEN (already have
  * a manual override). Used by the bulk preview modal so the contabil sees

@@ -48,5 +48,7 @@ export {
   splitTargetsByExistence,
   normalizeForSearch,
   sumRulaj,
+  maxRulaj,
+  rulajBarPercent,
   type PartnerFilter,
 } from "./filters";

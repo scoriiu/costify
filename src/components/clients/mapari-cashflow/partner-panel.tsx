@@ -23,6 +23,8 @@ import {
   filterPartners,
   computeBulkTargets,
   sumRulaj,
+  maxRulaj,
+  rulajBarPercent,
   normalizeForSearch,
   type PartnerEntry,
   type PartnerFilter,
@@ -429,6 +431,11 @@ function PanelBody({
     () => computeBulkTargets(data.partners, filter, query, { minRulaj }),
     [data.partners, filter, query, minRulaj]
   );
+  // Bar widths scale to the LARGEST visible partner, not absolute max.
+  // That way applying "Peste 5.000 lei" doesn't collapse every remaining
+  // bar to ~100% — comparisons stay meaningful within whatever subset
+  // the contabil chose.
+  const visibleMaxRulaj = useMemo(() => maxRulaj(visible), [visible]);
   const queryNorm = normalizeForSearch(query);
   const hasFilter = queryNorm.length > 0 || minRulaj > 0 || filter !== "all";
   const contCategoryId = account.currentMapping?.categoryId ?? null;
@@ -532,6 +539,7 @@ function PanelBody({
                 clientId={clientId}
                 categoryOptions={categoryOptions}
                 onLocalPatch={onLocalPatch}
+                maxRulaj={visibleMaxRulaj}
               />
             ))
           )}
@@ -943,6 +951,7 @@ function PartnerRow({
   clientId,
   categoryOptions,
   onLocalPatch,
+  maxRulaj,
 }: {
   partner: PartnerEntry;
   account: AccountListItem;
@@ -954,6 +963,10 @@ function PartnerRow({
   onLocalPatch: (
     updater: (prev: PartnerPanelData) => PartnerPanelData
   ) => void;
+  /** Largest rulaj among CURRENTLY VISIBLE partners (not absolute max).
+   *  Drives the horizontal bar fill so widths encode rank-within-subset
+   *  as the contabil narrows the filter. */
+  maxRulaj: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [savedFlash, setSavedFlash] = useState(false);
@@ -1108,6 +1121,8 @@ function PartnerRow({
     setStagedValue(persistedValue);
   }
 
+  const barPct = rulajBarPercent(partner.rulaj, maxRulaj);
+
   return (
     <li
       className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-dark-2/40 ${
@@ -1122,16 +1137,32 @@ function PartnerRow({
           />
         </Tooltip>
       )}
-      <span
-        className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
-        style={{ letterSpacing: "-0.02em" }}
-        title={partner.nameOriginal}
-      >
-        {partner.nameOriginal}
-        {partner.rulaj === 0 && (
-          <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
-        )}
-      </span>
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        <span
+          className="text-[12px] text-gray-light truncate"
+          style={{ letterSpacing: "-0.02em" }}
+          title={partner.nameOriginal}
+        >
+          {partner.nameOriginal}
+          {partner.rulaj === 0 && (
+            <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
+          )}
+        </span>
+        {/* Horizontal rulaj bar — visual rank-within-visible-subset. The
+            track itself is always rendered (avoids layout shift); fill
+            width is 0% for zero-activity partners (looks empty, communicates
+            the truth). */}
+        <div
+          className="h-[3px] w-full bg-dark-3 rounded-full overflow-hidden"
+          aria-hidden="true"
+        >
+          <div
+            className="h-full bg-primary/40 rounded-full transition-[width] duration-200"
+            style={{ width: `${barPct}%` }}
+            data-testid="rulaj-bar-fill"
+          />
+        </div>
+      </div>
       <span
         className="font-mono text-[11px] text-gray tabular-nums shrink-0 w-[80px] text-right"
         style={{ letterSpacing: "-0.02em" }}
