@@ -431,8 +431,7 @@ function PanelBody({
   );
   const queryNorm = normalizeForSearch(query);
   const hasFilter = queryNorm.length > 0 || minRulaj > 0 || filter !== "all";
-
-  const [showBulk, setShowBulk] = useState(false);
+  const contCategoryId = account.currentMapping?.categoryId ?? null;
 
   return (
     <div className="p-4 space-y-4">
@@ -445,32 +444,23 @@ function PanelBody({
         totalCount={data.partners.length}
       />
 
-      {/* Bulk apply works on whatever's currently visible: the same toggle +
-          search that filter the list below also scope the bulk action. That
-          way the contabil can "select top 10 only" or "search 'rom' and
-          redirect those" without a separate selection mechanism. Hidden
-          behind an opt-in link so the default view stays calm. */}
-      {bulkTargets.length > 0 && !showBulk && (
-        <button
-          type="button"
-          onClick={() => setShowBulk(true)}
-          className="text-[12px] text-primary hover:text-primary-light underline-offset-2 hover:underline"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          Redirectioneaza in bulk {bulkTargets.length}{" "}
-          {bulkTargets.length === 1 ? "partener" : "parteneri"} catre o alta
-          categorie →
-        </button>
-      )}
-      {bulkTargets.length > 0 && showBulk && (
+      {/* Bulk apply is the PRIMARY way to use this panel — most visits are
+          about "redirect this whole cont (or a search-narrowed slice) to
+          another category". We render it inline, always visible, with the
+          cont's default category pre-selected so the contabil sees at a
+          glance "this is where partners go by default" and only needs to
+          change the dropdown to redirect. Per-row Select below stays as
+          the escape hatch for the rare one-partner-only case. */}
+      {bulkTargets.length > 0 && (
         <BulkActionBar
           account={account}
           clientId={clientId}
           targets={bulkTargets}
           isSubset={hasFilter}
           categoryOptions={categoryOptions}
+          contCategoryId={contCategoryId}
+          contCategoryName={contCategoryName}
           onSaved={onBulkSaved}
-          onCancel={() => setShowBulk(false)}
         />
       )}
 
@@ -556,18 +546,25 @@ function PanelBody({
 }
 
 /**
- * Bulk apply bar: pick a category, click Aplica, preview modal opens with
- * an exact summary, confirm runs the bulk action.
+ * Bulk apply bar — the PRIMARY interaction in this panel.
  *
- * The `targets` prop comes from the parent's filter chain (toggle + search),
- * so what the contabil sees in the list below is exactly what gets written.
- * The header label switches phrasing based on whether a filter is active,
- * so the contabil knows they're acting on a SUBSET, not on every partner.
+ * Most visits to the slide-panel are about "redirect this whole cont (or a
+ * filtered slice) to another category". The bar is always visible at the
+ * top of the body so the contabil can act in two clicks: change the
+ * dropdown, click Aplica.
  *
- * Hidden behind an opt-in link in the parent — bulk redirect is the rare
- * case (most visits to this panel are about ONE partner). The contabil
- * opens this only when they genuinely want to redirect the whole cont
- * (or a filtered slice of it).
+ * Pre-selection: when the cont has a default category mapped, we pre-fill
+ * the dropdown with that category. This is purely a LEARNING affordance —
+ * the contabil sees "ah, this cont sends partners to <Combustibil> by
+ * default" and only needs to change the dropdown to redirect. Picking a
+ * different category and clicking Aplica writes overrides; leaving the
+ * default selected and clicking Aplica is detected by the preview modal
+ * (Item #6) so the user is never surprised.
+ *
+ * The `targets` prop comes from the parent's filter chain (toggle + search
+ * + threshold), so what the contabil sees in the list below is exactly
+ * what gets written. The header label switches phrasing when any filter
+ * is active so the contabil knows they're acting on a SUBSET.
  */
 function BulkActionBar({
   account,
@@ -575,8 +572,9 @@ function BulkActionBar({
   targets,
   isSubset,
   categoryOptions,
+  contCategoryId,
+  contCategoryName,
   onSaved,
-  onCancel,
 }: {
   account: AccountListItem;
   clientId: string;
@@ -589,10 +587,23 @@ function BulkActionBar({
    *  contabil knows they're acting on a SUBSET, not on every partner. */
   isSubset: boolean;
   categoryOptions: { value: string; label: string }[];
+  /** The categoryId currently mapped on the cont (default for unmapped
+   *  partners). When set, we pre-select it so the contabil sees the
+   *  "starting point" and only needs to change the dropdown to redirect. */
+  contCategoryId: string | null;
+  /** Display name for the same category — used in the hint line. */
+  contCategoryName: string | null;
   onSaved: () => Promise<void> | void;
-  onCancel: () => void;
 }) {
-  const [categoryId, setCategoryId] = useState("");
+  // Initialize the dropdown to the cont's default when available — this is
+  // the calibration the contabil expects to see when opening the panel.
+  const [categoryId, setCategoryId] = useState<string>(contCategoryId ?? "");
+  // Re-sync if the panel is repointed at a different cont without unmount
+  // (defensive — opening a new cont currently remounts the panel).
+  useEffect(() => {
+    setCategoryId(contCategoryId ?? "");
+  }, [contCategoryId, account.contBase]);
+
   const [showPreview, setShowPreview] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -602,9 +613,17 @@ function BulkActionBar({
   const targetLabel =
     categoryOptions.find((o) => o.value === categoryId)?.label ?? "";
 
-  const headerLabel = isSubset
-    ? `Redirectioneaza ${targetCount} din rezultatul curent (${formatRon(targetRulaj)} lei)`
-    : `Redirectioneaza ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei)`;
+  // The action is a no-op when the chosen category is the cont's default
+  // AND every target is currently unmapped (writing an exception that
+  // mirrors the cont default would just add garbage rows). Detect it and
+  // disable the button with a friendly hint.
+  const isNoOp =
+    categoryId === contCategoryId &&
+    targets.every((p) => p.override === null);
+
+  const headerSentence = isSubset
+    ? `Atribuie cei ${targetCount} parteneri din rezultatul curent (${formatRon(targetRulaj)} lei) la categoria:`
+    : `Atribuie toti cei ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei) la categoria:`;
 
   function runBulk() {
     setError(null);
@@ -615,8 +634,8 @@ function BulkActionBar({
         categoryId,
         partners: targets.map((p) => ({ nameOriginal: p.nameOriginal })),
         skipExistingOverrides: true,
-        // Same reason as the per-row saves: defer the server-tree
-        // revalidation to panel close so the panel doesn't flash.
+        // Per-row saves go through the optimistic path and skip Next.js
+        // revalidation; defer to panel close so the page doesn't flash.
         skipRevalidate: true,
       });
       if (res.error) {
@@ -624,32 +643,21 @@ function BulkActionBar({
         return;
       }
       setShowPreview(false);
-      setCategoryId("");
       await onSaved();
     });
   }
 
   return (
     <>
-      <div className="rounded-lg border border-dark-3 bg-dark-3/30 p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Layers size={14} className="text-gray shrink-0" />
-            <span
-              className="font-mono text-[10px] uppercase tracking-wider text-gray truncate"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              {headerLabel}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-[11px] text-gray hover:text-gray-light shrink-0"
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Layers size={14} className="text-primary shrink-0" />
+          <span
+            className="text-[13px] text-gray-light"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Renunta
-          </button>
+            {headerSentence}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
@@ -663,12 +671,22 @@ function BulkActionBar({
           <Button
             variant="primary"
             onClick={() => setShowPreview(true)}
-            disabled={!categoryId || pending}
+            disabled={!categoryId || pending || isNoOp}
             className="h-10 px-4 text-[13px]"
           >
             Aplica
           </Button>
         </div>
+        {isNoOp && contCategoryName && (
+          <p
+            className="text-[11px] text-gray"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Categoria selectata este deja default-ul contului
+            ({contCategoryName}) — nu este nimic de redirectionat. Alege alta
+            categorie pentru a face exceptii.
+          </p>
+        )}
         {error && (
           <p
             className="text-[11px] text-neg"

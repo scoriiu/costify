@@ -386,14 +386,12 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
     await expect(panel).toBeVisible();
 
-    // The opt-in link starts with the full unmapped count. Grab it for
-    // later comparison.
-    const optInLink = panel.getByRole("button", {
-      name: /Redirectioneaza in bulk \d+ parten/,
-    });
-    await expect(optInLink).toBeVisible();
-    const fullCountText = (await optInLink.innerText()).trim();
-    const fullCountMatch = fullCountText.match(/Redirectioneaza in bulk (\d+) parten/);
+    // Bulk bar is always visible (no opt-in link). The header sentence
+    // starts as "Atribuie toti cei N parteneri (X lei) la categoria:".
+    const bulkSentence = panel.getByText(/Atribuie.*parteneri.*la categoria:/);
+    await expect(bulkSentence).toBeVisible();
+    const fullText = (await bulkSentence.innerText()).trim();
+    const fullCountMatch = fullText.match(/(\d+) parten/);
     expect(fullCountMatch).not.toBeNull();
     const fullCount = parseInt(fullCountMatch![1], 10);
     expect(fullCount).toBeGreaterThan(2);
@@ -403,28 +401,30 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const search = panel.getByPlaceholder("Cauta partener...");
     await search.fill("google");
 
-    // The opt-in link now reflects the SUBSET count (1, not full).
+    // The bulk sentence now mentions "rezultatul curent" AND shows count=1.
     await expect(
-      panel.getByRole("button", { name: /Redirectioneaza in bulk 1 partener/ })
+      panel.getByText(/Atribuie cei 1 parteneri din rezultatul curent/)
     ).toBeVisible();
 
-    // Open the bulk bar. Its header must say "rezultatul curent" because a
-    // filter is active — that's the honest phrasing.
-    await panel
-      .getByRole("button", { name: /Redirectioneaza in bulk 1 partener/ })
-      .click();
-    await expect(panel.getByText(/Redirectioneaza 1 din rezultatul curent/)).toBeVisible();
-
-    // Pick the first available category and click Aplica to inspect the
-    // preview modal. We DO NOT confirm — just verify the preview text and
-    // cancel, so the test stays idempotent.
+    // Pick a non-default category (cont default is preselected; we pick a
+    // different one). Click Aplica to inspect the preview modal — we DO
+    // NOT confirm so the test stays idempotent.
     const bulkSelectTrigger = panel.locator("button[aria-haspopup='listbox']").first();
+    const currentLabel = (await bulkSelectTrigger.innerText()).trim();
     await bulkSelectTrigger.click();
     const listbox = page.locator("[role='listbox']");
     await expect(listbox).toBeVisible();
-    const firstOption = listbox.locator("button[role='option']").first();
-    const pickedLabel = (await firstOption.innerText()).trim();
-    await firstOption.click();
+    const options = listbox.locator("button[role='option']");
+    let pickedLabel = "";
+    for (let i = 0; i < (await options.count()); i++) {
+      const text = (await options.nth(i).innerText()).trim();
+      if (text && text !== currentLabel) {
+        pickedLabel = text;
+        await options.nth(i).click();
+        break;
+      }
+    }
+    expect(pickedLabel).not.toBe("");
 
     await panel.getByRole("button", { name: "Aplica" }).click();
 
@@ -434,23 +434,18 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
       page.getByText(/Se vor mapa.*1.*partener.*la categoria/)
     ).toBeVisible();
     await expect(page.getByText(/rezultatul filtrului curent/)).toBeVisible();
-    // Inside the modal, the picked category label must appear inside the
-    // sentence "la categoria <label>" — assert on the modal's content area.
     const modalBody = page.getByText(/Se vor mapa/).locator("..");
     await expect(
       modalBody.getByText(new RegExp(pickedLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
     ).toBeVisible();
 
-    // Cancel the modal AND close the bulk bar — no DB writes.
+    // Cancel the modal — no DB writes.
     await page.getByRole("button", { name: "Anuleaza" }).click();
-    await panel.getByRole("button", { name: "Renunta" }).click();
 
-    // Clear the search; the opt-in link returns to the full count.
+    // Clear the search; the bulk sentence returns to the full count.
     await search.fill("");
     await expect(
-      panel.getByRole("button", {
-        name: new RegExp(`Redirectioneaza in bulk ${fullCount} parten`),
-      })
+      panel.getByText(new RegExp(`Atribuie toti cei ${fullCount} parteneri`))
     ).toBeVisible();
   });
 
@@ -473,11 +468,10 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
     await expect(panel).toBeVisible();
 
-    // Baseline: full unmapped count.
-    const optInLink = panel.getByRole("button", {
-      name: /Redirectioneaza in bulk \d+ parten/,
-    });
-    const fullText = (await optInLink.innerText()).trim();
+    // Baseline: bulk sentence shows the full unmapped count.
+    const bulkSentence = panel.getByText(/Atribuie.*parteneri.*la categoria:/);
+    await expect(bulkSentence).toBeVisible();
+    const fullText = (await bulkSentence.innerText()).trim();
     const fullCount = parseInt(fullText.match(/(\d+) parten/)![1], 10);
     expect(fullCount).toBeGreaterThan(2);
 
@@ -492,10 +486,13 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await expect(thresholdInput).toHaveValue("5000");
     await expect(panel.getByText(/\d+ din \d+/)).toBeVisible();
 
-    // Bulk count must have shrunk (or stayed equal if every partner is
-    // already over the threshold — unlikely with 40 partners on QHM21
-    // cont 628 where most are small).
-    const afterText = (await optInLink.innerText()).trim();
+    // Bulk sentence must have shrunk AND mention "rezultatul curent".
+    await expect(
+      panel.getByText(/Atribuie cei \d+ parteneri din rezultatul curent/)
+    ).toBeVisible();
+    const afterText = (
+      await panel.getByText(/Atribuie cei.*din rezultatul curent/).innerText()
+    ).trim();
     const afterCount = parseInt(afterText.match(/(\d+) parten/)![1], 10);
     expect(afterCount).toBeLessThan(fullCount);
 
@@ -506,9 +503,7 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await clearBtn.click();
     await expect(thresholdInput).toHaveValue("");
     await expect(
-      panel.getByRole("button", {
-        name: new RegExp(`Redirectioneaza in bulk ${fullCount} parten`),
-      })
+      panel.getByText(new RegExp(`Atribuie toti cei ${fullCount} parteneri`))
     ).toBeVisible();
 
     // Type a wildly high value to verify the empty-state copy is
@@ -543,32 +538,92 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await panel.getByRole("button", { name: /^1\.000$/ }).click();
     await panel.getByPlaceholder("Cauta partener...").fill("rom");
 
-    // Bulk opt-in link reflects the combined filter.
-    const optInLink = panel.getByRole("button", {
-      name: /Redirectioneaza in bulk \d+ parten/,
-    });
-    await expect(optInLink).toBeVisible();
-    const combinedText = (await optInLink.innerText()).trim();
+    // Bulk sentence reflects the combined filter — count > 0 AND mentions
+    // "rezultatul curent" (either search or threshold qualifies).
+    const bulkSentence = panel.getByText(
+      /Atribuie cei \d+ parteneri din rezultatul curent/
+    );
+    await expect(bulkSentence).toBeVisible();
+    const combinedText = (await bulkSentence.innerText()).trim();
     const combinedCount = parseInt(combinedText.match(/(\d+) parten/)![1], 10);
     expect(combinedCount).toBeGreaterThan(0);
 
-    // Open bulk and confirm the header says "din rezultatul curent" (a
-    // filter is active — either search or threshold qualifies).
-    await optInLink.click();
-    await expect(
-      panel.getByText(/Redirectioneaza \d+ din rezultatul curent/)
-    ).toBeVisible();
-
-    // Pick first category, open preview, confirm the qualifier appears.
+    // Pick a category different from the cont default, open preview,
+    // confirm the qualifier appears.
     const bulkSelectTrigger = panel.locator("button[aria-haspopup='listbox']").first();
+    const currentLabel = (await bulkSelectTrigger.innerText()).trim();
     await bulkSelectTrigger.click();
     const listbox = page.locator("[role='listbox']");
-    await listbox.locator("button[role='option']").first().click();
+    const options = listbox.locator("button[role='option']");
+    for (let i = 0; i < (await options.count()); i++) {
+      const text = (await options.nth(i).innerText()).trim();
+      if (text && text !== currentLabel) {
+        await options.nth(i).click();
+        break;
+      }
+    }
     await panel.getByRole("button", { name: "Aplica" }).click();
     await expect(page.getByText(/rezultatul filtrului curent/)).toBeVisible();
 
-    // Cancel everything — no DB writes.
+    // Cancel the modal — no DB writes.
     await page.getByRole("button", { name: "Anuleaza" }).click();
-    await panel.getByRole("button", { name: "Renunta" }).click();
+  });
+
+  test("13. Bulk bar is always visible and pre-selected with cont default", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Open the panel on cont 6058 (we know it's mapped to "Energie, apa,
+    // intretinere" from prior tests/setup).
+    const cont6058Row = page.locator("li").filter({ hasText: /^6058/ }).first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+
+    // Bulk bar is visible immediately (no opt-in link to click).
+    await expect(
+      panel.getByText(/Atribuie.*parteneri.*la categoria:/)
+    ).toBeVisible();
+
+    // The first Select on the panel is the bulk Select (per-row Selects
+    // come further down). Its trigger should show a real category label —
+    // not the placeholder "Alege categoria...".
+    const bulkSelectTrigger = panel.locator("button[aria-haspopup='listbox']").first();
+    const triggerLabel = (await bulkSelectTrigger.innerText()).trim();
+    expect(triggerLabel).not.toBe("");
+    expect(triggerLabel).not.toMatch(/^Alege categoria/);
+
+    // Since the default-on-cont matches the dropdown selection, Aplica
+    // must be disabled (no-op case) AND the hint about "deja default" is
+    // shown.
+    const applyBtn = panel.getByRole("button", { name: "Aplica" });
+    await expect(applyBtn).toBeDisabled();
+    await expect(
+      panel.getByText(/deja default-ul contului/)
+    ).toBeVisible();
+
+    // Change the dropdown to a different category — Aplica becomes
+    // enabled and the hint disappears.
+    await bulkSelectTrigger.click();
+    const listbox = page.locator("[role='listbox']");
+    const options = listbox.locator("button[role='option']");
+    for (let i = 0; i < (await options.count()); i++) {
+      const text = (await options.nth(i).innerText()).trim();
+      if (text && text !== triggerLabel) {
+        await options.nth(i).click();
+        break;
+      }
+    }
+    await expect(applyBtn).toBeEnabled();
+    await expect(panel.getByText(/deja default-ul contului/)).not.toBeVisible();
   });
 });
