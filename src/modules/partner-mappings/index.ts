@@ -46,9 +46,11 @@ export {
   filterPartners,
   computeBulkTargets,
   splitTargetsByExistence,
+  computeParetoCutoff,
   normalizeForSearch,
   sumRulaj,
   maxRulaj,
   rulajBarPercent,
   type PartnerFilter,
+  type ParetoCutoff,
 } from "./filters";

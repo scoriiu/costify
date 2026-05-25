@@ -692,4 +692,140 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     // Clean up: clear threshold to leave the panel idempotent.
     await panel.getByRole("button", { name: /Sterge pragul de rulaj/ }).click();
   });
+
+  test("15. Pareto indicator + long-tail separator appear on contul with many partners", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Cont 628 has ~40 partners — guaranteed to have a meaningful Pareto
+    // split (some big, many small).
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+    await expect(
+      panel.getByText(/Atribuie.*parteneri.*la categoria:/)
+    ).toBeVisible({ timeout: 5000 });
+
+    // Pareto indicator is visible with the "Top N parteneri = X% din rulaj"
+    // sentence + the tail callout.
+    const indicator = panel.locator("[data-testid='pareto-indicator']");
+    await expect(indicator).toBeVisible();
+    const indicatorText = (await indicator.innerText()).trim();
+    expect(indicatorText).toMatch(/Top \d+ parteneri = \d+% din rulaj/i);
+    expect(indicatorText).toMatch(/coada lunga/i);
+
+    // The inline separator appears EXACTLY ONCE in the list.
+    const separator = panel.locator("[data-testid='long-tail-separator']");
+    await expect(separator).toHaveCount(1);
+    await expect(separator).toBeVisible();
+    const separatorText = (await separator.innerText()).trim();
+    expect(separatorText).toMatch(/coada lunga/i);
+    expect(separatorText).toMatch(/\d+ parteneri · \d+% din rulaj/i);
+
+    // Sanity: indicator's headPercent + tailPercent should sum to 100 (or
+    // ~100 with rounding). We extract both from the indicator text.
+    const headMatch = indicatorText.match(/= (\d+)%/);
+    const tailMatch = indicatorText.match(/reprezinta (\d+)%/);
+    expect(headMatch).not.toBeNull();
+    expect(tailMatch).not.toBeNull();
+    const sum = parseInt(headMatch![1], 10) + parseInt(tailMatch![1], 10);
+    expect(sum).toBeGreaterThanOrEqual(99);
+    expect(sum).toBeLessThanOrEqual(101);
+  });
+
+  test("16. Pareto indicator hides on small lists / single-partner conts", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Find a cont with very few partners. Cont 626 on QHM21 has 2 partners
+    // (verified during seeding); too few for a Pareto split to be useful.
+    const cont626Row = page.locator("li").filter({ hasText: /^626/ }).first();
+    if (!(await cont626Row.isVisible().catch(() => false))) {
+      test.skip();
+      return;
+    }
+    const badge = cont626Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    if (!(await badge.isVisible().catch(() => false))) {
+      test.skip();
+      return;
+    }
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+    await expect(
+      panel.getByText(/Atribuie.*parteneri.*la categoria:/)
+    ).toBeVisible({ timeout: 5000 });
+
+    // With <= 3 partners the indicator is intentionally hidden (no signal
+    // to extract) and there's no separator.
+    await expect(
+      panel.locator("[data-testid='pareto-indicator']")
+    ).toHaveCount(0);
+    await expect(
+      panel.locator("[data-testid='long-tail-separator']")
+    ).toHaveCount(0);
+  });
+
+  test("17. Pareto re-anchors when search narrows the list", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+    await expect(
+      panel.getByText(/Atribuie.*parteneri.*la categoria:/)
+    ).toBeVisible({ timeout: 5000 });
+
+    // Baseline indicator on full list.
+    const indicator = panel.locator("[data-testid='pareto-indicator']");
+    await expect(indicator).toBeVisible();
+    const fullText = (await indicator.innerText()).trim();
+    const fullHead = parseInt(fullText.match(/Top (\d+)/)![1], 10);
+
+    // Narrow to a single-letter search that still leaves enough partners
+    // for the Pareto split to be meaningful. "s" matches many on QHM21
+    // cont 628 (SRL suffix on most company names).
+    await panel.getByPlaceholder("Cauta partener...").fill("s");
+
+    // Indicator either updates with a smaller headCount OR disappears
+    // (if the subset drops to <= 3). Either is correct behaviour.
+    const stillVisible = await indicator.isVisible().catch(() => false);
+    if (stillVisible) {
+      const afterText = (await indicator.innerText()).trim();
+      const afterHead = parseInt(afterText.match(/Top (\d+)/)![1], 10);
+      expect(afterHead).toBeLessThanOrEqual(fullHead);
+    }
+
+    // Clean up.
+    await panel.getByPlaceholder("Cauta partener...").fill("");
+  });
 });

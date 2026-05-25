@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, useMemo } from "react";
+import { useEffect, useRef, useState, useTransition, useMemo, Fragment } from "react";
 import { X, AlertCircle, Check, Layers, Save } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import type {
 import {
   filterPartners,
   computeBulkTargets,
+  computeParetoCutoff,
   sumRulaj,
   maxRulaj,
   rulajBarPercent,
@@ -436,6 +437,19 @@ function PanelBody({
   // bar to ~100% — comparisons stay meaningful within whatever subset
   // the contabil chose.
   const visibleMaxRulaj = useMemo(() => maxRulaj(visible), [visible]);
+  // Pareto cutoff at 80% — splits visible partners into "head" (the ones
+  // that move the books) and "tail" (long-tail noise). We render a
+  // separator BETWEEN row headCount-1 and headCount so the contabil sees
+  // exactly where the tail begins.
+  const pareto = useMemo(() => computeParetoCutoff(visible, 80), [visible]);
+  // Single gate for ALL Pareto UI (indicator + separator). Small lists
+  // (<= 3 partners) don't carry enough signal to warrant a "long tail"
+  // narrative — the contabil can read them at a glance.
+  const showParetoUI =
+    visible.length > 3 &&
+    pareto.headCount > 0 &&
+    pareto.tailCount > 0 &&
+    pareto.totalRulaj > 0;
   const queryNorm = normalizeForSearch(query);
   const hasFilter = queryNorm.length > 0 || minRulaj > 0 || filter !== "all";
   const contCategoryId = account.currentMapping?.categoryId ?? null;
@@ -512,6 +526,8 @@ function PanelBody({
         active={minRulaj > 0}
       />
 
+      {showParetoUI && <ParetoIndicator pareto={pareto} />}
+
       {data.partners.length === 0 && data.unresolvedRulaj === 0 ? (
         <p
           className="text-[12px] text-gray italic"
@@ -531,16 +547,23 @@ function PanelBody({
                 : "Niciun partener nu se potriveste filtrului."}
             </li>
           ) : (
-            visible.map((partner) => (
-              <PartnerRow
-                key={partner.nameNormalized}
-                partner={partner}
-                account={account}
-                clientId={clientId}
-                categoryOptions={categoryOptions}
-                onLocalPatch={onLocalPatch}
-                maxRulaj={visibleMaxRulaj}
-              />
+            visible.map((partner, index) => (
+              <Fragment key={partner.nameNormalized}>
+                {/* Long-tail separator: appears once, AFTER the row at
+                    index pareto.headCount-1 (i.e. before the first tail
+                    row). Same showParetoUI gate as the indicator. */}
+                {showParetoUI && index === pareto.headCount && (
+                  <LongTailSeparator pareto={pareto} />
+                )}
+                <PartnerRow
+                  partner={partner}
+                  account={account}
+                  clientId={clientId}
+                  categoryOptions={categoryOptions}
+                  onLocalPatch={onLocalPatch}
+                  maxRulaj={visibleMaxRulaj}
+                />
+              </Fragment>
             ))
           )}
           {data.unresolvedRulaj > 0 &&
@@ -867,6 +890,66 @@ function ThresholdInput({
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Pareto indicator — one-line summary that tells the contabil where the
+ * weight of this cont's rulaj actually sits ("Top 3 parteneri = 86% din
+ * rulaj"). Visibility is gated by the parent's `showParetoUI` so the same
+ * rule applies here and to the long-tail separator.
+ */
+function ParetoIndicator({
+  pareto,
+}: {
+  pareto: ReturnType<typeof computeParetoCutoff>;
+}) {
+  return (
+    <div
+      className="font-mono text-[11px] text-gray tabular-nums"
+      style={{ letterSpacing: "-0.02em" }}
+      data-testid="pareto-indicator"
+    >
+      Top {pareto.headCount}{" "}
+      {pareto.headCount === 1 ? "partener" : "parteneri"} ={" "}
+      <span className="text-gray-light font-medium">{pareto.headPercent}%</span>{" "}
+      din rulaj. Restul de {pareto.tailCount} reprezinta{" "}
+      {pareto.tailPercent}% (coada lunga).
+    </div>
+  );
+}
+
+/**
+ * Long-tail separator — rendered ONCE inside the partner list, between the
+ * last "head" row and the first "tail" row. Visually breaks the list so the
+ * contabil sees where attention should drop off.
+ *
+ * Reading-friendly copy: "↓ coada lunga — N parteneri pentru X% din rulaj".
+ */
+function LongTailSeparator({
+  pareto,
+}: {
+  pareto: ReturnType<typeof computeParetoCutoff>;
+}) {
+  return (
+    <li
+      className="flex items-center gap-2 px-2 py-1 mt-2 mb-1 border-t border-dashed border-dark-3/80"
+      data-testid="long-tail-separator"
+      aria-hidden="true"
+    >
+      <span
+        className="font-mono text-[10px] uppercase tracking-wider text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        ↓ coada lunga
+      </span>
+      <span
+        className="font-mono text-[10px] text-gray tabular-nums ml-auto"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {pareto.tailCount} parteneri · {pareto.tailPercent}% din rulaj
+      </span>
+    </li>
   );
 }
 

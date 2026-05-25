@@ -3,6 +3,7 @@ import {
   filterPartners,
   computeBulkTargets,
   splitTargetsByExistence,
+  computeParetoCutoff,
   normalizeForSearch,
   sumRulaj,
   maxRulaj,
@@ -258,6 +259,88 @@ describe("maxRulaj", () => {
   it("ignores negative values (defensive — rulaj is always >= 0)", () => {
     const mixed = SAMPLE.map((p, i) => ({ ...p, rulaj: i === 0 ? -500 : p.rulaj }));
     expect(maxRulaj(mixed)).toBe(3500); // LUKOIL is now the max
+  });
+});
+
+describe("computeParetoCutoff", () => {
+  it("returns all-zero for empty list", () => {
+    const result = computeParetoCutoff([]);
+    expect(result.headCount).toBe(0);
+    expect(result.headPercent).toBe(0);
+    expect(result.tailCount).toBe(0);
+    expect(result.tailPercent).toBe(0);
+    expect(result.totalRulaj).toBe(0);
+  });
+
+  it("returns all-zero counts when total rulaj is 0", () => {
+    const zeros = SAMPLE.map((p) => ({ ...p, rulaj: 0 }));
+    const result = computeParetoCutoff(zeros);
+    expect(result.headCount).toBe(0);
+    expect(result.tailCount).toBe(5); // all 5 fall into the tail conceptually
+    expect(result.totalRulaj).toBe(0);
+  });
+
+  it("uses 80% as the default threshold", () => {
+    // SAMPLE rulaj: 4000, 3500, 1200, 800, 600. Total = 10100.
+    // 80% of 10100 = 8080. Cumulative: 4000, 7500, 8700 (crosses).
+    // So headCount = 3, headPercent = round(8700/10100*100) = 86.
+    const result = computeParetoCutoff(SAMPLE);
+    expect(result.headCount).toBe(3);
+    expect(result.headPercent).toBe(86);
+    expect(result.tailCount).toBe(2);
+    expect(result.tailPercent).toBe(14);
+    expect(result.totalRulaj).toBe(10100);
+  });
+
+  it("accepts a custom threshold", () => {
+    // 50% of 10100 = 5050. Cumulative: 4000, 7500 (crosses at 2).
+    const result = computeParetoCutoff(SAMPLE, 50);
+    expect(result.headCount).toBe(2);
+    expect(result.headPercent).toBe(74); // 7500/10100 = 74.25 → 74
+  });
+
+  it("handles 100% threshold (head = entire list)", () => {
+    const result = computeParetoCutoff(SAMPLE, 100);
+    expect(result.headCount).toBe(5);
+    expect(result.headPercent).toBe(100);
+    expect(result.tailCount).toBe(0);
+    expect(result.tailPercent).toBe(0);
+  });
+
+  it("handles single huge partner (Pareto-extreme)", () => {
+    const singleHuge: typeof SAMPLE = [
+      partner({ nameOriginal: "BIG", rulaj: 9000 }),
+      partner({ nameOriginal: "S1", rulaj: 100 }),
+      partner({ nameOriginal: "S2", rulaj: 50 }),
+    ];
+    const result = computeParetoCutoff(singleHuge);
+    // 80% of 9150 = 7320. BIG alone (9000) crosses immediately.
+    expect(result.headCount).toBe(1);
+    expect(result.headPercent).toBe(98);
+    expect(result.tailCount).toBe(2);
+  });
+
+  it("handles all-equal partners (head ~ threshold% of count)", () => {
+    const equal: typeof SAMPLE = Array.from({ length: 10 }, (_, i) =>
+      partner({ nameOriginal: `P${i}`, rulaj: 100 })
+    );
+    const result = computeParetoCutoff(equal, 80);
+    // Each partner is 10%. After 8 we reach 80% exactly.
+    expect(result.headCount).toBe(8);
+    expect(result.headPercent).toBe(80);
+    expect(result.tailCount).toBe(2);
+  });
+
+  it("handles threshold reached exactly at the last partner", () => {
+    const result = computeParetoCutoff(SAMPLE, 99);
+    // 99% of 10100 = 9999. Cumulative: 4000, 7500, 8700, 9500, 10100 (crosses last).
+    expect(result.headCount).toBe(5);
+    expect(result.tailCount).toBe(0);
+  });
+
+  it("never returns headCount > partners.length", () => {
+    const result = computeParetoCutoff(SAMPLE, 200);
+    expect(result.headCount).toBeLessThanOrEqual(SAMPLE.length);
   });
 });
 

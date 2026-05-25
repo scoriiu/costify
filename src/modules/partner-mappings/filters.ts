@@ -111,6 +111,74 @@ export function rulajBarPercent(rulaj: number, max: number): number {
 }
 
 /**
+ * Result of a Pareto cutoff computation. Splits a sorted-desc partners
+ * list into the "head" (partners that together cross a coverage threshold
+ * like 80% of total rulaj) and the "tail" (everything below). The contabil
+ * sees the head as "what matters" and the tail as "long tail noise".
+ */
+export interface ParetoCutoff {
+  /** Number of partners in the head (always >= 0; may equal partners.length
+   *  when one partner is huge or threshold is 100). */
+  headCount: number;
+  /** Percent of total rulaj covered by the head (0..100, rounded to int).
+   *  Equals the threshold OR the smallest cumulative reaching it. */
+  headPercent: number;
+  /** Number of partners in the tail. Equals partners.length - headCount. */
+  tailCount: number;
+  /** Percent of total rulaj on the tail (0..100, rounded). */
+  tailPercent: number;
+  /** Sum of rulaj across all partners — used by the UI to compute absolute
+   *  numbers without re-summing. */
+  totalRulaj: number;
+}
+
+/**
+ * Compute the Pareto cutoff: walk a SORTED-DESC partners list adding rulaj
+ * until the cumulative crosses `thresholdPercent` (default 80%). The
+ * smallest index that crosses defines the head; the rest is the tail.
+ *
+ * The caller MUST pre-sort partners by rulaj DESC; we don't sort here so
+ * the UI can pass the already-sorted aggregator output without copying.
+ *
+ * Edge cases:
+ *   - Empty list → all-zero counts.
+ *   - Zero total rulaj → all-zero counts (no signal to extract).
+ *   - One huge partner (e.g. 85% alone) → headCount=1.
+ *   - All-equal partners → head is roughly threshold% of the count.
+ */
+export function computeParetoCutoff(
+  partners: PartnerEntry[],
+  thresholdPercent: number = 80
+): ParetoCutoff {
+  const totalRulaj = sumRulaj(partners);
+  if (partners.length === 0 || totalRulaj <= 0) {
+    return {
+      headCount: 0,
+      headPercent: 0,
+      tailCount: partners.length,
+      tailPercent: 0,
+      totalRulaj: 0,
+    };
+  }
+  const targetRulaj = (thresholdPercent / 100) * totalRulaj;
+  let cumulative = 0;
+  let headCount = 0;
+  for (const p of partners) {
+    cumulative += p.rulaj;
+    headCount += 1;
+    if (cumulative >= targetRulaj) break;
+  }
+  const headPercent = Math.round((cumulative / totalRulaj) * 100);
+  return {
+    headCount,
+    headPercent,
+    tailCount: partners.length - headCount,
+    tailPercent: 100 - headPercent,
+    totalRulaj,
+  };
+}
+
+/**
  * Split a target list into two groups: partners that would be NEWLY mapped
  * (no existing override) vs. those that would be OVERWRITTEN (already have
  * a manual override). Used by the bulk preview modal so the contabil sees
