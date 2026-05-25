@@ -406,6 +406,11 @@ function PanelBody({
 }) {
   const [filter, setFilter] = useState<PartnerFilter>("all");
   const [query, setQuery] = useState("");
+  // Materialitate threshold (Claudia's tool): hide partners under X lei
+  // rulaj. State holds the raw string so the contabil can clear it without
+  // the input snapping back to "0". Empty string → no threshold.
+  const [minRulajInput, setMinRulajInput] = useState("");
+  const minRulaj = parseRulajInput(minRulajInput);
 
   const overridden = data.partners.filter((p) => p.override !== null);
   const overriddenRulaj = sumRulaj(overridden);
@@ -417,14 +422,15 @@ function PanelBody({
   // would write. Memoized so the bulk bar's count doesn't flicker on
   // unrelated re-renders.
   const visible = useMemo(
-    () => filterPartners(data.partners, filter, query),
-    [data.partners, filter, query]
+    () => filterPartners(data.partners, filter, query, minRulaj),
+    [data.partners, filter, query, minRulaj]
   );
   const bulkTargets = useMemo(
-    () => computeBulkTargets(data.partners, filter, query),
-    [data.partners, filter, query]
+    () => computeBulkTargets(data.partners, filter, query, { minRulaj }),
+    [data.partners, filter, query, minRulaj]
   );
   const queryNorm = normalizeForSearch(query);
+  const hasFilter = queryNorm.length > 0 || minRulaj > 0 || filter !== "all";
 
   const [showBulk, setShowBulk] = useState(false);
 
@@ -461,8 +467,7 @@ function PanelBody({
           account={account}
           clientId={clientId}
           targets={bulkTargets}
-          filter={filter}
-          hasSearch={queryNorm.length > 0}
+          isSubset={hasFilter}
           categoryOptions={categoryOptions}
           onSaved={onBulkSaved}
           onCancel={() => setShowBulk(false)}
@@ -502,6 +507,14 @@ function PanelBody({
         />
       </div>
 
+      <ThresholdInput
+        value={minRulajInput}
+        onChange={setMinRulajInput}
+        visibleCount={visible.length}
+        totalCount={data.partners.length}
+        active={minRulaj > 0}
+      />
+
       {data.partners.length === 0 && data.unresolvedRulaj === 0 ? (
         <p
           className="text-[12px] text-gray italic"
@@ -516,7 +529,9 @@ function PanelBody({
               className="text-[12px] text-gray italic px-2 py-3"
               style={{ letterSpacing: "-0.02em" }}
             >
-              Niciun partener nu se potriveste filtrului.
+              {minRulaj > 0
+                ? `Niciun partener nu trece pragul de ${formatRon(minRulaj)} lei.`
+                : "Niciun partener nu se potriveste filtrului."}
             </li>
           ) : (
             visible.map((partner) => (
@@ -530,9 +545,10 @@ function PanelBody({
               />
             ))
           )}
-          {data.unresolvedRulaj > 0 && filter === "all" && !queryNorm && (
-            <UnresolvedRow rulaj={data.unresolvedRulaj} />
-          )}
+          {data.unresolvedRulaj > 0 &&
+            filter === "all" &&
+            !queryNorm &&
+            minRulaj === 0 && <UnresolvedRow rulaj={data.unresolvedRulaj} />}
         </ul>
       )}
     </div>
@@ -557,8 +573,7 @@ function BulkActionBar({
   account,
   clientId,
   targets,
-  filter,
-  hasSearch,
+  isSubset,
   categoryOptions,
   onSaved,
   onCancel,
@@ -566,12 +581,13 @@ function BulkActionBar({
   account: AccountListItem;
   clientId: string;
   /** Partners that bulk will actually write — already filtered by the
-   *  parent's toggle + search AND with existing overrides excluded. */
+   *  parent's toggle + search + threshold AND with existing overrides
+   *  excluded. */
   targets: PartnerEntry[];
-  /** Current filter toggle, used only for the header label phrasing. */
-  filter: PartnerFilter;
-  /** True if the search box has any non-empty query. Drives label phrasing. */
-  hasSearch: boolean;
+  /** True if any filter is active (toggle != 'all', search non-empty, or
+   *  threshold > 0). Drives the "rezultatul curent" phrasing so the
+   *  contabil knows they're acting on a SUBSET, not on every partner. */
+  isSubset: boolean;
   categoryOptions: { value: string; label: string }[];
   onSaved: () => Promise<void> | void;
   onCancel: () => void;
@@ -586,10 +602,6 @@ function BulkActionBar({
   const targetLabel =
     categoryOptions.find((o) => o.value === categoryId)?.label ?? "";
 
-  // Honest label: when a filter or search is active, say "rezultatul curent"
-  // so the contabil knows bulk acts on the visible subset, not on every
-  // partner on the cont. When nothing's filtered, just say the count.
-  const isSubset = hasSearch || filter !== "all";
   const headerLabel = isSubset
     ? `Redirectioneaza ${targetCount} din rezultatul curent (${formatRon(targetRulaj)} lei)`
     : `Redirectioneaza ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei)`;
@@ -739,6 +751,95 @@ function BulkPreviewModal({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Materialitate threshold input — Claudia's tool for cutting the long tail.
+ * Renders a small numeric input ("Peste ___ lei") plus three preset chips
+ * (1000 / 5000 / 10000) for one-click application. When active, the row
+ * shows how many partners survived the cutoff so the contabil sees the
+ * impact immediately.
+ *
+ * The state lives in the parent (PanelBody) as a raw string so clearing
+ * the input doesn't snap back to "0".
+ */
+function ThresholdInput({
+  value,
+  onChange,
+  visibleCount,
+  totalCount,
+  active,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  visibleCount: number;
+  totalCount: number;
+  active: boolean;
+}) {
+  // Whitelist digits + dot/comma (Romanian decimal separator), block
+  // everything else. Empty string is the cleared state.
+  function onInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value.replace(/[^0-9.,]/g, "");
+    onChange(next);
+  }
+  const PRESETS = [1000, 5000, 10000];
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <label
+        className="font-mono text-[10px] uppercase tracking-wider text-gray shrink-0"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Peste
+      </label>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={onInput}
+        placeholder="0"
+        className="w-24 h-9 rounded-[10px] border border-dark-3 bg-dark-2 px-3 font-mono text-sm text-white tabular-nums placeholder:text-gray focus:outline-none focus:border-primary"
+        aria-label="Filtreaza parteneri peste pragul de rulaj (lei)"
+      />
+      <span
+        className="font-mono text-[10px] uppercase tracking-wider text-gray shrink-0"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        lei
+      </span>
+      <div className="flex items-center gap-1.5">
+        {PRESETS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onChange(String(p))}
+            className="font-mono text-[11px] tabular-nums px-2 py-1 rounded-md border border-dark-3 text-gray-light hover:bg-dark-3/40 hover:text-white transition-colors"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {formatRon(p)}
+          </button>
+        ))}
+        {active && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="font-mono text-[11px] uppercase tracking-wider px-2 py-1 text-gray hover:text-white"
+            style={{ letterSpacing: "-0.02em" }}
+            aria-label="Sterge pragul de rulaj"
+          >
+            Sterge
+          </button>
+        )}
+      </div>
+      {active && (
+        <span
+          className="font-mono text-[11px] text-gray-light tabular-nums ml-auto"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {visibleCount} din {totalCount}
+        </span>
+      )}
     </div>
   );
 }
@@ -1119,6 +1220,18 @@ const RON = new Intl.NumberFormat("ro-RO", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
+
+/**
+ * Parse the raw threshold input — accepts both "1000.5" and "1000,5" so the
+ * contabil can type in Romanian. Empty string or junk returns 0 (no
+ * threshold active).
+ */
+function parseRulajInput(raw: string): number {
+  const cleaned = raw.replace(",", ".").trim();
+  if (!cleaned) return 0;
+  const n = Number(cleaned);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 
 function formatRon(value: number): string {
   if (value === 0) return "0";

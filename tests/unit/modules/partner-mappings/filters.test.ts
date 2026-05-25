@@ -103,6 +103,58 @@ describe("filterPartners", () => {
   it("returns empty for a search that matches nothing", () => {
     expect(filterPartners(SAMPLE, "all", "zzznonexistent")).toHaveLength(0);
   });
+
+  describe("minRulaj threshold (materialitate)", () => {
+    it("drops partners below the threshold", () => {
+      // SAMPLE rulaj values: 4000, 3500, 1200, 800, 600.
+      // Threshold 1000 keeps the first three.
+      const result = filterPartners(SAMPLE, "all", "", 1000);
+      expect(result).toHaveLength(3);
+      expect(result.map((p) => p.rulaj)).toEqual([4000, 3500, 1200]);
+    });
+
+    it("uses >= semantics (boundary is kept)", () => {
+      // Threshold exactly at 1200 keeps MOL ROMANIA (which has rulaj=1200).
+      const result = filterPartners(SAMPLE, "all", "", 1200);
+      expect(result.map((p) => p.nameOriginal)).toContain("MOL ROMANIA SRL");
+    });
+
+    it("threshold of 0 is a no-op (default behaviour)", () => {
+      expect(filterPartners(SAMPLE, "all", "", 0)).toHaveLength(5);
+    });
+
+    it("negative or undefined threshold is treated as 0", () => {
+      // The function signature treats minRulaj=0 as no-op; passing nothing
+      // also yields all 5.
+      expect(filterPartners(SAMPLE, "all", "")).toHaveLength(5);
+    });
+
+    it("threshold higher than all rulaj returns empty", () => {
+      expect(filterPartners(SAMPLE, "all", "", 999999)).toHaveLength(0);
+    });
+
+    it("combines with toggle: top10 + threshold", () => {
+      // top10 keeps all 5; threshold 1000 drops 2.
+      expect(filterPartners(SAMPLE, "top10", "", 1000)).toHaveLength(3);
+    });
+
+    it("combines with search: 'rom' + threshold 1000", () => {
+      // 'rom' matches PETROM (4000), ROMANIA (1200), ROMPETROL (600).
+      // Threshold 1000 drops ROMPETROL.
+      const result = filterPartners(SAMPLE, "all", "rom", 1000);
+      expect(result).toHaveLength(2);
+      expect(result.map((p) => p.nameOriginal).sort()).toEqual([
+        "MOL ROMANIA SRL",
+        "OMV PETROM SRL",
+      ]);
+    });
+
+    it("combines with toggle 'unmapped' + threshold", () => {
+      // 'unmapped' drops PETROM (it has an override) → leaves LUKOIL (3500),
+      // MOL (1200), Tiriac (800), ROMPETROL (600). Threshold 1000 keeps two.
+      expect(filterPartners(SAMPLE, "unmapped", "", 1000)).toHaveLength(2);
+    });
+  });
 });
 
 describe("computeBulkTargets", () => {
@@ -147,6 +199,33 @@ describe("computeBulkTargets", () => {
   it("returns empty when filter='unmapped' AND all visible already overridden", () => {
     const allOverridden = SAMPLE.map((p) => ({ ...p, override: row() }));
     expect(computeBulkTargets(allOverridden, "all", "")).toHaveLength(0);
+  });
+
+  describe("minRulaj option", () => {
+    it("threshold drops below-threshold partners from bulk targets", () => {
+      // 4 unmapped, threshold 1000 keeps LUKOIL (3500), MOL (1200).
+      const targets = computeBulkTargets(SAMPLE, "all", "", { minRulaj: 1000 });
+      expect(targets).toHaveLength(2);
+      expect(targets.map((p) => p.nameOriginal).sort()).toEqual([
+        "LUKOIL",
+        "MOL ROMANIA SRL",
+      ]);
+    });
+
+    it("threshold combines with includeOverridden=true", () => {
+      const targets = computeBulkTargets(SAMPLE, "all", "", {
+        minRulaj: 1000,
+        includeOverridden: true,
+      });
+      // PETROM (overridden, 4000) + LUKOIL (3500) + MOL (1200) = 3.
+      expect(targets).toHaveLength(3);
+    });
+
+    it("threshold 0 behaves identically to no threshold", () => {
+      const a = computeBulkTargets(SAMPLE, "all", "");
+      const b = computeBulkTargets(SAMPLE, "all", "", { minRulaj: 0 });
+      expect(a.length).toBe(b.length);
+    });
   });
 });
 

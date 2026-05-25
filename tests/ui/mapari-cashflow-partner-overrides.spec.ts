@@ -453,4 +453,122 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
       })
     ).toBeVisible();
   });
+
+  test("11. Threshold (Peste X lei) filters list and bulk scope", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Open the partner panel on cont 628 (40 partners with varied rulaj).
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+
+    // Baseline: full unmapped count.
+    const optInLink = panel.getByRole("button", {
+      name: /Redirectioneaza in bulk \d+ parten/,
+    });
+    const fullText = (await optInLink.innerText()).trim();
+    const fullCount = parseInt(fullText.match(/(\d+) parten/)![1], 10);
+    expect(fullCount).toBeGreaterThan(2);
+
+    // Click the 5,000 preset chip — fast path to "materialitate".
+    const presetChip = panel.getByRole("button", { name: /^5\.000$/ });
+    await expect(presetChip).toBeVisible();
+    await presetChip.click();
+
+    // The threshold input now reads "5000" and the impact counter is
+    // visible ("N din 40" or similar).
+    const thresholdInput = panel.getByLabel(/peste pragul de rulaj/i);
+    await expect(thresholdInput).toHaveValue("5000");
+    await expect(panel.getByText(/\d+ din \d+/)).toBeVisible();
+
+    // Bulk count must have shrunk (or stayed equal if every partner is
+    // already over the threshold — unlikely with 40 partners on QHM21
+    // cont 628 where most are small).
+    const afterText = (await optInLink.innerText()).trim();
+    const afterCount = parseInt(afterText.match(/(\d+) parten/)![1], 10);
+    expect(afterCount).toBeLessThan(fullCount);
+
+    // "Sterge" button appears now that the threshold is active. Click it
+    // and verify everything reverts.
+    const clearBtn = panel.getByRole("button", { name: /Sterge pragul de rulaj/ });
+    await expect(clearBtn).toBeVisible();
+    await clearBtn.click();
+    await expect(thresholdInput).toHaveValue("");
+    await expect(
+      panel.getByRole("button", {
+        name: new RegExp(`Redirectioneaza in bulk ${fullCount} parten`),
+      })
+    ).toBeVisible();
+
+    // Type a wildly high value to verify the empty-state copy is
+    // threshold-specific.
+    await thresholdInput.fill("999999999");
+    await expect(
+      panel.getByText(/Niciun partener nu trece pragul de/)
+    ).toBeVisible();
+    await clearBtn.click();
+  });
+
+  test("12. Threshold + search combine — bulk preview reflects both", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+
+    // Set threshold 1000 + search 'rom' (matches ORANGE ROMANIA, OMV
+    // PETROM, ALTEX ROMANIA, ROMPETROL — only some clear the threshold).
+    await panel.getByRole("button", { name: /^1\.000$/ }).click();
+    await panel.getByPlaceholder("Cauta partener...").fill("rom");
+
+    // Bulk opt-in link reflects the combined filter.
+    const optInLink = panel.getByRole("button", {
+      name: /Redirectioneaza in bulk \d+ parten/,
+    });
+    await expect(optInLink).toBeVisible();
+    const combinedText = (await optInLink.innerText()).trim();
+    const combinedCount = parseInt(combinedText.match(/(\d+) parten/)![1], 10);
+    expect(combinedCount).toBeGreaterThan(0);
+
+    // Open bulk and confirm the header says "din rezultatul curent" (a
+    // filter is active — either search or threshold qualifies).
+    await optInLink.click();
+    await expect(
+      panel.getByText(/Redirectioneaza \d+ din rezultatul curent/)
+    ).toBeVisible();
+
+    // Pick first category, open preview, confirm the qualifier appears.
+    const bulkSelectTrigger = panel.locator("button[aria-haspopup='listbox']").first();
+    await bulkSelectTrigger.click();
+    const listbox = page.locator("[role='listbox']");
+    await listbox.locator("button[role='option']").first().click();
+    await panel.getByRole("button", { name: "Aplica" }).click();
+    await expect(page.getByText(/rezultatul filtrului curent/)).toBeVisible();
+
+    // Cancel everything — no DB writes.
+    await page.getByRole("button", { name: "Anuleaza" }).click();
+    await panel.getByRole("button", { name: "Renunta" }).click();
+  });
 });

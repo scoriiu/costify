@@ -26,18 +26,30 @@ export function normalizeForSearch(input: string): string {
 }
 
 /**
- * Apply the toggle filter + search box to a partners list. Returns rows in
- * the same order as the input (Top10 is a prefix slice on the already-sorted
- * input array). Used for the rendered list AND as the base for bulk targets.
+ * Apply the toggle filter + search box + minRulaj threshold to a partners
+ * list. Returns rows in the same order as the input (Top10 is a prefix
+ * slice on the already-sorted input array). Used for the rendered list AND
+ * as the base for bulk targets, so they can't drift apart.
+ *
+ * Filter ORDER matters:
+ *   1. Toggle (Toti / Fara exceptie / Top10) — drops by category state.
+ *   2. minRulaj — drops below-threshold partners (materialitate cutoff).
+ *   3. Search — drops by name match.
+ *
+ * The Top10 toggle is applied BEFORE the threshold so "Top10 + peste 5000"
+ * means "of the top 10 by rulaj, those over 5000 lei". This is the
+ * intuitive reading — "top 10 mari, dar doar cele peste pragul X".
  */
 export function filterPartners(
   partners: PartnerEntry[],
   filter: PartnerFilter,
-  query: string
+  query: string,
+  minRulaj: number = 0
 ): PartnerEntry[] {
   let xs = partners;
   if (filter === "unmapped") xs = xs.filter((p) => p.override === null);
   else if (filter === "top10") xs = xs.slice(0, 10);
+  if (minRulaj > 0) xs = xs.filter((p) => p.rulaj >= minRulaj);
   const q = normalizeForSearch(query);
   if (q) {
     xs = xs.filter((p) => normalizeForSearch(p.nameOriginal).includes(q));
@@ -59,9 +71,9 @@ export function computeBulkTargets(
   partners: PartnerEntry[],
   filter: PartnerFilter,
   query: string,
-  options: { includeOverridden?: boolean } = {}
+  options: { includeOverridden?: boolean; minRulaj?: number } = {}
 ): PartnerEntry[] {
-  const visible = filterPartners(partners, filter, query);
+  const visible = filterPartners(partners, filter, query, options.minRulaj ?? 0);
   if (options.includeOverridden) return visible;
   return visible.filter((p) => p.override === null);
 }
