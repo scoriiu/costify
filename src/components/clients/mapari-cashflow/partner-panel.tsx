@@ -778,13 +778,22 @@ function PartnerRow({
   // The cont's actual category is shown once in the panel header and
   // doesn't need to be repeated 6 times in a list of 6 partners on
   // default. Less noise, same information.
-  const options = useMemo(
-    () => [
+  //
+  // Also: filter out the cont's mapped category from the leaf list so
+  // we don't show two entries that route the partner to the same place
+  // ("Urmeaza contul" + the literal category name). Both have the same
+  // outcome but one keeps a stale override row in the DB; collapsing
+  // to one entry = one decision, cleaner state.
+  const contDefaultCategoryId = account.currentMapping?.categoryId ?? null;
+  const options = useMemo(() => {
+    const leaves = contDefaultCategoryId
+      ? categoryOptions.filter((o) => o.value !== contDefaultCategoryId)
+      : categoryOptions;
+    return [
       { value: DEFAULT_OPTION_VALUE, label: "Urmeaza contul" },
-      ...categoryOptions,
-    ],
-    [categoryOptions]
-  );
+      ...leaves,
+    ];
+  }, [categoryOptions, contDefaultCategoryId]);
 
   function pick(newValue: string) {
     if (newValue === currentValue) return;

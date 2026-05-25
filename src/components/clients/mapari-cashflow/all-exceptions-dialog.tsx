@@ -245,6 +245,7 @@ export function AllExceptionsDialog({
                         row={row}
                         clientId={clientId}
                         contDenumire={contDenumireByBase.get(row.contBase) ?? ""}
+                        contDefaultCategoryId={contDefaultCategoryId ?? null}
                         contDefaultCategoryName={contDefaultCategoryName}
                         categoryOptions={
                           row.contKind === "expense"
@@ -285,6 +286,7 @@ function ExceptionRow({
   row,
   clientId,
   contDenumire,
+  contDefaultCategoryId,
   contDefaultCategoryName,
   categoryOptions,
   onMutated,
@@ -292,6 +294,13 @@ function ExceptionRow({
   row: AllExceptionsRow;
   clientId: string;
   contDenumire: string;
+  /** Id of the category the cont itself maps to. Used to FILTER it out
+   *  of the leaf list — we don't want a duplicate entry where the same
+   *  category appears once as "Urmeaza contul (X)" and again as "X"
+   *  in the leaf list. Both would do the same thing semantically (the
+   *  partner ends up in X), but one keeps an explicit override row in
+   *  the DB while the other deletes it. Cleaner UI = one entry. */
+  contDefaultCategoryId: string | null;
   /** Name of the category the cont itself maps to. Used as the label of
    *  the synthetic "Urmeaza contul" option so the contabil knows EXACTLY
    *  what category the exception reverts to. Null = the cont has no
@@ -311,18 +320,26 @@ function ExceptionRow({
   // slide-panel UX. The literal value is not a real categoryId; the
   // change handler intercepts it and calls deletePartnerOverrideAction
   // instead of upsertPartnerOverrideAction.
-  const optionsWithDefault = useMemo(
-    () => [
+  //
+  // We also FILTER OUT the cont's default category from the leaf list
+  // so the contabil doesn't see two entries for the same target (one
+  // labelled "Urmeaza contul (X)" and another just "X"). Both would
+  // route the partner to X, but the synthetic one deletes the override
+  // (cleaner DB state). One entry = one decision.
+  const optionsWithDefault = useMemo(() => {
+    const leaves = contDefaultCategoryId
+      ? categoryOptions.filter((o) => o.value !== contDefaultCategoryId)
+      : categoryOptions;
+    return [
       {
         value: DELETE_SENTINEL,
         label: contDefaultCategoryName
           ? `Urmeaza contul (${contDefaultCategoryName})`
           : "Urmeaza contul (sterge exceptia)",
       },
-      ...categoryOptions,
-    ],
-    [categoryOptions, contDefaultCategoryName]
-  );
+      ...leaves,
+    ];
+  }, [categoryOptions, contDefaultCategoryId, contDefaultCategoryName]);
 
   function changeCategory(newCategoryId: string) {
     if (newCategoryId === row.categoryId) return;
