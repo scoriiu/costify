@@ -432,6 +432,14 @@ function PanelBody({
     () => computeBulkTargets(data.partners, filter, query, { minRulaj }),
     [data.partners, filter, query, minRulaj]
   );
+  // Partners in scope (matching the filter chain) that ALREADY have a
+  // manual override — the potential overwrite set. The preview modal
+  // shows this so the contabil knows how many exceptions exist and
+  // explicitly chooses whether to preserve or overwrite them.
+  const overriddenInScope = useMemo(
+    () => visible.filter((p) => p.override !== null),
+    [visible]
+  );
   // Bar widths scale to the LARGEST visible partner, not absolute max.
   // That way applying "Peste 5.000 lei" doesn't collapse every remaining
   // bar to ~100% — comparisons stay meaningful within whatever subset
@@ -477,6 +485,7 @@ function PanelBody({
           account={account}
           clientId={clientId}
           targets={bulkTargets}
+          overriddenInScope={overriddenInScope}
           isSubset={hasFilter}
           categoryOptions={categoryOptions}
           contCategoryId={contCategoryId}
@@ -601,6 +610,7 @@ function BulkActionBar({
   account,
   clientId,
   targets,
+  overriddenInScope,
   isSubset,
   categoryOptions,
   contCategoryId,
@@ -609,10 +619,14 @@ function BulkActionBar({
 }: {
   account: AccountListItem;
   clientId: string;
-  /** Partners that bulk will actually write — already filtered by the
-   *  parent's toggle + search + threshold AND with existing overrides
+  /** Partners that bulk will actually write IN SKIP MODE — already filtered
+   *  by the parent's toggle + search + threshold AND with existing overrides
    *  excluded. */
   targets: PartnerEntry[];
+  /** Partners matching the same filter chain that already have a manual
+   *  override. Surfaced in the preview modal so the contabil sees how many
+   *  exceptions exist and explicitly opts in to overwrite them. */
+  overriddenInScope: PartnerEntry[];
   /** True if any filter is active (toggle != 'all', search non-empty, or
    *  threshold > 0). Drives the "rezultatul curent" phrasing so the
    *  contabil knows they're acting on a SUBSET, not on every partner. */
@@ -656,15 +670,26 @@ function BulkActionBar({
     ? `Atribuie cei ${targetCount} parteneri din rezultatul curent (${formatRon(targetRulaj)} lei) la categoria:`
     : `Atribuie toti cei ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei) la categoria:`;
 
-  function runBulk() {
+  /**
+   * `overwriteMode=false` (default): only fresh targets are written; partners
+   * that already have a manual override are kept untouched.
+   * `overwriteMode=true`: the FULL scope is written — targets + overridden —
+   * existing overrides are replaced with the new categoryId.
+   */
+  function runBulk(overwriteMode: boolean) {
     setError(null);
+    const partners = overwriteMode
+      ? [...targets, ...overriddenInScope].map((p) => ({
+          nameOriginal: p.nameOriginal,
+        }))
+      : targets.map((p) => ({ nameOriginal: p.nameOriginal }));
     startTransition(async () => {
       const res = await bulkApplyPartnerOverridesAction({
         clientId,
         contBase: account.contBase,
         categoryId,
-        partners: targets.map((p) => ({ nameOriginal: p.nameOriginal })),
-        skipExistingOverrides: true,
+        partners,
+        skipExistingOverrides: !overwriteMode,
         // Per-row saves go through the optimistic path and skip Next.js
         // revalidation; defer to panel close so the page doesn't flash.
         skipRevalidate: true,
@@ -730,10 +755,14 @@ function BulkActionBar({
 
       {showPreview && (
         <BulkPreviewModal
-          targetCount={targetCount}
-          targetRulaj={targetRulaj}
+          freshCount={targetCount}
+          freshRulaj={targetRulaj}
+          overwriteCount={overriddenInScope.length}
+          overwriteRulaj={sumRulaj(overriddenInScope)}
           categoryLabel={targetLabel}
           isSubset={isSubset}
+          selectedCategoryId={categoryId}
+          contCategoryId={contCategoryId}
           onConfirm={runBulk}
           onCancel={() => setShowPreview(false)}
           pending={pending}
@@ -743,23 +772,70 @@ function BulkActionBar({
   );
 }
 
+/**
+ * Bulk preview modal — the contract surface between contabil and database.
+ *
+ * Shows EXACTLY what will happen before any write:
+ *   - How many partners will get a fresh override (count + lei).
+ *   - How many partners already have a manual exception (count + lei).
+ *   - Whether those existing exceptions will be preserved or overwritten —
+ *     contabil chooses explicitly via a toggle. Default is preserve.
+ *   - Whether the action is scoped by an active filter or covers everything.
+ *
+ * The button label reflects the choice ("Aplica" in skip mode, "Aplica si
+ * suprascrie M exceptii" in overwrite mode) so there is no ambiguity at
+ * the click.
+ */
 function BulkPreviewModal({
-  targetCount,
-  targetRulaj,
+  freshCount,
+  freshRulaj,
+  overwriteCount,
+  overwriteRulaj,
   categoryLabel,
   isSubset,
+  selectedCategoryId,
+  contCategoryId,
   onConfirm,
   onCancel,
   pending,
 }: {
-  targetCount: number;
-  targetRulaj: number;
+  /** Partners with NO existing override — will get a fresh exception. */
+  freshCount: number;
+  freshRulaj: number;
+  /** Partners already overridden — preserved or overwritten depending on
+   *  the contabil's choice. */
+  overwriteCount: number;
+  overwriteRulaj: number;
   categoryLabel: string;
   isSubset: boolean;
-  onConfirm: () => void;
+  /** When the contabil picked the cont's default category, overwrite mode
+   *  would just produce garbage rows that mirror the cont default. Disable
+   *  the toggle in that case. */
+  selectedCategoryId: string;
+  contCategoryId: string | null;
+  onConfirm: (overwriteMode: boolean) => void;
   onCancel: () => void;
   pending: boolean;
 }) {
+  const [overwriteMode, setOverwriteMode] = useState(false);
+  const overwriteDisabled = selectedCategoryId === contCategoryId;
+  // If the toggle is disabled, force the mode off so confirm never lies
+  // about what it will do.
+  const effectiveOverwrite = overwriteMode && !overwriteDisabled;
+
+  const totalCount = effectiveOverwrite
+    ? freshCount + overwriteCount
+    : freshCount;
+  const totalRulaj = effectiveOverwrite
+    ? freshRulaj + overwriteRulaj
+    : freshRulaj;
+
+  const buttonLabel = pending
+    ? "Se aplica..."
+    : effectiveOverwrite && overwriteCount > 0
+      ? `Aplica si suprascrie ${overwriteCount} exceptii`
+      : "Aplica";
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div
@@ -774,29 +850,117 @@ function BulkPreviewModal({
         >
           Confirma maparea in bulk
         </h3>
+
+        {/* HEADLINE: totals (count + lei + category) */}
         <p
           className="text-[13px] text-gray-light mb-3"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Se vor mapa <strong className="text-white">{targetCount}</strong>{" "}
-          {targetCount === 1 ? "partener" : "parteneri"}{" "}
-          ({formatRon(targetRulaj)} lei) la categoria{" "}
+          Se vor mapa <strong className="text-white">{totalCount}</strong>{" "}
+          {totalCount === 1 ? "partener" : "parteneri"} (
+          <span className="font-mono tabular-nums">
+            {formatRon(totalRulaj)} lei
+          </span>
+          ) la categoria{" "}
           <strong className="text-white">{categoryLabel}</strong>
           {isSubset ? " (rezultatul filtrului curent)" : ""}.
         </p>
-        <p
-          className="text-[12px] text-gray mb-5"
+
+        {/* BREAKDOWN: fresh vs existing exceptions */}
+        <ul
+          className="text-[12px] text-gray-light mb-4 space-y-1.5 border-l-2 border-dark-3 pl-3"
           style={{ letterSpacing: "-0.02em" }}
+          data-testid="bulk-preview-breakdown"
         >
-          Partenerii care au deja o categorie manuala vor fi pastrati ca
-          exceptii — nu sunt suprascrisi.
-        </p>
+          {freshCount > 0 && (
+            <li>
+              <span className="font-mono tabular-nums text-white">
+                {freshCount}
+              </span>{" "}
+              {freshCount === 1
+                ? "partener primeste o exceptie noua"
+                : "parteneri primesc o exceptie noua"}{" "}
+              (
+              <span className="font-mono tabular-nums">
+                {formatRon(freshRulaj)} lei
+              </span>
+              )
+            </li>
+          )}
+          <li>
+            <span className="font-mono tabular-nums text-white">
+              {overwriteCount}
+            </span>{" "}
+            {overwriteCount === 1
+              ? "exceptie manuala existenta in scope"
+              : "exceptii manuale existente in scope"}
+            {overwriteCount > 0 && (
+              <>
+                {" "}
+                (
+                <span className="font-mono tabular-nums">
+                  {formatRon(overwriteRulaj)} lei
+                </span>
+                ) —{" "}
+                <span
+                  className={
+                    effectiveOverwrite ? "text-tone-warn" : "text-gray"
+                  }
+                >
+                  {effectiveOverwrite ? "vor fi SUPRASCRISE" : "nimic suprascris"}
+                </span>
+              </>
+            )}
+            {overwriteCount === 0 && (
+              <span className="text-gray"> (nimic suprascris)</span>
+            )}
+          </li>
+        </ul>
+
+        {/* OPTIONAL TOGGLE: only when there's something to overwrite */}
+        {overwriteCount > 0 && (
+          <label
+            className={`flex items-start gap-2 text-[12px] mb-4 ${
+              overwriteDisabled
+                ? "text-gray cursor-not-allowed"
+                : "text-gray-light cursor-pointer"
+            }`}
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <input
+              type="checkbox"
+              checked={overwriteMode && !overwriteDisabled}
+              disabled={overwriteDisabled || pending}
+              onChange={(e) => setOverwriteMode(e.target.checked)}
+              className="mt-0.5 shrink-0"
+              data-testid="bulk-preview-overwrite-toggle"
+            />
+            <span>
+              Suprascrie cele {overwriteCount}{" "}
+              {overwriteCount === 1
+                ? "exceptie manuala existenta"
+                : "exceptii manuale existente"}{" "}
+              cu categoria selectata.
+              {overwriteDisabled && (
+                <span className="block text-[11px] text-gray mt-0.5">
+                  Suprascrierea cu default-ul contului ar crea exceptii
+                  redundante — alege alta categorie pentru a activa.
+                </span>
+              )}
+            </span>
+          </label>
+        )}
+
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={pending}>
             Anuleaza
           </Button>
-          <Button variant="primary" onClick={onConfirm} disabled={pending}>
-            {pending ? "Se aplica..." : "Aplica"}
+          <Button
+            variant="primary"
+            onClick={() => onConfirm(effectiveOverwrite)}
+            disabled={pending || totalCount === 0}
+          >
+            {buttonLabel}
           </Button>
         </div>
       </div>
