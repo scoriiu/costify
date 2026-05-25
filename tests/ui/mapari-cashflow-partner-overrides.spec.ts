@@ -364,4 +364,93 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await dialog.getByRole("button", { name: /Salveaza/ }).first().click();
     await expect(firstTrigger).toContainText(originalLabel);
   });
+
+  test("10. Bulk respects the search filter — acts on visible subset, not on every partner", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Cont 628 on QHM21 has ~40 partners — plenty to demonstrate that the
+    // bulk action shrinks when the search box narrows the visible list.
+    const cont628Row = page.locator("li").filter({ hasText: /^628/ }).first();
+    await expect(cont628Row).toBeVisible();
+    const badge = cont628Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog", { name: /Parteneri pe contul/ });
+    await expect(panel).toBeVisible();
+
+    // The opt-in link starts with the full unmapped count. Grab it for
+    // later comparison.
+    const optInLink = panel.getByRole("button", {
+      name: /Redirectioneaza in bulk \d+ parten/,
+    });
+    await expect(optInLink).toBeVisible();
+    const fullCountText = (await optInLink.innerText()).trim();
+    const fullCountMatch = fullCountText.match(/Redirectioneaza in bulk (\d+) parten/);
+    expect(fullCountMatch).not.toBeNull();
+    const fullCount = parseInt(fullCountMatch![1], 10);
+    expect(fullCount).toBeGreaterThan(2);
+
+    // Type a search query that narrows the list. "google" matches just one
+    // partner on cont 628 (GOOGLE IRELAND LIMITED).
+    const search = panel.getByPlaceholder("Cauta partener...");
+    await search.fill("google");
+
+    // The opt-in link now reflects the SUBSET count (1, not full).
+    await expect(
+      panel.getByRole("button", { name: /Redirectioneaza in bulk 1 partener/ })
+    ).toBeVisible();
+
+    // Open the bulk bar. Its header must say "rezultatul curent" because a
+    // filter is active — that's the honest phrasing.
+    await panel
+      .getByRole("button", { name: /Redirectioneaza in bulk 1 partener/ })
+      .click();
+    await expect(panel.getByText(/Redirectioneaza 1 din rezultatul curent/)).toBeVisible();
+
+    // Pick the first available category and click Aplica to inspect the
+    // preview modal. We DO NOT confirm — just verify the preview text and
+    // cancel, so the test stays idempotent.
+    const bulkSelectTrigger = panel.locator("button[aria-haspopup='listbox']").first();
+    await bulkSelectTrigger.click();
+    const listbox = page.locator("[role='listbox']");
+    await expect(listbox).toBeVisible();
+    const firstOption = listbox.locator("button[role='option']").first();
+    const pickedLabel = (await firstOption.innerText()).trim();
+    await firstOption.click();
+
+    await panel.getByRole("button", { name: "Aplica" }).click();
+
+    // Preview modal opens. It must say "1 partener" (not plural) AND
+    // include the "rezultatul filtrului curent" qualifier.
+    await expect(
+      page.getByText(/Se vor mapa.*1.*partener.*la categoria/)
+    ).toBeVisible();
+    await expect(page.getByText(/rezultatul filtrului curent/)).toBeVisible();
+    // Inside the modal, the picked category label must appear inside the
+    // sentence "la categoria <label>" — assert on the modal's content area.
+    const modalBody = page.getByText(/Se vor mapa/).locator("..");
+    await expect(
+      modalBody.getByText(new RegExp(pickedLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+    ).toBeVisible();
+
+    // Cancel the modal AND close the bulk bar — no DB writes.
+    await page.getByRole("button", { name: "Anuleaza" }).click();
+    await panel.getByRole("button", { name: "Renunta" }).click();
+
+    // Clear the search; the opt-in link returns to the full count.
+    await search.fill("");
+    await expect(
+      panel.getByRole("button", {
+        name: new RegExp(`Redirectioneaza in bulk ${fullCount} parten`),
+      })
+    ).toBeVisible();
+  });
 });

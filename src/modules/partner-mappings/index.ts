@@ -40,3 +40,13 @@ export type {
   PartnerOverrideSource,
   PartnerEntry,
 } from "./types";
+
+// Pure UI-side filter helpers — safe to import from client components.
+export {
+  filterPartners,
+  computeBulkTargets,
+  splitTargetsByExistence,
+  normalizeForSearch,
+  sumRulaj,
+  type PartnerFilter,
+} from "./filters";

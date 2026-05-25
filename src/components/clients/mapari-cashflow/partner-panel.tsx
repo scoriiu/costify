@@ -19,7 +19,14 @@ import type {
   CostCategoryNode,
   AccountListItem,
 } from "@/modules/categories";
-import type { PartnerEntry } from "@/modules/partner-mappings";
+import {
+  filterPartners,
+  computeBulkTargets,
+  sumRulaj,
+  normalizeForSearch,
+  type PartnerEntry,
+  type PartnerFilter,
+} from "@/modules/partner-mappings";
 
 interface Props {
   /** The cont we're inspecting. Null = panel closed. */
@@ -373,8 +380,6 @@ function PanelError({ error }: { error: string }) {
   );
 }
 
-type PartnerFilter = "all" | "unmapped" | "top10";
-
 function PanelBody({
   data,
   account,
@@ -403,24 +408,23 @@ function PanelBody({
   const [query, setQuery] = useState("");
 
   const overridden = data.partners.filter((p) => p.override !== null);
-  const overriddenRulaj = overridden.reduce((sum, p) => sum + p.rulaj, 0);
+  const overriddenRulaj = sumRulaj(overridden);
   const defaultRulaj = data.partnerRulaj - overriddenRulaj;
   const unmapped = data.partners.filter((p) => p.override === null);
 
-  // Filter chain: filter toggle FIRST, then search. Search is diacritic-
-  // insensitive (NFD normalize + strip marks) so "tiriac" matches "Țiriac".
+  // Filter chain — same helper drives both the rendered list AND the bulk
+  // target set, so what the contabil sees on screen is exactly what bulk
+  // would write. Memoized so the bulk bar's count doesn't flicker on
+  // unrelated re-renders.
+  const visible = useMemo(
+    () => filterPartners(data.partners, filter, query),
+    [data.partners, filter, query]
+  );
+  const bulkTargets = useMemo(
+    () => computeBulkTargets(data.partners, filter, query),
+    [data.partners, filter, query]
+  );
   const queryNorm = normalizeForSearch(query);
-  const visible = useMemo(() => {
-    let xs = data.partners;
-    if (filter === "unmapped") xs = xs.filter((p) => p.override === null);
-    else if (filter === "top10") xs = xs.slice(0, 10);
-    if (queryNorm) {
-      xs = xs.filter((p) =>
-        normalizeForSearch(p.nameOriginal).includes(queryNorm)
-      );
-    }
-    return xs;
-  }, [data.partners, filter, queryNorm]);
 
   const [showBulk, setShowBulk] = useState(false);
 
@@ -435,24 +439,30 @@ function PanelBody({
         totalCount={data.partners.length}
       />
 
-      {/* Bulk apply is the rare case — most of the time the contabil is
-          here to redirect ONE partner, not all. We hide the bar behind
-          a small opt-in link so the default view stays calm. */}
-      {unmapped.length > 0 && !showBulk && (
+      {/* Bulk apply works on whatever's currently visible: the same toggle +
+          search that filter the list below also scope the bulk action. That
+          way the contabil can "select top 10 only" or "search 'rom' and
+          redirect those" without a separate selection mechanism. Hidden
+          behind an opt-in link so the default view stays calm. */}
+      {bulkTargets.length > 0 && !showBulk && (
         <button
           type="button"
           onClick={() => setShowBulk(true)}
           className="text-[12px] text-primary hover:text-primary-light underline-offset-2 hover:underline"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Redirectioneaza in bulk toti partenerii catre o alta categorie →
+          Redirectioneaza in bulk {bulkTargets.length}{" "}
+          {bulkTargets.length === 1 ? "partener" : "parteneri"} catre o alta
+          categorie →
         </button>
       )}
-      {unmapped.length > 0 && showBulk && (
+      {bulkTargets.length > 0 && showBulk && (
         <BulkActionBar
           account={account}
           clientId={clientId}
-          unmapped={unmapped}
+          targets={bulkTargets}
+          filter={filter}
+          hasSearch={queryNorm.length > 0}
           categoryOptions={categoryOptions}
           onSaved={onBulkSaved}
           onCancel={() => setShowBulk(false)}
@@ -531,24 +541,37 @@ function PanelBody({
 
 /**
  * Bulk apply bar: pick a category, click Aplica, preview modal opens with
- * an exact summary ("Se vor mapa N parteneri (Y lei). M excepții manuale
- * pastrate."), confirm runs the bulk action.
+ * an exact summary, confirm runs the bulk action.
+ *
+ * The `targets` prop comes from the parent's filter chain (toggle + search),
+ * so what the contabil sees in the list below is exactly what gets written.
+ * The header label switches phrasing based on whether a filter is active,
+ * so the contabil knows they're acting on a SUBSET, not on every partner.
  *
  * Hidden behind an opt-in link in the parent — bulk redirect is the rare
  * case (most visits to this panel are about ONE partner). The contabil
- * opens this only when they genuinely want to redirect the whole cont.
+ * opens this only when they genuinely want to redirect the whole cont
+ * (or a filtered slice of it).
  */
 function BulkActionBar({
   account,
   clientId,
-  unmapped,
+  targets,
+  filter,
+  hasSearch,
   categoryOptions,
   onSaved,
   onCancel,
 }: {
   account: AccountListItem;
   clientId: string;
-  unmapped: PartnerEntry[];
+  /** Partners that bulk will actually write — already filtered by the
+   *  parent's toggle + search AND with existing overrides excluded. */
+  targets: PartnerEntry[];
+  /** Current filter toggle, used only for the header label phrasing. */
+  filter: PartnerFilter;
+  /** True if the search box has any non-empty query. Drives label phrasing. */
+  hasSearch: boolean;
   categoryOptions: { value: string; label: string }[];
   onSaved: () => Promise<void> | void;
   onCancel: () => void;
@@ -558,10 +581,18 @@ function BulkActionBar({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const targetCount = unmapped.length;
-  const targetRulaj = unmapped.reduce((sum, p) => sum + p.rulaj, 0);
+  const targetCount = targets.length;
+  const targetRulaj = sumRulaj(targets);
   const targetLabel =
     categoryOptions.find((o) => o.value === categoryId)?.label ?? "";
+
+  // Honest label: when a filter or search is active, say "rezultatul curent"
+  // so the contabil knows bulk acts on the visible subset, not on every
+  // partner on the cont. When nothing's filtered, just say the count.
+  const isSubset = hasSearch || filter !== "all";
+  const headerLabel = isSubset
+    ? `Redirectioneaza ${targetCount} din rezultatul curent (${formatRon(targetRulaj)} lei)`
+    : `Redirectioneaza ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei)`;
 
   function runBulk() {
     setError(null);
@@ -570,9 +601,7 @@ function BulkActionBar({
         clientId,
         contBase: account.contBase,
         categoryId,
-        // Only send unmapped partners (skipExistingOverrides default would
-        // skip them anyway, but explicit slim payload is kinder).
-        partners: unmapped.map((p) => ({ nameOriginal: p.nameOriginal })),
+        partners: targets.map((p) => ({ nameOriginal: p.nameOriginal })),
         skipExistingOverrides: true,
         // Same reason as the per-row saves: defer the server-tree
         // revalidation to panel close so the panel doesn't flash.
@@ -598,7 +627,7 @@ function BulkActionBar({
               className="font-mono text-[10px] uppercase tracking-wider text-gray truncate"
               style={{ letterSpacing: "-0.02em" }}
             >
-              Redirectioneaza {targetCount} ({formatRon(targetRulaj)} lei)
+              {headerLabel}
             </span>
           </div>
           <button
@@ -643,6 +672,7 @@ function BulkActionBar({
           targetCount={targetCount}
           targetRulaj={targetRulaj}
           categoryLabel={targetLabel}
+          isSubset={isSubset}
           onConfirm={runBulk}
           onCancel={() => setShowPreview(false)}
           pending={pending}
@@ -656,6 +686,7 @@ function BulkPreviewModal({
   targetCount,
   targetRulaj,
   categoryLabel,
+  isSubset,
   onConfirm,
   onCancel,
   pending,
@@ -663,6 +694,7 @@ function BulkPreviewModal({
   targetCount: number;
   targetRulaj: number;
   categoryLabel: string;
+  isSubset: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   pending: boolean;
@@ -686,8 +718,10 @@ function BulkPreviewModal({
           style={{ letterSpacing: "-0.02em" }}
         >
           Se vor mapa <strong className="text-white">{targetCount}</strong>{" "}
-          parteneri ({formatRon(targetRulaj)} lei) la categoria{" "}
-          <strong className="text-white">{categoryLabel}</strong>.
+          {targetCount === 1 ? "partener" : "parteneri"}{" "}
+          ({formatRon(targetRulaj)} lei) la categoria{" "}
+          <strong className="text-white">{categoryLabel}</strong>
+          {isSubset ? " (rezultatul filtrului curent)" : ""}.
         </p>
         <p
           className="text-[12px] text-gray mb-5"
@@ -1079,21 +1113,6 @@ function walkLeaves(
       walkLeaves(node.children, kind, label, out);
     }
   }
-}
-
-/**
- * Diacritic-insensitive lowercase normalizer for the search box. NFD splits
- * "Țiriac" → ['T', combining cedilla], then we strip the combining marks
- * so the result matches "tiriac". Distinct from the partner-key normalizer
- * (which preserves diacritics on purpose — two genuinely different partners
- * stay distinct). Here we want forgiving search, so we lose them.
- */
-function normalizeForSearch(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
 }
 
 const RON = new Intl.NumberFormat("ro-RO", {
