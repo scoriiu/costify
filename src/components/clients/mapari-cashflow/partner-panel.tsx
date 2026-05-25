@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition, useMemo } from "react";
-import { X, AlertCircle, Check, Layers } from "lucide-react";
+import { useEffect, useRef, useState, useTransition, useMemo } from "react";
+import { X, AlertCircle, Check, Layers, Save } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -60,9 +60,22 @@ export function PartnerPanel({
   const [data, setData] = useState<PartnerPanelData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Tracks whether any in-panel mutation happened. Defers the parent
+  // `onMutate` (router.refresh) until the panel closes — refreshing the
+  // tree mid-edit would unmount and remount the panel and visibly flash.
+  const hadMutationRef = useRef(false);
 
-  // Re-fetch the panel data whenever we open on a different cont or after a
-  // mutation. Bail out on close so we don't leak fetches.
+  const handleClose = () => {
+    if (hadMutationRef.current) {
+      onMutate();
+      hadMutationRef.current = false;
+    }
+    onClose();
+  };
+
+  // Re-fetch the panel data whenever we open on a different cont (NOT
+  // after a mutation — mutations are applied optimistically via
+  // onLocalPatch and never trigger a refetch).
   useEffect(() => {
     if (!account || !period) {
       setData(null);
@@ -105,7 +118,7 @@ export function PartnerPanel({
       {/* Backdrop — click to close. Subtle, doesn't black out the page. */}
       <div
         className="fixed inset-0 z-40 bg-black/40 transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
         aria-hidden
       />
       {/* Panel */}
@@ -125,7 +138,7 @@ export function PartnerPanel({
             data?.partners.filter((p) => p.override !== null).length ?? 0
           }
           totalCount={data?.partners.length ?? 0}
-          onClose={onClose}
+          onClose={handleClose}
         />
 
         <div className="flex-1 overflow-y-auto">
@@ -138,9 +151,19 @@ export function PartnerPanel({
               clientId={clientId}
               categoryOptions={categoryOptions}
               contCategoryName={contCategoryName}
-              onSaved={async () => {
-                // After every save, re-fetch panel data AND tell the parent
-                // page to refresh so per-cont coverage badges update.
+              onLocalPatch={(updater) => {
+                // Optimistic local patch — no refetch, no skeleton.
+                // The row component knows what changed; we apply it
+                // in place. The parent page refresh is deferred to
+                // close so badges and aggregates stay calm during edit.
+                setData((prev) => (prev ? updater(prev) : prev));
+                hadMutationRef.current = true;
+              }}
+              onBulkSaved={async () => {
+                // Bulk apply changes many partners at once; cheaper and
+                // more reliable to refetch than to mirror the server's
+                // logic in the client. We do this WITHOUT toggling
+                // `loading` so the panel doesn't flash to a skeleton.
                 if (period && account) {
                   const res = await loadPartnerPanelAction({
                     clientId,
@@ -150,14 +173,14 @@ export function PartnerPanel({
                   });
                   if (res.data) setData(res.data);
                 }
-                onMutate();
+                hadMutationRef.current = true;
               }}
             />
           )}
         </div>
 
         <div className="border-t border-dark-3 px-4 py-3 flex justify-end">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={handleClose}>
             Inchide
           </Button>
         </div>
@@ -353,14 +376,23 @@ function PanelBody({
   clientId,
   categoryOptions,
   contCategoryName,
-  onSaved,
+  onLocalPatch,
+  onBulkSaved,
 }: {
   data: PartnerPanelData;
   account: AccountListItem;
   clientId: string;
   categoryOptions: { value: string; label: string }[];
   contCategoryName: string | null;
-  onSaved: () => Promise<void> | void;
+  /** Optimistic patch applied directly to the panel data without a
+   *  refetch. The PartnerRow knows what changed; passes a pure updater. */
+  onLocalPatch: (
+    updater: (prev: PartnerPanelData) => PartnerPanelData
+  ) => void;
+  /** Called after a BULK apply (many partners). Bulk needs a full refetch
+   *  because the server reconciles existing-vs-new in ways too complex to
+   *  mirror in the client; we just trust the server and reload. */
+  onBulkSaved: () => Promise<void> | void;
 }) {
   const [filter, setFilter] = useState<PartnerFilter>("all");
   const [query, setQuery] = useState("");
@@ -417,7 +449,7 @@ function PanelBody({
           clientId={clientId}
           unmapped={unmapped}
           categoryOptions={categoryOptions}
-          onSaved={onSaved}
+          onSaved={onBulkSaved}
           onCancel={() => setShowBulk(false)}
         />
       )}
@@ -479,7 +511,7 @@ function PanelBody({
                 account={account}
                 clientId={clientId}
                 categoryOptions={categoryOptions}
-                onSaved={onSaved}
+                onLocalPatch={onLocalPatch}
               />
             ))
           )}
@@ -749,16 +781,21 @@ function PartnerRow({
   account,
   clientId,
   categoryOptions,
-  onSaved,
+  onLocalPatch,
 }: {
   partner: PartnerEntry;
   account: AccountListItem;
   clientId: string;
   categoryOptions: { value: string; label: string }[];
-  onSaved: () => Promise<void> | void;
+  /** Pure local patch — receives the prev panel data, returns next. The
+   *  parent never refetches; we mirror the server's effect on this one
+   *  row (set / clear / update categoryId on the partner's override). */
+  onLocalPatch: (
+    updater: (prev: PartnerPanelData) => PartnerPanelData
+  ) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Sprint 4: when there's a suggestion (no override yet but inferred from
@@ -769,10 +806,31 @@ function PartnerRow({
   const isSuggested =
     partner.override === null && partner.suggestedCategoryId !== null;
 
-  const currentValue =
+  // The "persisted" value — what's actually in the DB right now (or the
+  // current suggestion if no override exists yet). Compared against
+  // `stagedValue` to decide whether a Save button must appear.
+  const persistedValue =
     partner.override?.categoryId ??
     partner.suggestedCategoryId ??
     DEFAULT_OPTION_VALUE;
+
+  // Picking from the dropdown only STAGES the change locally. Nothing
+  // hits the server until the contabil clicks Save. This makes the
+  // action explicit and reversible (Renunta restores the persisted
+  // value), avoiding accidental clicks creating real DB writes.
+  const [stagedValue, setStagedValue] = useState<string>(persistedValue);
+
+  // If the underlying data refetches (someone else saved another row,
+  // the panel reloaded, etc.) and we're NOT in the middle of editing,
+  // resync the staged value so the row reflects fresh persisted state.
+  useEffect(() => {
+    setStagedValue(persistedValue);
+    // Reset only on identity change of the persisted target, not on
+    // each render — preserves user's in-flight edit when other rows
+    // mutate.
+  }, [persistedValue]);
+
+  const isDirty = stagedValue !== persistedValue;
 
   // The "default" option keeps its label SHORT — just "Urmeaza contul".
   // The cont's actual category is shown once in the panel header and
@@ -795,13 +853,25 @@ function PartnerRow({
     ];
   }, [categoryOptions, contDefaultCategoryId]);
 
-  function pick(newValue: string) {
-    if (newValue === currentValue) return;
+  function commit() {
+    if (!isDirty) return;
     setError(null);
+    const valueToSave = stagedValue;
     startTransition(async () => {
-      if (newValue === DEFAULT_OPTION_VALUE) {
-        // Revert to default: delete the override if one exists.
-        if (!partner.override) return;
+      if (valueToSave === DEFAULT_OPTION_VALUE) {
+        // Revert to default = delete the existing override (if any).
+        if (!partner.override) {
+          // Nothing to delete server-side; this can only happen if the
+          // staged value matched a stale-but-untouched suggestion. Just
+          // clear the suggestion locally and we're done.
+          patchPartner(partner.nameNormalized, (p) => ({
+            ...p,
+            suggestedCategoryId: null,
+          }));
+          setSavedFlash(true);
+          setTimeout(() => setSavedFlash(false), 3000);
+          return;
+        }
         const res = await deletePartnerOverrideAction({
           clientId,
           id: partner.override.id,
@@ -810,29 +880,76 @@ function PartnerRow({
           setError(res.error);
           return;
         }
+        // Optimistic: clear the override on this partner. The cont's
+        // default applies again. No refetch, no skeleton, no flash.
+        patchPartner(partner.nameNormalized, (p) => ({
+          ...p,
+          override: null,
+          suggestedCategoryId: null,
+        }));
       } else {
         const res = await upsertPartnerOverrideAction({
           clientId,
           contBase: account.contBase,
           partnerNameOriginal: partner.nameOriginal,
-          categoryId: newValue,
+          categoryId: valueToSave,
         });
         if (res.error) {
           setError(res.error);
           return;
         }
+        // Optimistic: set / update the override on this partner. We
+        // synthesize a minimal override object (real id comes from the
+        // action's return — we don't need it locally for display since
+        // delete uses the partner identity).
+        patchPartner(partner.nameNormalized, (p) => ({
+          ...p,
+          suggestedCategoryId: null,
+          override: {
+            id: res.data?.id ?? p.override?.id ?? "optimistic",
+            clientId,
+            contBase: account.contBase,
+            partnerNameNormalized: p.nameNormalized,
+            partnerNameOriginal: p.nameOriginal,
+            categoryId: valueToSave,
+            source: "manual",
+            confirmedAt: new Date(),
+            createdAt: p.override?.createdAt ?? new Date(),
+            updatedAt: new Date(),
+          },
+        }));
       }
-      setSaved(true);
-      await onSaved();
-      setTimeout(() => setSaved(false), 1500);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 3000);
     });
+  }
+
+  // Tiny helper: replace one partner inside the panel data without
+  // touching aggregate fields. We don't recompute partnerRulaj /
+  // unresolvedRulaj because rulaj per partner doesn't change when we
+  // flip a category — only the routing does.
+  function patchPartner(
+    nameNormalized: string,
+    update: (p: PartnerEntry) => PartnerEntry
+  ) {
+    onLocalPatch((prev) => ({
+      ...prev,
+      partners: prev.partners.map((p) =>
+        p.nameNormalized === nameNormalized ? update(p) : p
+      ),
+    }));
+  }
+
+  function revert() {
+    setError(null);
+    setStagedValue(persistedValue);
   }
 
   return (
     <li
       className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-dark-2/40 ${
         isSuggested ? "bg-tone-warn/[0.05] border-l-2 border-tone-warn" : ""
-      }`}
+      } ${isDirty ? "bg-primary/[0.04]" : ""}`}
     >
       {isSuggested && (
         <Tooltip content="Sugerat din memoria contului. Confirma sau alege alta categorie.">
@@ -860,20 +977,56 @@ function PartnerRow({
       </span>
       <div className="w-[200px] shrink-0">
         <Select
-          value={currentValue}
+          value={stagedValue}
           options={options}
-          onChange={pick}
+          onChange={setStagedValue}
           className={pending ? "opacity-60" : ""}
         />
       </div>
-      <span className="w-4 shrink-0 flex items-center justify-center">
-        {saved && <Check size={12} className="text-pos" />}
-        {error && (
-          <span title={error} className="cursor-help">
-            <AlertCircle size={12} className="text-neg" />
-          </span>
+      <div className="w-[120px] shrink-0 flex items-center justify-end gap-1">
+        {isDirty ? (
+          <>
+            <Tooltip content="Salveaza schimbarea">
+              <button
+                type="button"
+                onClick={commit}
+                disabled={pending}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#E9E8E3] hover:bg-primary-dark disabled:opacity-50"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                <Save size={11} />
+                Salveaza
+              </button>
+            </Tooltip>
+            <Tooltip content="Anuleaza schimbarea">
+              <button
+                type="button"
+                onClick={revert}
+                disabled={pending}
+                className="p-1 text-gray hover:text-gray-light disabled:opacity-50"
+                aria-label="Anuleaza schimbarea"
+              >
+                <X size={12} />
+              </button>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            {savedFlash && (
+              <Tooltip content="Salvat">
+                <Check size={14} className="text-pos" />
+              </Tooltip>
+            )}
+            {error && (
+              <Tooltip content={error}>
+                <span className="cursor-help">
+                  <AlertCircle size={14} className="text-neg" />
+                </span>
+              </Tooltip>
+            )}
+          </>
         )}
-      </span>
+      </div>
     </li>
   );
 }

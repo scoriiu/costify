@@ -201,4 +201,167 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const classAttr = await cont6058Row.getAttribute("class");
     expect(classAttr).toMatch(/border-primary/);
   });
+
+  test("7. Changing Select staging shows Save button but does NOT auto-save", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.getByRole("button", { name: /Vezi toate/ }).click();
+    await expect(page.getByRole("dialog", { name: "Toate exceptiile" })).toBeVisible();
+
+    // Read the visible label inside the first Select trigger BEFORE we
+    // touch it — this is the persisted category.
+    const dialog = page.getByRole("dialog", { name: "Toate exceptiile" });
+    const triggers = dialog.locator("button[aria-haspopup='listbox']");
+    const firstTrigger = triggers.first();
+    const initialLabel = (await firstTrigger.innerText()).trim();
+
+    // No "Salveaza" buttons yet — nothing is dirty.
+    expect(await dialog.getByRole("button", { name: /Salveaza/ }).count()).toBe(0);
+
+    // Open the dropdown and pick a different option (whichever is not
+    // already selected). The "Urmeaza contul" sentinel is always first;
+    // the next option after it is a real category.
+    await firstTrigger.click();
+    const listbox = page.locator("[role='listbox']");
+    await expect(listbox).toBeVisible();
+    const options = listbox.locator("button[role='option']");
+    const optCount = await options.count();
+    let pickedLabel = "";
+    for (let i = 0; i < optCount; i++) {
+      const text = (await options.nth(i).innerText()).trim();
+      if (text && text !== initialLabel) {
+        pickedLabel = text;
+        await options.nth(i).click();
+        break;
+      }
+    }
+    expect(pickedLabel).not.toBe("");
+
+    // Save button appears and the row is dirty. Crucially, the change
+    // is NOT persisted yet — there should be a Save button visible.
+    await expect(
+      dialog.getByRole("button", { name: /Salveaza/ }).first()
+    ).toBeVisible();
+
+    // The trigger now shows the staged (not persisted) value.
+    await expect(firstTrigger).toContainText(pickedLabel);
+
+    // Click the cancel (X) button next to Save to revert. The Save
+    // button disappears and the trigger reverts to its original label.
+    const cancelButton = dialog
+      .getByRole("button", { name: "Anuleaza schimbarea" })
+      .first();
+    await cancelButton.click();
+    expect(await dialog.getByRole("button", { name: /Salveaza/ }).count()).toBe(0);
+    await expect(firstTrigger).toContainText(initialLabel);
+  });
+
+  test("8. Audit tab loads and renders override-related events", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.getByRole("button", { name: /Vezi toate/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Toate exceptiile" });
+    await expect(dialog).toBeVisible();
+
+    // Click the Istoric tab.
+    await dialog.getByRole("button", { name: /Istoric/ }).click();
+
+    // At least one event should be visible (qhm21 has had at least one
+    // override mutation). Each event row shows the actor name and the
+    // sentence built by describeForAccountant. We expect the word
+    // "exceptie" or "bulk" to appear in at least one description.
+    await expect(
+      dialog.getByText(/exceptie|bulk/i).first()
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  test("9. Saving a row in AllExceptionsDialog does NOT show skeleton (smooth save)", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.getByRole("button", { name: /Vezi toate/ }).click();
+    const dialog = page.getByRole("dialog", { name: "Toate exceptiile" });
+    await expect(dialog).toBeVisible();
+
+    // Snapshot the visible row count before the save — used to confirm
+    // the list never gets replaced by a skeleton during the action.
+    const rowList = dialog.locator("ul").first();
+    await expect(rowList).toBeVisible();
+    const rowsBefore = await rowList.locator("> li").count();
+    expect(rowsBefore).toBeGreaterThan(0);
+
+    // Stage a change on the first row: open its Select, pick the first
+    // option that is NEITHER the current category NOR the synthetic
+    // "Urmeaza contul (...)" sentinel — picking the sentinel deletes
+    // the row, which is a valid flow but not what THIS test wants
+    // (we're verifying smooth update, not smooth delete).
+    const firstTrigger = dialog.locator("button[aria-haspopup='listbox']").first();
+    const originalLabel = (await firstTrigger.innerText()).trim();
+    await firstTrigger.click();
+    const listbox = page.locator("[role='listbox']");
+    await expect(listbox).toBeVisible();
+    const options = listbox.locator("button[role='option']");
+    let pickedLabel = "";
+    const total = await options.count();
+    for (let i = 0; i < total; i++) {
+      const t = (await options.nth(i).innerText()).trim();
+      if (!t) continue;
+      if (t === originalLabel) continue;
+      if (/^Urmeaza contul/.test(t)) continue;
+      pickedLabel = t;
+      await options.nth(i).click();
+      break;
+    }
+    expect(pickedLabel).not.toBe("");
+
+    // Click Salveaza, then assert that throughout the save the row
+    // count never collapses to a skeleton (which would render 8
+    // animate-pulse divs and zero <li> children for a frame).
+    const saveButton = dialog.getByRole("button", { name: /Salveaza/ }).first();
+
+    // Watch for the skeleton selector — if it ever appears, the test
+    // fails. We poll briefly while the action runs.
+    const skeletonLocator = dialog.locator(".animate-pulse");
+    const skeletonCountBefore = await skeletonLocator.count();
+    expect(skeletonCountBefore).toBe(0);
+
+    await saveButton.click();
+
+    // Within the ~500ms window the action typically takes, the row
+    // list must keep at least one <li>. We sample a few times.
+    for (let i = 0; i < 6; i++) {
+      const liCount = await rowList.locator("> li").count();
+      expect(liCount).toBeGreaterThan(0);
+      const skel = await skeletonLocator.count();
+      expect(skel).toBe(0);
+      await page.waitForTimeout(80);
+    }
+
+    // After the save settles, the row's Select still shows the new
+    // staged label (now persisted), and there's no Salveaza button
+    // anymore (no dirty rows).
+    await expect(firstTrigger).toContainText(pickedLabel);
+    expect(
+      await dialog.getByRole("button", { name: /Salveaza/ }).count()
+    ).toBe(0);
+
+    // Revert to the original so this test is idempotent across runs.
+    await firstTrigger.click();
+    await expect(listbox).toBeVisible();
+    const revertOptions = listbox.locator("button[role='option']");
+    const revertCount = await revertOptions.count();
+    for (let i = 0; i < revertCount; i++) {
+      const t = (await revertOptions.nth(i).innerText()).trim();
+      if (t === originalLabel) {
+        await revertOptions.nth(i).click();
+        break;
+      }
+    }
+    await expect(
+      dialog.getByRole("button", { name: /Salveaza/ }).first()
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: /Salveaza/ }).first().click();
+    await expect(firstTrigger).toContainText(originalLabel);
+  });
 });

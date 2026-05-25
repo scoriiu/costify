@@ -13,19 +13,21 @@
  * dialog is for the cross-cont, cross-partner overview.
  */
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { X, AlertCircle, Trash2, Check, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { X, AlertCircle, Trash2, Check, Search, History, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { SearchInput } from "@/components/ui/search-input";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   loadAllExceptionsAction,
+  loadMapariCashflowAuditAction,
   upsertPartnerOverrideAction,
   deletePartnerOverrideAction,
 } from "@/modules/partner-mappings/actions";
 import type { AllExceptionsRow } from "@/modules/partner-mappings";
 import type { CostCategoryNode, AccountListItem } from "@/modules/categories";
+import type { AccountantAuditRow } from "@/modules/audit";
 
 interface Props {
   clientId: string;
@@ -48,10 +50,29 @@ export function AllExceptionsDialog({
   onClose,
   onMutate,
 }: Props) {
+  const [tab, setTab] = useState<"exceptions" | "audit">("exceptions");
   const [rows, setRows] = useState<AllExceptionsRow[] | null>(null);
+  // `loading` is ONLY true on the very first load of the dialog. Subsequent
+  // background refetches do NOT flip it back to true — that would replace
+  // the live row list with a skeleton on every save and is exactly the
+  // jitter we are trying to eliminate.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Tracks whether any in-dialog mutation has happened. We only call the
+  // parent's onMutate (router.refresh) ONCE on close, not on every save —
+  // refreshing the entire page tree mid-edit causes the modal contents to
+  // visibly flash and resets all in-flight inputs.
+  const dirtyOnClose = useRef(false);
+
+  // Audit tab state. Loaded lazily on first switch into the tab —
+  // most contabili won't open it on every visit, no need to pay the
+  // round-trip on dialog open.
+  const [auditRows, setAuditRows] = useState<AccountantAuditRow[] | null>(null);
+  // Same rule as `loading`: only true on first load. Background refreshes
+  // after a save replace the array in place without showing the skeleton.
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,14 +92,50 @@ export function AllExceptionsDialog({
     };
   }, [clientId, period.year, period.month]);
 
-  // ESC closes.
+  // Lazy-load audit trail on first switch into the tab. Subsequent
+  // refreshes go through refreshAuditSilently — never flip auditLoading.
+  useEffect(() => {
+    if (tab !== "audit") return;
+    if (auditRows !== null) return; // already loaded
+    let cancelled = false;
+    setAuditLoading(true);
+    loadMapariCashflowAuditAction({ clientId, limit: 100 }).then((res) => {
+      if (cancelled) return;
+      if (res.error) setAuditError(res.error);
+      else if (res.data) setAuditRows(res.data.items);
+      setAuditLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, clientId, auditRows]);
+
+  function refreshAuditSilently() {
+    // Refetch audit in the background WITHOUT clearing the existing list,
+    // so the user never sees the skeleton when an event is just added.
+    // If the audit tab has never been opened, do nothing — it will load
+    // fresh the first time the user clicks it.
+    if (auditRows === null) return;
+    loadMapariCashflowAuditAction({ clientId, limit: 100 }).then((res) => {
+      if (res.data) setAuditRows(res.data.items);
+    });
+  }
+
+  // Close handler that flushes the deferred parent refresh once.
+  const handleClose = () => {
+    if (dirtyOnClose.current) onMutate();
+    onClose();
+  };
+
+  // ESC closes (via handleClose so deferred refresh fires).
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const categoryNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -157,24 +214,32 @@ export function AllExceptionsDialog({
     });
   }, [rows, normalizedQuery, categoryNameById]);
 
-  function handleRowMutated() {
-    // Re-fetch the full list so counts, sums and freshly-deleted rows
-    // disappear/appear correctly without a full page refresh.
-    loadAllExceptionsAction({
-      clientId,
-      year: period.year,
-      month: period.month,
-    }).then((res) => {
-      if (res.data) setRows(res.data.items);
-    });
-    onMutate();
+  // Optimistic updates: the row component already knows what changed,
+  // so we patch local `rows` immediately and never trigger a skeleton.
+  // The parent refresh (router.refresh) is deferred to dialog close.
+  function applyLocalUpdate(updated: AllExceptionsRow) {
+    setRows((prev) =>
+      prev
+        ? prev.map((r) => (r.overrideId === updated.overrideId ? updated : r))
+        : prev
+    );
+    dirtyOnClose.current = true;
+    refreshAuditSilently();
+  }
+
+  function applyLocalDelete(overrideId: string) {
+    setRows((prev) =>
+      prev ? prev.filter((r) => r.overrideId !== overrideId) : prev
+    );
+    dirtyOnClose.current = true;
+    refreshAuditSilently();
   }
 
   const totalRulaj = rows?.reduce((sum, r) => sum + Math.abs(r.rulaj), 0) ?? 0;
 
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/60" onClick={handleClose} aria-hidden />
       <div
         className="relative bg-dark-2 border border-dark-3 rounded-xl w-full max-w-4xl mx-4 max-h-[90vh] shadow-2xl flex flex-col"
         role="dialog"
@@ -188,7 +253,7 @@ export function AllExceptionsDialog({
             >
               Toate exceptiile pe parteneri
             </h3>
-            {!loading && rows && (
+            {tab === "exceptions" && !loading && rows && (
               <p
                 className="font-mono text-[10px] uppercase tracking-wider text-gray mt-0.5"
                 style={{ letterSpacing: "-0.02em" }}
@@ -198,10 +263,19 @@ export function AllExceptionsDialog({
                 {formatRon(totalRulaj)} lei rulaj cumulat
               </p>
             )}
+            {tab === "audit" && !auditLoading && auditRows && (
+              <p
+                className="font-mono text-[10px] uppercase tracking-wider text-gray mt-0.5"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                {auditRows.length}{" "}
+                {auditRows.length === 1 ? "actiune" : "actiuni"} inregistrate
+              </p>
+            )}
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 text-gray hover:text-white"
             aria-label="Inchide"
           >
@@ -209,67 +283,217 @@ export function AllExceptionsDialog({
           </button>
         </header>
 
-        <div className="px-5 py-3 border-b border-dark-3 shrink-0">
-          <SearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Cauta dupa partener, cont, sau categorie..."
+        {/* Tab strip: Exceptii (current state) | Istoric (audit trail). */}
+        <div className="flex items-center gap-1 border-b border-dark-3 px-5 shrink-0">
+          <TabButton
+            active={tab === "exceptions"}
+            onClick={() => setTab("exceptions")}
+            label="Exceptii"
+            count={rows?.length}
+          />
+          <TabButton
+            active={tab === "audit"}
+            onClick={() => setTab("audit")}
+            label="Istoric"
+            icon={<History size={11} />}
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          {loading && <Skeleton />}
-          {error && <ErrorState error={error} />}
-          {!loading && !error && rows && rows.length === 0 && <EmptyState />}
-          {!loading && !error && rows && rows.length > 0 && (
-            <>
-              {visibleRows.length === 0 ? (
-                <p
-                  className="text-[12px] text-gray italic py-6 text-center"
-                  style={{ letterSpacing: "-0.02em" }}
-                >
-                  Nicio exceptie nu se potriveste cautarii.
-                </p>
-              ) : (
-                <ul className="space-y-1">
-                  {visibleRows.map((row) => {
-                    const contDefaultCategoryId = contCategoryByBase.get(
-                      row.contBase
-                    );
-                    const contDefaultCategoryName = contDefaultCategoryId
-                      ? categoryNameById.get(contDefaultCategoryId) ?? null
-                      : null;
-                    return (
-                      <ExceptionRow
-                        key={row.overrideId}
-                        row={row}
-                        clientId={clientId}
-                        contDenumire={contDenumireByBase.get(row.contBase) ?? ""}
-                        contDefaultCategoryId={contDefaultCategoryId ?? null}
-                        contDefaultCategoryName={contDefaultCategoryName}
-                        categoryOptions={
-                          row.contKind === "expense"
-                            ? categoryOptionsByKind.expense
-                            : categoryOptionsByKind.revenue
-                        }
-                        onMutated={handleRowMutated}
-                      />
-                    );
-                  })}
-                </ul>
+        {tab === "exceptions" && (
+          <>
+            <div className="px-5 py-3 border-b border-dark-3 shrink-0">
+              <SearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Cauta dupa partener, cont, sau categorie..."
+              />
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-3">
+              {loading && <Skeleton />}
+              {error && <ErrorState error={error} />}
+              {!loading && !error && rows && rows.length === 0 && <EmptyState />}
+              {!loading && !error && rows && rows.length > 0 && (
+                <>
+                  {visibleRows.length === 0 ? (
+                    <p
+                      className="text-[12px] text-gray italic py-6 text-center"
+                      style={{ letterSpacing: "-0.02em" }}
+                    >
+                      Nicio exceptie nu se potriveste cautarii.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {visibleRows.map((row) => {
+                        const contDefaultCategoryId = contCategoryByBase.get(
+                          row.contBase
+                        );
+                        const contDefaultCategoryName = contDefaultCategoryId
+                          ? categoryNameById.get(contDefaultCategoryId) ?? null
+                          : null;
+                        return (
+                          <ExceptionRow
+                            key={row.overrideId}
+                            row={row}
+                            clientId={clientId}
+                            contDenumire={contDenumireByBase.get(row.contBase) ?? ""}
+                            contDefaultCategoryId={contDefaultCategoryId ?? null}
+                            contDefaultCategoryName={contDefaultCategoryName}
+                            categoryOptions={
+                              row.contKind === "expense"
+                                ? categoryOptionsByKind.expense
+                                : categoryOptionsByKind.revenue
+                            }
+                            onLocalUpdate={applyLocalUpdate}
+                            onLocalDelete={applyLocalDelete}
+                          />
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
+
+        {tab === "audit" && (
+          <div className="flex-1 overflow-y-auto px-5 py-3">
+            <AuditTab
+              loading={auditLoading}
+              error={auditError}
+              rows={auditRows}
+            />
+          </div>
+        )}
 
         <div className="border-t border-dark-3 px-5 py-3 flex justify-end shrink-0">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={handleClose}>
             Inchide
           </Button>
         </div>
       </div>
     </div>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                TAB CHROME                                  */
+/* -------------------------------------------------------------------------- */
+
+function TabButton({
+  active,
+  onClick,
+  label,
+  count,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  count?: number;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-3 py-2 font-mono text-[11px] uppercase tracking-wider border-b-2 -mb-px transition-colors ${
+        active
+          ? "border-primary text-white"
+          : "border-transparent text-gray hover:text-gray-light"
+      }`}
+      style={{ letterSpacing: "-0.02em" }}
+    >
+      {icon}
+      {label}
+      {typeof count === "number" && (
+        <span
+          className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full font-mono text-[10px] ${
+            active ? "bg-primary/15 text-primary" : "bg-dark-3 text-gray"
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                AUDIT TAB                                   */
+/* -------------------------------------------------------------------------- */
+
+function AuditTab({
+  loading,
+  error,
+  rows,
+}: {
+  loading: boolean;
+  error: string | null;
+  rows: AccountantAuditRow[] | null;
+}) {
+  if (loading) return <Skeleton />;
+  if (error) return <ErrorState error={error} />;
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="py-12 text-center">
+        <History size={28} className="text-gray mx-auto mb-3 opacity-50" />
+        <p
+          className="text-[14px] font-semibold text-white mb-1"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          Nicio actiune inregistrata
+        </p>
+        <p
+          className="text-[12px] text-gray max-w-md mx-auto"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Aici apar toate modificarile facute pe maparile de parteneri:
+          creari, schimbari, stergeri si aplicari in bulk. Fiecare actiune
+          este inregistrata cu autorul si momentul exact.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <ul className="divide-y divide-dark-3">
+      {rows.map((r) => (
+        <li key={r.id} className="py-3 flex items-start gap-3">
+          <div
+            className="font-mono text-[10px] uppercase tracking-wider text-gray shrink-0 w-28 pt-0.5"
+            title={r.createdAt.toLocaleString("ro-RO")}
+          >
+            {timeAgo(r.createdAt)}
+          </div>
+          <p
+            className="flex-1 min-w-0 text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span className="font-medium text-white">{r.actorName}</span>{" "}
+            {r.description}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const MS_PER_MIN = 60_000;
+const MS_PER_HR = 3_600_000;
+const MS_PER_DAY = 86_400_000;
+
+function timeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  if (diff < MS_PER_MIN) return "acum cateva secunde";
+  if (diff < MS_PER_HR) return `acum ${Math.round(diff / MS_PER_MIN)} min`;
+  if (diff < MS_PER_DAY) return `acum ${Math.round(diff / MS_PER_HR)} h`;
+  if (diff < 7 * MS_PER_DAY) return `acum ${Math.round(diff / MS_PER_DAY)} zile`;
+  return date.toLocaleDateString("ro-RO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -289,7 +513,8 @@ function ExceptionRow({
   contDefaultCategoryId,
   contDefaultCategoryName,
   categoryOptions,
-  onMutated,
+  onLocalUpdate,
+  onLocalDelete,
 }: {
   row: AllExceptionsRow;
   clientId: string;
@@ -308,17 +533,38 @@ function ExceptionRow({
    *  override", we just don't have a target name to advertise). */
   contDefaultCategoryName: string | null;
   categoryOptions: { value: string; label: string }[];
-  onMutated: () => void;
+  /** Optimistic update: parent patches the local row list with the new
+   *  category id, no refetch, no skeleton. Called only AFTER the server
+   *  action succeeds. */
+  onLocalUpdate: (updated: AllExceptionsRow) => void;
+  /** Optimistic delete: parent removes the row from the local list. */
+  onLocalDelete: (overrideId: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [saved, setSaved] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Picking from the dropdown only STAGES the change locally — nothing
+  // hits the server until the contabil clicks Salveaza. Symmetry with
+  // the slide-panel pattern: explicit save, reversible via Renunta, no
+  // accidental DB writes from a misclick on a 10-option Select.
+  const [stagedValue, setStagedValue] = useState<string>(row.categoryId);
+
+  // If the persisted row changes (other mutations, refetch), resync —
+  // but only when there's no in-flight edit, otherwise we'd overwrite
+  // the contabil's pending change. Tracked by comparing the latest
+  // persisted value with the previous one we synced from.
+  useEffect(() => {
+    setStagedValue(row.categoryId);
+  }, [row.categoryId]);
+
+  const isDirty = stagedValue !== row.categoryId;
 
   // Synthetic "delete this override" option. Prepended to the leaf-
   // category list so the contabil can revert to the cont's default
   // from the same Select used to change categories — symmetry with the
   // slide-panel UX. The literal value is not a real categoryId; the
-  // change handler intercepts it and calls deletePartnerOverrideAction
+  // save handler intercepts it and calls deletePartnerOverrideAction
   // instead of upsertPartnerOverrideAction.
   //
   // We also FILTER OUT the cont's default category from the leaf list
@@ -341,33 +587,49 @@ function ExceptionRow({
     ];
   }, [categoryOptions, contDefaultCategoryId, contDefaultCategoryName]);
 
-  function changeCategory(newCategoryId: string) {
-    if (newCategoryId === row.categoryId) return;
-    if (newCategoryId === DELETE_SENTINEL) {
-      removeOverride({ skipConfirm: true });
-      return;
-    }
+  function commit() {
+    if (!isDirty) return;
     setError(null);
+    const valueToSave = stagedValue;
     startTransition(async () => {
+      if (valueToSave === DELETE_SENTINEL) {
+        const res = await deletePartnerOverrideAction({
+          clientId,
+          id: row.overrideId,
+        });
+        if (res.error) {
+          setError(res.error);
+          return;
+        }
+        // Optimistic: remove the row locally. No skeleton, no flicker.
+        onLocalDelete(row.overrideId);
+        return;
+      }
       const res = await upsertPartnerOverrideAction({
         clientId,
         contBase: row.contBase,
         partnerNameOriginal: row.partnerNameOriginal,
-        categoryId: newCategoryId,
+        categoryId: valueToSave,
       });
       if (res.error) {
         setError(res.error);
         return;
       }
-      setSaved(true);
-      onMutated();
-      setTimeout(() => setSaved(false), 1500);
+      // Optimistic: patch the row in place with the new categoryId.
+      // Rulaj and partner identity stay the same; only the target changes.
+      onLocalUpdate({ ...row, categoryId: valueToSave });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 3000);
     });
   }
 
-  function removeOverride(opts?: { skipConfirm?: boolean }) {
+  function revert() {
+    setError(null);
+    setStagedValue(row.categoryId);
+  }
+
+  function removeOverride() {
     if (
-      !opts?.skipConfirm &&
       !confirm(
         `Sterg exceptia pentru "${row.partnerNameOriginal}" pe cont ${row.contBase}? Va reveni la categoria contului.`
       )
@@ -383,7 +645,7 @@ function ExceptionRow({
         setError(res.error);
         return;
       }
-      onMutated();
+      onLocalDelete(row.overrideId);
     });
   }
 
@@ -394,7 +656,7 @@ function ExceptionRow({
     <li
       className={`group grid grid-cols-[auto_1fr_auto_220px_auto] items-center gap-3 px-3 py-2 rounded hover:bg-dark-3/40 ${
         isIdle ? "opacity-70" : ""
-      } ${pending ? "opacity-60" : ""}`}
+      } ${pending ? "opacity-60" : ""} ${isDirty ? "bg-primary/[0.04]" : ""}`}
     >
       {/* Cont */}
       <div className="flex flex-col min-w-0 w-[140px]">
@@ -443,33 +705,68 @@ function ExceptionRow({
       {/* Category select */}
       <div className="shrink-0">
         <Select
-          value={row.categoryId}
+          value={stagedValue}
           options={optionsWithDefault}
-          onChange={changeCategory}
+          onChange={setStagedValue}
+          className={pending ? "opacity-60" : ""}
         />
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0">
-        {saved && <Check size={12} className="text-pos" />}
-        {error && (
-          <Tooltip content={error}>
-            <span className="cursor-help">
-              <AlertCircle size={12} className="text-neg" />
-            </span>
-          </Tooltip>
+        {isDirty ? (
+          <>
+            <Tooltip content="Salveaza schimbarea">
+              <button
+                type="button"
+                onClick={commit}
+                disabled={pending}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#E9E8E3] hover:bg-primary-dark disabled:opacity-50"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                <Save size={11} />
+                Salveaza
+              </button>
+            </Tooltip>
+            <Tooltip content="Anuleaza schimbarea">
+              <button
+                type="button"
+                onClick={revert}
+                disabled={pending}
+                className="p-1 text-gray hover:text-gray-light disabled:opacity-50"
+                aria-label="Anuleaza schimbarea"
+              >
+                <X size={12} />
+              </button>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            {savedFlash && (
+              <Tooltip content="Salvat">
+                <Check size={14} className="text-pos" />
+              </Tooltip>
+            )}
+            {error && (
+              <Tooltip content={error}>
+                <span className="cursor-help">
+                  <AlertCircle size={14} className="text-neg" />
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip content="Sterge exceptia (partenerul revine la categoria contului)">
+              <button
+                type="button"
+                onClick={removeOverride}
+                disabled={pending}
+                className="p-1.5 text-gray hover:text-neg disabled:opacity-50"
+                aria-label="Sterge exceptia"
+              >
+                <Trash2 size={14} />
+              </button>
+            </Tooltip>
+          </>
         )}
-        <Tooltip content="Sterge exceptia (partenerul revine la categoria contului)">
-          <button
-            type="button"
-            onClick={() => removeOverride()}
-            disabled={pending}
-            className="p-1.5 text-gray hover:text-neg disabled:opacity-50"
-            aria-label="Sterge exceptia"
-          >
-            <Trash2 size={14} />
-          </button>
-        </Tooltip>
       </div>
     </li>
   );

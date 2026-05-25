@@ -201,6 +201,48 @@ function describeForAccountant(r: AuditRecord): string {
         return `a sters ${n} intrari de jurnal incepand cu ${from.slice(0, 10)}`;
       }
       return `${r.action} pe jurnal`;
+    case "partner_category_override": {
+      // Mapari Cashflow → partner-level exceptions on a cont.
+      // Metadata is enriched at write time so we don't need a DB join here.
+      const cont = pickString(meta, "contBase") ?? "?";
+      const partner = pickString(meta, "partnerName") ?? "partener";
+      const cat = pickString(meta, "categoryName");
+      const prevCat = pickString(meta, "previousCategoryName");
+      if (r.action === "create") {
+        return cat
+          ? `a creat o exceptie: pe cont ${cont}, partenerul "${partner}" merge in "${cat}"`
+          : `a creat o exceptie pentru "${partner}" pe cont ${cont}`;
+      }
+      if (r.action === "update") {
+        if (cat && prevCat) {
+          return `a mutat "${partner}" pe cont ${cont} din "${prevCat}" in "${cat}"`;
+        }
+        return cat
+          ? `a actualizat exceptia pentru "${partner}" pe cont ${cont} → "${cat}"`
+          : `a actualizat exceptia pentru "${partner}" pe cont ${cont}`;
+      }
+      if (r.action === "delete") {
+        return prevCat
+          ? `a sters exceptia pentru "${partner}" pe cont ${cont} (era "${prevCat}", revine la categoria contului)`
+          : `a sters exceptia pentru "${partner}" pe cont ${cont}`;
+      }
+      if (r.action === "approve") {
+        return cat
+          ? `a confirmat sugestia pentru "${partner}" pe cont ${cont} → "${cat}"`
+          : `a confirmat o sugestie pentru "${partner}" pe cont ${cont}`;
+      }
+      return `${r.action} pe exceptia "${partner}" / ${cont}`;
+    }
+    case "partner_category_override_bulk": {
+      const cont = pickString(meta, "contBase") ?? "?";
+      const cat = pickString(meta, "categoryName");
+      const applied = pickNumber(meta, "applied") ?? 0;
+      const skipped = pickNumber(meta, "skipped") ?? 0;
+      const tail = skipped > 0 ? ` (${skipped} sariti)` : "";
+      return cat
+        ? `a aplicat in bulk ${applied} parteneri pe cont ${cont} → "${cat}"${tail}`
+        : `a aplicat in bulk ${applied} parteneri pe cont ${cont}${tail}`;
+    }
     default:
       return `${r.action} pe ${r.entityType}`;
   }

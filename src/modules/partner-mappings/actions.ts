@@ -11,7 +11,11 @@
 
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
-import { recordClientMutation } from "@/modules/audit";
+import {
+  recordClientMutation,
+  listAccountantAuditTrail,
+  type AccountantAuditRow,
+} from "@/modules/audit";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
@@ -183,6 +187,50 @@ export async function loadAllExceptionsAction(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                          AUDIT TRAIL (Istoric)                             */
+/* -------------------------------------------------------------------------- */
+
+const auditTrailSchema = z.object({
+  clientId: z.string().min(1),
+  limit: z.number().int().min(1).max(200).optional(),
+});
+
+/**
+ * Load the audit trail entries that belong to the Mapari Cashflow surface:
+ * partner overrides + bulk applies. Used by the "Istoric" tab inside
+ * AllExceptionsDialog so the contabil can see exactly who changed what
+ * and when, without leaving the workspace.
+ *
+ * Two DB roundtrips, one per entityType. We do this rather than a single
+ * unfiltered query so the page bundle stays small even when the firm has
+ * hundreds of unrelated audit events from other surfaces.
+ */
+export async function loadMapariCashflowAuditAction(
+  input: z.infer<typeof auditTrailSchema>
+): Promise<ActionResult<{ items: AccountantAuditRow[] }>> {
+  const parsed = auditTrailSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  const limit = parsed.data.limit ?? 100;
+  const [single, bulk] = await Promise.all([
+    listAccountantAuditTrail(parsed.data.clientId, {
+      entityType: "partner_category_override",
+      limit,
+    }),
+    listAccountantAuditTrail(parsed.data.clientId, {
+      entityType: "partner_category_override_bulk",
+      limit,
+    }),
+  ]);
+  const merged = [...single, ...bulk].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+  );
+  return { data: { items: merged.slice(0, limit) } };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              UPSERT (manual)                               */
 /* -------------------------------------------------------------------------- */
 
@@ -243,6 +291,21 @@ export async function upsertPartnerOverrideAction(
     source: "manual",
   });
 
+  // Enrich audit metadata with category names so the audit-log UI can
+  // render a self-contained sentence without joining back to costCategory.
+  // We fetch both names (before + after) when both exist so we can build
+  // "schimbat din X in Y" messages.
+  const beforeCatId = existing?.categoryId ?? null;
+  const afterCatId = row.categoryId;
+  const catNames = await prisma.costCategory.findMany({
+    where: {
+      clientId: parsed.data.clientId,
+      id: { in: Array.from(new Set([beforeCatId, afterCatId].filter(Boolean) as string[])) },
+    },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(catNames.map((c) => [c.id, c.name]));
+
   await recordClientMutation({
     clientId: parsed.data.clientId,
     actorId: auth.userId,
@@ -251,6 +314,12 @@ export async function upsertPartnerOverrideAction(
     entityId: row.id,
     before: toAuditSnapshot(existing as unknown as PartnerCategoryOverrideRow | null),
     after: toAuditSnapshot(row),
+    metadata: {
+      contBase: parsed.data.contBase,
+      partnerName: parsed.data.partnerNameOriginal,
+      categoryName: nameById.get(afterCatId) ?? null,
+      previousCategoryName: beforeCatId ? nameById.get(beforeCatId) ?? null : null,
+    },
   });
 
   revalidateMapariCashflow(auth.clientSlug);
@@ -281,6 +350,10 @@ export async function confirmPartnerOverrideAction(
   if (!existing) return { error: "Maparea nu exista sau nu apartine firmei" };
 
   const row = await service.confirmOverride(prisma, parsed.data.id);
+  const cat = await prisma.costCategory.findFirst({
+    where: { id: row.categoryId, clientId: parsed.data.clientId },
+    select: { name: true },
+  });
   await recordClientMutation({
     clientId: parsed.data.clientId,
     actorId: auth.userId,
@@ -289,6 +362,11 @@ export async function confirmPartnerOverrideAction(
     entityId: row.id,
     before: toAuditSnapshot(existing as unknown as PartnerCategoryOverrideRow | null),
     after: toAuditSnapshot(row),
+    metadata: {
+      contBase: row.contBase,
+      partnerName: row.partnerNameOriginal,
+      categoryName: cat?.name ?? null,
+    },
   });
 
   revalidateMapariCashflow(auth.clientSlug);
@@ -317,6 +395,13 @@ export async function deletePartnerOverrideAction(
   });
   if (!existing) return { error: "Maparea nu exista sau nu apartine firmei" };
 
+  const previousCat = existing.categoryId
+    ? await prisma.costCategory.findFirst({
+        where: { id: existing.categoryId, clientId: parsed.data.clientId },
+        select: { name: true },
+      })
+    : null;
+
   await service.deleteOverride(prisma, parsed.data.id);
   await recordClientMutation({
     clientId: parsed.data.clientId,
@@ -326,6 +411,11 @@ export async function deletePartnerOverrideAction(
     entityId: parsed.data.id,
     before: toAuditSnapshot(existing as unknown as PartnerCategoryOverrideRow | null),
     after: null,
+    metadata: {
+      contBase: existing.contBase,
+      partnerName: existing.partnerNameOriginal,
+      previousCategoryName: previousCat?.name ?? null,
+    },
   });
 
   revalidateMapariCashflow(auth.clientSlug);
@@ -390,6 +480,10 @@ export async function bulkApplyPartnerOverridesAction(
     skipExistingOverrides: parsed.data.skipExistingOverrides,
   });
 
+  const bulkCat = await prisma.costCategory.findFirst({
+    where: { id: parsed.data.categoryId, clientId: parsed.data.clientId },
+    select: { name: true },
+  });
   await recordClientMutation({
     clientId: parsed.data.clientId,
     actorId: auth.userId,
@@ -400,6 +494,12 @@ export async function bulkApplyPartnerOverridesAction(
     after: {
       contBase: parsed.data.contBase,
       categoryId: parsed.data.categoryId,
+      applied: result.applied,
+      skipped: result.skipped,
+    },
+    metadata: {
+      contBase: parsed.data.contBase,
+      categoryName: bulkCat?.name ?? null,
       applied: result.applied,
       skipped: result.skipped,
     },
