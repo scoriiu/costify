@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
 interface Option {
@@ -24,6 +25,11 @@ interface SelectProps {
  *
  * Behaviour:
  *   - Click button to open the popover.
+ *   - The popover is RENDERED INTO A PORTAL (document.body) and positioned
+ *     with fixed coordinates from the trigger's getBoundingClientRect. This
+ *     is critical: the popover otherwise gets clipped by any ancestor with
+ *     overflow: hidden/auto/scroll — which kills it inside dialogs, slide-
+ *     panels, virtualised tables, etc.
  *   - On open, the currently selected option scrolls into view and receives
  *     focus, so a long list (e.g. 50 categories) doesn't force the user to
  *     scroll manually to find their selection.
@@ -32,6 +38,8 @@ interface SelectProps {
  *   - Escape closes the popover.
  *   - Click outside closes the popover.
  *   - Tab moves focus naturally (does not trap focus inside the popover).
+ *   - Scrolling the page (or any ancestor) closes the popover — better than
+ *     letting it drift away from the trigger.
  */
 export function Select({
   value,
@@ -42,9 +50,42 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
+  const [popoverPos, setPopoverPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    placement: "below" | "above";
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Compute popover position from the trigger. Picks above-trigger when
+  // there's not enough room below (e.g., a Select at the bottom of a tall
+  // dialog).
+  const computePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const POPOVER_MAX_H = 288; // matches max-h-72
+    const GAP = 4;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const placement: "below" | "above" =
+      spaceBelow >= POPOVER_MAX_H || spaceBelow >= spaceAbove
+        ? "below"
+        : "above";
+    setPopoverPos({
+      top:
+        placement === "below"
+          ? rect.bottom + GAP
+          : rect.top - GAP - Math.min(POPOVER_MAX_H, spaceAbove - GAP),
+      left: rect.left,
+      width: rect.width,
+      placement,
+    });
+  }, []);
 
   const selectedIndex = options.findIndex((o) => o.value === value);
   const selectedLabel =
@@ -53,22 +94,43 @@ export function Select({
   const close = useCallback(() => {
     setOpen(false);
     setActiveIndex(-1);
+    setPopoverPos(null);
   }, []);
 
-  // Click outside -> close.
+  // Click outside -> close. The popover is portaled to body, so we have to
+  // accept clicks on the popover itself by checking BOTH the trigger
+  // container AND the list element.
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        close();
-      }
+      const target = e.target as Node;
+      const inTrigger = containerRef.current?.contains(target);
+      const inList = listRef.current?.contains(target);
+      if (!inTrigger && !inList) close();
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, close]);
+
+  // Reposition on open AND close on any scroll/resize. A drifting popover
+  // is worse than a closed one — the contabil would lose context anyway.
+  useEffect(() => {
+    if (!open) return;
+    computePosition();
+    function handleScroll() {
+      close();
+    }
+    function handleResize() {
+      computePosition();
+    }
+    // capture:true so we catch scroll events from any ancestor.
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open, close, computePosition]);
 
   // When opening, seed activeIndex with the selected one (or first item) and
   // scroll+focus the matching option button so the user sees their current
@@ -146,6 +208,7 @@ export function Select({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={selectedLabel}
@@ -164,46 +227,61 @@ export function Select({
         />
       </button>
 
-      {open && (
-        <div
-          ref={listRef}
-          role="listbox"
-          className="absolute top-full left-0 right-0 z-50 mt-1 max-h-72 max-w-md min-w-full overflow-y-auto rounded-xl border border-dark-3 bg-dark-2 py-1 shadow-xl shadow-black/30"
-        >
-          {options.map((opt, i) => {
-            const isSelected = opt.value === value;
-            const isActive = i === activeIndex;
-            return (
-              <button
-                key={opt.value}
-                ref={(el) => {
-                  optionRefs.current[i] = el;
-                }}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => commit(opt.value)}
-                onMouseEnter={() => setActiveIndex(i)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    commit(opt.value);
-                  }
-                }}
-                className={`flex w-full items-center px-4 py-2 text-left font-mono text-sm transition-colors focus:outline-none ${
-                  isSelected
-                    ? "bg-primary/10 text-primary"
-                    : isActive
-                      ? "bg-dark-3/60 text-white"
-                      : "text-gray-light hover:bg-dark-3/60 hover:text-white"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {open &&
+        popoverPos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={listRef}
+            role="listbox"
+            // Fixed positioning is ESSENTIAL — `absolute` would still be
+            // clipped by any `overflow: hidden` body even after portal.
+            // `min-width: 12rem` keeps very narrow triggers from rendering
+            // a too-cramped dropdown.
+            style={{
+              position: "fixed",
+              top: popoverPos.top,
+              left: popoverPos.left,
+              width: popoverPos.width,
+              minWidth: "12rem",
+            }}
+            className="z-[100] max-h-72 max-w-md overflow-y-auto rounded-xl border border-dark-3 bg-dark-2 py-1 shadow-xl shadow-black/30"
+          >
+            {options.map((opt, i) => {
+              const isSelected = opt.value === value;
+              const isActive = i === activeIndex;
+              return (
+                <button
+                  key={opt.value}
+                  ref={(el) => {
+                    optionRefs.current[i] = el;
+                  }}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => commit(opt.value)}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      commit(opt.value);
+                    }
+                  }}
+                  className={`flex w-full items-center px-4 py-2 text-left font-mono text-sm transition-colors focus:outline-none ${
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : isActive
+                        ? "bg-dark-3/60 text-white"
+                        : "text-gray-light hover:bg-dark-3/60 hover:text-white"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

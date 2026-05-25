@@ -153,6 +153,37 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await expect(page.getByText(/6058/).first()).toBeVisible();
   });
 
+  test("6. Select dropdown in AllExceptionsDialog escapes modal clipping", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.getByRole("button", { name: /Vezi toate/ }).click();
+    await expect(page.getByRole("dialog", { name: "Toate exceptiile" })).toBeVisible();
+
+    // Find the first row's Select trigger and click it open.
+    const dialog = page.getByRole("dialog", { name: "Toate exceptiile" });
+    const selectTrigger = dialog.locator("button[aria-haspopup='listbox']").first();
+    await selectTrigger.click();
+
+    // The listbox is portaled OUTSIDE the dialog (to document.body). It must
+    // be visible AND positioned with fixed coords, not clipped by the modal's
+    // overflow-y-auto. We assert: at least one option role is visible and
+    // the listbox element is not a descendant of the dialog.
+    const listbox = page.locator("[role='listbox']");
+    await expect(listbox).toBeVisible();
+    const isInsideDialog = await listbox.evaluate((el, dialogSelector) => {
+      const dialog = document.querySelector(dialogSelector);
+      return dialog ? dialog.contains(el) : false;
+    }, "[role='dialog'][aria-label='Toate exceptiile']");
+    expect(isInsideDialog).toBe(false);
+
+    // Also assert the listbox uses fixed positioning so it can escape any
+    // overflow:auto ancestor.
+    const positionStyle = await listbox.evaluate(
+      (el) => window.getComputedStyle(el).position
+    );
+    expect(positionStyle).toBe("fixed");
+  });
+
   test("5. Cont with overrides shows visual cue (left border)", async ({ context }) => {
     const page = await authedPage(context);
     await page.goto(MAPARI_URL);
