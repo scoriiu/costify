@@ -26,7 +26,10 @@ import {
   listOverridesForClient,
   listOverridesForCont,
 } from "./service";
-import type { PartnerCategoryOverrideRow } from "./types";
+import type {
+  PartnerCategoryOverrideRow,
+  PartnerOverrideSource,
+} from "./types";
 
 function kindForContBase(contBase: string): ContKind | null {
   const first = contBase.charAt(0);
@@ -356,4 +359,124 @@ export async function loadSuggestionQueue(
   // 12.000 lei suggestion before the 100 lei one.
   queue.sort((a, b) => b.rulaj - a.rulaj);
   return queue;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                  ALL-EXCEPTIONS VIEW (centralised list)                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One row in the centralised "Toate exceptiile" view — every override the
+ * contabil has set across the whole firm, enriched with the rulaj observed
+ * on that (cont, partner) pair in the selected period plus the partner's
+ * display name.
+ *
+ * The contabil opens this from the Mapari Cashflow header when they want
+ * to inspect every manual exception in one place — find a partner across
+ * multiple conts, change a category in bulk, or just audit "what overrides
+ * have we accumulated?".
+ */
+export interface AllExceptionsRow {
+  /** PartnerCategoryOverride.id — used by Delete/Update actions. */
+  overrideId: string;
+  /** Cont where the override is anchored. */
+  contBase: string;
+  /** "expense" / "revenue" — derived from contBase. */
+  contKind: ContKind;
+  /** Partner display name. The "Original" spelling we keep in the journal. */
+  partnerNameOriginal: string;
+  /** Normalised matching key. */
+  partnerNameNormalized: string;
+  /** Override target category. */
+  categoryId: string;
+  /** Where the override came from (manual / bulk / suggested). */
+  source: PartnerOverrideSource;
+  /** Whether the contabil has explicitly confirmed it. Sprint 5 flow. */
+  confirmedAt: Date | null;
+  /** YTD rulaj of THIS partner on THIS cont in the selected period.
+   *  Drives sort order in the centralised view (biggest impact first).
+   *  Can be 0 if the partner had no activity this period (historical
+   *  override that's idle). */
+  rulaj: number;
+}
+
+/**
+ * Centralised "every exception in one place" loader. The output is sorted
+ * by rulaj DESC so the biggest-impact overrides are at the top.
+ *
+ * Note: an override can exist for a (cont, partner) pair that had no
+ * activity in the selected period — we still surface it with rulaj=0 so
+ * the contabil can see and clean up historical overrides that are no
+ * longer relevant.
+ */
+export async function loadAllExceptions(
+  prisma: PrismaClient,
+  clientId: string,
+  year: number,
+  month: number
+): Promise<AllExceptionsRow[]> {
+  const [allLines, partnerNames, allOverrides] = await Promise.all([
+    fetchAllCostAndRevenueLines(prisma, clientId, year, month),
+    fetchPartnerNames(prisma, clientId),
+    listOverridesForClient(prisma, clientId),
+  ]);
+
+  // Bucket lines by contBase so we can compute rulaj per (cont, partner).
+  const linesByContBase = new Map<string, JournalLineForAggregation[]>();
+  for (const line of allLines) {
+    const contBase = line.contDBase.startsWith("6")
+      ? line.contDBase
+      : line.contCBase.startsWith("7")
+        ? line.contCBase
+        : null;
+    if (!contBase) continue;
+    const bucket = linesByContBase.get(contBase);
+    if (bucket) bucket.push(line);
+    else linesByContBase.set(contBase, [line]);
+  }
+
+  // Pre-compute partner rulaj for each (cont, partner-normalized) by reusing
+  // the same aggregator. We discard the partners that aren't overrides — the
+  // override list IS the source of truth here.
+  const rulajByContPartner = new Map<string, number>();
+  for (const [contBase, lines] of linesByContBase) {
+    const kind = kindForContBase(contBase);
+    if (!kind) continue;
+    const overridesForCont = allOverrides.filter((o) => o.contBase === contBase);
+    const { partners } = aggregatePartnersForCont(
+      kind,
+      lines,
+      partnerNames,
+      overridesForCont,
+      []
+    );
+    for (const p of partners) {
+      rulajByContPartner.set(`${contBase}|${p.nameNormalized}`, p.rulaj);
+    }
+  }
+
+  const rows: AllExceptionsRow[] = allOverrides.map((o) => {
+    const kind = kindForContBase(o.contBase);
+    const rulaj =
+      rulajByContPartner.get(`${o.contBase}|${o.partnerNameNormalized}`) ?? 0;
+    return {
+      overrideId: o.id,
+      contBase: o.contBase,
+      // contKind defaults to expense for unknown — should never happen
+      // because PartnerCategoryOverride.contBase is always 6xx/7xx, but
+      // the type-safety fallback keeps TS happy.
+      contKind: kind ?? "expense",
+      partnerNameOriginal: o.partnerNameOriginal,
+      partnerNameNormalized: o.partnerNameNormalized,
+      categoryId: o.categoryId,
+      source: o.source,
+      confirmedAt: o.confirmedAt,
+      rulaj,
+    };
+  });
+
+  // Sort by absolute rulaj DESC. The 12.000 lei exception is more important
+  // to inspect than the 5 lei one — show it first.
+  rows.sort((a, b) => Math.abs(b.rulaj) - Math.abs(a.rulaj));
+  return rows;
 }

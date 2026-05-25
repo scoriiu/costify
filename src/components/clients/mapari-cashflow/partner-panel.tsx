@@ -110,11 +110,23 @@ export function PartnerPanel({
       />
       {/* Panel */}
       <aside
-        className="fixed top-0 right-0 z-50 h-full w-full max-w-xl bg-dark-1 border-l border-dark-3 shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 z-50 h-full w-full max-w-xl bg-dark-2 border-l border-dark-3 shadow-2xl flex flex-col"
         role="dialog"
         aria-label={`Parteneri pe contul ${account.cont}`}
       >
-        <PanelHeader account={account} onClose={onClose} />
+        <PanelHeader
+          account={account}
+          contCategoryName={contCategoryName}
+          // Pass override stats so the header can speak the truth: when the
+          // contabil has put exceptions on this cont, "toți partenerii merg
+          // în X prin maparea contului" becomes a lie. The header phrasing
+          // shifts based on whether 0 / some / all partners have overrides.
+          overriddenCount={
+            data?.partners.filter((p) => p.override !== null).length ?? 0
+          }
+          totalCount={data?.partners.length ?? 0}
+          onClose={onClose}
+        />
 
         <div className="flex-1 overflow-y-auto">
           {loading && <PanelSkeleton />}
@@ -160,9 +172,15 @@ export function PartnerPanel({
 
 function PanelHeader({
   account,
+  contCategoryName,
+  overriddenCount,
+  totalCount,
   onClose,
 }: {
   account: AccountListItem;
+  contCategoryName: string | null;
+  overriddenCount: number;
+  totalCount: number;
   onClose: () => void;
 }) {
   const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
@@ -197,7 +215,109 @@ function PanelHeader({
         >
           {formatRon(Math.abs(rulaj))} lei rulaj cumulat
         </div>
+        {/* Headline truth-line about where partners go. Speaks differently
+            based on the actual state — "toți merg în X" is only true when
+            zero overrides exist; once a single override appears we have to
+            qualify the statement, otherwise we lie to the contabil. */}
+        <HeaderTruthLine
+          accountKind={account.kind}
+          contCategoryName={contCategoryName}
+          overriddenCount={overriddenCount}
+          totalCount={totalCount}
+        />
       </div>
+    </div>
+  );
+}
+
+/**
+ * The one-liner that tells the contabil where partners on this cont go.
+ * Five distinct states, each with its own honest phrasing — never claim
+ * "toți merg în X" when even one partener has an override.
+ */
+function HeaderTruthLine({
+  accountKind,
+  contCategoryName,
+  overriddenCount,
+  totalCount,
+}: {
+  accountKind: "expense" | "revenue";
+  contCategoryName: string | null;
+  overriddenCount: number;
+  totalCount: number;
+}) {
+  // Unmapped cont — overrides don't matter, fallback is "Alte cheltuieli".
+  if (!contCategoryName) {
+    return (
+      <div
+        className="mt-1.5 text-[11px] text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Contul nu e mapat. Partenerii fara exceptie apar pe /firma in{" "}
+        <span className="text-neg font-medium">
+          {accountKind === "expense" ? "Alte cheltuieli" : "Alte venituri"}
+        </span>{" "}
+        — mapeaza contul din workspace ca sa schimbi asta.
+      </div>
+    );
+  }
+
+  // Cont mapped, no data yet — pre-loading state. Stay quiet.
+  if (totalCount === 0) {
+    return (
+      <div
+        className="mt-1.5 text-[11px] text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Contul e mapat la{" "}
+        <span className="text-gray-light font-medium">{contCategoryName}</span>.
+      </div>
+    );
+  }
+
+  // All partners have overrides — the cont category is unused this period.
+  if (overriddenCount === totalCount) {
+    return (
+      <div
+        className="mt-1.5 text-[11px] text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Toti partenerii au exceptie individuala. Categoria contului (
+        <span className="text-gray-light font-medium">{contCategoryName}</span>
+        ) nu se aplica niciunui partener pe aceasta perioada.
+      </div>
+    );
+  }
+
+  // Some overrides — qualify the cont-mapping statement.
+  if (overriddenCount > 0) {
+    const followCount = totalCount - overriddenCount;
+    return (
+      <div
+        className="mt-1.5 text-[11px] text-gray"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {followCount === 1
+          ? "1 partener urmeaza"
+          : `${followCount} parteneri urmeaza`}{" "}
+        maparea contului catre{" "}
+        <span className="text-gray-light font-medium">{contCategoryName}</span>.{" "}
+        {overriddenCount === 1
+          ? "1 partener are exceptie individuala (vezi mai jos)."
+          : `${overriddenCount} parteneri au exceptie individuala (vezi mai jos).`}
+      </div>
+    );
+  }
+
+  // Zero overrides — the happy "toți merg în X" case.
+  return (
+    <div
+      className="mt-1.5 text-[11px] text-gray"
+      style={{ letterSpacing: "-0.02em" }}
+    >
+      Toti partenerii merg in{" "}
+      <span className="text-gray-light font-medium">{contCategoryName}</span>{" "}
+      prin maparea contului.
     </div>
   );
 }
@@ -265,6 +385,8 @@ function PanelBody({
     return xs;
   }, [data.partners, filter, queryNorm]);
 
+  const [showBulk, setShowBulk] = useState(false);
+
   return (
     <div className="p-4 space-y-4">
       <CoverageDetail
@@ -276,13 +398,27 @@ function PanelBody({
         totalCount={data.partners.length}
       />
 
-      {unmapped.length > 0 && (
+      {/* Bulk apply is the rare case — most of the time the contabil is
+          here to redirect ONE partner, not all. We hide the bar behind
+          a small opt-in link so the default view stays calm. */}
+      {unmapped.length > 0 && !showBulk && (
+        <button
+          type="button"
+          onClick={() => setShowBulk(true)}
+          className="text-[12px] text-primary hover:text-primary-light underline-offset-2 hover:underline"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Redirectioneaza in bulk toti partenerii catre o alta categorie →
+        </button>
+      )}
+      {unmapped.length > 0 && showBulk && (
         <BulkActionBar
           account={account}
           clientId={clientId}
           unmapped={unmapped}
           categoryOptions={categoryOptions}
           onSaved={onSaved}
+          onCancel={() => setShowBulk(false)}
         />
       )}
 
@@ -299,11 +435,20 @@ function PanelBody({
           onChange={setFilter}
           options={[
             { value: "all", label: "Toti", count: data.partners.length },
+            // "Fara exceptie" is more honest than "Nemapati" — these
+            // partners DO have a category (the cont's default); they just
+            // don't have an individual override yet. Only treat the count
+            // as a danger signal when the contabil already started
+            // overriding (i.e., some have overrides, some don't) — in the
+            // common all-default case it's just an info count, not work to do.
             {
               value: "unmapped",
-              label: "Nemapati",
+              label: "Fara exceptie",
               count: unmapped.length,
-              countTone: unmapped.length > 0 ? "danger" : "neutral",
+              countTone:
+                overridden.length > 0 && unmapped.length > 0
+                  ? "danger"
+                  : "neutral",
             },
             { value: "top10", label: "Top 10" },
           ]}
@@ -334,7 +479,6 @@ function PanelBody({
                 account={account}
                 clientId={clientId}
                 categoryOptions={categoryOptions}
-                contCategoryName={contCategoryName}
                 onSaved={onSaved}
               />
             ))
@@ -353,8 +497,9 @@ function PanelBody({
  * an exact summary ("Se vor mapa N parteneri (Y lei). M excepții manuale
  * pastrate."), confirm runs the bulk action.
  *
- * Only shown when there are unmapped partners to apply to — once everything
- * is overridden, this bar would have nothing to do.
+ * Hidden behind an opt-in link in the parent — bulk redirect is the rare
+ * case (most visits to this panel are about ONE partner). The contabil
+ * opens this only when they genuinely want to redirect the whole cont.
  */
 function BulkActionBar({
   account,
@@ -362,12 +507,14 @@ function BulkActionBar({
   unmapped,
   categoryOptions,
   onSaved,
+  onCancel,
 }: {
   account: AccountListItem;
   clientId: string;
   unmapped: PartnerEntry[];
   categoryOptions: { value: string; label: string }[];
   onSaved: () => Promise<void> | void;
+  onCancel: () => void;
 }) {
   const [categoryId, setCategoryId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
@@ -404,14 +551,24 @@ function BulkActionBar({
   return (
     <>
       <div className="rounded-lg border border-dark-3 bg-dark-3/30 p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Layers size={14} className="text-gray shrink-0" />
-          <span
-            className="font-mono text-[10px] uppercase tracking-wider text-gray"
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Layers size={14} className="text-gray shrink-0" />
+            <span
+              className="font-mono text-[10px] uppercase tracking-wider text-gray truncate"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Redirectioneaza {targetCount} ({formatRon(targetRulaj)} lei)
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-[11px] text-gray hover:text-gray-light shrink-0"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Aplica la {targetCount} nemapati ({formatRon(targetRulaj)} lei)
-          </span>
+            Renunta
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
@@ -477,7 +634,7 @@ function BulkPreviewModal({
         onClick={pending ? undefined : onCancel}
         aria-hidden
       />
-      <div className="relative bg-dark-1 border border-dark-3 rounded-xl p-5 max-w-md w-full mx-4 shadow-2xl">
+      <div className="relative bg-dark-2 border border-dark-3 rounded-xl p-5 max-w-md w-full mx-4 shadow-2xl">
         <h3
           className="text-[16px] font-semibold text-white mb-3"
           style={{ letterSpacing: "-0.04em" }}
@@ -527,8 +684,25 @@ function CoverageDetail({
   overriddenCount: number;
   totalCount: number;
 }) {
+  // When the contabil hasn't created a single exception, treat this as the
+  // happy path — not as "0% coverage you must fix". The cont-mapping is
+  // doing its job. Only when overrides exist do we surface the percentage.
+  const hasOverrides = overriddenCount > 0;
   const total = partnerRulaj + unresolvedRulaj;
-  const overriddenPct = total > 0 ? Math.round((overriddenRulaj / total) * 100) : 0;
+  const overriddenPct =
+    total > 0 ? Math.round((overriddenRulaj / total) * 100) : 0;
+
+  if (!hasOverrides) {
+    return (
+      <div
+        className="rounded-lg border border-dark-3 bg-dark-2 p-3 text-[12px] text-gray-light"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        Niciun partener nu are exceptie. Suprascrie individual mai jos doar
+        daca un partener apartine altui grup decat contul.
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-dark-3 bg-dark-2 p-3 space-y-2">
@@ -537,13 +711,13 @@ function CoverageDetail({
           className="font-mono text-[10px] uppercase tracking-wider text-gray"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Acoperire pe partener
+          Exceptii fata de contul
         </span>
         <span
           className="font-mono text-[11px] text-gray-light tabular-nums"
           style={{ letterSpacing: "-0.02em" }}
         >
-          {overriddenPct}% mapat explicit
+          {overriddenPct}% din rulaj redistribuit
         </span>
       </div>
       <ul
@@ -551,17 +725,17 @@ function CoverageDetail({
         style={{ letterSpacing: "-0.02em" }}
       >
         <li>
-          {formatRon(overriddenRulaj)} lei pe {overriddenCount} parteneri
-          mapati explicit
+          {formatRon(overriddenRulaj)} lei pe {overriddenCount}{" "}
+          {overriddenCount === 1 ? "partener cu exceptie" : "parteneri cu exceptie"}
         </li>
         <li>
           {formatRon(defaultRulaj)} lei pe {totalCount - overriddenCount}{" "}
-          parteneri pe default
+          {totalCount - overriddenCount === 1
+            ? "partener urmeaza contul"
+            : "parteneri urmeaza contul"}
         </li>
         {unresolvedRulaj > 0 && (
-          <li>
-            {formatRon(unresolvedRulaj)} lei fara partener identificat
-          </li>
+          <li>{formatRon(unresolvedRulaj)} lei fara partener identificat</li>
         )}
       </ul>
     </div>
@@ -575,14 +749,12 @@ function PartnerRow({
   account,
   clientId,
   categoryOptions,
-  contCategoryName,
   onSaved,
 }: {
   partner: PartnerEntry;
   account: AccountListItem;
   clientId: string;
   categoryOptions: { value: string; label: string }[];
-  contCategoryName: string | null;
   onSaved: () => Promise<void> | void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -602,17 +774,16 @@ function PartnerRow({
     partner.suggestedCategoryId ??
     DEFAULT_OPTION_VALUE;
 
+  // The "default" option keeps its label SHORT — just "Urmeaza contul".
+  // The cont's actual category is shown once in the panel header and
+  // doesn't need to be repeated 6 times in a list of 6 partners on
+  // default. Less noise, same information.
   const options = useMemo(
     () => [
-      {
-        value: DEFAULT_OPTION_VALUE,
-        label: contCategoryName
-          ? `Default contului (${contCategoryName})`
-          : "Default contului (nemapat)",
-      },
+      { value: DEFAULT_OPTION_VALUE, label: "Urmeaza contul" },
       ...categoryOptions,
     ],
-    [categoryOptions, contCategoryName]
+    [categoryOptions]
   );
 
   function pick(newValue: string) {

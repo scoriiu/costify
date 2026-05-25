@@ -160,6 +160,29 @@ export async function loadSuggestionQueueAction(
 }
 
 /* -------------------------------------------------------------------------- */
+/*                  ALL-EXCEPTIONS VIEW (centralised list)                    */
+/* -------------------------------------------------------------------------- */
+
+export async function loadAllExceptionsAction(
+  input: z.infer<typeof queueSchema>
+): Promise<
+  ActionResult<{ items: Awaited<ReturnType<typeof loader.loadAllExceptions>> }>
+> {
+  const parsed = queueSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  const items = await loader.loadAllExceptions(
+    prisma,
+    parsed.data.clientId,
+    parsed.data.year,
+    parsed.data.month
+  );
+  return { data: { items } };
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              UPSERT (manual)                               */
 /* -------------------------------------------------------------------------- */
 

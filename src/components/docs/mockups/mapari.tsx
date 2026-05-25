@@ -119,7 +119,7 @@ export function MockSplitPopover() {
         <span className="text-[11px] text-gray">Total: <span className="text-green font-mono">100%</span></span>
         <div className="flex gap-2">
           <button className="text-[12px] text-gray hover:text-gray-light px-3 py-1">Renunta</button>
-          <button className="text-[12px] text-white bg-primary hover:bg-primary-dark rounded-[10px] px-3 py-1">Salveaza</button>
+          <button className="text-[12px] text-[#E9E8E3] bg-primary hover:bg-primary-dark rounded-[10px] px-3 py-1">Salveaza</button>
         </div>
       </div>
     </div>
@@ -154,7 +154,7 @@ export function MockActivateModal() {
       </MockBanner>
       <div className="flex justify-end gap-2 mt-5">
         <button className="text-[12px] text-gray hover:text-gray-light px-4 py-2">Renunta</button>
-        <button className="text-[12px] text-white bg-primary hover:bg-primary-dark rounded-[10px] px-4 py-2 font-semibold">
+        <button className="text-[12px] text-[#E9E8E3] bg-primary hover:bg-primary-dark rounded-[10px] px-4 py-2 font-semibold">
           Salveaza si continua
         </button>
       </div>

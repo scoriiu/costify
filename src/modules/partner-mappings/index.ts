@@ -15,7 +15,9 @@ export {
   loadPartnersForCont,
   loadPartnerSummariesForClient,
   loadSuggestionQueue,
+  loadAllExceptions,
   type SuggestionQueueItem,
+  type AllExceptionsRow,
 } from "./loader";
 
 export {

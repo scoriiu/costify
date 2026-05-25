@@ -102,7 +102,7 @@ export function ReviewQueueDialog({
     <div className="fixed inset-0 z-[55] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
       <div
-        className="relative bg-dark-1 border border-dark-3 rounded-xl w-full max-w-xl mx-4 shadow-2xl"
+        className="relative bg-dark-2 border border-dark-3 rounded-xl w-full max-w-xl mx-4 shadow-2xl"
         role="dialog"
         aria-label="Coada de revizuire"
       >

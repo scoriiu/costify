@@ -32,6 +32,96 @@
 - KPIs per-categorie (ex. marja pe categoria X).
 - Cache adjustments per (clientId, year, month) cu invalidation.
 
+## Post-Sprint-7 polish (Nov 2026 — sesiunea de feedback Corii)
+
+După livrarea celor 7 sprinturi, o sesiune intensivă de feedback cu Corii pe
+firma reală (`qhm21-network-srl`, cont `6058`) a dezvăluit câteva probleme
+de UX care nu erau vizibile în testele unitare. Toate sunt **rezolvate** și
+**testate** (5 noi Playwright tests în
+`tests/ui/mapari-cashflow-partner-overrides.spec.ts`).
+
+### 1. ✅ Modal background transparent (bug grav)
+- Token `bg-dark-1` nu există în globals.css → 3 dialog-uri (partner panel,
+  preview modal, review queue) rendau fundal transparent.
+- Fix: schimbat la `bg-dark-2` în partner-panel.tsx + review-queue.tsx.
+
+### 2. ✅ Count badge negru pe teal (text-white = #1A1918 în light theme)
+- `text-white` rezolva la `--color-white = --text-primary = #1A1918` în
+  light theme → "6" negru pe teal verde, ilegibil.
+- Fix: schimbat la `text-[#E9E8E3]/20` și `text-[#E9E8E3]` literal pe count
+  badge. Adăugat secțiune dedicată în AGENTS.md cu regula:
+  "Text-on-primary — never `text-white` on `bg-primary`".
+
+### 3. ✅ "0% mapat explicit" misleading headline
+- Când contabilul nu pune nicio excepție (cazul normal), header arăta "0%
+  mapat explicit" — sugera că ceva e greșit. De fapt 0% e starea naturală.
+- Fix: când zero overrides, mesaj onest: "Niciun partener nu are excepție.
+  Suprascrie individual mai jos doar dacă un partener aparține altui grup."
+  Când există overrides, "Excepții față de contul — N% din rulaj
+  redistribuit".
+
+### 4. ✅ "Default contului (...)" redundant pe fiecare rând partener
+- Lista de 6 parteneri arăta de 6 ori "Default contului (Marfă, materii
+  prime și materiale)" în Select. Categoria contului apare deja sus în
+  header.
+- Fix: label scurt "Urmează contul". Categoria contului apare o singură
+  dată în header.
+
+### 5. ✅ Bulk apply bar domina panoul vizual
+- Bulk apply e cazul rar (contabilul vine de obicei pentru 1 partener,
+  nu pentru toți).
+- Fix: ascuns sub link opt-in `Redirecționează în bulk →`. Click deschide
+  bara cu buton `Renunță` pentru anulare.
+
+### 6. ✅ Threshold badge schimbat 3 → 2 (validat cu date reale)
+- Pe 4 clienți × 153 conturi: 21 conturi (14%) au exact 2 parteneri. Cu
+  prag ≥3 erau invizibili — exact bucket-ul unde se ascund cele mai multe
+  clasificări greșite.
+- Fix: `MIN_PARTNERS_FOR_BADGE = 2`. Acoperire badge: 29% → 43% din conturi.
+
+### 7. ✅ Header truth-line minciuna când există overrides
+- "Toți partenerii merg în Marfă..." rămânea afișat chiar și după ce
+  contabilul punea 1 excepție pentru Tesla. Era o minciună.
+- Fix: 5 variante de mesaj în funcție de starea reală: cont nemapat,
+  zero overrides, unele overrides, toate overrides, loading-no-data.
+  Funcția pură `HeaderTruthLine`.
+
+### 8. ✅ Conturile cu overrides nu erau vizibile la o privire
+- Badge-ul deja se colora cu primary tint, dar era subtil.
+- Fix: rândul AccountRow primește acum **bordură stânga primary/40** când
+  are overrides. Scanând lista top-to-bottom, conturile cu intervenții
+  manuale sar în ochi imediat. Plus badge mai bold (font-semibold + bg
+  mai intens).
+
+### 9. ✅ NEW FEATURE: Centralized "Toate excepțiile" view
+- Contabilul nu putea vedea într-un singur loc TOATE override-urile
+  firmei. Trebuia să intre pe fiecare cont să le caute.
+- Fix:
+  - Nou loader: `loadAllExceptions(clientId, year, month)` returnează
+    fiecare override cu cont/partener/categorie/rulaj.
+  - Nou server action: `loadAllExceptionsAction`.
+  - Nou UI component: `<AllExceptionsDialog>` cu listă sortabilă DESC
+    după rulaj, search diacritic-insensitive (partener + cont + categorie),
+    edit inline (Select pe fiecare rând schimbă categoria), ștergere
+    inline (Trash2 cu confirm), empty state, idle marker pentru
+    override-uri istorice fără activitate.
+  - Entrypoint: callout primary-tint în coverage panel `N excepții
+    individuale → Vezi toate`, vizibil DOAR când `totalOverrideCount > 0`.
+- Sortare DESC pe `Math.abs(rulaj)`: cel mai mare impact primul.
+
+### 10. ✅ Playwright UI tests
+- Nou fișier `tests/ui/mapari-cashflow-partner-overrides.spec.ts` cu 5
+  teste end-to-end:
+  1. Page loads + coverage panel visible
+  2. Per-cont partner badge opens slide-panel cu truth-line corect
+  3. Centralized "Toate excepțiile" callout opens dialog
+  4. AllExceptionsDialog search filters rows
+  5. Cont with overrides shows visual cue (left border)
+- Toate 5 pass.
+- 3103 unit/integration tests pass (zero regresii).
+- 7 CPP tests rămân failed — pre-existente, neacarate de schimbările
+  acestei sesiuni (verificat prin `git stash`).
+
 ---
 
 ## Context

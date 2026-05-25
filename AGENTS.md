@@ -15,6 +15,26 @@
 - **Dark theme surfaces (secondary mode):** teal-tinted, not neutral gray. `surface-0: #0B1514`, `surface-1: #111F1E`, `surface-2: #182A28`, `surface-3: #223633`. No pure blacks — every surface carries a subtle teal undertone from the primary.
 - **Dark theme text:** primary `#E9E8E3`, secondary `#C5C3BC`, muted `#8A877F`
 
+#### Text-on-primary rule — **never `text-white` on `bg-primary`**
+The `text-white` Tailwind utility resolves to our token `--color-white`, which is **theme-aware** (`#1A1918` near-black in light theme, `#E9E8E3` warm off-white in dark theme). This is intentional for body text on light surfaces but **catastrophic when used on `bg-primary`** (the teal pill / button): the text becomes near-black on green and is unreadable.
+
+**The rule for ANY element sitting on a teal/primary background:**
+- ✅ `text-[#E9E8E3]` — literal warm off-white, always renders correctly in both themes.
+- ✅ Token-based: only `text-[#E9E8E3]` or `text-primary-foreground` if we ever add that token.
+- ❌ Never `text-white` on top of `bg-primary`, `bg-primary/N`, or any element whose visual color is the brand teal.
+- ❌ Never `text-black` either (we don't use pure black anywhere).
+
+This also applies to children of a primary-colored surface: count badges, icons (`currentColor`), nested `<span>`s. If you're inside a `bg-primary` container, the `<Button>` primitive already sets `text-[#E9E8E3]` — preserve that by using the literal on any sibling/child you add.
+
+Concrete pattern for a count badge or pill ON the active primary toggle:
+```tsx
+// inside bg-primary parent:
+<span className="bg-[#E9E8E3]/20 text-[#E9E8E3]">{count}</span>  // ✅
+<span className="bg-white/15 text-white">{count}</span>           // ❌ black in light theme
+```
+
+If you find yourself reaching for `text-white` while building anything that lands on teal, stop and replace with `text-[#E9E8E3]`. This rule is enforced visually — there is no lint for it, but failing it ships an unreadable UI.
+
 ### Typography
 - **Font:** Altform (regular 400, semibold 600, bold 700). Geist Mono for numbers, labels, data.
 - **Heading tracking:** `-0.04em` on all headings and semibold/bold text

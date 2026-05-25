@@ -1,5 +1,15 @@
 "use client";
 
+// IMPORTANT — color rule on `bg-primary` (Evergreen Teal):
+// Never use `text-white` on top of `bg-primary`. In light theme our token
+// `--color-white` resolves to `#1A1918` (near-black) because the design
+// system inverts text tokens per theme. The result is unreadable black
+// text on the teal pill. Always use the literal `text-[#E9E8E3]` (warm
+// off-white) when sitting on `bg-primary` — same as the Button primitive
+// and exactly what AGENTS.md prescribes for "text on light primary
+// buttons". This applies to ANY child of a primary-colored surface,
+// including count badges, icons rendered via `currentColor`, etc.
+
 interface ToggleOption<T extends string> {
   value: T;
   label: string;
@@ -21,11 +31,14 @@ export function ToggleGroup<T extends string>({ value, options, onChange }: Togg
       {options.map((opt) => {
         const active = value === opt.value;
         const countTone = opt.countTone ?? "neutral";
+        // On the active pill the badge sits on top of `bg-primary`, so it
+        // MUST use the warm off-white literal (`text-[#E9E8E3]`) — never
+        // the `text-white` token (becomes black in light theme).
         const countClass =
           countTone === "danger"
             ? "bg-danger/20 text-danger"
             : active
-              ? "bg-white/15 text-white"
+              ? "bg-[#E9E8E3]/20 text-[#E9E8E3]"
               : "bg-dark-3 text-gray-light";
         return (
           <button

@@ -28,7 +28,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -63,6 +63,7 @@ import { VerticalPicker } from "./vertical-picker";
 import { EditAllocationDialog } from "./edit-allocation-dialog";
 import { CategoryWorkspace } from "./category-workspace";
 import { ReviewQueueDialog } from "./review-queue";
+import { AllExceptionsDialog } from "./all-exceptions-dialog";
 import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
@@ -80,6 +81,7 @@ export function MapariCashflowTab({ data }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
+  const [allExceptionsOpen, setAllExceptionsOpen] = useState(false);
   const onMutate = () => router.refresh();
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
@@ -117,6 +119,7 @@ export function MapariCashflowTab({ data }: Props) {
         freshlySeeded={data.freshlySeeded}
         onJumpToUnmapped={() => setActiveTab("categorii")}
         onOpenReviewQueue={() => setReviewQueueOpen(true)}
+        onOpenAllExceptions={() => setAllExceptionsOpen(true)}
       />
 
       <CashflowTabBar
@@ -149,6 +152,17 @@ export function MapariCashflowTab({ data }: Props) {
           period={data.period}
           tree={data.tree}
           onClose={() => setReviewQueueOpen(false)}
+          onMutate={onMutate}
+        />
+      )}
+
+      {allExceptionsOpen && data.period && (
+        <AllExceptionsDialog
+          clientId={data.clientId}
+          period={data.period}
+          tree={data.tree}
+          accounts={data.accounts}
+          onClose={() => setAllExceptionsOpen(false)}
           onMutate={onMutate}
         />
       )}
@@ -1293,6 +1307,7 @@ function PageHeader({
   freshlySeeded,
   onJumpToUnmapped,
   onOpenReviewQueue,
+  onOpenAllExceptions,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
@@ -1301,12 +1316,21 @@ function PageHeader({
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
   onOpenReviewQueue: () => void;
+  onOpenAllExceptions: () => void;
 }) {
   // Sprint 4: roll up suggested partner count across all conts. Anything > 0
   // surfaces as a yellow callout that nudges the contabil toward the panels
   // that have suggestions waiting.
   const suggestedCount = Object.values(partnerSummariesByCont).reduce(
     (sum, s) => sum + s.suggestedPartnerCount,
+    0
+  );
+  // Post-Sprint-7 polish: roll up explicit overrides across all conts. When
+  // > 0, surface an entry point to the centralised "Toate exceptiile" view
+  // so the contabil can audit/edit overrides without having to remember
+  // which cont they live on.
+  const overrideCount = Object.values(partnerSummariesByCont).reduce(
+    (sum, s) => sum + s.mappedPartnerCount,
     0
   );
   const periodDescription = period
@@ -1354,8 +1378,10 @@ function PageHeader({
         <CoveragePanel
           coverage={coverage}
           suggestedCount={suggestedCount}
+          overrideCount={overrideCount}
           onJumpToUnmapped={onJumpToUnmapped}
           onOpenReviewQueue={onOpenReviewQueue}
+          onOpenAllExceptions={onOpenAllExceptions}
         />
       )}
 
@@ -1390,13 +1416,17 @@ function PageHeader({
 function CoveragePanel({
   coverage,
   suggestedCount,
+  overrideCount,
   onJumpToUnmapped,
   onOpenReviewQueue,
+  onOpenAllExceptions,
 }: {
   coverage: CoverageStats;
   suggestedCount: number;
+  overrideCount: number;
   onJumpToUnmapped: () => void;
   onOpenReviewQueue: () => void;
+  onOpenAllExceptions: () => void;
 }) {
   const allMapped = coverage.unmappedCount === 0;
 
@@ -1504,6 +1534,40 @@ function CoveragePanel({
             style={{ letterSpacing: "-0.02em" }}
           >
             Revizuieste →
+          </button>
+        </div>
+      )}
+
+      {/* Centralised exceptions entry point. Only when the contabil has
+          set at least one override — otherwise there's nothing to look at
+          and the callout would be confusing. The button uses primary tone
+          (not warn/danger) because exceptions aren't a problem, they're
+          contabil work surfaced. */}
+      {overrideCount > 0 && (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-3 py-2"
+          role="status"
+        >
+          <Users size={12} className="text-primary shrink-0" aria-hidden />
+          <p
+            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span className="font-semibold text-primary">
+              {overrideCount}{" "}
+              {overrideCount === 1
+                ? "exceptie individuala"
+                : "exceptii individuale"}
+            </span>{" "}
+            pe parteneri specifici, redistribuite catre alte categorii.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenAllExceptions}
+            className="font-mono text-[11px] uppercase tracking-wider text-primary hover:underline shrink-0"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Vezi toate →
           </button>
         </div>
       )}
