@@ -124,6 +124,94 @@ de UX care nu erau vizibile în testele unitare. Toate sunt **rezolvate** și
 
 ---
 
+## Modul Claudiei (Mai 2026 — sesiunea de filtre + bulk inteligent)
+
+A doua sesiune de feedback cu Corii: după Post-Sprint-7 polish, panoul
+era curat dar bulk-ul rămânea ascuns și fără filtre serioase pentru
+materialitate. Claudia (contabila reală) ne-a ghidat printr-un workflow
+unde: vede contul, filtrează „peste 1.000 lei + search 'OMV'", atribuie
+toată subsetul la categoria potrivită. Cele 6 items mai jos sunt
+**toate livrate, testate, commited**.
+
+### 1. ✅ Bulk acționează pe rezultatul filtrului curent
+- Înainte: bulk scria în setul global de unmapped, ignorând orice filtru.
+- Acum: aceeași `filterPartners` care drivează lista randată drivează și
+  `computeBulkTargets`. Search „rom" → bulk acționează doar pe partenerii
+  cu „rom" în nume. Header bar comută la „din rezultatul curent" și modal
+  preview adaugă „(rezultatul filtrului curent)" — onestitate completă.
+- 23 unit tests pentru helperii puri.
+- Playwright test #10.
+
+### 2. ✅ Filtru „Peste X lei" (materialitate)
+- Input numeric + 3 chips preset (1.000 / 5.000 / 10.000) + buton Șterge.
+- Acceptă virgulă românească (1.000,5).
+- Live counter „N din 40" când e activ.
+- Empty state threshold-aware: „Niciun partener nu trece pragul de Y lei".
+- 11 unit tests în plus.
+- Playwright tests #11, #12.
+
+### 3. ✅ Promovat bulk la primul plan
+- Înainte: ascuns sub link opt-in „Redirecționează în bulk →".
+- Acum: bara mereu vizibilă, fond `primary/5` + bordură `primary/30`.
+- Format sentence: „Atribuie toți cei N parteneri (X lei) la categoria:
+  `[Combustibil ▾]` `[Aplica]`".
+- Select PRE-POPULAT cu categoria contului default — calibrare instantă.
+- No-op detection: dacă rămâne pe default și toți targets sunt unmapped,
+  Aplica disabled cu hint „Categoria selectată este deja default-ul
+  contului — nimic de redirecționat."
+- Playwright test #13.
+
+### 4. ✅ Bare orizontale de rulaj pe fiecare rând
+- 3px sub numele partenerului, fill `bg-primary/40` pe track `bg-dark-3`.
+- Scaled la `maxRulaj` din **VISIBLE** set (nu absolute) — aplicând
+  threshold „Peste 5.000 lei", barele se reanchorează la noul max, nu
+  rămân toate la ~100%.
+- Tranziție 200ms pe modificare width.
+- Helperi puri `maxRulaj` + `rulajBarPercent` cu 11 unit tests.
+- Playwright test #14.
+
+### 5. ✅ Pareto indicator + long-tail separator
+- Indicator: „Top N parteneri = X% din rulaj. Restul de M reprezintă Y%
+  (coada lungă)." sub thresholdul input.
+- Separator inline cu border dashed între capul listei și coada lungă:
+  „↓ COADA LUNGĂ · M parteneri · Y% din rulaj".
+- Gate unic `showParetoUI = visible.length > 3 && head>0 && tail>0`.
+- Helper `computeParetoCutoff(partners, threshold=80)` cu 9 unit tests
+  (empty, zero total, default 80, custom, 100%, single huge, all-equal,
+  exact-last, overflow).
+- Playwright tests #15, #16, #17.
+
+### 6. ✅ Preview modal îmbogățit cu skip/overwrite explicit
+- Mesajul exact cerut de user:
+  ```
+  Se vor mapa N parteneri (X lei) la categoria Y.
+  ┃ N parteneri primesc o exceptie noua (X lei)
+  ┃ M exceptii manuale existente in scope (Y lei) — nimic suprascris
+  ```
+- Toggle opțional „Suprascrie cele M excepții existente" doar când M>0.
+- Toggle DISABLED când selected = cont default (ar crea excepții
+  redundante) cu hint explicativ.
+- Button label adaptiv: „Aplica" (skip) vs „Aplica și suprascrie M
+  excepții" (overwrite).
+- `bulkApplyOverrides` primește `skipExistingOverrides: !overwriteMode`.
+- Playwright tests #18, #19, #20.
+
+**Totaluri sesiune:**
+- 6 commits incremental: `109080c`, `9cb9f0f`, `81b6194`, `b41f20b`,
+  `5aef507`, `110a7eb`.
+- 124 unit tests în `tests/unit/modules/partner-mappings/` (au crescut
+  de la 70 la 124).
+- 20 Playwright tests în `tests/ui/mapari-cashflow-partner-overrides.spec.ts`
+  (au crescut de la 9 la 20).
+- Costi training (`costify-app.json`) actualizat cu trei chei noi:
+  `modul_claudiei_filters_and_bulk`, `filter_helpers`, `no_op_detection`.
+- Plan doc (acest fișier) actualizat cu această secțiune.
+- Spec utilizator (`docs/ro/cashflow-limbajul-mapari.md`) nu necesită
+  update — descrie deja aceste filtre ca "promise"; implementarea acum
+  match-uiește specul cuvânt cu cuvânt.
+
+---
+
 ## Context
 
 Costify avea o tabă "Mapari Cashflow" funcțională dar incompletă față de
