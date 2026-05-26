@@ -12,31 +12,31 @@
 import { PrismaClient } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
-
-const BCRYPT_COST = 12;
 
 /**
  * Essential users that must exist on every fresh DB (local + production).
  *
- * Idempotent: upsert on email — passwords are re-hashed on every run so a
- * change here propagates after the next init-container cycle. This is the
- * mechanism by which the antreprenor (OWNER) and the operator accountants
- * can log in immediately after a `prisma db push --force-reset` or any
- * other DB wipe.
+ * Idempotent: upsert on email. Stores the bcrypt-hashed password (cost 12,
+ * matching src/modules/auth/password.ts) so the seed has zero runtime
+ * dependency on bcryptjs — important because the production image is
+ * Next.js standalone output and may not bundle libraries that aren't
+ * traced through the Next app code (prisma/seed.mjs runs outside Next).
  *
- * NB on the plaintext password: this is deliberate, per product owner.
- * Costify is at the stage where the operator-known admin accounts are
- * deterministically seeded; treat this list as the access boundary and
- * rotate via this file when needed.
+ * To rotate a password:
+ *   1. node -e "const b=require('bcryptjs'); console.log(b.hashSync('NEW_PWD', 12));"
+ *   2. paste the resulting hash below as passwordHash
+ *   3. record the plaintext in the password comment so the operator
+ *      remembers what they set
+ *   4. commit + redeploy
  */
 const ESSENTIAL_USERS = [
   {
     email: "sorin.crisan@costify.ro",
     name: "Sorin Crisan",
-    password: "Alpine*Cedar92",
+    // password: Alpine*Cedar92
+    passwordHash: "$2b$12$T/bEfPUTTknXzZjQrVbj8Oq9TaCobvFMDD9DVbEmi2cg2uUrauEym",
     userRole: "OWNER",
   },
 ];
@@ -210,7 +210,6 @@ async function seedEssentialUsers() {
   let refreshed = 0;
 
   for (const u of ESSENTIAL_USERS) {
-    const passwordHash = await bcrypt.hash(u.password, BCRYPT_COST);
     const existing = await prisma.user.findUnique({
       where: { email: u.email },
       select: { id: true },
@@ -221,14 +220,14 @@ async function seedEssentialUsers() {
       create: {
         email: u.email,
         name: u.name,
-        passwordHash,
+        passwordHash: u.passwordHash,
         userRole: u.userRole,
         emailVerified: true,
         active: true,
       },
       update: {
         name: u.name,
-        passwordHash,
+        passwordHash: u.passwordHash,
         userRole: u.userRole,
         active: true,
       },
@@ -239,7 +238,7 @@ async function seedEssentialUsers() {
   }
 
   console.log(
-    `Seeded essential users: ${created} created, ${refreshed} refreshed (passwords re-hashed)`
+    `Seeded essential users: ${created} created, ${refreshed} refreshed`
   );
 }
 
