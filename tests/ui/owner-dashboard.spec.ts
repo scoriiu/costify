@@ -84,15 +84,15 @@ test.describe("Owner dashboard — modern UI smoke", () => {
     await expect(page.getByText(/Profit anul acesta/i).first()).toBeVisible();
   });
 
-  test("3. Health pulse rings render", async ({ context }) => {
+  test("3. Health score composite renders with subscores", async ({ context }) => {
     const page = await authedPage(context);
     await page.goto(OWNER_URL);
 
-    await expect(page.getByText("Sanatatea firmei")).toBeVisible();
-    // SVG rings + the 3 vital list rows should all be present.
-    await expect(page.getByRole("img", { name: /Inele de sanatate/i })).toBeVisible();
-    await expect(page.getByText("Cati bani iti ajung").first()).toBeVisible();
-    await expect(page.getByText("Marja operationala").first()).toBeVisible();
+    // The new HealthScoreCard shows the composite "Scor sanatate firma" label
+    // and the 4 subscores (Lichiditate, Profitabilitate, Eficienta, Solvabilitate).
+    await expect(page.getByText(/Scor sanatate firma/i).first()).toBeVisible();
+    await expect(page.getByText("Lichiditate", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Profitabilitate", { exact: true }).first()).toBeVisible();
   });
 
   test("4. Cashflow waterfall renders the four steps", async ({ context }) => {
@@ -184,5 +184,95 @@ test.describe("Owner dashboard — modern UI smoke", () => {
     ];
     const pattern = new RegExp(months.join("|"), "i");
     await expect(page.getByText(pattern).first()).toBeVisible();
+  });
+
+  test("11. Verdict banner renders with headline + body", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    // The verdict banner is the first content section under the header.
+    // Its tone-icon ("Bun" / "OK" / "Atentie" / "Alerta") is always present.
+    const tonePattern = /^(Bun|OK|Atentie|Alerta)$/;
+    await expect(page.getByText(tonePattern).first()).toBeVisible();
+  });
+
+  test("12. KPI strip renders multiple power KPIs", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    // QHM21 has enough data to surface at least 4 strip items.
+    await expect(page.getByText(/Capital de lucru/i).first()).toBeVisible();
+    await expect(page.getByText(/Acoperire obligatii/i).first()).toBeVisible();
+  });
+
+  test("13. Cashflow O/I/F split is interactive", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    await expect(page.getByText(/Cum a circulat cash-ul/i)).toBeVisible();
+    // Three columns with tab pills
+    const investingBtn = page.getByRole("button", { name: /Investitii/i }).first();
+    await expect(investingBtn).toBeVisible();
+    await investingBtn.click();
+    // After clicking Investitii the description text changes
+    await expect(page.getByText(/Cumparari\/vanzari de echipamente/i)).toBeVisible();
+  });
+
+  test("14. P&L waterfall renders steps from Venituri to Profit net", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    await expect(page.getByText(/De la venituri la profit/i)).toBeVisible();
+    await expect(page.getByText("Venituri", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/Profit net/i).first()).toBeVisible();
+  });
+
+  test("15. Top customers + suppliers by activity render", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    await expect(page.getByText(/Cine ti-a dat bani luna asta/i)).toBeVisible();
+    await expect(page.getByText(/Cui i-ai dat tu bani/i)).toBeVisible();
+  });
+
+  test("16. Obligations calendar renders header", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    await expect(
+      page.getByText(/Ce ai de platit in urmatoarele saptamani/i)
+    ).toBeVisible();
+  });
+
+  test("17. Period selector opens and lists periods", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    const trigger = page.getByRole("button", { name: /Perioada/i }).first();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    await expect(page.getByText(/Perioade publicate/i)).toBeVisible();
+  });
+
+  test("18. ViewModeToggle switches between Simplu and Detaliat", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(OWNER_URL);
+
+    const detaliat = page.getByRole("button", { name: "Detaliat", exact: true });
+    await expect(detaliat).toBeVisible();
+    await detaliat.click();
+    // After clicking, URL should carry mode=detailed and the RatiosCatalog
+    // section should appear (header "Indicatori financiari detaliati").
+    await expect(page).toHaveURL(/mode=detailed/);
+    await expect(page.getByText(/Indicatori financiari detaliati/i)).toBeVisible();
+  });
+
+  test("19. Patrimoniu sub-page renders Activ + Pasiv columns", async ({ context }) => {
+    const page = await authedPage(context);
+    await page.goto(`${OWNER_URL}&page=patrimoniu`);
+
+    await expect(page.getByText(/Patrimoniul firmei/i).first()).toBeVisible();
+    await expect(page.getByText(/Activ — ce detine firma/i)).toBeVisible();
+    await expect(page.getByText(/Pasiv — de unde vin banii/i)).toBeVisible();
   });
 });

@@ -350,5 +350,50 @@ function upgradeSnapshot(snap: OwnerSnapshot): OwnerSnapshot {
       partnerOverrideCount: 0,
       hasAnyReview: false,
     },
+    // Spec-unificat additions (verdict/kpiStrip/cashflowBreakdown/obligations/
+    // healthScore/ratios/patrimoniu/topActivity). Old snapshots predate these;
+    // a re-publish restores real values, but until then we render benign
+    // defaults so the dashboard stays functional.
+    verdict: s.verdict ?? {
+      tone: "neutral",
+      headline: "Date publicate inainte de noua versiune",
+      body:
+        "Aceasta luna a fost publicata inainte ca verdictul automat sa fie disponibil. Re-publica luna pentru text actualizat.",
+      highlights: [],
+    },
+    kpiStrip: s.kpiStrip ?? [],
+    cashflowBreakdown: s.cashflowBreakdown ?? {
+      cashStart: 0,
+      cashEnd: 0,
+      netChange: 0,
+      operating: 0,
+      investing: 0,
+      financing: 0,
+      operatingDetail: [],
+      investingDetail: [],
+      financingDetail: [],
+    },
+    obligations: s.obligations ?? [],
+    healthScore: s.healthScore ?? {
+      score: 0,
+      tier: "watch",
+      tierLabel: "Indisponibil",
+      message:
+        "Scorul nu a fost calculat la momentul publicarii. Re-publica luna pentru valori actualizate.",
+      subscores: [],
+    },
+    ratios: s.ratios ?? [],
+    patrimoniu: s.patrimoniu ?? {
+      asOfYear: snap.meta?.year ?? 0,
+      asOfMonth: snap.meta?.month ?? 0,
+      activ: [],
+      pasiv: [],
+      totalActiv: 0,
+      totalPasiv: 0,
+      difference: 0,
+      isBalanced: true,
+    },
+    topCustomersByActivity: s.topCustomersByActivity ?? [],
+    topSuppliersByActivity: s.topSuppliersByActivity ?? [],
   };
 }

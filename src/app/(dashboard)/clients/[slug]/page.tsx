@@ -28,6 +28,8 @@ import {
   OwnerLayout,
   OwnerView,
   EmptyPagePlaceholder,
+  PageHeader,
+  PatrimoniuView,
   buildOwnerContextForPreview,
   OWNER_PAGES,
   type OwnerPageKey,
@@ -41,13 +43,14 @@ interface Props {
     month?: string;
     view?: string;
     page?: string;
+    mode?: string;
     "cashflow-year"?: string;
   }>;
 }
 
 const VALID_OWNER_PAGES: OwnerPageKey[] = [
   "home", "bani", "clienti", "furnizori", "cheltuieli", "venituri",
-  "profit", "eu", "stat", "evolutie", "sanatate", "istoric",
+  "profit", "eu", "stat", "patrimoniu", "evolutie", "sanatate", "istoric",
 ];
 
 function resolveOwnerPage(page: string | undefined): OwnerPageKey {
@@ -77,9 +80,12 @@ export default async function ClientDetailPage(props: Props) {
   const year = searchParams.year ? parseInt(searchParams.year) : lastPeriod?.year;
   const month = searchParams.month ? parseInt(searchParams.month) : lastPeriod?.month;
 
-  // Owner preview branch
+  // Owner preview branch — accountant sees a LIVE recompute (not the stored
+  // published snapshot) so they can preview new dashboard features before
+  // publishing. The owner (/firma) still sees the stored published view.
   if (searchParams.view === "owner") {
     const activePage = resolveOwnerPage(searchParams.page);
+    const mode = searchParams.mode === "detailed" ? "detailed" : "simple";
     const context = buildOwnerContextForPreview({
       clientId: client.id,
       clientName: client.name,
@@ -87,7 +93,63 @@ export default async function ClientDetailPage(props: Props) {
       activePage,
     });
 
-    // Sub-pages other than home: render placeholder (until real pages are built)
+    // List of published periods for the period selector — these are the
+    // periods the owner can see in production. The accountant can also
+    // preview unpublished periods via year/month URL params.
+    const publishedList = await listPublishedPeriods(client.id);
+    const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
+
+    // Determine which period to compute. URL year/month wins; otherwise the
+    // latest period with journal data.
+    const previewYear = year ?? null;
+    const previewMonth = month ?? null;
+
+    if (!previewYear || !previewMonth) {
+      return (
+        <OwnerLayout context={context}>
+          <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
+            <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+              Nicio luna disponibila
+            </h1>
+            <p className="mt-3 max-w-xl text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              Importa un jurnal pentru a putea previzualiza ce vede patronul.
+            </p>
+          </div>
+        </OwnerLayout>
+      );
+    }
+
+    const snapshot = await loadOwnerSnapshot({
+      clientId: client.id,
+      clientName: client.name,
+      clientCui: client.cui,
+      clientSlug: client.slug,
+      year: previewYear,
+      month: previewMonth,
+    });
+
+    // Compute marjaOperationala for the hero (used by HeroSummary tooltip).
+    const [previewBalanceRows, previewCatalog] = await Promise.all([
+      getBalanceRows(client.id, previewYear, previewMonth),
+      getCatalogMap(),
+    ]);
+    const previewKpis = previewBalanceRows.ok
+      ? computeKpis(previewBalanceRows.data, previewCatalog)
+      : null;
+    const previewMarja = previewKpis?.marjaOperationala ?? null;
+
+    // Patrimoniu: dedicated rich page rendered from snapshot.patrimoniu
+    if (activePage === "patrimoniu") {
+      const meta = OWNER_PAGES.patrimoniu;
+      return (
+        <OwnerLayout context={context}>
+          <PageHeader title={meta.title} subtitle={meta.subtitle} />
+          <PatrimoniuView data={snapshot.patrimoniu} />
+        </OwnerLayout>
+      );
+    }
+
+    // Other sub-pages: render placeholder (until real pages are built)
     if (activePage !== "home") {
       const meta = OWNER_PAGES[activePage];
       return (
@@ -97,26 +159,15 @@ export default async function ClientDetailPage(props: Props) {
       );
     }
 
-    const published = await getLatestPublishedView(client.id);
-
-    if (!published) {
-      return (
-        <OwnerLayout context={context}>
-          <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
-            <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
-              Nicio luna publicata inca
-            </h1>
-            <p className="mt-3 max-w-xl text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-              Cand publici prima luna catre firma, patronul va vedea aici cum sta. Pana atunci, vede acelasi ecran ca tine.
-            </p>
-          </div>
-        </OwnerLayout>
-      );
-    }
-
     return (
       <OwnerLayout context={context}>
-        <OwnerView snapshot={published.snapshot} context={context} marjaOperationala={null} />
+        <OwnerView
+          snapshot={snapshot}
+          context={context}
+          marjaOperationala={previewMarja}
+          availablePeriods={availablePeriods}
+          mode={mode}
+        />
       </OwnerLayout>
     );
   }

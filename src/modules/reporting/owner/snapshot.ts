@@ -30,6 +30,15 @@ import {
   computeSalaryAffordability,
   computeYoy,
   computeVerticalBreakdown,
+  computeCashflowBreakdown,
+  computePatrimoniu,
+  computeVerdict,
+  computeKpiStrip,
+  computeHealthScore,
+  computeRatios,
+  computeObligations,
+  computeTopCustomersByActivity,
+  computeTopSuppliersByActivity,
 } from "./compute";
 import { prisma } from "@/lib/db";
 import {
@@ -240,6 +249,46 @@ export async function loadOwnerSnapshot(
     }
   }
 
+  const marja = kpis.marjaOperationala;
+
+  // §8 — Operating/Investing/Financing split.
+  // Prev cash-end comes from the trends array (penultimate point), with a
+  // sensible 0 fallback when we don't have a prior month yet.
+  const currentCashEnd = summary.soldRegistruCasa + summary.soldConturiBancare;
+  const prevTrend = trends[trends.length - 2];
+  const prevCashEnd = prevTrend ? prevTrend.cashEnd : currentCashEnd - summary.cifraAfaceriLuna + summary.cheltuieliLuna;
+  const cashflowBreakdown = computeCashflowBreakdown(
+    rows,
+    catalog,
+    prevCashEnd,
+    currentCashEnd
+  );
+
+  // §12 Patrimoniu
+  const patrimoniu = computePatrimoniu(rows, catalog, year, month);
+
+  // §9 Top customers/suppliers by activity this month
+  const topCustomersByActivity = computeTopCustomersByActivity(rows);
+  const topSuppliersByActivity = computeTopSuppliersByActivity(rows);
+
+  // §6 Verdict + KPI strip
+  const verdict = computeVerdict(summary, cashPosition, runway, yoy, marja);
+  const kpiStrip = computeKpiStrip(
+    summary,
+    cashPosition,
+    runway,
+    rows,
+    catalog,
+    topCustomersByActivity
+  );
+
+  // §10 Health composite + ratios
+  const healthScore = computeHealthScore(summary, runway, marja, patrimoniu);
+  const ratios = computeRatios(summary, patrimoniu, runway, marja, yoy);
+
+  // §11 Obligations calendar
+  const obligations = computeObligations(rows, year, month);
+
   return {
     meta: {
       clientId,
@@ -263,6 +312,15 @@ export async function loadOwnerSnapshot(
     salaryAffordability,
     yoy,
     verticalBreakdown,
+    verdict,
+    kpiStrip,
+    cashflowBreakdown,
+    obligations,
+    healthScore,
+    ratios,
+    patrimoniu,
+    topCustomersByActivity,
+    topSuppliersByActivity,
     dataQuality: computeDataQuality(
       rows,
       catalog,

@@ -1,23 +1,27 @@
 /**
  * OwnerView (home / acasa) — the firma's overview page.
  *
- * Renders inside OwnerLayout. Information architecture:
+ * Information architecture follows docs/dashboard-spec-unificat:
  *
- *   1. PageHeader — title + period + trust badge
- *   2. HeroSummary — cash + 3 supporting metrics (clicks into detail pages)
- *   3. HealthPulse — 3-ring vitals (runway, salary, margin)
- *   4. CashflowWaterfall — how the month moved cash
- *   5. EvolutionChart — last 12 months, interactive
- *   6. YoyComparison — vs same month a year ago
- *   7. Two-up: CategoryBreakdown expenses + revenue (interactive donuts)
- *   8. TopExpensesList — biggest single payments
- *   9. VerticalBreakdownCard — per-business-line decomposition
- *  10. CashPositionCard — disponibil vs obligatii
- *  11. OutstandingTables — clienti + furnizori
- *  12. OwnerWithdrawalsCard — money between owner and firm
- *  13. InsightsList — semantic flags
- *
- * Each block links to its detail page so the antreprenor can drill in.
+ *   1. PageHeader               — title + period + trust badge
+ *   2. VerdictBanner            — §6 1-paragraph narrative
+ *   3. KpiStrip                 — §6 6 power-KPIs
+ *   4. HeroSummary              — cash + 3 supporting metrics
+ *   5. HealthScoreCard          — §10 composite + 4 subscores
+ *   6. CashflowSplitChart       — §8 Operating / Investing / Financing
+ *   7. CashflowWaterfall        — month flow Inceput → Final
+ *   8. EvolutionChart           — last 12 months, interactive
+ *   9. YoyComparison            — vs same month a year ago
+ *  10. PnlWaterfall             — §9 Venituri → Profit net stepped
+ *  11. Two-up: CategoryBreakdown — expenses + revenue interactive donuts
+ *  12. Two-up: TopActivityList   — incasari clienti + plati furnizori
+ *  13. TopExpensesList          — biggest single payments
+ *  14. VerticalBreakdownCard    — per-business-line decomposition
+ *  15. Two-up: ObligationsCalendar + CashPositionCard
+ *  16. OutstandingTables        — clienti + furnizori with restante
+ *  17. OwnerWithdrawalsCard     — money between owner and firm
+ *  18. RatiosCatalog            — §10 L2 ratios accordion
+ *  19. InsightsList             — semantic flags
  */
 
 import Link from "next/link";
@@ -29,8 +33,9 @@ import { monthLabel } from "@/lib/owner-format";
 import { PageHeader } from "./page-header";
 import { TrustBadge } from "./trust-badge";
 import { HeroSummary } from "./hero-summary";
-import { HealthPulse } from "./health-pulse";
+import { HealthScoreCard } from "./health-score-card";
 import { CashflowWaterfall } from "./cashflow-waterfall";
+import { CashflowSplitChart } from "./cashflow-split-chart";
 import { CashPositionCard } from "./cash-position-card";
 import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
@@ -41,14 +46,33 @@ import { TopExpensesList } from "./top-expenses-list";
 import { YoyComparison } from "./yoy-comparison";
 import { VerticalBreakdownCard } from "./vertical-breakdown-card";
 import { SectionQuickNav } from "./section-quick-nav";
+import { VerdictBanner } from "./verdict-banner";
+import { KpiStrip } from "./kpi-strip";
+import { PnlWaterfall } from "./pnl-waterfall";
+import { TopActivityList } from "./top-activity-list";
+import { ObligationsCalendar } from "./obligations-calendar";
+import { RatiosCatalog } from "./ratios-catalog";
+import { PeriodSelector, type PeriodOption } from "./period-selector";
+import { ViewModeToggle, type ViewMode } from "./view-mode-toggle";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
   context: OwnerContext;
   marjaOperationala?: number | null;
+  /** Published periods available for the period selector. When empty, the
+   *  selector is hidden. */
+  availablePeriods?: PeriodOption[];
+  /** Currently displayed mode. Defaults to "simple". */
+  mode?: ViewMode;
 }
 
-export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewProps) {
+export function OwnerView({
+  snapshot,
+  context,
+  marjaOperationala,
+  availablePeriods = [],
+  mode = "simple",
+}: OwnerViewProps) {
   const {
     meta,
     summary,
@@ -60,11 +84,19 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
     expenseBreakdown,
     revenueBreakdown,
     topMonthlyExpenses,
-    runway,
-    salaryAffordability,
+    runway: _runway,
+    salaryAffordability: _salaryAffordability,
     yoy,
     verticalBreakdown,
     dataQuality,
+    verdict,
+    kpiStrip,
+    cashflowBreakdown,
+    obligations,
+    healthScore,
+    ratios,
+    topCustomersByActivity,
+    topSuppliersByActivity,
   } = snapshot;
 
   const period = monthLabel(meta.year, meta.month);
@@ -76,13 +108,23 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         title={`Cum sta ${meta.name}`}
         subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele se actualizeaza dupa fiecare upload de jurnal."
         actions={
-          dataQuality ? (
-            <TrustBadge
-              coveragePercent={dataQuality.coveragePercent}
-              partnerOverrideCount={dataQuality.partnerOverrideCount}
-              hasAnyReview={dataQuality.hasAnyReview}
-            />
-          ) : undefined
+          <>
+            <ViewModeToggle mode={mode} />
+            {availablePeriods.length > 0 && (
+              <PeriodSelector
+                currentYear={meta.year}
+                currentMonth={meta.month}
+                options={availablePeriods}
+              />
+            )}
+            {dataQuality && (
+              <TrustBadge
+                coveragePercent={dataQuality.coveragePercent}
+                partnerOverrideCount={dataQuality.partnerOverrideCount}
+                hasAnyReview={dataQuality.hasAnyReview}
+              />
+            )}
+          </>
         }
       />
 
@@ -91,10 +133,24 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
           hasYoy: yoy.hasPreviousYear,
           hasVerticals: verticalBreakdown.length > 0,
           hasInsights: insights.length > 0,
+          hasObligations: obligations.length > 0,
+          hasRatios: mode === "detailed",
         })}
       />
 
-      {/* 1. Hero — cash + 3 metrics */}
+      {/* §6 — Verdict narativ */}
+      <Section id="verdict" className="mb-6">
+        <VerdictBanner verdict={verdict} />
+      </Section>
+
+      {/* §6 — KPI strip */}
+      {kpiStrip.length > 0 && (
+        <Section id="kpis" className="mb-8">
+          <KpiStrip items={kpiStrip} />
+        </Section>
+      )}
+
+      {/* Hero — cash + 3 metrics */}
       <Section id="hero" className="mb-8">
         <HeroSummary
           summary={summary}
@@ -112,21 +168,27 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         />
       </Section>
 
-      {/* 2. Vital signs — runway, salary, margin */}
-      <Section id="sanatate" className="mb-8">
-        <HealthPulse
-          runway={runway}
-          salary={salaryAffordability}
-          margin={marjaOperationala ?? null}
-        />
+      {/* §10 — Health score composite */}
+      <SectionWithLink
+        id="sanatate"
+        href={buildPageHref(context, "sanatate")}
+        label="Vezi toti indicatorii"
+        className="mb-8"
+      >
+        <HealthScoreCard data={healthScore} />
+      </SectionWithLink>
+
+      {/* §8 — Operating/Investing/Financing split */}
+      <Section id="cashflow-split" className="mb-8">
+        <CashflowSplitChart data={cashflowBreakdown} />
       </Section>
 
-      {/* 3. Cashflow waterfall — how this month moved cash */}
+      {/* §8 — Cashflow waterfall (Inceput → Final) */}
       <Section id="cashflow" className="mb-8">
         <CashflowWaterfall trends={trends} />
       </Section>
 
-      {/* 4. Evolution chart — 12 months */}
+      {/* §7 — Evolution chart */}
       <SectionWithLink
         id="evolutie"
         href={buildPageHref(context, "evolutie")}
@@ -136,14 +198,19 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         <EvolutionChart data={trends} />
       </SectionWithLink>
 
-      {/* 5. YoY (hidden when no prev-year data) */}
+      {/* §7 — YoY */}
       {yoy.hasPreviousYear && (
         <Section id="yoy" className="mb-8">
           <YoyComparison yoy={yoy} />
         </Section>
       )}
 
-      {/* 6. Where did the money go + come from — two interactive donuts */}
+      {/* §9 — P&L waterfall */}
+      <Section id="profit" className="mb-8">
+        <PnlWaterfall summary={summary} expenseBreakdown={expenseBreakdown} />
+      </Section>
+
+      {/* §9 — Categories: where money came from + went */}
       <Section id="breakdowns" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <CategoryBreakdownCard
@@ -163,32 +230,50 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         </div>
       </Section>
 
-      {/* 7. Top expenses */}
+      {/* §9 — Top customers + suppliers by ACTIVITY this month */}
+      <Section id="top-activity" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <TopActivityList
+            title="Cine ti-a dat bani luna asta"
+            subtitle="Clientii care ti-au platit cele mai mari sume."
+            partners={topCustomersByActivity}
+            flow="in"
+            emptyMessage="Nicio incasare semnificativa de la clienti luna asta."
+          />
+          <TopActivityList
+            title="Cui i-ai dat tu bani luna asta"
+            subtitle="Furnizorii catre care s-au facut cele mai mari plati."
+            partners={topSuppliersByActivity}
+            flow="out"
+            emptyMessage="Nicio plata semnificativa catre furnizori luna asta."
+          />
+        </div>
+      </Section>
+
+      {/* Top single expenses */}
       <Section id="top-cheltuieli" className="mb-8">
         <TopExpensesList
           items={topMonthlyExpenses}
-          subtitle="Cele mai mari plati ale lunii, ordonate descrescator."
+          subtitle="Cele mai mari plati individuale ale lunii, ordonate descrescator."
         />
       </Section>
 
-      {/* 8. Verticals (hidden when feature off) */}
+      {/* Verticals */}
       {verticalBreakdown.length > 0 && (
         <Section id="verticals" className="mb-8">
           <VerticalBreakdownCard items={verticalBreakdown} periodLabel={period} />
         </Section>
       )}
 
-      {/* 9. Cash position */}
-      <SectionWithLink
-        id="cash-position"
-        href={buildPageHref(context, "bani")}
-        label="Vezi detalii bani"
-        className="mb-8"
-      >
-        <CashPositionCard data={cashPosition} />
-      </SectionWithLink>
+      {/* §11 — Obligations calendar + cash position */}
+      <Section id="obligations" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <ObligationsCalendar items={obligations} />
+          <CashPositionCard data={cashPosition} />
+        </div>
+      </Section>
 
-      {/* 10. Outstanding partners */}
+      {/* §11 — Outstanding partners */}
       <Section id="parteneri" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="space-y-2">
@@ -202,7 +287,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         </div>
       </Section>
 
-      {/* 11. Owner withdrawals */}
+      {/* Owner withdrawals */}
       <SectionWithLink
         id="eu"
         href={buildPageHref(context, "eu")}
@@ -212,7 +297,14 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         <OwnerWithdrawalsCard data={ownerWithdrawals} />
       </SectionWithLink>
 
-      {/* 12. Insights */}
+      {/* §10 — Detailed ratios catalog (L2 only) */}
+      {mode === "detailed" && (
+        <Section id="ratios" className="mb-8">
+          <RatiosCatalog ratios={ratios} />
+        </Section>
+      )}
+
+      {/* Insights */}
       {insights.length > 0 && (
         <SectionWithLink
           id="insights"
@@ -284,28 +376,36 @@ function buildNavItems({
   hasYoy,
   hasVerticals,
   hasInsights,
+  hasObligations,
+  hasRatios,
 }: {
   hasYoy: boolean;
   hasVerticals: boolean;
   hasInsights: boolean;
+  hasObligations: boolean;
+  hasRatios: boolean;
 }): Array<{ id: string; label: string }> {
   const items: Array<{ id: string; label: string }> = [
+    { id: "verdict", label: "Pe scurt" },
     { id: "hero", label: "Privire" },
-    { id: "sanatate", label: "Sanatate" },
-    { id: "cashflow", label: "Cashflow" },
+    { id: "sanatate", label: "Scor sanatate" },
+    { id: "cashflow-split", label: "Cash O/I/F" },
     { id: "evolutie", label: "Evolutie" },
   ];
   if (hasYoy) items.push({ id: "yoy", label: "An vs an" });
   items.push(
+    { id: "profit", label: "P&L" },
     { id: "breakdowns", label: "Categorii" },
+    { id: "top-activity", label: "Top clienti" },
     { id: "top-cheltuieli", label: "Top plati" }
   );
   if (hasVerticals) items.push({ id: "verticals", label: "Linii" });
+  if (hasObligations) items.push({ id: "obligations", label: "De platit" });
   items.push(
-    { id: "cash-position", label: "Obligatii" },
     { id: "parteneri", label: "Parteneri" },
     { id: "eu", label: "Eu si firma" }
   );
+  if (hasRatios) items.push({ id: "ratios", label: "Indicatori" });
   if (hasInsights) items.push({ id: "insights", label: "Semnale" });
   return items;
 }

@@ -14,6 +14,16 @@ export type {
   SalaryAffordability,
   YearOverYearComparison,
   VerticalBreakdownItem,
+  CashflowBreakdown,
+  Patrimoniu,
+  PatrimoniuBucket,
+  Verdict,
+  KpiStripItem,
+  HealthScore,
+  HealthSubscore,
+  FinancialRatio,
+  ObligationEntry,
+  TopActivityPartner,
 } from "./types";
 
 export {
@@ -31,6 +41,15 @@ export {
   computeSalaryAffordability,
   computeYoy,
   computeVerticalBreakdown,
+  computeCashflowBreakdown,
+  computePatrimoniu,
+  computeVerdict,
+  computeKpiStrip,
+  computeHealthScore,
+  computeRatios,
+  computeObligations,
+  computeTopCustomersByActivity,
+  computeTopSuppliersByActivity,
 } from "./compute";
 
 export { loadOwnerSnapshot } from "./snapshot";

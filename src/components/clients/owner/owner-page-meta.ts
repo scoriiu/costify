@@ -135,6 +135,12 @@ export const OWNER_PAGES: Record<OwnerPageKey, OwnerPageMeta> = {
       "Sfaturi automate pe baza tendintelor recente",
     ],
   },
+  patrimoniu: {
+    key: "patrimoniu",
+    title: "Patrimoniul firmei",
+    subtitle: "Ce detine firma (Activ) si de unde vin banii (Pasiv) la data selectata. Versiunea simpla a bilantului.",
+    preview: [],
+  },
   istoric: {
     key: "istoric",
     title: "Istoric actiuni",

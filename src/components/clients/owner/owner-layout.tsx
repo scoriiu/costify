@@ -48,6 +48,7 @@ export type OwnerPageKey =
   | "stat"
   | "evolutie"
   | "sanatate"
+  | "patrimoniu"
   | "istoric";
 
 const NAV_ITEMS: Array<{ key: OwnerPageKey; label: string; pageSlug: string }> = [
@@ -60,6 +61,7 @@ const NAV_ITEMS: Array<{ key: OwnerPageKey; label: string; pageSlug: string }> =
   { key: "profit", label: "Profit", pageSlug: "profit" },
   { key: "eu", label: "Eu si firma", pageSlug: "eu" },
   { key: "stat", label: "Stat", pageSlug: "stat" },
+  { key: "patrimoniu", label: "Patrimoniu", pageSlug: "patrimoniu" },
   { key: "evolutie", label: "Evolutie", pageSlug: "evolutie" },
   { key: "sanatate", label: "Sanatate", pageSlug: "sanatate" },
   { key: "istoric", label: "Istoric", pageSlug: "istoric" },
