@@ -695,6 +695,50 @@ regula care a decis incadrarea — nivel 0 (default cont), nivel 1
 
 ---
 
+## Regula UX universala: orice agregat este clickable + filtreaza contextul
+
+Aceasta nu este o regula doar pentru tab-ul Mapari Cashflow — este regula
+generala a produsului Costify. **Orice numar, badge, KPI, coloana sau
+breakdown row pe care utilizatorul il vede in interfata trebuie sa
+filtreze contextul atunci cand e clicked.**
+
+Nu exista "read-only aggregates". Daca aratam un numar pe ecran,
+contabilul vrea sa drillaze in el — sa vada **componentele** ale acelui
+numar — fara sa fie nevoit sa traduca manual cifra intr-un filtru pe
+alta suprafata.
+
+### Cum se manifesta in tab-ul Mapari Cashflow
+
+| Suprafata | Click action |
+|---|---|
+| Coloana verticalei (`Outsourcing`, `Toata firma`, etc.) in orizontal accordion | Expandeaza coloana **si** filtreaza lista de conturi de mai jos la conturile alocate pe acea verticala. Banner deasupra listei + visual ring pe coloana activa. |
+| Badge `↙ X lei reziduu` pe coloana verticalei implicite | Expandeaza Toata firma **si** filtreaza lista doar la conturile sursa care contribuie cu reziduu (conturi cu exceptii partener pe categorii fara orizontala). Re-click = toggle off. |
+| Rand cont in interiorul coloanei verticale | Expandeaza un drawer inline care raspunde direct la "cat din rulajul contului ajunge pe verticala asta", plus distributia contului intre parteneri, plus reziduul absorbit (cand aplicabil). |
+| KPI card "X conturi nemapate" in PageHeader | Switch la tab-ul Categorii **si** pre-apply filtrul "Nemapate". |
+| KPI card "X parteneri sugerati" | Deschide ReviewQueueDialog (coada de revizuire). |
+| KPI card "X exceptii individuale" | Deschide AllExceptionsDialog (toate exceptiile). |
+| Coloana cont in AllExceptionsDialog | Inchide dialogul, switch tab Categorii, deschide slide-panel pentru contul respectiv. |
+| Eyebrow "Pe contul X" in ReviewQueueDialog | Acelasi flow ca mai sus — drill-in la slide-panel pentru cont. |
+| Marker `↗ X lei` pe rand cont in workspace | (cont marker — informativ; orizontala se aplica pe reziduu) |
+| Marker `↙ X lei` pe rand categorie in workspace | Deschide dialog orizontala categorie pentru editare. |
+
+### Reguli vizuale obligatorii
+
+1. **Toate elementele clickable au cursor pointer** (enforced global in `globals.css`).
+2. **Toate elementele clickable au visual feedback la hover** — minim un bg-tint, ideal si un border / ring primary.
+3. **Cand un filtru e activ, exista *intotdeauna* o cale clara de a-l elimina** — fie banner cu "Sterge filtru", fie inline cu "Anuleaza filtrul", fie re-click pe acelasi element (toggle).
+4. **Cand filtrul se elimina, contextul de navigare (expandedId, tab) ramane intact.** Contabilul a drillat in deliberat; sa-i resetam tot e enervant.
+5. **Elementele active poarta `data-` attributes** (`data-filtered`, `data-active`, `data-residue-mode`, etc.) pentru testabilitate si accesibilitate.
+6. **Drill-in cross-suprafata curata starea sursei.** Cand click pe cont in AllExceptionsDialog deschide slide-panel-ul, AllExceptionsDialog se inchide (nu lasam dialog suprapus peste slide-panel).
+
+### Pentru orice PR nou pe Mapari Cashflow
+
+Inainte de merge, raspunde la intrebarea: **"Adaug vreun numar / badge /
+agregat nou? Daca da, ce face click pe el?"** Daca raspunsul e "nimic",
+fie nu e cu adevarat un agregat util, fie e o promisiune neonorata.
+
+---
+
 ## Stare implementare (mai 2026)
 
 Aceasta pagina descrie **contractul de limbaj si comportament** asteptat
@@ -727,6 +771,13 @@ din UI, **acea promisiune este buggy si trebuie ridicata**.
 | Marker `↗` pe cont cand are reziduu redirectionat la alte categorii | ✅ | Mai 2026 — `ContResidueMarker` pe rand cont in workspace-ul Mapari Cashflow. Tooltip explica "X lei redirectati; orizontala se aplica pe reziduul de Y lei". |
 | Marker `↙` pe categorie cand primeste reziduu din exceptii partener | ✅ | Mai 2026 — `CategoryResidueMarker` pe rand categorie. Click pe marker deschide dialogul de orizontala categorie. Tooltip listeaza top 3 conturi sursa + cum se distribuie (split categorie sau verticala default). |
 | Badge `↙ X lei reziduu` pe coloana verticalei implicite in tab "Linii de business" | ✅ | Mai 2026 — apare cand verticala default absoarbe reziduu (categorii fara orizontala proprie). Tooltip invita la setarea orizontalei pe categoriile primitoare. |
+| **Click-to-filter pe orice agregat vizual** (regula generala UX) | ✅ | Mai 2026 — orice numar / coloana / KPI / badge e clickable + drillable. Aplicat pe: coloanele verticale (click → expand + filter), badge reziduu (click → filter la conturi sursa), conturi din liste (click → expand inline cu breakdown), KPI cards (click → tab + filter), randuri din dialoguri centralizate (click cont → slide-panel). |
+| Click pe coloana verticalei → filtreaza lista de conturi la verticala respectiva | ✅ | Mai 2026 — banner cu "Sterge filtru", subtitle "Anuleaza filtrul" in header. Stergerea filtrului PASTREAZA expandedId (context preserved). |
+| Click pe `↙ X lei reziduu` → drill-in la conturile sursa care contribuie | ✅ | Mai 2026 — badge devine button cu `data-active='true'` cand activ. Banner schimba copy in mod reziduu. Lista intern din coloana se narrows si ea ("X conturi sursa reziduu"). |
+| Conturi expandabile inline in coloana verticala cu breakdown vertical-aware | ✅ | Mai 2026 — chevron pe fiecare rand, drawer cu (a) headline-card primary care raspunde direct "cat din rulajul contului ajunge pe verticala", (b) distributia contului intre parteneri (3-segment bar), (c) reziduu absorbit cu target categories, (d) buton "Vezi parteneri ↗" la slide-panel. Zero round-trips (foloseste `partnerSummariesByCont` deja loaded). |
+| Search box in interiorul coloanei verticale expandate | ✅ | Mai 2026 — `<SearchInput>` h-8 filtreaza diacritic-insensitive prin lista de conturi din coloana. Counter "<N> din <M> conturi" + empty-state copy. |
+| KPI cards din PageHeader (nemapate / sugestii / exceptii) integral clickable | ✅ | Mai 2026 — intregul cartonas e button (nu doar link-ul colt). "Nemapate" face si filter pre-apply pe categorii tab (era doar switch tab). |
+| Click pe cont in AllExceptionsDialog / ReviewQueueDialog → slide-panel | ✅ | Mai 2026 — coloana cont in AllExceptions e button cu hover ring primary. Eyebrow "Pe contul X" in ReviewQueueDialog e button cu sageata →. Click → inchide dialog + switch categorii tab + deschide slide-panel via `initialPanelContBase`. |
 
 ### Ce e partial / poate insela
 
@@ -769,9 +820,13 @@ suma poate fi explicata, fiecare cifra publicata e congelata.
 - **`tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts`** —
   regula reziduului, reconciliere completa pe axa B (Exemplul C), category
   allocations, 9 scenarii edge-case.
-- **`tests/ui/mapari-cashflow-partner-overrides.spec.ts`** — 26 teste
+- **`tests/ui/mapari-cashflow-partner-overrides.spec.ts`** — 38+ teste
   Playwright care verifica end-to-end ce vede contabilul in UI (inclusiv
-  markerii `↗` cont, `↙` categorie, `↙` reziduu pe verticala default).
+  markerii `↗` cont, `↙` categorie, `↙` reziduu pe verticala default,
+  click-to-filter pe coloane verticale, badge reziduu, drawer-ul de
+  cont expandabil cu headline vertical-aware, search box intern,
+  precum si flow-urile dialog → slide-panel pentru AllExceptionsDialog
+  + ReviewQueueDialog).
 
 ---
 
