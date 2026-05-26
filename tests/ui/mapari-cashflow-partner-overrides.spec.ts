@@ -716,6 +716,83 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     expect(rowCount).toBeGreaterThanOrEqual(2);
   });
 
+  test("30. Long partner names are fully visible (no truncation on common names)", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont6058Row = page
+      .locator("li.group.flex.items-center")
+      .filter({ hasText: /^6058/ })
+      .first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog");
+    await expect(panel).toBeVisible();
+
+    // The Select column has a fixed width; the partner-name column is
+    // flex-1. With the panel widened to max-w-2xl and the Exceptie badge
+    // moved below the name, common partner names should fit without
+    // ellipsis. We check: for each visible partner row, the name's
+    // scrollWidth equals its clientWidth (no overflow = no truncation).
+    const partnerRows = panel.locator("li[data-exception], li:not([data-exception])").filter({
+      has: panel.locator("span[title]").first(),
+    });
+
+    // Pick the first 3 visible partner rows that look like real partner
+    // rows (have title attr on the name span = the actual partner span).
+    const nameSpans = panel.locator("span[title]");
+    const visibleCount = await nameSpans.count();
+    expect(visibleCount).toBeGreaterThanOrEqual(1);
+
+    // For at least one common partner row, the name span must not be
+    // truncated. Use a known long-ish name from the QHM21 dataset like
+    // "ENEL X WAY ROMANIA" or "TECHNOLOGIES SOLUTIONS".
+    const longName = await panel
+      .locator("span[title*='ENEL X WAY']")
+      .first();
+    await expect(longName).toBeVisible();
+    const isTruncated = await longName.evaluate((el) => {
+      return el.scrollWidth > el.clientWidth + 1; // +1 px tolerance
+    });
+    expect(isTruncated).toBe(false);
+  });
+
+  test("31. Slide-panel is widened to max-w-2xl for more breathing room", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont6058Row = page
+      .locator("li.group.flex.items-center")
+      .filter({ hasText: /^6058/ })
+      .first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog");
+    await expect(panel).toBeVisible();
+    // Tailwind max-w-2xl resolves to 672px (42rem * 16). The panel uses
+    // w-full max-w-2xl, so the actual rendered width must be 672px on a
+    // desktop viewport wide enough.
+    const width = await panel.evaluate((el) => el.getBoundingClientRect().width);
+    expect(width).toBeGreaterThanOrEqual(640);
+    expect(width).toBeLessThanOrEqual(680);
+  });
+
   test("29. Partner rows with active exception are visually distinguished (badge + left border)", async ({
     context,
   }) => {

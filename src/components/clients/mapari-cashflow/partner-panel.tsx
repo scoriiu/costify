@@ -138,7 +138,7 @@ export function PartnerPanel({
       />
       {/* Panel */}
       <aside
-        className="fixed top-0 right-0 z-50 h-full w-full max-w-xl bg-dark-2 border-l border-dark-3 shadow-2xl flex flex-col"
+        className="fixed top-0 right-0 z-50 h-full w-full max-w-2xl bg-dark-2 border-l border-dark-3 shadow-2xl flex flex-col"
         role="dialog"
         aria-label={`Parteneri pe contul ${account.cont}`}
       >
@@ -1458,15 +1458,38 @@ function PartnerRow({
         </Tooltip>
       )}
       <div className="flex-1 min-w-0 flex flex-col gap-1">
+        {/* Name claims the FULL row width — the Exceptie badge moved down
+            next to the rulaj bar so it never compresses long partner names
+            (e.g. "TECHNOLOGIES SOLUTIONS SRL"). */}
         <span
-          className="text-[12px] text-gray-light truncate flex items-center gap-2"
+          className="text-[12px] text-gray-light truncate"
           style={{ letterSpacing: "-0.02em" }}
           title={partner.nameOriginal}
         >
+          {partner.nameOriginal}
+          {partner.rulaj === 0 && (
+            <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
+          )}
+        </span>
+        {/* Bottom row: rulaj bar (grows) + optional Exceptie badge on the
+            right. The bar still anchors visually to the partner's
+            rank-within-visible-subset; the badge sits to its right where
+            it doesn't compete with the name. */}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex-1 h-[3px] bg-dark-3 rounded-full overflow-hidden"
+            aria-hidden="true"
+          >
+            <div
+              className="h-full bg-primary/40 rounded-full transition-[width] duration-200"
+              style={{ width: `${barPct}%` }}
+              data-testid="rulaj-bar-fill"
+            />
+          </div>
           {isExcepted && (
             <Tooltip content="Acest partener are exceptie individuala — merge la o alta categorie decat default-ul contului.">
               <span
-                className="shrink-0 inline-flex items-center font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30 cursor-help"
+                className="shrink-0 inline-flex items-center font-mono text-[9px] uppercase tracking-wider px-1.5 py-[1px] rounded bg-primary/15 text-primary border border-primary/30 cursor-help"
                 style={{ letterSpacing: "0.02em" }}
                 data-testid="partner-exception-badge"
               >
@@ -1474,30 +1497,10 @@ function PartnerRow({
               </span>
             </Tooltip>
           )}
-          <span className="truncate">
-            {partner.nameOriginal}
-            {partner.rulaj === 0 && (
-              <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
-            )}
-          </span>
-        </span>
-        {/* Horizontal rulaj bar — visual rank-within-visible-subset. The
-            track itself is always rendered (avoids layout shift); fill
-            width is 0% for zero-activity partners (looks empty, communicates
-            the truth). */}
-        <div
-          className="h-[3px] w-full bg-dark-3 rounded-full overflow-hidden"
-          aria-hidden="true"
-        >
-          <div
-            className="h-full bg-primary/40 rounded-full transition-[width] duration-200"
-            style={{ width: `${barPct}%` }}
-            data-testid="rulaj-bar-fill"
-          />
         </div>
       </div>
       <span
-        className="font-mono text-[11px] text-gray tabular-nums shrink-0 w-[80px] text-right"
+        className="font-mono text-[11px] text-gray tabular-nums shrink-0 w-[72px] text-right"
         style={{ letterSpacing: "-0.02em" }}
       >
         {formatRon(partner.rulaj)}
@@ -1510,7 +1513,7 @@ function PartnerRow({
           className={pending ? "opacity-60" : ""}
         />
       </div>
-      <div className="w-[120px] shrink-0 flex items-center justify-end gap-1">
+      <div className="w-[100px] shrink-0 flex items-center justify-end gap-1">
         {isDirty ? (
           <>
             <Tooltip content="Salveaza schimbarea">
