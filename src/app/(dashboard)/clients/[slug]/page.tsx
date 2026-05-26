@@ -27,12 +27,7 @@ import { AuditSection } from "@/components/clients/audit-section";
 import {
   OwnerLayout,
   OwnerView,
-  EmptyPagePlaceholder,
-  PageHeader,
-  PatrimoniuView,
   buildOwnerContextForPreview,
-  OWNER_PAGES,
-  type OwnerPageKey,
 } from "@/components/clients/owner";
 
 interface Props {
@@ -42,20 +37,9 @@ interface Props {
     year?: string;
     month?: string;
     view?: string;
-    page?: string;
     mode?: string;
     "cashflow-year"?: string;
   }>;
-}
-
-const VALID_OWNER_PAGES: OwnerPageKey[] = [
-  "home", "bani", "clienti", "furnizori", "cheltuieli", "venituri",
-  "profit", "eu", "stat", "patrimoniu", "evolutie", "sanatate", "istoric",
-];
-
-function resolveOwnerPage(page: string | undefined): OwnerPageKey {
-  if (!page) return "home";
-  return (VALID_OWNER_PAGES as string[]).includes(page) ? (page as OwnerPageKey) : "home";
 }
 
 export default async function ClientDetailPage(props: Props) {
@@ -84,13 +68,12 @@ export default async function ClientDetailPage(props: Props) {
   // published snapshot) so they can preview new dashboard features before
   // publishing. The owner (/firma) still sees the stored published view.
   if (searchParams.view === "owner") {
-    const activePage = resolveOwnerPage(searchParams.page);
     const mode = searchParams.mode === "detailed" ? "detailed" : "simple";
     const context = buildOwnerContextForPreview({
       clientId: client.id,
       clientName: client.name,
       slug: client.slug,
-      activePage,
+      activePage: "home",
     });
 
     // List of published periods for the period selector — these are the
@@ -137,27 +120,6 @@ export default async function ClientDetailPage(props: Props) {
       ? computeKpis(previewBalanceRows.data, previewCatalog)
       : null;
     const previewMarja = previewKpis?.marjaOperationala ?? null;
-
-    // Patrimoniu: dedicated rich page rendered from snapshot.patrimoniu
-    if (activePage === "patrimoniu") {
-      const meta = OWNER_PAGES.patrimoniu;
-      return (
-        <OwnerLayout context={context}>
-          <PageHeader title={meta.title} subtitle={meta.subtitle} />
-          <PatrimoniuView data={snapshot.patrimoniu} />
-        </OwnerLayout>
-      );
-    }
-
-    // Other sub-pages: render placeholder (until real pages are built)
-    if (activePage !== "home") {
-      const meta = OWNER_PAGES[activePage];
-      return (
-        <OwnerLayout context={context}>
-          <EmptyPagePlaceholder title={meta.title} subtitle={meta.subtitle} preview={meta.preview} />
-        </OwnerLayout>
-      );
-    }
 
     return (
       <OwnerLayout context={context}>

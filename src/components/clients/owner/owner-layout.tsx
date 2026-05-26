@@ -4,15 +4,12 @@
  * OwnerLayout — the shell for every owner-mode page (/firma/* or
  * /clients/[slug]?view=owner).
  *
- * Provides:
- *   - Top bar with Costify logo, firma name, Costi link, user dropdown
- *   - Sticky side nav with 11 typographic links
- *   - Slot for page content
- *   - Optional PreviewBanner above topbar when isPreview is true
+ * Per Claudia spec §4.1 the firma dashboard is ONE page with 9 scrollable
+ * sections + anchor TOC. The only true sub-route is /istoric (audit trail),
+ * which is a different concern from "see how the firm is doing".
  *
- * Receives OwnerContext (plain data only — no functions, so it can cross
- * server→client boundary). The pageHref builder is derived from context
- * via buildPageHref().
+ * AGENTS.md "Top navigation (no sidebar)" — the nav lives horizontally in
+ * the topbar, freeing full content width for data.
  */
 
 import type { ReactNode } from "react";
@@ -24,7 +21,6 @@ export interface OwnerContext {
   clientId: string;
   clientName: string;
   slug: string;
-  /** True when an accountant is previewing this view. Shows the preview banner. */
   isPreview: boolean;
   /**
    * Base href for building internal links.
@@ -32,38 +28,13 @@ export interface OwnerContext {
    * For preview:   "/clients/[slug]?view=owner"
    */
   baseHref: string;
-  /** Currently active page key. Used to highlight side nav item. */
   activePage: OwnerPageKey;
 }
 
-export type OwnerPageKey =
-  | "home"
-  | "bani"
-  | "clienti"
-  | "furnizori"
-  | "cheltuieli"
-  | "venituri"
-  | "profit"
-  | "eu"
-  | "stat"
-  | "evolutie"
-  | "sanatate"
-  | "patrimoniu"
-  | "istoric";
+export type OwnerPageKey = "home" | "istoric";
 
 const NAV_ITEMS: Array<{ key: OwnerPageKey; label: string; pageSlug: string }> = [
   { key: "home", label: "Acasa", pageSlug: "" },
-  { key: "bani", label: "Bani", pageSlug: "bani" },
-  { key: "clienti", label: "Clienti", pageSlug: "clienti" },
-  { key: "furnizori", label: "Furnizori", pageSlug: "furnizori" },
-  { key: "cheltuieli", label: "Cheltuieli", pageSlug: "cheltuieli" },
-  { key: "venituri", label: "Venituri", pageSlug: "venituri" },
-  { key: "profit", label: "Profit", pageSlug: "profit" },
-  { key: "eu", label: "Eu si firma", pageSlug: "eu" },
-  { key: "stat", label: "Stat", pageSlug: "stat" },
-  { key: "patrimoniu", label: "Patrimoniu", pageSlug: "patrimoniu" },
-  { key: "evolutie", label: "Evolutie", pageSlug: "evolutie" },
-  { key: "sanatate", label: "Sanatate", pageSlug: "sanatate" },
   { key: "istoric", label: "Istoric", pageSlug: "istoric" },
 ];
 
@@ -76,24 +47,16 @@ export function OwnerLayout({ context, children }: OwnerLayoutProps) {
   return (
     <div className="min-h-screen bg-dark">
       {context.isPreview && <PreviewStrip clientName={context.clientName} />}
-      <Topbar firmaName={context.clientName} isPreview={context.isPreview} />
-      <div className="mx-auto flex max-w-7xl px-4 sm:px-8">
-        <SideNav context={context} />
-        <main className="flex-1 min-w-0 py-8 sm:py-12 lg:pl-10">{children}</main>
-      </div>
+      <Topbar context={context} />
+      <main className="mx-auto max-w-7xl px-4 sm:px-8 py-8 sm:py-12">{children}</main>
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Preview strip — visible when an accountant is previewing the owner view.
-// ─────────────────────────────────────────────────────────────────────────────
 
 function PreviewStrip({ clientName }: { clientName: string }) {
   function handleClose() {
     window.close();
   }
-
   return (
     <div className="sticky top-0 z-50 border-b border-primary/30 bg-primary/[0.08] backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-2 sm:px-8">
@@ -124,16 +87,12 @@ function PreviewStrip({ clientName }: { clientName: string }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Top bar
-// ─────────────────────────────────────────────────────────────────────────────
-
-function Topbar({ firmaName, isPreview }: { firmaName: string; isPreview: boolean }) {
-  const topClass = isPreview ? "top-9" : "top-0";
+function Topbar({ context }: { context: OwnerContext }) {
+  const topClass = context.isPreview ? "top-9" : "top-0";
   return (
     <header className={`sticky ${topClass} z-40 border-b border-dark-3 bg-dark/80 backdrop-blur-xl`}>
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-8">
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-4 sm:gap-6 min-w-0">
           <Link href="/" className="shrink-0">
             <Logo size="lg" />
           </Link>
@@ -149,9 +108,36 @@ function Topbar({ firmaName, isPreview }: { firmaName: string; isPreview: boolea
               className="text-[14px] font-semibold text-white truncate"
               style={{ letterSpacing: "-0.04em" }}
             >
-              {firmaName}
+              {context.clientName}
             </span>
           </div>
+          {/* Istoric is owner-only (audit trail of accountant actions). Hide
+              the nav in preview mode — the accountant has their own audit page. */}
+          {!context.isPreview && (
+            <>
+              <span className="hidden sm:inline-block h-4 w-px bg-dark-3" />
+              <nav className="hidden sm:flex items-center gap-1">
+                {NAV_ITEMS.map((item) => {
+                  const active = item.key === context.activePage;
+                  const href = buildPageHref(context, item.pageSlug);
+                  return (
+                    <Link
+                      key={item.key}
+                      href={href}
+                      className={
+                        active
+                          ? "rounded-md bg-primary/[0.08] px-3 py-1.5 text-[14px] font-semibold text-white"
+                          : "rounded-md px-3 py-1.5 text-[14px] font-semibold text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors"
+                      }
+                      style={{ letterSpacing: "-0.04em" }}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -167,36 +153,5 @@ function Topbar({ firmaName, isPreview }: { firmaName: string; isPreview: boolea
         </div>
       </div>
     </header>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Side nav — purely typographic, no icons, no emoji
-// ─────────────────────────────────────────────────────────────────────────────
-
-function SideNav({ context }: { context: OwnerContext }) {
-  return (
-    <aside className="hidden lg:block w-56 shrink-0 pt-10">
-      <nav className="sticky top-24 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
-          const active = item.key === context.activePage;
-          const href = buildPageHref(context, item.pageSlug);
-          return (
-            <Link
-              key={item.key}
-              href={href}
-              className={
-                active
-                  ? "relative block rounded-md bg-primary/[0.08] px-4 py-2 text-[14px] font-semibold text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[2px] before:-translate-y-1/2 before:rounded-r before:bg-primary"
-                  : "block rounded-md px-4 py-2 text-[14px] font-semibold text-gray-light hover:bg-dark-3/50 hover:text-white transition-colors"
-              }
-              style={{ letterSpacing: "-0.04em" }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
   );
 }

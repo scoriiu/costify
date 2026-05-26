@@ -1,8 +1,6 @@
 export { OwnerView } from "./owner-view";
 export { OwnerLayout } from "./owner-layout";
 export { PageHeader } from "./page-header";
-export { EmptyPagePlaceholder } from "./empty-page-placeholder";
-export { OWNER_PAGES } from "./owner-page-meta";
 export type { OwnerContext, OwnerPageKey } from "./owner-layout";
 export { buildOwnerContextForFirma, buildOwnerContextForPreview } from "./owner-context";
 export { KpiCard } from "./kpi-card";

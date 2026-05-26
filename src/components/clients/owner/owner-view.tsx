@@ -1,34 +1,26 @@
 /**
- * OwnerView (home / acasa) — the firma's overview page.
+ * OwnerView (Acasa) — the firma's overview page.
  *
- * Information architecture follows docs/dashboard-spec-unificat:
+ * Per Claudia spec §4.1: ONE scrollable page, 9 sections, anchor TOC on the
+ * right (SectionQuickNav). No sub-routes. Every "see more" is a drill-down
+ * (expand inline / open dialog) — not a navigation away from this page.
  *
- *   1. PageHeader               — title + period + trust badge
- *   2. VerdictBanner            — §6 1-paragraph narrative
- *   3. KpiStrip                 — §6 6 power-KPIs
- *   4. HeroSummary              — cash + 3 supporting metrics
- *   5. HealthScoreCard          — §10 composite + 4 subscores
- *   6. CashflowSplitChart       — §8 Operating / Investing / Financing
- *   7. CashflowWaterfall        — month flow Inceput → Final
- *   8. EvolutionChart           — last 12 months, interactive
- *   9. YoyComparison            — vs same month a year ago
- *  10. PnlWaterfall             — §9 Venituri → Profit net stepped
- *  11. Two-up: CategoryBreakdown — expenses + revenue interactive donuts
- *  12. Two-up: TopActivityList   — incasari clienti + plati furnizori
- *  13. TopExpensesList          — biggest single payments
- *  14. VerticalBreakdownCard    — per-business-line decomposition
- *  15. Two-up: ObligationsCalendar + CashPositionCard
- *  16. OutstandingTables        — clienti + furnizori with restante
- *  17. OwnerWithdrawalsCard     — money between owner and firm
- *  18. RatiosCatalog            — §10 L2 ratios accordion
- *  19. InsightsList             — semantic flags
+ *  §6  Pe scurt        — VerdictBanner + KpiStrip + HeroSummary
+ *  §10 Sanatate        — HealthScoreCard (composite + 4 subscores)
+ *  §8  Cash-flow       — CashflowSplitChart (O/I/F) + CashflowWaterfall
+ *  §7  Evolutie        — EvolutionChart (12 luni) + YoyComparison
+ *  §9  Venituri/chelt. — PnlWaterfall + CategoryBreakdown + TopActivity + TopExpenses
+ *      Verticals       — VerticalBreakdownCard (per linie de business)
+ *  §11 Obligatii       — ObligationsCalendar + CashPositionCard
+ *  §11 Parteneri       — OutstandingTable clienti + furnizori
+ *      Eu si firma     — OwnerWithdrawalsCard
+ *  §12 Patrimoniu      — PatrimoniuView (Activ vs Pasiv)
+ *  §10 L2              — RatiosCatalog (mode=detailed only)
+ *  §13 Insights        — InsightsList (semantic flags)
  */
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
 import type { OwnerContext } from "./owner-layout";
-import { buildPageHref } from "./owner-context";
 import { monthLabel } from "@/lib/owner-format";
 import { PageHeader } from "./page-header";
 import { TrustBadge } from "./trust-badge";
@@ -52,6 +44,7 @@ import { PnlWaterfall } from "./pnl-waterfall";
 import { TopActivityList } from "./top-activity-list";
 import { ObligationsCalendar } from "./obligations-calendar";
 import { RatiosCatalog } from "./ratios-catalog";
+import { PatrimoniuView } from "./patrimoniu-view";
 import { PeriodSelector, type PeriodOption } from "./period-selector";
 import { ViewModeToggle, type ViewMode } from "./view-mode-toggle";
 
@@ -68,7 +61,6 @@ interface OwnerViewProps {
 
 export function OwnerView({
   snapshot,
-  context,
   marjaOperationala,
   availablePeriods = [],
   mode = "simple",
@@ -95,6 +87,7 @@ export function OwnerView({
     obligations,
     healthScore,
     ratios,
+    patrimoniu,
     topCustomersByActivity,
     topSuppliersByActivity,
   } = snapshot;
@@ -135,6 +128,7 @@ export function OwnerView({
           hasInsights: insights.length > 0,
           hasObligations: obligations.length > 0,
           hasRatios: mode === "detailed",
+          hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
         })}
       />
 
@@ -150,7 +144,7 @@ export function OwnerView({
         </Section>
       )}
 
-      {/* Hero — cash + 3 metrics */}
+      {/* §6 — Hero (cash + 3 metrics) */}
       <Section id="hero" className="mb-8">
         <HeroSummary
           summary={summary}
@@ -159,24 +153,13 @@ export function OwnerView({
           outstandingFurnizoriCount={outstanding.furnizori.length}
           yoy={yoy}
           marjaOperationala={marjaOperationala ?? null}
-          hrefs={{
-            bani: buildPageHref(context, "bani"),
-            clienti: buildPageHref(context, "clienti"),
-            furnizori: buildPageHref(context, "furnizori"),
-            profit: buildPageHref(context, "profit"),
-          }}
         />
       </Section>
 
       {/* §10 — Health score composite */}
-      <SectionWithLink
-        id="sanatate"
-        href={buildPageHref(context, "sanatate")}
-        label="Vezi toti indicatorii"
-        className="mb-8"
-      >
+      <Section id="sanatate" className="mb-8">
         <HealthScoreCard data={healthScore} />
-      </SectionWithLink>
+      </Section>
 
       {/* §8 — Operating/Investing/Financing split */}
       <Section id="cashflow-split" className="mb-8">
@@ -189,14 +172,9 @@ export function OwnerView({
       </Section>
 
       {/* §7 — Evolution chart */}
-      <SectionWithLink
-        id="evolutie"
-        href={buildPageHref(context, "evolutie")}
-        label="Vezi evolutie completa"
-        className="mb-8"
-      >
+      <Section id="evolutie" className="mb-8">
         <EvolutionChart data={trends} />
-      </SectionWithLink>
+      </Section>
 
       {/* §7 — YoY */}
       {yoy.hasPreviousYear && (
@@ -276,26 +254,22 @@ export function OwnerView({
       {/* §11 — Outstanding partners */}
       <Section id="parteneri" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <div className="space-y-2">
-            <OutstandingTable variant="clienti" partners={outstanding.clienti} />
-            <SectionLink href={buildPageHref(context, "clienti")} label="Vezi toti clientii" />
-          </div>
-          <div className="space-y-2">
-            <OutstandingTable variant="furnizori" partners={outstanding.furnizori} />
-            <SectionLink href={buildPageHref(context, "furnizori")} label="Vezi toti furnizorii" />
-          </div>
+          <OutstandingTable variant="clienti" partners={outstanding.clienti} />
+          <OutstandingTable variant="furnizori" partners={outstanding.furnizori} />
         </div>
       </Section>
 
       {/* Owner withdrawals */}
-      <SectionWithLink
-        id="eu"
-        href={buildPageHref(context, "eu")}
-        label="Vezi istoricul complet"
-        className="mb-8"
-      >
+      <Section id="eu" className="mb-8">
         <OwnerWithdrawalsCard data={ownerWithdrawals} />
-      </SectionWithLink>
+      </Section>
+
+      {/* §12 — Patrimoniu (Activ vs Pasiv) */}
+      {(patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0) && (
+        <Section id="patrimoniu" className="mb-8">
+          <PatrimoniuView data={patrimoniu} />
+        </Section>
+      )}
 
       {/* §10 — Detailed ratios catalog (L2 only) */}
       {mode === "detailed" && (
@@ -304,19 +278,13 @@ export function OwnerView({
         </Section>
       )}
 
-      {/* Insights */}
+      {/* §13 — Insights */}
       {insights.length > 0 && (
-        <SectionWithLink
-          id="insights"
-          href={buildPageHref(context, "sanatate")}
-          label="Vezi toate semnalele"
-          className="mb-8"
-        >
+        <Section id="insights" className="mb-8">
           <InsightsList insights={insights} />
-        </SectionWithLink>
+        </Section>
       )}
 
-      {/* Footer micro-print */}
       <footer className="border-t border-dark-3 pt-6">
         <p
           className="text-[12px] text-gray max-w-2xl leading-relaxed"
@@ -330,8 +298,6 @@ export function OwnerView({
     </>
   );
 }
-
-/* -------------------------- Layout primitives ---------------------------- */
 
 function Section({
   id,
@@ -349,41 +315,20 @@ function Section({
   );
 }
 
-function SectionWithLink({
-  id,
-  href,
-  label,
-  children,
-  className,
-}: {
-  id?: string;
-  href: string;
-  label: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section id={id} className={`scroll-mt-24 ${className ?? ""}`}>
-      <div className="space-y-2">
-        {children}
-        <SectionLink href={href} label={label} />
-      </div>
-    </section>
-  );
-}
-
 function buildNavItems({
   hasYoy,
   hasVerticals,
   hasInsights,
   hasObligations,
   hasRatios,
+  hasPatrimoniu,
 }: {
   hasYoy: boolean;
   hasVerticals: boolean;
   hasInsights: boolean;
   hasObligations: boolean;
   hasRatios: boolean;
+  hasPatrimoniu: boolean;
 }): Array<{ id: string; label: string }> {
   const items: Array<{ id: string; label: string }> = [
     { id: "verdict", label: "Pe scurt" },
@@ -405,22 +350,8 @@ function buildNavItems({
     { id: "parteneri", label: "Parteneri" },
     { id: "eu", label: "Eu si firma" }
   );
+  if (hasPatrimoniu) items.push({ id: "patrimoniu", label: "Patrimoniu" });
   if (hasRatios) items.push({ id: "ratios", label: "Indicatori" });
   if (hasInsights) items.push({ id: "insights", label: "Semnale" });
   return items;
-}
-
-function SectionLink({ href, label }: { href: string; label: string }) {
-  return (
-    <div className="flex justify-end">
-      <Link
-        href={href}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-light hover:text-primary transition-colors"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        {label}
-        <ArrowRight size={12} />
-      </Link>
-    </div>
-  );
 }

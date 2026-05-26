@@ -267,11 +267,11 @@ test.describe("Owner dashboard — modern UI smoke", () => {
     await expect(page.getByText(/Indicatori financiari detaliati/i)).toBeVisible();
   });
 
-  test("19. Patrimoniu sub-page renders Activ + Pasiv columns", async ({ context }) => {
+  test("19. Patrimoniu section appears inline on Acasa (Activ + Pasiv)", async ({ context }) => {
     const page = await authedPage(context);
-    await page.goto(`${OWNER_URL}&page=patrimoniu`);
+    await page.goto(OWNER_URL);
 
-    await expect(page.getByText(/Patrimoniul firmei/i).first()).toBeVisible();
+    // §12 Patrimoniu is a section on the home page, not a separate route.
     await expect(page.getByText(/Activ — ce detine firma/i)).toBeVisible();
     await expect(page.getByText(/Pasiv — de unde vin banii/i)).toBeVisible();
   });

@@ -22,7 +22,6 @@
  */
 
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowUp,
   ArrowDown,
@@ -47,12 +46,6 @@ interface HeroSummaryProps {
   outstandingFurnizoriCount: number;
   yoy: YearOverYearComparison;
   marjaOperationala: number | null;
-  hrefs: {
-    bani: string;
-    clienti: string;
-    furnizori: string;
-    profit: string;
-  };
 }
 
 export function HeroSummary({
@@ -62,7 +55,6 @@ export function HeroSummary({
   outstandingFurnizoriCount,
   yoy,
   marjaOperationala,
-  hrefs,
 }: HeroSummaryProps) {
   const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
   const profitYtd = summary.cifraAfaceriTotal - summary.cheltuieliTotal;
@@ -76,9 +68,9 @@ export function HeroSummary({
 
   return (
     <div className="rounded-2xl border border-dark-3 bg-dark-2 overflow-hidden">
-      {/* Hero: cash */}
-      <Link
-        href={hrefs.bani}
+      {/* Hero: cash — anchor jumps to the cashflow waterfall below */}
+      <a
+        href="#cashflow"
         className="block group relative px-6 sm:px-8 pt-6 pb-7 border-b border-dark-3 hover:bg-dark-3/20 transition-colors"
       >
         <CashHero
@@ -94,12 +86,12 @@ export function HeroSummary({
           className="absolute top-6 right-6 text-gray opacity-0 group-hover:opacity-100 transition-opacity"
           aria-hidden
         />
-      </Link>
+      </a>
 
-      {/* Three supporting metrics */}
+      {/* Three supporting metrics — anchors jump to the matching section below */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-dark-3">
         <SecondaryMetric
-          href={hrefs.clienti}
+          href="#parteneri"
           icon={<ArrowDownLeft size={14} />}
           label="De primit de la clienti"
           value={lei(summary.clientiNeincasati)}
@@ -111,7 +103,7 @@ export function HeroSummary({
           spark={trends.slice(-6).map((t) => t.receivables)}
         />
         <SecondaryMetric
-          href={hrefs.furnizori}
+          href="#parteneri"
           icon={<ArrowUpRight size={14} />}
           label="De platit furnizorilor"
           value={lei(summary.furnizoriNeachitati)}
@@ -123,7 +115,7 @@ export function HeroSummary({
           spark={trends.slice(-6).map((t) => t.payables)}
         />
         <SecondaryMetric
-          href={hrefs.profit}
+          href="#profit"
           icon={<TrendingUp size={14} />}
           label="Profit anul acesta"
           value={lei(profitYtd)}
@@ -401,7 +393,7 @@ function SecondaryMetric({
         ? "text-neg"
         : "text-white";
   return (
-    <Link
+    <a
       href={href}
       className="group relative block px-5 sm:px-6 py-5 hover:bg-dark-3/20 transition-colors"
     >
@@ -439,7 +431,7 @@ function SecondaryMetric({
         className="absolute top-5 right-5 text-gray opacity-0 group-hover:opacity-100 transition-opacity"
         aria-hidden
       />
-    </Link>
+    </a>
   );
 }
 
