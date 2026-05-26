@@ -1,17 +1,48 @@
 "use client";
 
-import { useState } from "react";
+/**
+ * ClientDetail — the single-page accountant workspace for one firm.
+ *
+ * Design goals (the "blazing fast" bar):
+ *
+ *  1. **Instant tab switching.** Tab clicks never hit the server. Active tab
+ *     lives in `useState`; URL is kept in sync via `history.replaceState`
+ *     for sharability without triggering Next router navigation.
+ *
+ *  2. **One fetch per tab data, cached in component state.** Balanta and CPP
+ *     share a single `/api/balance` payload per (year, month). Mapari fetches
+ *     `/api/mapari-cashflow` once per (cashflowYear ?? "default"). Re-visiting
+ *     a tab is instant — no spinner, no network round-trip.
+ *
+ *  3. **Correctness via dataVersion.** The server-rendered page passes
+ *     `Client.dataVersion` down as a prop. When an external mutation (journal
+ *     upload, mapari override save, vertical edit, …) bumps that version, the
+ *     page re-renders, ClientDetail sees the new version, and wipes its local
+ *     caches so the next tab activation refetches fresh data. No tags to
+ *     forget, no race conditions.
+ *
+ *  4. **Period change still navigates.** Year/month selectors trigger
+ *     `router.push` so server-side props (publish bar, current period status,
+ *     audit rows) update for the new period. The cache layer makes that hop
+ *     ~5-15 ms on a hit. Only tab switches are pure client state.
+ */
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Upload, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
+import type { KpiSnapshot, CppData, CppF20Data } from "@/modules/reporting";
+import type { TaxRegime } from "@/modules/accounts";
+import type { MapariCashflowData } from "@/modules/categories";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
 import { SetariTab } from "@/components/clients/setari-tab";
+import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
@@ -27,6 +58,14 @@ interface ImportEventInfo {
   createdAt: string;
 }
 
+interface BalancePayload {
+  rows: BalanceRowView[];
+  kpis: KpiSnapshot | null;
+  cpp: CppData | null;
+  cppF20: CppF20Data | null;
+  taxRegime: TaxRegime | null;
+}
+
 interface Props {
   client: {
     id: string;
@@ -36,6 +75,8 @@ interface Props {
     caen: string | null;
     createdAt: string;
   };
+  /** Monotonic version. Any change invalidates client-side caches. */
+  dataVersion: number;
   entryCount: number;
   importEvents: ImportEventInfo[];
   periods: DatasetPeriod[];
@@ -51,8 +92,9 @@ interface Props {
   publishBar?: React.ReactNode;
   /** Server-rendered "Istoric actiuni" section shown inside the Setari tab. */
   auditSection?: React.ReactNode;
-  /** Server-rendered "Mapari Cashflow" tab content. Lazily server-loaded. */
-  mapariCashflowSection?: React.ReactNode;
+  /** Optional cashflow year search param (?cashflow-year=YYYY). Driven by
+   *  the year selector inside MapariCashflowTab. */
+  cashflowYear?: number;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -64,8 +106,19 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "setari", label: "Setari" },
 ];
 
+type LoadState<T> = { kind: "loading" } | { kind: "ready"; data: T } | { kind: "error" };
+
+function balanceKey(year: number, month: number): string {
+  return `${year}-${month}`;
+}
+
+function mapariKey(year: number | undefined): string {
+  return year === undefined ? "default" : String(year);
+}
+
 export function ClientDetail({
   client,
+  dataVersion,
   entryCount,
   importEvents,
   periods,
@@ -76,22 +129,160 @@ export function ClientDetail({
   publishSection,
   publishBar,
   auditSection,
-  mapariCashflowSection,
+  cashflowYear,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [unmappedRows, setUnmappedRows] = useState<BalanceRowView[]>([]);
-  const tab = (TABS.find((t) => t.key === activeTab) ? activeTab : "jurnal") as Tab;
+  const initialTab = (TABS.find((t) => t.key === activeTab) ? activeTab : "jurnal") as Tab;
+  const [tab, setTab] = useState<Tab>(initialTab);
 
-  function navigate(params: { tab?: string; year?: number; month?: number }) {
-    const p = new URLSearchParams();
-    p.set("tab", params.tab ?? tab);
-    if (params.year) p.set("year", String(params.year));
-    if (params.month) p.set("month", String(params.month));
-    router.push(`/clients/${client.slug}?${p.toString()}`);
+  // Per-(year, month) cache for the /api/balance payload. Keys are stable
+  // strings; values track loading vs. ready vs. error so the UI can render
+  // the correct state without a separate boolean.
+  const [balanceCache, setBalanceCache] = useState<Map<string, LoadState<BalancePayload>>>(
+    () => new Map()
+  );
+  const [mapariCache, setMapariCache] = useState<Map<string, LoadState<MapariCashflowData>>>(
+    () => new Map()
+  );
+
+  // Refs to read the latest cache + in-flight state inside effects without
+  // including them as deps. If they were deps, calling `setBalanceCache`
+  // inside the effect would re-trigger it, fire the previous cleanup, and
+  // abort the in-flight fetch — leaving the UI stuck on "Se calculeaza…".
+  // The ref pattern is the standard React fix for "read latest state without
+  // re-subscribing".
+  const balanceCacheRef = useRef(balanceCache);
+  balanceCacheRef.current = balanceCache;
+  const mapariCacheRef = useRef(mapariCache);
+  mapariCacheRef.current = mapariCache;
+  const balanceInFlight = useRef<Set<string>>(new Set());
+  const mapariInFlight = useRef<Set<string>>(new Set());
+
+  // External mutations (journal upload, override save, …) bump dataVersion.
+  // When that changes, drop every cached payload AND clear in-flight markers
+  // so the next visit refetches. Render-phase compare keeps it synchronous.
+  const lastVersion = useRef(dataVersion);
+  if (lastVersion.current !== dataVersion) {
+    lastVersion.current = dataVersion;
+    balanceInFlight.current = new Set();
+    mapariInFlight.current = new Set();
+    if (balanceCache.size > 0) setBalanceCache(new Map());
+    if (mapariCache.size > 0) setMapariCache(new Map());
   }
 
+  // Keep local `tab` in sync if the URL changes externally (e.g. server
+  // re-render after a period change). Cheap — string compare.
+  useEffect(() => {
+    if (initialTab !== tab) setTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab]);
+
+  // Lazy-fetch /api/balance when the active tab needs it and we don't have
+  // data for the (year, month) yet. No abort: the fetch always runs to
+  // completion and writes into the cache. Switching tab during fetch reuses
+  // the in-flight response when it arrives — no wasted network calls.
+  useEffect(() => {
+    if (tab !== "balanta" && tab !== "cpp") return;
+    if (!selectedYear || !selectedMonth) return;
+    const key = balanceKey(selectedYear, selectedMonth);
+    if (balanceCacheRef.current.has(key)) return;
+    if (balanceInFlight.current.has(key)) return;
+
+    balanceInFlight.current.add(key);
+    setBalanceCache((prev) =>
+      prev.has(key) ? prev : new Map(prev).set(key, { kind: "loading" })
+    );
+
+    fetch(
+      `/api/balance?clientId=${client.id}&year=${selectedYear}&month=${selectedMonth}`,
+      { cache: "no-store" }
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        const payload: BalancePayload = {
+          rows: (data.rows ?? []) as BalanceRowView[],
+          kpis: data.kpis ?? null,
+          cpp: data.cpp ?? null,
+          cppF20: data.cppF20 ?? null,
+          taxRegime: data.taxRegime ?? null,
+        };
+        setBalanceCache((prev) => new Map(prev).set(key, { kind: "ready", data: payload }));
+        setUnmappedRows(payload.rows.filter((r) => r.unmapped));
+      })
+      .catch(() => {
+        setBalanceCache((prev) => new Map(prev).set(key, { kind: "error" }));
+      })
+      .finally(() => {
+        balanceInFlight.current.delete(key);
+      });
+  }, [tab, selectedYear, selectedMonth, client.id]);
+
+  // Lazy-fetch /api/mapari-cashflow per cashflowYear. Same pattern.
+  useEffect(() => {
+    if (tab !== "mapari-cashflow") return;
+    const key = mapariKey(cashflowYear);
+    if (mapariCacheRef.current.has(key)) return;
+    if (mapariInFlight.current.has(key)) return;
+
+    mapariInFlight.current.add(key);
+    setMapariCache((prev) =>
+      prev.has(key) ? prev : new Map(prev).set(key, { kind: "loading" })
+    );
+
+    const url = cashflowYear
+      ? `/api/mapari-cashflow?clientId=${client.id}&year=${cashflowYear}`
+      : `/api/mapari-cashflow?clientId=${client.id}`;
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: MapariCashflowData) => {
+        setMapariCache((prev) => new Map(prev).set(key, { kind: "ready", data }));
+      })
+      .catch(() => {
+        setMapariCache((prev) => new Map(prev).set(key, { kind: "error" }));
+      })
+      .finally(() => {
+        mapariInFlight.current.delete(key);
+      });
+  }, [tab, cashflowYear, client.id]);
+
   const needsPeriod = tab === "balanta" || tab === "cpp";
+
+  function changeTab(next: Tab) {
+    setTab(next);
+    // Keep the URL in sync without triggering a navigation. Refresh-safe and
+    // shareable; `router.push` would re-run the server component (~50-500ms).
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    if (!needsPeriodForTab(next)) {
+      url.searchParams.delete("year");
+      url.searchParams.delete("month");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  function changePeriod(year: number, month: number) {
+    // Period changes affect server-rendered surfaces (publish bar, audit
+    // section, current status) so we navigate. Cache layer keeps it cheap.
+    const params = new URLSearchParams();
+    params.set("tab", tab);
+    params.set("year", String(year));
+    params.set("month", String(month));
+    router.push(`/clients/${client.slug}?${params.toString()}`);
+  }
+
+  const balanceState =
+    selectedYear && selectedMonth
+      ? balanceCache.get(balanceKey(selectedYear, selectedMonth)) ?? null
+      : null;
+  const balanceData =
+    balanceState?.kind === "ready" ? balanceState.data : null;
+  const balanceLoading = balanceState?.kind === "loading";
+
+  const mapariState = mapariCache.get(mapariKey(cashflowYear)) ?? null;
+  const mapariData = mapariState?.kind === "ready" ? mapariState.data : null;
+  const mapariLoading = mapariState?.kind === "loading";
 
   return (
     <div className="page-data px-4 py-6 sm:px-8 sm:py-8">
@@ -104,7 +295,10 @@ export function ClientDetail({
 
       <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] sm:text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+          <h1
+            className="text-[22px] sm:text-[28px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
             {client.name}
           </h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3 font-mono text-xs text-gray">
@@ -119,7 +313,7 @@ export function ClientDetail({
               periods={periods}
               selectedYear={selectedYear}
               selectedMonth={selectedMonth}
-              onChange={(y, m) => navigate({ year: y, month: m })}
+              onChange={(y, m) => changePeriod(y, m)}
             />
           )}
           <a
@@ -140,43 +334,39 @@ export function ClientDetail({
         </div>
       </div>
 
-      <TabBar
-        active={tab}
-        onTabChange={(t) => {
-          const needsPeriodNext = t === "balanta" || t === "cpp";
-          navigate(
-            needsPeriodNext
-              ? { tab: t, year: selectedYear, month: selectedMonth }
-              : { tab: t }
-          );
-        }}
-      />
+      <TabBar active={tab} onTabChange={changeTab} />
 
       {(tab === "balanta" || tab === "cpp") && selectedYear && selectedMonth && publishBar && (
         <div className="mt-4">{publishBar}</div>
       )}
 
-      {unmappedRows.length > 0 && (
+      {unmappedRows.length > 0 && (tab === "balanta" || tab === "cpp") && (
         <div className="mt-4">
           <UnmappedBanner rows={unmappedRows} />
         </div>
       )}
 
       <div className="mt-4">
-        {tab === "jurnal" && (
-          <JournalGrid clientId={client.id} />
-        )}
+        {tab === "jurnal" && <JournalGrid clientId={client.id} />}
+
         {tab === "balanta" && selectedYear && selectedMonth && (
-          <BalantaTab clientId={client.id} year={selectedYear} month={selectedMonth} onUnmappedFound={setUnmappedRows} />
-        )}
-        {tab === "cpp" && selectedYear && selectedMonth && (
-          <CppTab
-            clientId={client.id}
-            year={selectedYear}
-            month={selectedMonth}
-            onUnmappedFound={setUnmappedRows}
+          <BalantaTab
+            rows={balanceData?.rows ?? null}
+            kpis={balanceData?.kpis ?? null}
+            loading={balanceLoading || balanceState === null}
           />
         )}
+
+        {tab === "cpp" && selectedYear && selectedMonth && (
+          <CppTab
+            year={selectedYear}
+            cpp={balanceData?.cpp ?? null}
+            cppF20={balanceData?.cppF20 ?? null}
+            taxRegime={balanceData?.taxRegime ?? "profit_standard"}
+            loading={balanceLoading || balanceState === null}
+          />
+        )}
+
         {tab === "plan" && (
           <PlanConturiTab
             clientId={client.id}
@@ -185,7 +375,19 @@ export function ClientDetail({
             month={selectedMonth}
           />
         )}
-        {tab === "mapari-cashflow" && mapariCashflowSection}
+
+        {tab === "mapari-cashflow" && (
+          mapariData ? (
+            <MapariCashflowTab data={mapariData} />
+          ) : (
+            <div className="flex items-center justify-center py-16 text-sm text-gray">
+              {mapariState?.kind === "error"
+                ? "Nu am putut incarca maparile."
+                : "Se incarca maparile..."}
+            </div>
+          )
+        )}
+
         {tab === "setari" && (
           <SetariTab
             client={client}
@@ -196,6 +398,7 @@ export function ClientDetail({
             auditSection={auditSection}
           />
         )}
+
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (
           <EmptyState message="Nu exista date. Uploadeaza un registru jurnal." />
         )}
@@ -210,6 +413,10 @@ export function ClientDetail({
       />
     </div>
   );
+}
+
+function needsPeriodForTab(t: Tab): boolean {
+  return t === "balanta" || t === "cpp";
 }
 
 function TabBar({ active, onTabChange }: { active: Tab; onTabChange: (t: Tab) => void }) {

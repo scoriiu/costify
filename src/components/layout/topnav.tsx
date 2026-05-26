@@ -8,12 +8,7 @@ import { Logo } from "@/components/ui/logo";
 import { Lock, LogOut, Settings, ChevronDown, Menu, X } from "lucide-react";
 import { logoutAction } from "@/modules/auth/actions";
 import { ThemeToggle } from "@/components/theme/theme-selector";
-
-const INTERNAL_WHITELIST = [
-  "solomon.coriiu@costify.ro",
-  "claudia.solomon@costify.ro",
-  "sorin.crisan@costify.ro",
-];
+import { isInternalUser } from "@/lib/internal-access";
 
 const NAV_ITEMS = [
   { href: "/clients", label: "Clients" },
@@ -159,7 +154,7 @@ function MobileMenu({ isInternal, pathname, onClose }: { isInternal: boolean; pa
 
 export function TopNav({ userName, userEmail }: TopNavProps) {
   const pathname = usePathname();
-  const isInternal = INTERNAL_WHITELIST.includes(userEmail);
+  const isInternal = isInternalUser(userEmail);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {

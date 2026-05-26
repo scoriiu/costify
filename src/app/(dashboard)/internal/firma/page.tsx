@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionUser } from "@/modules/auth/session";
 import { ArrowLeft, Eye, LayoutDashboard, Send, UserCheck, Layers, AlertCircle, Building2 } from "lucide-react";
-import { INTERNAL_WHITELIST, QHM_NAME, QHM_CUI, SNAPSHOT_LABEL } from "./_data/snapshot";
+import { isInternalUser } from "@/lib/internal-access";
+import { resolveShowcaseClient } from "./_data/snapshot";
 
 type Status = "ready" | "wip" | "todo";
 
@@ -84,7 +85,9 @@ const STATUS_CONFIG: Record<Status, { label: string; className: string }> = {
 export default async function FirmaShowcaseHub() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (!INTERNAL_WHITELIST.includes(user.email)) redirect("/clients");
+  if (!isInternalUser(user.email)) redirect("/clients");
+
+  const showcase = await resolveShowcaseClient();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
@@ -104,11 +107,20 @@ export default async function FirmaShowcaseHub() {
         Vederea antreprenorului
       </h1>
       <p className="mt-2 text-[14px] text-gray-light max-w-2xl" style={{ letterSpacing: "-0.02em" }}>
-        Cum arata Costify pentru un antreprenor invitat de contabil. Toate ecranele
-        folosesc date reale ale firmei{" "}
-        <span className="font-mono text-white">{QHM_NAME}</span>
-        {" "}({QHM_CUI}) la{" "}
-        <span className="font-mono text-white">{SNAPSHOT_LABEL}</span>.
+        Cum arata Costify pentru un antreprenor invitat de contabil.{" "}
+        {showcase ? (
+          <>
+            Toate ecranele folosesc date reale ale firmei{" "}
+            <span className="font-mono text-white">{showcase.name}</span>
+            {showcase.cui ? <> ({showcase.cui})</> : null} la{" "}
+            <span className="font-mono text-white">{showcase.periodLabel}</span>.
+          </>
+        ) : (
+          <span className="text-warn">
+            Configureaza <code className="font-mono text-white">SHOWCASE_CLIENT_SLUG</code> in
+            .env pentru a activa ecranele cu date reale.
+          </span>
+        )}
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">

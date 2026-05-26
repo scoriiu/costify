@@ -3,14 +3,18 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/modules/auth/session";
 import { OwnerLayout, OwnerView, buildOwnerContextForPreview } from "@/components/clients/owner";
-import { loadFirmaSnapshot, INTERNAL_WHITELIST } from "../_data/snapshot";
+import { isInternalUser } from "@/lib/internal-access";
+import { loadFirmaSnapshot } from "../_data/snapshot";
+import { ShowcaseUnconfigured } from "../_components/showcase-unconfigured";
 
 export default async function PreviewShowcase() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (!INTERNAL_WHITELIST.includes(user.email)) redirect("/clients");
+  if (!isInternalUser(user.email)) redirect("/clients");
 
-  const { snapshot, marjaOperationala } = await loadFirmaSnapshot();
+  const data = await loadFirmaSnapshot();
+  if (!data) return <ShowcaseUnconfigured />;
+  const { snapshot, marjaOperationala } = data;
 
   // This showcase uses the preview context (with the preview banner)
   const context = buildOwnerContextForPreview({

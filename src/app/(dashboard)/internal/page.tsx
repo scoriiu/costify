@@ -2,12 +2,7 @@ import { getSessionUser } from "@/modules/auth/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Palette, Megaphone, Smile, Globe, Building2 } from "lucide-react";
-
-const INTERNAL_WHITELIST = [
-  "solomon.coriiu@costify.ro",
-  "claudia.solomon@costify.ro",
-  "sorin.crisan@costify.ro",
-];
+import { isInternalUser } from "@/lib/internal-access";
 
 const ITEMS = [
   { href: "/?preview=1", icon: Globe, label: "Landing Page", desc: "Pagina publica pentru vizitatori — hero, features, pricing" },
@@ -20,7 +15,7 @@ const ITEMS = [
 export default async function InternalPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (!INTERNAL_WHITELIST.includes(user.email)) redirect("/clients");
+  if (!isInternalUser(user.email)) redirect("/clients");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-8 sm:py-16">

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { recordClientMutation } from "@/modules/audit";
+import { bumpClientDataVersion } from "@/modules/clients/data-version";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
@@ -67,7 +68,7 @@ export async function createCategoryAction(
       },
     });
 
-    revalidateClient(parsed.data.clientId);
+    await revalidateClient(parsed.data.clientId);
     return { data: { id: created.id } };
   } catch (err) {
     return { error: (err as Error).message };
@@ -113,7 +114,7 @@ export async function renameCategoryAction(
       after: { name: updated.name },
     });
 
-    revalidateClient(parsed.data.clientId);
+    await revalidateClient(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -155,7 +156,7 @@ export async function deleteCategoryAction(
       after: null,
     });
 
-    revalidateClient(parsed.data.clientId);
+    await revalidateClient(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -207,7 +208,7 @@ export async function mapAccountAction(
       },
     });
 
-    revalidateClient(parsed.data.clientId);
+    await revalidateClient(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -250,15 +251,20 @@ export async function unmapAccountAction(
       after: null,
     });
 
-    revalidateClient(parsed.data.clientId);
+    await revalidateClient(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
   }
 }
 
-function revalidateClient(clientId: string): void {
-  // We don't know the slug here without a query; revalidating /clients catches
-  // the list and the per-client pages render fresh on next visit anyway.
+async function revalidateClient(clientId: string): Promise<void> {
+  // Two-step cache invalidation for every category/mapping mutation:
+  //   1. Bump Client.dataVersion so any read keyed on (clientId, version) misses
+  //      and recomputes. This is the correctness guarantee — no read can return
+  //      a value computed against the pre-write data state.
+  //   2. revalidatePath("/clients") so the Next.js render cache for the list
+  //      page (which includes coverage/mapping summaries) drops too.
+  await bumpClientDataVersion(clientId);
   revalidatePath("/clients");
 }

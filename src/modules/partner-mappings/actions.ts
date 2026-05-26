@@ -23,6 +23,7 @@ import * as service from "./service";
 import * as loader from "./loader";
 import type { PartnerCategoryOverrideRow, PartnerEntry } from "./types";
 import { normalizePartnerName } from "@/lib/partner-normalize";
+import { bumpClientDataVersion } from "@/modules/clients/data-version";
 
 type ActionResult<T = void> = { error?: string; data?: T };
 
@@ -75,6 +76,21 @@ async function authorizeCategory(
 
 function revalidateMapariCashflow(clientSlug: string) {
   revalidatePath(`/clients/${clientSlug}`);
+}
+
+/**
+ * Invalidate every cached derivative computed from this client's data
+ * (balance, CPP, mapari, owner snapshot, KPIs). Called unconditionally
+ * on any successful PartnerCategoryOverride mutation because the override
+ * shifts where partner rulaj lands across cashflow categories — which
+ * propagates into all downstream computed surfaces.
+ *
+ * Separate from revalidateMapariCashflow() because some flows opt out of
+ * Next's revalidatePath (optimistic UI) but ALL flows must bump the data
+ * version so other readers (other tabs / users) get fresh values.
+ */
+async function bumpAfterMutation(clientId: string): Promise<void> {
+  await bumpClientDataVersion(clientId);
 }
 
 function kindForCont(contBase: string): "expense" | "revenue" | null {
@@ -328,6 +344,7 @@ export async function upsertPartnerOverrideAction(
     },
   });
 
+  await bumpAfterMutation(parsed.data.clientId);
   if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return { data: { id: row.id } };
 }
@@ -376,6 +393,7 @@ export async function confirmPartnerOverrideAction(
     },
   });
 
+  await bumpAfterMutation(parsed.data.clientId);
   if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return {};
 }
@@ -426,6 +444,7 @@ export async function deletePartnerOverrideAction(
     },
   });
 
+  await bumpAfterMutation(parsed.data.clientId);
   if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return {};
 }
@@ -514,6 +533,7 @@ export async function bulkApplyPartnerOverridesAction(
     },
   });
 
+  await bumpAfterMutation(parsed.data.clientId);
   if (!parsed.data.skipRevalidate) revalidateMapariCashflow(auth.clientSlug);
   return { data: result };
 }

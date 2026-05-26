@@ -5,6 +5,7 @@ import { buildPartnerMappings } from "./partner-extractor";
 import { bulkUpsertFromImport } from "@/modules/accounts";
 import { recordAuditEvent } from "@/modules/audit";
 import { markPeriodsAsStale } from "@/modules/publishing";
+import { bumpClientDataVersion } from "@/modules/clients/data-version";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import type { JournalEntry } from "./types";
@@ -81,6 +82,9 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   if (touchedPeriods.length > 0) {
     await markPeriodsAsStale(input.clientId, touchedPeriods);
   }
+
+  // Invalidate every cached derivative (balance, CPP, mapari, owner snapshot, KPIs).
+  await bumpClientDataVersion(input.clientId);
 
   await recordAuditEvent({
     tenantId: input.clientId,
@@ -228,6 +232,9 @@ export async function softDeleteEntriesFrom(
   if (touched.length > 0) {
     await markPeriodsAsStale(clientId, touched);
   }
+
+  // Historical correction changes computed downstream — bump so caches recompute.
+  await bumpClientDataVersion(clientId);
 
   await recordAuditEvent({
     tenantId: clientId,

@@ -16,7 +16,8 @@ import { prisma } from "@/lib/db";
 import { round2 } from "@/lib/money";
 import { listCategoryTree, listMappings } from "./service";
 import { buildResolverState, resolveCategoryForCont } from "./resolver";
-import { getAvailablePeriods, getBalanceRows } from "@/modules/balances";
+import { getAvailablePeriods } from "@/modules/balances";
+import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import {
   listVerticals,
   listAllocations,
@@ -177,13 +178,25 @@ export async function loadMapariCashflow(
   clientId: string,
   opts?: { year?: number }
 ): Promise<MapariCashflowData> {
+  // Phase 1 — sequential: tree+autoSeed may insert default categories AND
+  // default mappings, so we cannot parallelize listMappings with this call.
+  // In steady state (post-first-load) this is one indexed SELECT.
   const { tree, seeded } = await listCategoryTree(prisma, clientId, {
     autoSeed: true,
   });
-  const mappings = await listMappings(prisma, clientId);
 
-  // Fetch vertical state (flag, list, allocations, category allocations).
-  const [clientFlag, verticals, allocations, categoryAllocations] = await Promise.all([
+  // Phase 2 — parallel: every metadata query the page needs. Six independent
+  // SELECTs in one round-trip latency window (~10-20 ms instead of 50-80 ms
+  // sequential).
+  const [
+    mappings,
+    clientFlag,
+    verticals,
+    allocations,
+    categoryAllocations,
+    periods,
+  ] = await Promise.all([
+    listMappings(prisma, clientId),
     prisma.client.findUnique({
       where: { id: clientId },
       select: { verticalsEnabled: true },
@@ -191,7 +204,9 @@ export async function loadMapariCashflow(
     listVerticals(prisma, clientId),
     listAllocations(prisma, clientId),
     listCategoryAllocations(prisma, clientId),
+    getAvailablePeriods(clientId),
   ]);
+
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
   const emptyPartnerSummaries: Record<string, PartnerSummary> = {};
   const emptyCategoryInflows: Record<string, CategoryInflow> = {};
@@ -207,9 +222,6 @@ export async function loadMapariCashflow(
 
   const allocByCont = new Map<string, AllocationView>();
   for (const a of allocations) allocByCont.set(a.cont, a);
-
-  // Find every period the client has data for. Empty -> empty-state.
-  const periods = await getAvailablePeriods(clientId);
   const availableYears = Array.from(new Set(periods.map((p) => p.year))).sort(
     (a, b) => b - a
   );
@@ -247,7 +259,7 @@ export async function loadMapariCashflow(
     .map((p) => p.month);
   const latestMonth = Math.max(...monthsForYear);
   const [balanceResult, partnerSummariesByCont, partnerAdjustments] = await Promise.all([
-    getBalanceRows(clientId, targetYear, latestMonth),
+    getBalanceRowsCached(clientId, targetYear, latestMonth),
     loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
     loadPartnerCategoryAdjustments(prisma, clientId, targetYear, latestMonth),
   ]);

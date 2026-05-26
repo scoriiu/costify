@@ -4,12 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
-
-const INTERNAL_WHITELIST = [
-  "solomon.coriiu@costify.ro",
-  "claudia.solomon@costify.ro",
-  "sorin.crisan@costify.ro",
-];
+import { isInternalUser } from "@/lib/internal-access";
 
 const NAV_ITEMS = [
   { label: "General", items: [
@@ -33,7 +28,7 @@ interface SidebarNavProps {
 
 export function SidebarNav({ userEmail }: SidebarNavProps) {
   const pathname = usePathname();
-  const isInternal = INTERNAL_WHITELIST.includes(userEmail);
+  const isInternal = isInternalUser(userEmail);
 
   return (
     <nav className="flex-1 overflow-y-auto py-2">

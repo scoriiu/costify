@@ -1,12 +1,9 @@
-import type { ReactNode } from "react";
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAvailablePeriods } from "@/modules/balances";
 import { computeKpis } from "@/modules/reporting";
-import { getBalanceRows } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
-import { loadOwnerSnapshot } from "@/modules/reporting/owner";
 import { listAccessesForClient } from "@/modules/roles";
 import {
   listPublishedPeriods,
@@ -14,9 +11,11 @@ import {
   getLatestPublishedView,
 } from "@/modules/publishing";
 import { listAccountantAuditTrail } from "@/modules/audit";
-import { loadMapariCashflow } from "@/modules/categories";
+import {
+  getBalanceRowsCached,
+  loadOwnerSnapshotCached,
+} from "@/modules/cache/loaders";
 import { ClientDetail } from "@/components/clients/client-detail";
-import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
 import { AccessSection } from "@/components/clients/access-section";
 import {
   PublishingSection,
@@ -49,6 +48,10 @@ export default async function ClientDetailPage(props: Props) {
   const { slug } = await props.params;
   const searchParams = await props.searchParams;
 
+  // Parallel: client lookup + periods. Periods is independent of the client
+  // row but needs clientId — we kick the lookup first and run periods after.
+  // (Periods could be parallelized with a subquery; not worth the SQL churn
+  // since the cache layer makes subsequent loads near-free anyway.)
   const client = await prisma.client.findFirst({
     where: { userId: user.id, slug, active: true },
     include: {
@@ -109,7 +112,7 @@ export default async function ClientDetailPage(props: Props) {
       );
     }
 
-    const snapshot = await loadOwnerSnapshot({
+    const snapshot = await loadOwnerSnapshotCached({
       clientId: client.id,
       clientName: client.name,
       clientCui: client.cui,
@@ -120,7 +123,7 @@ export default async function ClientDetailPage(props: Props) {
 
     // Compute marjaOperationala for the hero (used by HeroSummary tooltip).
     const [previewBalanceRows, previewCatalog] = await Promise.all([
-      getBalanceRows(client.id, previewYear, previewMonth),
+      getBalanceRowsCached(client.id, previewYear, previewMonth),
       getCatalogMap(),
     ]);
     const previewKpis = previewBalanceRows.ok
@@ -176,18 +179,12 @@ export default async function ClientDetailPage(props: Props) {
     })
     .sort((a, b) => b.year - a.year || b.month - a.month);
 
-  // Lazy-load the "Mapari Cashflow" tab content only when the user is on
-  // that tab. This avoids running the loader (which fetches balance rows
-  // for the latest period) on every page visit.
-  let mapariCashflowSection: ReactNode = null;
-  if (tab === "mapari-cashflow") {
-    const cashflowYearRaw = searchParams["cashflow-year"];
-    const cashflowYear = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : undefined;
-    const mapariData = await loadMapariCashflow(client.id, {
-      year: Number.isFinite(cashflowYear) ? cashflowYear : undefined,
-    });
-    mapariCashflowSection = <MapariCashflowTab data={mapariData} />;
-  }
+  // Mapari is fetched client-side by ClientDetail on tab activation — keeps
+  // page render fast for users who never visit that tab, and lets tab switches
+  // be purely client-state (no server round-trip).
+  const cashflowYearRaw = searchParams["cashflow-year"];
+  const cashflowYearParsed = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : NaN;
+  const cashflowYear = Number.isFinite(cashflowYearParsed) ? cashflowYearParsed : undefined;
 
   const publishBar =
     year && month ? (
@@ -216,6 +213,7 @@ export default async function ClientDetailPage(props: Props) {
         caen: client.caen,
         createdAt: client.createdAt.toISOString(),
       }}
+      dataVersion={client.dataVersion}
       entryCount={client._count.journalLines}
       importEvents={client.importEvents.map((e) => ({
         id: e.id,
@@ -230,6 +228,7 @@ export default async function ClientDetailPage(props: Props) {
       activeTab={tab}
       selectedYear={year}
       selectedMonth={month}
+      cashflowYear={cashflowYear}
       accessSection={
         <AccessSection
           clientId={client.id}
@@ -252,7 +251,6 @@ export default async function ClientDetailPage(props: Props) {
       }
       publishBar={publishBar}
       auditSection={<AuditSection rows={auditRows} />}
-      mapariCashflowSection={mapariCashflowSection}
     />
   );
 }

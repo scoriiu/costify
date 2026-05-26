@@ -3,14 +3,18 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUser } from "@/modules/auth/session";
 import { OwnerLayout, OwnerView, buildOwnerContextForFirma } from "@/components/clients/owner";
-import { loadFirmaSnapshot, INTERNAL_WHITELIST } from "../_data/snapshot";
+import { isInternalUser } from "@/lib/internal-access";
+import { loadFirmaSnapshot } from "../_data/snapshot";
+import { ShowcaseUnconfigured } from "../_components/showcase-unconfigured";
 
 export default async function PaginaFirmaShowcase() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (!INTERNAL_WHITELIST.includes(user.email)) redirect("/clients");
+  if (!isInternalUser(user.email)) redirect("/clients");
 
-  const { snapshot, marjaOperationala } = await loadFirmaSnapshot();
+  const data = await loadFirmaSnapshot();
+  if (!data) return <ShowcaseUnconfigured />;
+  const { snapshot, marjaOperationala } = data;
 
   // Build a non-preview context (this showcase imitates the real /firma view)
   const context = buildOwnerContextForFirma({

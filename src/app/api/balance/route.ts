@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
-import { getBalanceRows } from "@/modules/balances";
+import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
   const [balanceResult, catalog, taxRegime] = await Promise.all([
-    getBalanceRows(clientId, year, month),
+    getBalanceRowsCached(clientId, year, month),
     getCatalogMap(),
     getRegimeForPeriod(clientId, year, month),
   ]);
@@ -44,6 +44,13 @@ export async function GET(request: Request) {
 
   return NextResponse.json(
     { rows: balanceResult.data, kpis, cpp, cppF20, taxRegime },
-    { headers: { "Cache-Control": "no-store" } }
+    {
+      headers: {
+        // The server-side cache (unstable_cache keyed on dataVersion) gives us
+        // the speedup. The browser must not cache: response correctness depends
+        // on the freshest dataVersion which we read server-side per request.
+        "Cache-Control": "no-store",
+      },
+    }
   );
 }

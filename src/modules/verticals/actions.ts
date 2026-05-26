@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { recordClientMutation } from "@/modules/audit";
+import { bumpClientDataVersion } from "@/modules/clients/data-version";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
@@ -19,6 +20,17 @@ async function authorize(clientId: string): Promise<{ userId: string } | null> {
   });
   if (!client) return null;
   return { userId: user.id };
+}
+
+/**
+ * Post-mutation invalidation. Vertical config changes redistribute the
+ * cashflow categories that already-mapped accounts and partners fall into,
+ * so we MUST bump the data version (invalidates balance/CPP/mapari/owner
+ * snapshot caches) in addition to revalidating Next's path cache.
+ */
+async function bumpAndRevalidate(clientId: string): Promise<void> {
+  await bumpClientDataVersion(clientId);
+  revalidatePath("/clients");
 }
 
 const enableSchema = z.object({ clientId: z.string().min(1) });
@@ -41,7 +53,7 @@ export async function enableVerticalsAction(
     before: { verticalsEnabled: false },
     after: { verticalsEnabled: true },
   });
-  revalidatePath("/clients");
+  await bumpAndRevalidate(parsed.data.clientId);
   return { data: { defaultVerticalId: result.defaultVerticalId } };
 }
 
@@ -63,7 +75,7 @@ export async function disableVerticalsAction(
     before: { verticalsEnabled: true },
     after: { verticalsEnabled: false },
   });
-  revalidatePath("/clients");
+  await bumpAndRevalidate(parsed.data.clientId);
   return {};
 }
 
@@ -94,7 +106,7 @@ export async function createVerticalAction(
       before: null,
       after: { name: created.name },
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return { data: { id: created.id } };
   } catch (err) {
     return { error: (err as Error).message };
@@ -138,7 +150,7 @@ export async function renameVerticalAction(
       before: { name: before.name },
       after: { name: updated.name },
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -173,7 +185,7 @@ export async function deleteVerticalAction(
       before: { name: deleted.name },
       after: null,
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -219,7 +231,7 @@ export async function setAllocationAction(
         splits: parsed.data.splits,
       },
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -255,7 +267,7 @@ export async function clearAllocationAction(
       before: { cont: deleted.cont, scope: deleted.scope, splits: deleted.splits },
       after: null,
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -299,7 +311,7 @@ export async function setCategoryAllocationAction(
         : null,
       after: { categoryId: parsed.data.categoryId, splits: parsed.data.splits },
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };
@@ -335,7 +347,7 @@ export async function clearCategoryAllocationAction(
       before: { categoryId: deleted.categoryId, splits: deleted.splits },
       after: null,
     });
-    revalidatePath("/clients");
+    await bumpAndRevalidate(parsed.data.clientId);
     return {};
   } catch (err) {
     return { error: (err as Error).message };

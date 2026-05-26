@@ -64,6 +64,15 @@ model Client {
   /// flipped on, a default "Toata firma" Vertical is auto-created so
   /// every account immediately has somewhere to land.
   verticalsEnabled  Boolean @default(false)
+  /// Monotonic counter bumped whenever data that affects computed outputs
+  /// (balance, CPP, mapari, owner snapshot, KPIs) changes:
+  ///   - journal upload / soft-delete (any JournalLine write)
+  ///   - mapari overrides (AccountCategoryMapping, PartnerCategoryOverride)
+  ///   - vertical config (Vertical, VerticalAllocation, CategoryVerticalAllocation, verticalsEnabled)
+  /// This is the cache key suffix for unstable_cache wrapping of every heavy
+  /// loader, so a cache hit guarantees the cached value matches the current
+  /// data state — no manual revalidation needed. See modules/clients/data-version.ts.
+  dataVersion       Int     @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

@@ -3,27 +3,33 @@
 /**
  * CPP tab — Cont de Profit si Pierdere.
  *
- * Shows the active regime for the selected period as a read-only label.
- * The regime is detected server-side from the client's registru jurnal —
+ * Purely presentational. ClientDetail owns the fetch + cache so tab switching
+ * is instant and Balanta / CPP share one round-trip per period.
+ *
+ * Shows the active regime for the selected period as a read-only label. The
+ * regime is detected server-side from the client's registru jurnal —
  * specifically from which tax account (691/698/697/695) the accountant
  * booked the impozit on in that period. No manual configuration needed.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CppView } from "@/components/datasets/cpp-view";
 import { CppF20View } from "@/components/datasets/cpp-f20-view";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CppData, CppF20Data } from "@/modules/reporting";
-import type { BalanceRowView } from "@/modules/balances";
 import type { TaxRegime } from "@/modules/accounts";
 import { Info } from "lucide-react";
 
 interface Props {
-  clientId: string;
   year: number;
-  month: number;
-  onUnmappedFound?: (rows: BalanceRowView[]) => void;
+  /** P&L (simplified) computed for the selected period. */
+  cpp: CppData | null;
+  /** P&L (F20 detailed) computed for the selected period. */
+  cppF20: CppF20Data | null;
+  /** Detected fiscal regime for the selected period. */
+  taxRegime: TaxRegime;
+  loading: boolean;
 }
 
 type ViewMode = "simplified" | "f20";
@@ -72,36 +78,8 @@ const REGIME_INFO: Record<TaxRegime, { label: string; formula: string; cont: str
   },
 };
 
-export function CppTab({ clientId, year, month, onUnmappedFound }: Props) {
-  const [cpp, setCpp] = useState<CppData | null>(null);
-  const [cppF20, setCppF20] = useState<CppF20Data | null>(null);
-  const [taxRegime, setTaxRegime] = useState<TaxRegime>("profit_standard");
+export function CppTab({ year, cpp, cppF20, taxRegime, loading }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("simplified");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch(`/api/balance?clientId=${clientId}&year=${year}&month=${month}`, {
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        setCpp(data.cpp);
-        setCppF20(data.cppF20);
-        if (data.taxRegime) setTaxRegime(data.taxRegime as TaxRegime);
-        const unmapped = ((data.rows as BalanceRowView[]) ?? []).filter((r) => r.unmapped);
-        onUnmappedFound?.(unmapped);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, year, month]);
 
   if (loading) {
     return (
