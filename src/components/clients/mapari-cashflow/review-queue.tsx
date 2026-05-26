@@ -32,6 +32,11 @@ interface Props {
   tree: CostCategoryNode[];
   onClose: () => void;
   onMutate: () => void;
+  /** Drill-in: when the contabil clicks the "Pe contul X" header in a
+   *  queue card, the dialog closes and the parent opens the partner
+   *  slide-panel for that cont so they can see ALL partners on it
+   *  (not just the one suggested). Optional. */
+  onOpenContPanel?: (contBase: string) => void;
 }
 
 export function ReviewQueueDialog({
@@ -40,6 +45,7 @@ export function ReviewQueueDialog({
   tree,
   onClose,
   onMutate,
+  onOpenContPanel,
 }: Props) {
   const [items, setItems] = useState<SuggestionQueueItem[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -144,6 +150,7 @@ export function ReviewQueueDialog({
               clientId={clientId}
               tree={tree}
               categoryNameById={categoryNameById}
+              onOpenContPanel={onOpenContPanel}
               onResolved={() => {
                 // Remove the just-handled item from local state so the
                 // counter and progress reflect reality without a refetch.
@@ -194,6 +201,7 @@ function QueueCard({
   clientId,
   tree,
   categoryNameById,
+  onOpenContPanel,
   onResolved,
   onSkip,
 }: {
@@ -201,6 +209,7 @@ function QueueCard({
   clientId: string;
   tree: CostCategoryNode[];
   categoryNameById: Map<string, string>;
+  onOpenContPanel?: (contBase: string) => void;
   onResolved: () => void;
   onSkip: () => void;
 }) {
@@ -237,12 +246,25 @@ function QueueCard({
   return (
     <div className="space-y-4">
       <div>
-        <p
-          className="font-mono text-[11px] uppercase tracking-wider text-gray"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          Pe contul {item.contBase}
-        </p>
+        {onOpenContPanel ? (
+          <button
+            type="button"
+            data-testid={`queue-card-cont-${item.contBase}`}
+            onClick={() => onOpenContPanel(item.contBase)}
+            title={`Deschide panoul cu toti partenerii pe contul ${item.contBase}`}
+            className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded font-mono text-[11px] uppercase tracking-wider text-gray hover:text-primary hover:bg-primary/10 transition-colors"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Pe contul {item.contBase} →
+          </button>
+        ) : (
+          <p
+            className="font-mono text-[11px] uppercase tracking-wider text-gray"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Pe contul {item.contBase}
+          </p>
+        )}
         <h4
           className="text-[20px] font-semibold text-white mt-1"
           style={{ letterSpacing: "-0.04em" }}

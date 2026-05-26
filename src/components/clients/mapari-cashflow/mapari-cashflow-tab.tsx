@@ -101,6 +101,34 @@ export function MapariCashflowTab({ data }: Props) {
   // horizontal). Triggered by clicking the default-vertical residue badge.
   // Implies verticalFilter === default vertical id (we set both together).
   const [residueFilterActive, setResidueFilterActive] = useState(false);
+  // Initial filter to push into CategoryWorkspace when the user jumps in
+  // via the PageHeader "X nemapate" KPI. Stored as state so we can reset
+  // and re-trigger (CategoryWorkspace re-applies whenever this changes).
+  // Typed narrower than the local Filter — CategoryWorkspace only knows
+  // about category-level filters (no "unallocated" / "split").
+  type CategoryInitialFilter = "all" | "unmapped" | "expense" | "revenue";
+  const [categoryInitialFilter, setCategoryInitialFilter] = useState<
+    CategoryInitialFilter | undefined
+  >(undefined);
+  // Drill-in target for the partner slide-panel — set when a satellite
+  // dialog (AllExceptions / ReviewQueue) wants to navigate the user into
+  // the slide-panel for a specific cont. Reset to undefined after the
+  // workspace consumes it (one-shot trigger).
+  const [pendingPanelContBase, setPendingPanelContBase] = useState<
+    string | undefined
+  >(undefined);
+
+  /** Shared drill-in helper used by AllExceptionsDialog + ReviewQueueDialog
+   *  to navigate the user into the partner slide-panel for a specific cont.
+   *  Closes the active dialog, ensures we're on categorii tab (the only
+   *  one that hosts the slide-panel), and asks CategoryWorkspace to open
+   *  the panel for the matching account. */
+  function openContPanelFromDialog(contBase: string) {
+    setReviewQueueOpen(false);
+    setAllExceptionsOpen(false);
+    setActiveTab("categorii");
+    setPendingPanelContBase(contBase);
+  }
   const onMutate = () => router.refresh();
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
@@ -191,7 +219,14 @@ export function MapariCashflowTab({ data }: Props) {
         coverage={data.coverage}
         partnerSummariesByCont={data.partnerSummariesByCont}
         freshlySeeded={data.freshlySeeded}
-        onJumpToUnmapped={() => setActiveTab("categorii")}
+        onJumpToUnmapped={() => {
+          // KPI "X nemapate" → categorii tab + Nemapate filter applied. The
+          // user clicked a number; they expect to see exactly that subset.
+          // Using a fresh object reference would force re-apply each click;
+          // the useEffect inside CategoryWorkspace handles it.
+          setCategoryInitialFilter("unmapped");
+          setActiveTab("categorii");
+        }}
         onOpenReviewQueue={() => setReviewQueueOpen(true)}
         onOpenAllExceptions={() => setAllExceptionsOpen(true)}
       />
@@ -204,7 +239,13 @@ export function MapariCashflowTab({ data }: Props) {
       />
 
       {activeTab === "categorii" ? (
-        <CategoryAxisContent data={data} onMutate={onMutate} />
+        <CategoryAxisContent
+          data={data}
+          initialFilter={categoryInitialFilter}
+          initialPanelContBase={pendingPanelContBase}
+          onInitialPanelOpened={() => setPendingPanelContBase(undefined)}
+          onMutate={onMutate}
+        />
       ) : (
         <VerticalAxisContent
           data={data}
@@ -234,6 +275,7 @@ export function MapariCashflowTab({ data }: Props) {
           tree={data.tree}
           onClose={() => setReviewQueueOpen(false)}
           onMutate={onMutate}
+          onOpenContPanel={openContPanelFromDialog}
         />
       )}
 
@@ -245,6 +287,7 @@ export function MapariCashflowTab({ data }: Props) {
           accounts={data.accounts}
           onClose={() => setAllExceptionsOpen(false)}
           onMutate={onMutate}
+          onOpenContPanel={openContPanelFromDialog}
         />
       )}
     </div>
@@ -371,9 +414,15 @@ function CashflowTabBar({
 
 function CategoryAxisContent({
   data,
+  initialFilter,
+  initialPanelContBase,
+  onInitialPanelOpened,
   onMutate,
 }: {
   data: MapariCashflowData;
+  initialFilter?: "all" | "unmapped" | "expense" | "revenue";
+  initialPanelContBase?: string;
+  onInitialPanelOpened?: () => void;
   onMutate: () => void;
 }) {
   return (
@@ -386,6 +435,9 @@ function CategoryAxisContent({
       verticals={data.verticals}
       categoryAllocations={data.categoryAllocations}
       categoryInflows={data.categoryInflows}
+      initialFilter={initialFilter}
+      initialPanelContBase={initialPanelContBase}
+      onInitialPanelOpened={onInitialPanelOpened}
     />
   );
 }
@@ -2187,8 +2239,15 @@ function CoveragePanel({
           </p>
         </div>
       ) : (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-neg-border bg-neg-bg px-3 py-2"
+        // Whole row clickable — the contabil sees a number on a red card,
+        // they want to drill into it. Click → jump to categorii tab with
+        // "Nemapate" filter pre-applied. Small "Mapeaza →" caret kept as
+        // the visual affordance hint.
+        <button
+          type="button"
+          data-testid="coverage-card-unmapped"
+          onClick={onJumpToUnmapped}
+          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-neg-border bg-neg-bg px-3 py-2 hover:bg-neg-bg/80 hover:border-neg-border/80 transition-colors"
           role="alert"
         >
           <AlertTriangle size={14} className="text-neg shrink-0" />
@@ -2205,20 +2264,22 @@ function CoveragePanel({
             ({formatRon(coverage.unmappedRulaj)} lei) — sunt aratate pe
             antreprenor in &quot;Alte cheltuieli&quot; / &quot;Alte venituri&quot;.
           </p>
-          <button
-            type="button"
-            onClick={onJumpToUnmapped}
-            className="font-mono text-[11px] uppercase tracking-wider text-neg hover:underline shrink-0"
+          <span
+            className="font-mono text-[11px] uppercase tracking-wider text-neg shrink-0 group-hover:underline"
             style={{ letterSpacing: "-0.02em" }}
+            aria-hidden
           >
             Mapeaza →
-          </button>
-        </div>
+          </span>
+        </button>
       )}
 
       {suggestedCount > 0 && (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2"
+        <button
+          type="button"
+          data-testid="coverage-card-suggestions"
+          onClick={onOpenReviewQueue}
+          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2 hover:bg-tone-warn/[0.12] hover:border-tone-warn/50 transition-colors"
           role="status"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-tone-warn shrink-0" aria-hidden />
@@ -2234,15 +2295,14 @@ function CoveragePanel({
             </span>{" "}
             din memoria altor conturi.
           </p>
-          <button
-            type="button"
-            onClick={onOpenReviewQueue}
-            className="font-mono text-[11px] uppercase tracking-wider text-tone-warn hover:underline shrink-0"
+          <span
+            className="font-mono text-[11px] uppercase tracking-wider text-tone-warn shrink-0"
             style={{ letterSpacing: "-0.02em" }}
+            aria-hidden
           >
             Revizuieste →
-          </button>
-        </div>
+          </span>
+        </button>
       )}
 
       {/* Centralised exceptions entry point. Only when the contabil has
@@ -2251,8 +2311,11 @@ function CoveragePanel({
           (not warn/danger) because exceptions aren't a problem, they're
           contabil work surfaced. */}
       {overrideCount > 0 && (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-3 py-2"
+        <button
+          type="button"
+          data-testid="coverage-card-exceptions"
+          onClick={onOpenAllExceptions}
+          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-3 py-2 hover:bg-primary/[0.09] hover:border-primary/40 transition-colors"
           role="status"
         >
           <Users size={12} className="text-primary shrink-0" aria-hidden />
@@ -2268,15 +2331,14 @@ function CoveragePanel({
             </span>{" "}
             pe parteneri specifici, redistribuite catre alte categorii.
           </p>
-          <button
-            type="button"
-            onClick={onOpenAllExceptions}
-            className="font-mono text-[11px] uppercase tracking-wider text-primary hover:underline shrink-0"
+          <span
+            className="font-mono text-[11px] uppercase tracking-wider text-primary shrink-0"
             style={{ letterSpacing: "-0.02em" }}
+            aria-hidden
           >
             Vezi toate →
-          </button>
-        </div>
+          </span>
+        </button>
       )}
     </div>
   );

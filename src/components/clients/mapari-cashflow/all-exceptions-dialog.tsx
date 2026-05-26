@@ -41,6 +41,11 @@ interface Props {
   onClose: () => void;
   /** Called after every save/delete so the parent re-fetches its data. */
   onMutate: () => void;
+  /** Drill-in: when the contabil clicks a cont in any row, the dialog
+   *  closes and the parent opens the partner slide-panel for that cont so
+   *  they can keep editing in the richer view. Optional — when omitted,
+   *  cont cells render as plain text. */
+  onOpenContPanel?: (contBase: string) => void;
 }
 
 export function AllExceptionsDialog({
@@ -50,6 +55,7 @@ export function AllExceptionsDialog({
   accounts,
   onClose,
   onMutate,
+  onOpenContPanel,
 }: Props) {
   const [tab, setTab] = useState<"exceptions" | "audit">("exceptions");
   const [rows, setRows] = useState<AllExceptionsRow[] | null>(null);
@@ -356,6 +362,7 @@ export function AllExceptionsDialog({
                             }
                             onLocalUpdate={applyLocalUpdate}
                             onLocalDelete={applyLocalDelete}
+                            onOpenContPanel={onOpenContPanel}
                           />
                         );
                       })}
@@ -525,6 +532,7 @@ function ExceptionRow({
   categoryOptions,
   onLocalUpdate,
   onLocalDelete,
+  onOpenContPanel,
 }: {
   row: AllExceptionsRow;
   clientId: string;
@@ -549,6 +557,9 @@ function ExceptionRow({
   onLocalUpdate: (updated: AllExceptionsRow) => void;
   /** Optimistic delete: parent removes the row from the local list. */
   onLocalDelete: (overrideId: string) => void;
+  /** Drill-in: open the slide-panel for this cont. When provided, the
+   *  cont cell becomes a button; otherwise it stays plain text. */
+  onOpenContPanel?: (contBase: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [savedFlash, setSavedFlash] = useState(false);
@@ -671,22 +682,49 @@ function ExceptionRow({
         isIdle ? "opacity-70" : ""
       } ${pending ? "opacity-60" : ""} ${isDirty ? "bg-primary/[0.04]" : ""}`}
     >
-      {/* Cont */}
-      <div className="flex flex-col min-w-0 w-[140px]">
-        <span
-          className="font-mono text-[11px] text-gray tabular-nums"
-          style={{ letterSpacing: "-0.02em" }}
+      {/* Cont — clickable when onOpenContPanel is wired (default in
+          MapariCashflowTab). Clicking closes the dialog and drills into
+          the partner slide-panel for this cont so the contabil can keep
+          working on the same cont in a richer view. */}
+      {onOpenContPanel ? (
+        <button
+          type="button"
+          data-testid={`exception-row-cont-${row.contBase}`}
+          onClick={() => onOpenContPanel(row.contBase)}
+          title={`Deschide panoul cu partenerii pe contul ${row.contBase}`}
+          className="flex flex-col min-w-0 w-[140px] text-left rounded -mx-1.5 px-1.5 py-0.5 hover:bg-primary/[0.08] hover:ring-1 hover:ring-primary/30 transition-colors"
         >
-          {row.contBase}
-        </span>
-        <span
-          className="text-[10px] text-gray truncate"
-          style={{ letterSpacing: "-0.02em" }}
-          title={contDenumire}
-        >
-          {contDenumire}
-        </span>
-      </div>
+          <span
+            className="font-mono text-[11px] text-gray-light tabular-nums group-hover:text-white"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {row.contBase}
+          </span>
+          <span
+            className="text-[10px] text-gray truncate"
+            style={{ letterSpacing: "-0.02em" }}
+            title={contDenumire}
+          >
+            {contDenumire}
+          </span>
+        </button>
+      ) : (
+        <div className="flex flex-col min-w-0 w-[140px]">
+          <span
+            className="font-mono text-[11px] text-gray tabular-nums"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {row.contBase}
+          </span>
+          <span
+            className="text-[10px] text-gray truncate"
+            style={{ letterSpacing: "-0.02em" }}
+            title={contDenumire}
+          >
+            {contDenumire}
+          </span>
+        </div>
+      )}
 
       {/* Partner */}
       <div className="min-w-0">

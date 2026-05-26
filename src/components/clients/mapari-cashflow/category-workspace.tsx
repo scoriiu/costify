@@ -20,7 +20,7 @@
  * a Cheltuieli category.
  */
 
-import { useState, useTransition, useMemo, createContext, useContext } from "react";
+import { useState, useTransition, useMemo, useEffect, createContext, useContext } from "react";
 import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,24 @@ interface Props {
   /** Per-categoryId inflow from partner-override residue. Missing key = no
    *  inflow this period. Drives the inflow marker on the category row. */
   categoryInflows?: Record<string, CategoryInflow>;
+  /** Optional initial filter — set when arriving here via a deep-link from
+   *  the PageHeader KPI cards (e.g. "X nemapate" → jumps + filters to
+   *  unmapped). Defaults to "all" when not provided. Changes after mount
+   *  propagate (so external nav still updates the view). Only "unmapped"
+   *  is propagated from the parent for now; other values stay local. */
+  initialFilter?: "all" | "unmapped" | "expense" | "revenue";
+  /** When set, the workspace opens the partner slide-panel for the cont
+   *  whose contBase matches this value on next render. Used to drill in
+   *  from satellite dialogs (AllExceptionsDialog, ReviewQueueDialog) —
+   *  the user clicks a cont, the dialog closes, the workspace opens the
+   *  panel so they continue editing in the right place. The parent should
+   *  clear this back to undefined once the panel opens so re-clicking the
+   *  same cont later re-fires the open. */
+  initialPanelContBase?: string;
+  /** Called by the workspace when it consumes initialPanelContBase. The
+   *  parent can use this to reset the prop to undefined so re-clicks
+   *  re-fire properly. */
+  onInitialPanelOpened?: () => void;
 }
 
 /**
@@ -109,13 +127,39 @@ export function CategoryWorkspace({
   verticals = [],
   categoryAllocations = [],
   categoryInflows = {},
+  initialFilter,
+  initialPanelContBase,
+  onInitialPanelOpened,
 }: Props) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? "all");
+  // Re-apply the requested filter when the parent changes initialFilter
+  // (e.g. user clicks "Mapeaza nemapatele" KPI again later). This is the
+  // controlled-on-demand pattern — local state owns the filter, but an
+  // external signal can push it.
+  useEffect(() => {
+    if (initialFilter) setFilter(initialFilter);
+  }, [initialFilter]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("list");
   const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
   const [editingCategoryAlloc, setEditingCategoryAlloc] =
     useState<CostCategoryNode | null>(null);
+
+  // External drill-in: when the parent passes `initialPanelContBase`, find
+  // the matching AccountListItem and open the panel for it. We pick the
+  // first account whose contBase matches — analytics under the same base
+  // share the partner list so any one of them is a valid anchor. After
+  // opening we notify the parent so it can reset the prop (next click on
+  // the same contBase re-fires this).
+  useEffect(() => {
+    if (!initialPanelContBase) return;
+    const match = accounts.find((a) => a.contBase === initialPanelContBase);
+    if (match) setPanelAccount(match);
+    onInitialPanelOpened?.();
+    // We intentionally re-run only on contBase changes — opening the panel
+    // is a one-shot side-effect, not a render-tied invariant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPanelContBase]);
 
   // Pre-index category allocations for O(1) lookup in the tree walk.
   const categoryAllocationsById = useMemo(() => {
