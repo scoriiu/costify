@@ -3,39 +3,17 @@
 /**
  * ViewModeToggle — L1/L2 (Simplu/Detaliat) global mode switch.
  *
- * Updates the URL search param `mode` (default = "simple"). When `detailed`,
- * the OwnerView renders all power-user sections (ratios catalog, expanded
- * detail breakdowns). When `simple`, those are collapsed/hidden.
- *
- * The actual content gating happens server-side in OwnerView via the
- * `mode` prop derived from URL.
+ * Instant client-side toggle via ViewModeContext. No server roundtrip — the
+ * URL is updated in place via history.replaceState so deep links keep
+ * working without triggering a Next router navigation.
  */
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useViewMode, type ViewMode } from "./view-mode-context";
 
-export type ViewMode = "simple" | "detailed";
+export type { ViewMode };
 
-interface ViewModeToggleProps {
-  mode: ViewMode;
-}
-
-export function ViewModeToggle({ mode }: ViewModeToggleProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function setMode(next: ViewMode) {
-    if (next === mode) return;
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === "simple") {
-      params.delete("mode");
-    } else {
-      params.set("mode", next);
-    }
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  }
-
+export function ViewModeToggle() {
+  const { mode, setMode } = useViewMode();
   return (
     <div
       className="inline-flex h-9 items-center gap-1 rounded-[10px] border border-dark-3 bg-dark-2 p-1"
@@ -63,7 +41,9 @@ function Pill({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={`inline-flex h-7 items-center justify-center rounded-md px-3 font-mono text-[11px] font-semibold transition-colors ${
         active ? "bg-primary text-[#E9E8E3]" : "text-gray-light hover:text-white"
       }`}

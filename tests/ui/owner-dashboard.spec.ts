@@ -158,17 +158,19 @@ test.describe("Owner dashboard — modern UI smoke", () => {
     ).toBeVisible();
   });
 
-  test("9. Insights expand/collapse interaction works", async ({ context }) => {
+  test("9. Insights section renders cards with 'Intreaba Costi' affordance", async ({ context }) => {
     const page = await authedPage(context);
     await page.goto(OWNER_URL);
 
     const insights = page.getByRole("heading", { name: /Ce ar trebui sa stii/i });
-    // Skip if no insights for this firm.
+    // QHM21 has insights; if absent for some reason the feature is still
+    // shipped — just skip the body assertions.
     if (await insights.count()) {
       await expect(insights).toBeVisible();
-      // The expandable cards have aria-expanded; verify at least one exists.
-      const expandables = page.locator("button[aria-expanded]");
-      await expect(expandables.first()).toBeVisible();
+      // Every insight card has a "Intreaba Costi" button that opens Costi
+      // with a contextual prompt. Verify at least one is present + clickable.
+      const askCosti = page.getByRole("button", { name: /Intreaba Costi/i }).first();
+      await expect(askCosti).toBeVisible();
     }
   });
 

@@ -37,7 +37,7 @@ import { CategoryBreakdownCard } from "./category-breakdown-card";
 import { TopExpensesList } from "./top-expenses-list";
 import { YoyComparison } from "./yoy-comparison";
 import { VerticalBreakdownCard } from "./vertical-breakdown-card";
-import { SectionQuickNav } from "./section-quick-nav";
+import { SectionQuickNavDynamic } from "./section-quick-nav-dynamic";
 import { VerdictBanner } from "./verdict-banner";
 import { KpiStrip } from "./kpi-strip";
 import { PnlWaterfall } from "./pnl-waterfall";
@@ -46,7 +46,12 @@ import { ObligationsCalendar } from "./obligations-calendar";
 import { RatiosCatalog } from "./ratios-catalog";
 import { PatrimoniuView } from "./patrimoniu-view";
 import { PeriodSelector, type PeriodOption } from "./period-selector";
-import { ViewModeToggle, type ViewMode } from "./view-mode-toggle";
+import { ViewModeToggle } from "./view-mode-toggle";
+import {
+  ViewModeProvider,
+  DetailedOnly,
+  type ViewMode,
+} from "./view-mode-context";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
@@ -55,7 +60,8 @@ interface OwnerViewProps {
   /** Published periods available for the period selector. When empty, the
    *  selector is hidden. */
   availablePeriods?: PeriodOption[];
-  /** Currently displayed mode. Defaults to "simple". */
+  /** Initial mode read from the URL (?mode=detailed). After mount, user
+   *  preference from localStorage wins. Defaults to "simple". */
   mode?: ViewMode;
 }
 
@@ -94,15 +100,23 @@ export function OwnerView({
 
   const period = monthLabel(meta.year, meta.month);
 
+  const { base: baseNav, tail: tailNav } = buildNavItems({
+    hasYoy: yoy.hasPreviousYear,
+    hasVerticals: verticalBreakdown.length > 0,
+    hasInsights: insights.length > 0,
+    hasObligations: obligations.length > 0,
+    hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
+  });
+
   return (
-    <>
+    <ViewModeProvider initialMode={mode}>
       <PageHeader
         eyebrow={period}
         title={`Cum sta ${meta.name}`}
         subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele se actualizeaza dupa fiecare upload de jurnal."
         actions={
           <>
-            <ViewModeToggle mode={mode} />
+            <ViewModeToggle />
             {availablePeriods.length > 0 && (
               <PeriodSelector
                 currentYear={meta.year}
@@ -121,15 +135,10 @@ export function OwnerView({
         }
       />
 
-      <SectionQuickNav
-        items={buildNavItems({
-          hasYoy: yoy.hasPreviousYear,
-          hasVerticals: verticalBreakdown.length > 0,
-          hasInsights: insights.length > 0,
-          hasObligations: obligations.length > 0,
-          hasRatios: mode === "detailed",
-          hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
-        })}
+      <SectionQuickNavDynamic
+        baseItems={baseNav}
+        detailedOnlyItems={[{ id: "ratios", label: "Indicatori" }]}
+        tailItems={tailNav}
       />
 
       {/* §6 — Verdict narativ */}
@@ -272,11 +281,11 @@ export function OwnerView({
       )}
 
       {/* §10 — Detailed ratios catalog (L2 only) */}
-      {mode === "detailed" && (
+      <DetailedOnly>
         <Section id="ratios" className="mb-8">
           <RatiosCatalog ratios={ratios} />
         </Section>
-      )}
+      </DetailedOnly>
 
       {/* §13 — Insights */}
       {insights.length > 0 && (
@@ -295,7 +304,7 @@ export function OwnerView({
           ANAF.
         </p>
       </footer>
-    </>
+    </ViewModeProvider>
   );
 }
 
@@ -315,43 +324,52 @@ function Section({
   );
 }
 
+/**
+ * Build the static parts of the right-side TOC. The mode-dependent
+ * "Indicatori" entry is injected by SectionQuickNavDynamic between `base`
+ * and `tail` when L2 is active — that keeps mode toggling instant
+ * (no server roundtrip, no parent re-render).
+ */
 function buildNavItems({
   hasYoy,
   hasVerticals,
   hasInsights,
   hasObligations,
-  hasRatios,
   hasPatrimoniu,
 }: {
   hasYoy: boolean;
   hasVerticals: boolean;
   hasInsights: boolean;
   hasObligations: boolean;
-  hasRatios: boolean;
   hasPatrimoniu: boolean;
-}): Array<{ id: string; label: string }> {
-  const items: Array<{ id: string; label: string }> = [
+}): {
+  base: Array<{ id: string; label: string }>;
+  tail: Array<{ id: string; label: string }>;
+} {
+  const base: Array<{ id: string; label: string }> = [
     { id: "verdict", label: "Pe scurt" },
     { id: "hero", label: "Privire" },
     { id: "sanatate", label: "Scor sanatate" },
     { id: "cashflow-split", label: "Cash O/I/F" },
     { id: "evolutie", label: "Evolutie" },
   ];
-  if (hasYoy) items.push({ id: "yoy", label: "An vs an" });
-  items.push(
+  if (hasYoy) base.push({ id: "yoy", label: "An vs an" });
+  base.push(
     { id: "profit", label: "P&L" },
     { id: "breakdowns", label: "Categorii" },
     { id: "top-activity", label: "Top clienti" },
     { id: "top-cheltuieli", label: "Top plati" }
   );
-  if (hasVerticals) items.push({ id: "verticals", label: "Linii" });
-  if (hasObligations) items.push({ id: "obligations", label: "De platit" });
-  items.push(
+  if (hasVerticals) base.push({ id: "verticals", label: "Linii" });
+  if (hasObligations) base.push({ id: "obligations", label: "De platit" });
+  base.push(
     { id: "parteneri", label: "Parteneri" },
     { id: "eu", label: "Eu si firma" }
   );
-  if (hasPatrimoniu) items.push({ id: "patrimoniu", label: "Patrimoniu" });
-  if (hasRatios) items.push({ id: "ratios", label: "Indicatori" });
-  if (hasInsights) items.push({ id: "insights", label: "Semnale" });
-  return items;
+  if (hasPatrimoniu) base.push({ id: "patrimoniu", label: "Patrimoniu" });
+
+  const tail: Array<{ id: string; label: string }> = [];
+  if (hasInsights) tail.push({ id: "insights", label: "Semnale" });
+
+  return { base, tail };
 }
