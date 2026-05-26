@@ -33,10 +33,24 @@ const prisma = new PrismaClient();
  */
 const ESSENTIAL_USERS = [
   {
+    email: "solomon.coriiu@costify.ro",
+    name: "Solomon Coriiu",
+    // password: Teal&Indigo24!
+    passwordHash: "$2b$12$tCPBZahRxpZaj4fx7nWBUe747vyhcYTcBO7E.m9boFLJaNeEavHSS",
+    userRole: "ACCOUNTANT",
+  },
+  {
+    email: "claudia.solomon@costify.ro",
+    name: "Claudia Solomon",
+    // password: Marzipan#Blue7
+    passwordHash: "$2b$12$1wjBnAInomwnTdZxUhVQpe517iDNof0VyEt/pZjVLpDCmWixnkZFi",
+    userRole: "ACCOUNTANT",
+  },
+  {
     email: "sorin.crisan@costify.ro",
     name: "Sorin Crisan",
     // password: Alpine*Cedar92
-    passwordHash: "$2b$12$T/bEfPUTTknXzZjQrVbj8Oq9TaCobvFMDD9DVbEmi2cg2uUrauEym",
+    passwordHash: "$2b$12$zMSx9bE3saMl9UCg/6nS8OPvcetSanDd4QXnedjDBqg5qKUUYbEay",
     userRole: "OWNER",
   },
 ];
