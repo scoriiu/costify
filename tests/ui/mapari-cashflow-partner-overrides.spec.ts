@@ -108,10 +108,13 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     // Slide-panel header should appear with cont 6058 + denumire.
     await expect(page.getByRole("dialog", { name: /Parteneri pe contul/ })).toBeVisible();
     await expect(page.getByText("Cheltuieli cu alte utilitati")).toBeVisible();
-    // Truth-line variant depends on override state. QHM21 has 1 override
-    // on this cont so we expect the "N parteneri urmeaza" phrasing.
+    // The new unified DistributionBlock surfaces either the happy-path
+    // sentence or the override-aware "% redistribuit" phrasing. Both
+    // mention the category routing in one of these forms.
     await expect(
-      page.getByText(/parteneri urmeaza maparea contului|partener urmeaza maparea contului|Toti partenerii merg in/)
+      page.getByText(
+        /parteneri urmeaza contul catre|partener urmeaza contul catre|Toti partenerii merg in|% din rulaj e redistribuit/
+      )
     ).toBeVisible();
   });
 
@@ -635,6 +638,118 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await prisma.categoryVerticalAllocation.deleteMany({
       where: { clientId, categoryId: override.categoryId },
     });
+  });
+
+  test("27. Header is lean — only identity (cont code + name + rulaj total), no duplicate truth-line", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Anchor the regex with `^6058` so the row that STARTS with the cont
+    // code is the only match — substring matching let cont 603 win because
+    // somewhere on its row the digit sequence "6058" appeared.
+    const cont6058Row = page
+      .locator("li.group.flex.items-center")
+      .filter({ hasText: /^6058/ })
+      .first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog");
+    await expect(panel).toBeVisible();
+
+    // The header (the row with the X close button + cont identity) must
+    // NOT contain the override narrative anymore — that lives in the body
+    // block now. The narrative still EXISTS (we just moved it).
+    const header = panel.locator("div.border-b.border-dark-3").first();
+    await expect(header).not.toContainText(/vezi mai jos/i);
+    await expect(header).not.toContainText(/urmeaza contul catre/i);
+    // But the header DOES still carry the lean identity bits.
+    await expect(header).toContainText("6058");
+    await expect(header).toContainText("Cheltuieli cu alte utilitati");
+    await expect(header).toContainText(/lei rulaj cumulat/i);
+
+    // The unified DistributionBlock in the body carries the narrative.
+    await expect(
+      panel.getByText(/urmeaza contul catre/i).first()
+    ).toBeVisible();
+  });
+
+  test("28. Distribution block shows headline + numeric breakdown with category name", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont6058Row = page
+      .locator("li.group.flex.items-center")
+      .filter({ hasText: /^6058/ })
+      .first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog");
+    await expect(panel).toBeVisible();
+
+    // One headline sentence at top of distribution block — mentions both
+    // the redistributed percentage and the category name.
+    await expect(
+      panel.getByText(/% din rulaj e redistribuit prin exceptii/i).first()
+    ).toBeVisible();
+
+    // The breakdown rows have "lei · X%" suffix produced by BreakdownRow.
+    const breakdownRows = panel
+      .locator("li")
+      .filter({ hasText: /lei · \d+%$/ });
+    const rowCount = await breakdownRows.count();
+    expect(rowCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test("29. Partner rows with active exception are visually distinguished (badge + left border)", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const cont6058Row = page
+      .locator("li.group.flex.items-center")
+      .filter({ hasText: /^6058/ })
+      .first();
+    const badge = cont6058Row
+      .locator("button")
+      .filter({ has: page.locator("svg") })
+      .filter({ hasText: /\d/ })
+      .first();
+    await badge.click();
+
+    const panel = page.getByRole("dialog");
+    await expect(panel).toBeVisible();
+
+    // At least one partner row carries the "Exceptie" badge — we know 6058
+    // has overrides (it's the seed for tests 5/9). The badge sits on the
+    // row body next to the partner name.
+    const excBadges = panel.locator("[data-testid='partner-exception-badge']");
+    const badgeCount = await excBadges.count();
+    expect(badgeCount).toBeGreaterThanOrEqual(1);
+    await expect(excBadges.first()).toBeVisible();
+    await expect(excBadges.first()).toHaveText(/exceptie/i);
+
+    // The row carrying that badge must also have data-exception="true"
+    // (used both for testing and styling — left border + tint).
+    const excRows = panel.locator("li[data-exception='true']");
+    expect(await excRows.count()).toBeGreaterThanOrEqual(1);
   });
 
   test("26. Default vertical column shows residue badge when residue lands on it", async ({

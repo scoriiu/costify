@@ -142,19 +142,7 @@ export function PartnerPanel({
         role="dialog"
         aria-label={`Parteneri pe contul ${account.cont}`}
       >
-        <PanelHeader
-          account={account}
-          contCategoryName={contCategoryName}
-          // Pass override stats so the header can speak the truth: when the
-          // contabil has put exceptions on this cont, "toți partenerii merg
-          // în X prin maparea contului" becomes a lie. The header phrasing
-          // shifts based on whether 0 / some / all partners have overrides.
-          overriddenCount={
-            data?.partners.filter((p) => p.override !== null).length ?? 0
-          }
-          totalCount={data?.partners.length ?? 0}
-          onClose={handleClose}
-        />
+        <PanelHeader account={account} onClose={handleClose} />
 
         <div className="flex-1 overflow-y-auto">
           {loading && <PanelSkeleton />}
@@ -210,15 +198,9 @@ export function PartnerPanel({
 
 function PanelHeader({
   account,
-  contCategoryName,
-  overriddenCount,
-  totalCount,
   onClose,
 }: {
   account: AccountListItem;
-  contCategoryName: string | null;
-  overriddenCount: number;
-  totalCount: number;
   onClose: () => void;
 }) {
   const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
@@ -253,109 +235,7 @@ function PanelHeader({
         >
           {formatRon(Math.abs(rulaj))} lei rulaj cumulat
         </div>
-        {/* Headline truth-line about where partners go. Speaks differently
-            based on the actual state — "toți merg în X" is only true when
-            zero overrides exist; once a single override appears we have to
-            qualify the statement, otherwise we lie to the contabil. */}
-        <HeaderTruthLine
-          accountKind={account.kind}
-          contCategoryName={contCategoryName}
-          overriddenCount={overriddenCount}
-          totalCount={totalCount}
-        />
       </div>
-    </div>
-  );
-}
-
-/**
- * The one-liner that tells the contabil where partners on this cont go.
- * Five distinct states, each with its own honest phrasing — never claim
- * "toți merg în X" when even one partener has an override.
- */
-function HeaderTruthLine({
-  accountKind,
-  contCategoryName,
-  overriddenCount,
-  totalCount,
-}: {
-  accountKind: "expense" | "revenue";
-  contCategoryName: string | null;
-  overriddenCount: number;
-  totalCount: number;
-}) {
-  // Unmapped cont — overrides don't matter, fallback is "Alte cheltuieli".
-  if (!contCategoryName) {
-    return (
-      <div
-        className="mt-1.5 text-[11px] text-gray"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        Contul nu e mapat. Partenerii fara exceptie apar pe /firma in{" "}
-        <span className="text-neg font-medium">
-          {accountKind === "expense" ? "Alte cheltuieli" : "Alte venituri"}
-        </span>{" "}
-        — mapeaza contul din workspace ca sa schimbi asta.
-      </div>
-    );
-  }
-
-  // Cont mapped, no data yet — pre-loading state. Stay quiet.
-  if (totalCount === 0) {
-    return (
-      <div
-        className="mt-1.5 text-[11px] text-gray"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        Contul e mapat la{" "}
-        <span className="text-gray-light font-medium">{contCategoryName}</span>.
-      </div>
-    );
-  }
-
-  // All partners have overrides — the cont category is unused this period.
-  if (overriddenCount === totalCount) {
-    return (
-      <div
-        className="mt-1.5 text-[11px] text-gray"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        Toti partenerii au exceptie individuala. Categoria contului (
-        <span className="text-gray-light font-medium">{contCategoryName}</span>
-        ) nu se aplica niciunui partener pe aceasta perioada.
-      </div>
-    );
-  }
-
-  // Some overrides — qualify the cont-mapping statement.
-  if (overriddenCount > 0) {
-    const followCount = totalCount - overriddenCount;
-    return (
-      <div
-        className="mt-1.5 text-[11px] text-gray"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        {followCount === 1
-          ? "1 partener urmeaza"
-          : `${followCount} parteneri urmeaza`}{" "}
-        maparea contului catre{" "}
-        <span className="text-gray-light font-medium">{contCategoryName}</span>.{" "}
-        {overriddenCount === 1
-          ? "1 partener are exceptie individuala (vezi mai jos)."
-          : `${overriddenCount} parteneri au exceptie individuala (vezi mai jos).`}
-      </div>
-    );
-  }
-
-  // Zero overrides — the happy "toți merg în X" case.
-  return (
-    <div
-      className="mt-1.5 text-[11px] text-gray"
-      style={{ letterSpacing: "-0.02em" }}
-    >
-      Toti partenerii merg in{" "}
-      <span className="text-gray-light font-medium">{contCategoryName}</span>{" "}
-      prin maparea contului.
     </div>
   );
 }
@@ -464,7 +344,9 @@ function PanelBody({
 
   return (
     <div className="p-4 space-y-4">
-      <CoverageDetail
+      <DistributionBlock
+        accountKind={account.kind}
+        contCategoryName={contCategoryName}
         partnerRulaj={data.partnerRulaj}
         overriddenRulaj={overriddenRulaj}
         defaultRulaj={defaultRulaj}
@@ -1117,7 +999,21 @@ function LongTailSeparator({
   );
 }
 
-function CoverageDetail({
+/**
+ * Unified "Unde merg banii pe acest cont" block. Replaces the dual
+ * truth-line + numeric coverage box that used to live separately at the
+ * top of the slide-panel. Combines:
+ *
+ *   - The category name (which only the truth-line carried before).
+ *   - The exact lei + percent breakdown (which only the coverage box had).
+ *   - A 3-segment horizontal bar that shows materiality at a glance.
+ *
+ * Five distinct states map onto five distinct phrasings — never claim
+ * "toti partenerii merg in X" when even one partener has an override.
+ */
+function DistributionBlock({
+  accountKind,
+  contCategoryName,
   partnerRulaj,
   overriddenRulaj,
   defaultRulaj,
@@ -1125,6 +1021,8 @@ function CoverageDetail({
   overriddenCount,
   totalCount,
 }: {
+  accountKind: "expense" | "revenue";
+  contCategoryName: string | null;
   partnerRulaj: number;
   overriddenRulaj: number;
   defaultRulaj: number;
@@ -1132,61 +1030,223 @@ function CoverageDetail({
   overriddenCount: number;
   totalCount: number;
 }) {
-  // When the contabil hasn't created a single exception, treat this as the
-  // happy path — not as "0% coverage you must fix". The cont-mapping is
-  // doing its job. Only when overrides exist do we surface the percentage.
-  const hasOverrides = overriddenCount > 0;
+  const followCount = totalCount - overriddenCount;
   const total = partnerRulaj + unresolvedRulaj;
-  const overriddenPct =
-    total > 0 ? Math.round((overriddenRulaj / total) * 100) : 0;
 
-  if (!hasOverrides) {
+  // Unmapped cont — surface the fallback prominently. No bar yet because
+  // numbers haven't loaded (totalCount=0) or there's no partition between
+  // "follow" and "override" — everything falls to "Alte cheltuieli".
+  if (!contCategoryName) {
+    return (
+      <div className="rounded-lg border border-neg-border bg-neg-bg/30 p-3">
+        <p
+          className="text-[12px] text-gray-light"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Contul nu e mapat. Partenerii fara exceptie apar pe /firma in{" "}
+          <span className="text-neg font-medium">
+            {accountKind === "expense" ? "Alte cheltuieli" : "Alte venituri"}
+          </span>{" "}
+          — mapeaza contul din workspace ca sa schimbi asta.
+        </p>
+      </div>
+    );
+  }
+
+  // Cont mapped, data still loading. Quiet state, just confirm the mapping.
+  if (totalCount === 0) {
     return (
       <div
         className="rounded-lg border border-dark-3 bg-dark-2 p-3 text-[12px] text-gray-light"
         style={{ letterSpacing: "-0.02em" }}
       >
-        Niciun partener nu are exceptie. Suprascrie individual mai jos doar
-        daca un partener apartine altui grup decat contul.
+        Contul e mapat la{" "}
+        <span className="text-white font-medium">{contCategoryName}</span>.
       </div>
     );
   }
 
-  return (
-    <div className="rounded-lg border border-dark-3 bg-dark-2 p-3 space-y-2">
-      <div className="flex items-baseline justify-between">
-        <span
-          className="font-mono text-[10px] uppercase tracking-wider text-gray"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          Exceptii fata de contul
-        </span>
-        <span
-          className="font-mono text-[11px] text-gray-light tabular-nums"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {overriddenPct}% din rulaj redistribuit
-        </span>
-      </div>
-      <ul
-        className="font-mono text-[11px] text-gray tabular-nums space-y-0.5"
+  // Happy path — zero overrides. No bar needed; the contabil isn't being
+  // asked to fix anything. Reinforce that the cont-mapping is doing its job.
+  if (overriddenCount === 0) {
+    return (
+      <div
+        className="rounded-lg border border-dark-3 bg-dark-2 p-3 text-[12px] text-gray-light"
         style={{ letterSpacing: "-0.02em" }}
       >
-        <li>
-          {formatRon(overriddenRulaj)} lei pe {overriddenCount}{" "}
-          {overriddenCount === 1 ? "partener cu exceptie" : "parteneri cu exceptie"}
-        </li>
-        <li>
-          {formatRon(defaultRulaj)} lei pe {totalCount - overriddenCount}{" "}
-          {totalCount - overriddenCount === 1
-            ? "partener urmeaza contul"
-            : "parteneri urmeaza contul"}
-        </li>
+        Toti partenerii merg in{" "}
+        <span className="text-white font-medium">{contCategoryName}</span>{" "}
+        prin maparea contului.
         {unresolvedRulaj > 0 && (
-          <li>{formatRon(unresolvedRulaj)} lei fara partener identificat</li>
+          <>
+            {" "}
+            <span className="text-gray">
+              ({formatRon(unresolvedRulaj)} lei fara partener identificat —
+              TVA, dobanzi, transferuri.)
+            </span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // At least one override exists — show the full breakdown.
+  const overriddenPct =
+    total > 0 ? Math.round((overriddenRulaj / total) * 100) : 0;
+  const defaultPct =
+    total > 0 ? Math.round((defaultRulaj / total) * 100) : 0;
+  const unresolvedPct =
+    total > 0 ? Math.round((unresolvedRulaj / total) * 100) : 0;
+
+  const allOverridden = followCount === 0;
+  const headline = allOverridden ? (
+    <>
+      Toti partenerii au exceptie individuala. Categoria contului (
+      <span className="text-gray-light">{contCategoryName}</span>) nu se aplica
+      pe aceasta perioada.
+    </>
+  ) : (
+    <>
+      {overriddenPct}% din rulaj e redistribuit prin exceptii individuale —
+      restul urmeaza contul catre{" "}
+      <span className="text-white font-medium">{contCategoryName}</span>.
+    </>
+  );
+
+  return (
+    <div className="rounded-lg border border-dark-3 bg-dark-2 p-3 space-y-3">
+      <p
+        className="text-[12px] text-gray-light"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {headline}
+      </p>
+
+      <DistributionBar
+        overriddenPct={overriddenPct}
+        defaultPct={defaultPct}
+        unresolvedPct={unresolvedPct}
+      />
+
+      <ul className="space-y-1.5">
+        {overriddenCount > 0 && (
+          <BreakdownRow
+            tone="primary"
+            countLabel={
+              overriddenCount === 1
+                ? "1 partener cu exceptie individuala"
+                : `${overriddenCount} parteneri cu exceptie individuala`
+            }
+            amount={overriddenRulaj}
+            percent={overriddenPct}
+          />
+        )}
+        {followCount > 0 && (
+          <BreakdownRow
+            tone="follow"
+            countLabel={
+              followCount === 1
+                ? `1 partener urmeaza contul catre ${contCategoryName}`
+                : `${followCount} parteneri urmeaza contul catre ${contCategoryName}`
+            }
+            amount={defaultRulaj}
+            percent={defaultPct}
+          />
+        )}
+        {unresolvedRulaj > 0 && (
+          <BreakdownRow
+            tone="unresolved"
+            countLabel="Fara partener identificat (TVA, dobanzi, transferuri)"
+            amount={unresolvedRulaj}
+            percent={unresolvedPct}
+          />
         )}
       </ul>
     </div>
+  );
+}
+
+/**
+ * 3-segment stacked bar. The "follow" slice uses the calm gray-light tint
+ * (it's the default behaviour, not an action), the "override" slice uses
+ * primary (it's the contabil's manual decision), and "unresolved" uses a
+ * subdued gray hatch to signal "we don't know who this is".
+ */
+function DistributionBar({
+  overriddenPct,
+  defaultPct,
+  unresolvedPct,
+}: {
+  overriddenPct: number;
+  defaultPct: number;
+  unresolvedPct: number;
+}) {
+  return (
+    <div className="flex h-2 w-full overflow-hidden rounded-full bg-dark-3">
+      {defaultPct > 0 && (
+        <div
+          className="h-full bg-gray/40"
+          style={{ width: `${defaultPct}%` }}
+          aria-hidden
+        />
+      )}
+      {overriddenPct > 0 && (
+        <div
+          className="h-full bg-primary"
+          style={{ width: `${overriddenPct}%` }}
+          aria-hidden
+        />
+      )}
+      {unresolvedPct > 0 && (
+        <div
+          className="h-full bg-dark-3 border-l border-gray/30"
+          style={{ width: `${unresolvedPct}%` }}
+          aria-hidden
+        />
+      )}
+    </div>
+  );
+}
+
+/** One row in the breakdown list — colored dot + descriptive sentence +
+ *  monospace amount aligned right. */
+function BreakdownRow({
+  tone,
+  countLabel,
+  amount,
+  percent,
+}: {
+  tone: "primary" | "follow" | "unresolved";
+  countLabel: string;
+  amount: number;
+  percent: number;
+}) {
+  const dotClass =
+    tone === "primary"
+      ? "bg-primary"
+      : tone === "follow"
+        ? "bg-gray/40"
+        : "bg-dark-3 border border-gray/30";
+  return (
+    <li className="flex items-baseline gap-2">
+      <span
+        className={`inline-block h-2 w-2 rounded-sm shrink-0 ${dotClass}`}
+        aria-hidden
+      />
+      <span
+        className="flex-1 text-[11px] text-gray-light truncate"
+        style={{ letterSpacing: "-0.02em" }}
+        title={countLabel}
+      >
+        {countLabel}
+      </span>
+      <span
+        className="font-mono text-[11px] text-gray tabular-nums shrink-0"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {formatRon(amount)} lei · {percent}%
+      </span>
+    </li>
   );
 }
 
@@ -1369,12 +1429,25 @@ function PartnerRow({
   }
 
   const barPct = rulajBarPercent(partner.rulaj, maxRulaj);
+  // A partener has an "active exception" when the contabil has explicitly
+  // routed them somewhere other than the cont default. We mirror the visual
+  // language of the workspace AccountRow (left border + subtle bg tint) so
+  // the contabil reads "manual decision" in the same way across the app.
+  // Suggestions stay separate — they're a yellow proposal, not a confirmed
+  // decision yet. isDirty wins over isExcepted visually so the user sees
+  // their unsaved edit even while the underlying row is overridden.
+  const isExcepted = partner.override !== null && !isSuggested;
 
   return (
     <li
       className={`flex items-center gap-2 px-2 py-1.5 rounded hover:bg-dark-2/40 ${
-        isSuggested ? "bg-tone-warn/[0.05] border-l-2 border-tone-warn" : ""
+        isSuggested
+          ? "bg-tone-warn/[0.05] border-l-2 border-tone-warn"
+          : isExcepted
+            ? "border-l-2 border-primary/40 bg-primary/[0.03]"
+            : ""
       } ${isDirty ? "bg-primary/[0.04]" : ""}`}
+      data-exception={isExcepted ? "true" : undefined}
     >
       {isSuggested && (
         <Tooltip content="Sugerat din memoria contului. Confirma sau alege alta categorie.">
@@ -1386,14 +1459,27 @@ function PartnerRow({
       )}
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <span
-          className="text-[12px] text-gray-light truncate"
+          className="text-[12px] text-gray-light truncate flex items-center gap-2"
           style={{ letterSpacing: "-0.02em" }}
           title={partner.nameOriginal}
         >
-          {partner.nameOriginal}
-          {partner.rulaj === 0 && (
-            <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
+          {isExcepted && (
+            <Tooltip content="Acest partener are exceptie individuala — merge la o alta categorie decat default-ul contului.">
+              <span
+                className="shrink-0 inline-flex items-center font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30 cursor-help"
+                style={{ letterSpacing: "0.02em" }}
+                data-testid="partner-exception-badge"
+              >
+                Exceptie
+              </span>
+            </Tooltip>
           )}
+          <span className="truncate">
+            {partner.nameOriginal}
+            {partner.rulaj === 0 && (
+              <span className="ml-2 text-[10px] text-gray italic">(fara activitate)</span>
+            )}
+          </span>
         </span>
         {/* Horizontal rulaj bar — visual rank-within-visible-subset. The
             track itself is always rendered (avoids layout shift); fill
