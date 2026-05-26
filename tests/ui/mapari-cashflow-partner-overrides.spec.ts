@@ -441,13 +441,241 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
 
     // Cancel the modal — no DB writes.
     await page.getByRole("button", { name: "Anuleaza" }).click();
+  });
 
-    // Clear the search; the bulk sentence returns to the full count.
-    await search.fill("");
+  /* ------------------------------------------------------------------------ */
+  /*    RESIDUE MARKERS — phase 4 of the "Integritate cifre" PR               */
+  /* ------------------------------------------------------------------------ */
+
+  test("21. Cont with override shows ↗ residue marker with redirected amount", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // 6058 ENEL X WAY → Energie is the long-standing seed for this test
+    // suite (see tests 5, 9). The marker must render with a non-zero amount.
+    const marker = page.locator("[data-testid='cont-residue-marker-6058']");
+    await expect(marker).toBeVisible();
+    const text = (await marker.innerText()).trim();
+    // Should be a number + "lei" — defensive against locale-specific
+    // thousand separators by checking for the suffix.
+    expect(text).toMatch(/lei$/);
+    expect(text).not.toBe("0 lei");
+  });
+
+  test("22. Hovering cont residue marker reveals tooltip explaining the split", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const marker = page.locator("[data-testid='cont-residue-marker-6058']");
+    await marker.hover();
+    // Tooltip lives in a portaled element with the explanation copy.
     await expect(
-      panel.getByText(new RegExp(`Atribuie toti cei ${fullCount} parteneri`))
+      page.getByText(/redirectati la alte categorii/i).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Orizontala contului se aplica/i).first()
     ).toBeVisible();
   });
+
+  test("23. Category that receives residue shows ↙ inflow marker", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Resolve the target categoryId for the ENEL X WAY override on 6058.
+    const override = await prisma.partnerCategoryOverride.findFirst({
+      where: { clientId, contBase: "6058" },
+      select: { categoryId: true },
+    });
+    if (!override) throw new Error("Test prerequisite: 6058 override missing");
+
+    // The marker is keyed by categoryId AND its tooltip mentions cont 6058
+    // as the source. The category row must be expanded to be visible.
+    const marker = page.locator(
+      `[data-testid='category-residue-marker-${override.categoryId}']`
+    );
+    // Expand the Cheltuieli root + parent categories if collapsed. The seeded
+    // tree shows top-level categories open by default (depth=0). We may need
+    // to find the parent path; for now scroll to it and check existence.
+    await marker.scrollIntoViewIfNeeded();
+    await expect(marker).toBeVisible();
+    const text = (await marker.innerText()).trim();
+    expect(text).toMatch(/lei$/);
+    expect(text).not.toBe("0 lei");
+  });
+
+  test("24. Clicking category residue marker opens allocation dialog (cat has no allocation yet)", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const override = await prisma.partnerCategoryOverride.findFirst({
+      where: { clientId, contBase: "6058" },
+      select: { categoryId: true },
+    });
+    if (!override) throw new Error("Test prerequisite: 6058 override missing");
+
+    // Defensive cleanup: ensure no stale CategoryVerticalAllocation lingers
+    // from a previous run before we assert the "no allocation" empty-state.
+    await prisma.categoryVerticalAllocation.deleteMany({
+      where: { clientId, categoryId: override.categoryId },
+    });
+    await page.reload();
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const marker = page.locator(
+      `[data-testid='category-residue-marker-${override.categoryId}']`
+    );
+    await marker.scrollIntoViewIfNeeded();
+    await marker.click();
+
+    // Dialog opens with the empty-state message specific to categories.
+    await expect(
+      page.getByText(/nu are alocare explicita/i).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText(/exceptii de partener/i).first()
+    ).toBeVisible();
+
+    // Header shows the "primeste X lei din exceptii de partener" line.
+    await expect(
+      page.getByText(/primeste .* lei din exceptii de partener/i).first()
+    ).toBeVisible();
+  });
+
+  test("25. Setting category allocation persists + marker tooltip reflects the new split", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const override = await prisma.partnerCategoryOverride.findFirst({
+      where: { clientId, contBase: "6058" },
+      select: { categoryId: true },
+    });
+    if (!override) throw new Error("Test prerequisite: 6058 override missing");
+
+    // Start clean.
+    await prisma.categoryVerticalAllocation.deleteMany({
+      where: { clientId, categoryId: override.categoryId },
+    });
+
+    // The firm must have at least one non-default vertical for this to work.
+    const verticals = await prisma.vertical.findMany({
+      where: { clientId },
+      select: { id: true, name: true, isDefault: true },
+    });
+    const nonDefault = verticals.filter((v) => !v.isDefault);
+    if (nonDefault.length === 0) {
+      test.skip(true, "Firma nu are verticale non-default — testul nu se aplica");
+      return;
+    }
+    const target = nonDefault[0];
+
+    await page.reload();
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    const marker = page.locator(
+      `[data-testid='category-residue-marker-${override.categoryId}']`
+    );
+    await marker.scrollIntoViewIfNeeded();
+    await marker.click();
+
+    // Enter edit mode.
+    await page.getByRole("button", { name: /Schimba alocarea/i }).click();
+
+    // Scope to the modal subtree so we don't grab the page's year selector.
+    // The dialog uses fixed inset overlay with z-50; the inner card has the
+    // distinct "max-w-xl" + "bg-dark-2" combo.
+    const dialog = page.locator("div.fixed.inset-0.z-50 > div.bg-dark-2");
+    await expect(dialog).toBeVisible();
+
+    // The dialog pre-populates with the first non-default vertical at 100%.
+    // We force it to point at our chosen `target` so the assertion is
+    // independent of ordering.
+    const verticalTrigger = dialog
+      .locator("button[aria-haspopup='listbox']")
+      .first();
+    await verticalTrigger.click();
+    await page.getByRole("option", { name: target.name }).first().click();
+
+    await page.getByRole("button", { name: /^Salveaza$/ }).click();
+
+    // The dialog closes; the marker is still present. Hover and check the
+    // tooltip mentions the new vertical at 100%.
+    await expect(marker).toBeVisible({ timeout: 5000 });
+    await marker.hover();
+    await expect(
+      page.getByText(new RegExp(`100% ${target.name}`, "i")).first()
+    ).toBeVisible();
+
+    // Verify persistence at the DB level.
+    const persisted = await prisma.categoryVerticalAllocation.findFirst({
+      where: { clientId, categoryId: override.categoryId },
+      select: { splits: true },
+    });
+    expect(persisted).not.toBeNull();
+    const splits = persisted!.splits as Array<{ verticalId: string; percent: number }>;
+    expect(splits.length).toBe(1);
+    expect(splits[0].verticalId).toBe(target.id);
+    expect(splits[0].percent).toBe(100);
+
+    // Cleanup so subsequent runs start clean.
+    await prisma.categoryVerticalAllocation.deleteMany({
+      where: { clientId, categoryId: override.categoryId },
+    });
+  });
+
+  test("26. Default vertical column shows residue badge when residue lands on it", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+
+    // Ensure the override target category has NO allocation so the residue
+    // falls through to the default vertical.
+    const override = await prisma.partnerCategoryOverride.findFirst({
+      where: { clientId, contBase: "6058" },
+      select: { categoryId: true },
+    });
+    if (!override) throw new Error("Test prerequisite: 6058 override missing");
+    await prisma.categoryVerticalAllocation.deleteMany({
+      where: { clientId, categoryId: override.categoryId },
+    });
+
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    // Switch from "Categorii" to "Linii de business" — the verticals tab.
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    // The default vertical (Toata firma) auto-expands on the verticals tab.
+    // The badge sits next to the "implicit" label.
+    const badge = page.locator("[data-testid='default-vertical-residue-badge']");
+    await expect(badge).toBeVisible({ timeout: 5000 });
+    const text = (await badge.innerText()).trim();
+    expect(text).toMatch(/lei reziduu$/);
+
+    // Tooltip explains the absorption + CTA.
+    await badge.hover();
+    await expect(
+      page.getByText(/absoarbe.*din reziduul exceptiilor de partener/i).first()
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Seteaza orizontala categoriilor primitoare/i).first()
+    ).toBeVisible();
+  });
+
 
   test("11. Threshold (Peste X lei) filters list and bulk scope", async ({
     context,

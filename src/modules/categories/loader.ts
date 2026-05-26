@@ -20,14 +20,18 @@ import { getAvailablePeriods, getBalanceRows } from "@/modules/balances";
 import {
   listVerticals,
   listAllocations,
+  listCategoryAllocations,
   type VerticalView,
   type AllocationView,
+  type CategoryAllocationView,
   type AllocationSplit,
   type AllocationScope,
 } from "@/modules/verticals";
 import {
   loadPartnerSummariesForClient,
+  loadPartnerCategoryAdjustments,
   type PartnerSummary,
+  type PartnerCategoryAdjustment,
 } from "@/modules/partner-mappings";
 import type { CostCategoryNode, MappingScope } from "./types";
 
@@ -106,6 +110,22 @@ export interface CoverageStats {
   totalAccountCount: number;
 }
 
+/** One source of inflow into a category via the partner-override residue
+ *  pathway: a specific cont diverted N lei from its default category to this
+ *  category. Surfaced on the category marker tooltip so the contabil sees
+ *  exactly which conts are feeding the residue. */
+export interface CategoryInflowSource {
+  cont: string;
+  amount: number;
+}
+
+export interface CategoryInflow {
+  /** Sum of redirected rulaj from all sources for this category in the period. */
+  amount: number;
+  /** Per-cont breakdown, sorted desc by amount. */
+  sources: CategoryInflowSource[];
+}
+
 export interface MapariCashflowData {
   clientId: string;
   /** The full category tree for this client. */
@@ -135,6 +155,22 @@ export interface MapariCashflowData {
    *  bars and the "[Vezi parteneri →]" badge. Missing key = no partner
    *  activity / overrides for that cont this period. */
   partnerSummariesByCont: Record<string, PartnerSummary>;
+  /** Category-level vertical allocations (one row per category that has set
+   *  its own horizontal). Empty when the firm has no category allocations.
+   *  Used by the edit-allocation dialog to show current state and by the
+   *  marker tooltip to phrase "se duc 100% pe Outsourcing" vs "se duc pe
+   *  Toata firma". */
+  categoryAllocations: CategoryAllocationView[];
+  /** Per-categoryId map of incoming residue from partner overrides in the
+   *  period. Missing key = the category receives no residue. Drives the
+   *  inflow marker on the category row + tooltip detail. */
+  categoryInflows: Record<string, CategoryInflow>;
+  /** Total residue lei absorbed by the firm's default vertical because the
+   *  target category has no explicit allocation. Drives the tooltip on the
+   *  "Toata firma" column header in the Verticale tab.
+   *  0 when the firm has no overrides, no verticals enabled, or every
+   *  targeted category has its own allocation. */
+  defaultVerticalResidueAbsorbed: number;
 }
 
 export async function loadMapariCashflow(
@@ -146,17 +182,22 @@ export async function loadMapariCashflow(
   });
   const mappings = await listMappings(prisma, clientId);
 
-  // Fetch vertical state (flag, list, allocations) in parallel.
-  const [clientFlag, verticals, allocations] = await Promise.all([
+  // Fetch vertical state (flag, list, allocations, category allocations).
+  const [clientFlag, verticals, allocations, categoryAllocations] = await Promise.all([
     prisma.client.findUnique({
       where: { id: clientId },
       select: { verticalsEnabled: true },
     }),
     listVerticals(prisma, clientId),
     listAllocations(prisma, clientId),
+    listCategoryAllocations(prisma, clientId),
   ]);
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
   const emptyPartnerSummaries: Record<string, PartnerSummary> = {};
+  const emptyCategoryInflows: Record<string, CategoryInflow> = {};
+  const categoryAllocationIds = new Set(
+    categoryAllocations.map((ca) => ca.categoryId)
+  );
 
   // Build a full resolver state so the UI uses the same prefix-walk semantics
   // as the snapshot computation. A leaf cont like "704" must resolve to the
@@ -184,6 +225,9 @@ export async function loadMapariCashflow(
       verticalsEnabled,
       verticals,
       partnerSummariesByCont: emptyPartnerSummaries,
+      categoryAllocations,
+      categoryInflows: emptyCategoryInflows,
+      defaultVerticalResidueAbsorbed: 0,
     };
   }
 
@@ -202,10 +246,16 @@ export async function loadMapariCashflow(
     .filter((p) => p.year === targetYear)
     .map((p) => p.month);
   const latestMonth = Math.max(...monthsForYear);
-  const [balanceResult, partnerSummariesByCont] = await Promise.all([
+  const [balanceResult, partnerSummariesByCont, partnerAdjustments] = await Promise.all([
     getBalanceRows(clientId, targetYear, latestMonth),
     loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
+    loadPartnerCategoryAdjustments(prisma, clientId, targetYear, latestMonth),
   ]);
+  const categoryInflows = aggregateCategoryInflows(partnerAdjustments);
+  const defaultVerticalResidueAbsorbed = sumDefaultVerticalAbsorption(
+    partnerAdjustments,
+    categoryAllocationIds
+  );
   if (!balanceResult.ok) {
     return {
       clientId,
@@ -218,6 +268,9 @@ export async function loadMapariCashflow(
       verticalsEnabled,
       verticals,
       partnerSummariesByCont,
+      categoryAllocations,
+      categoryInflows,
+      defaultVerticalResidueAbsorbed,
     };
   }
 
@@ -300,7 +353,56 @@ export async function loadMapariCashflow(
     verticalsEnabled,
     verticals,
     partnerSummariesByCont,
+    categoryAllocations,
+    categoryInflows,
+    defaultVerticalResidueAbsorbed,
   };
+}
+
+/**
+ * Sum of residue amounts that fall through to the firm's default vertical
+ * because the target category has no explicit allocation. Pure — exported
+ * for unit testing.
+ */
+export function sumDefaultVerticalAbsorption(
+  adjustments: PartnerCategoryAdjustment[],
+  categoryIdsWithAllocation: Set<string>
+): number {
+  let sum = 0;
+  for (const adj of adjustments) {
+    if (!categoryIdsWithAllocation.has(adj.targetCategoryId)) {
+      sum += adj.amount;
+    }
+  }
+  return round2(sum);
+}
+
+/**
+ * Aggregate PartnerCategoryAdjustment[] into a per-categoryId map of inflow
+ * + sources. Pure — exported for unit testing.
+ */
+export function aggregateCategoryInflows(
+  adjustments: PartnerCategoryAdjustment[]
+): Record<string, CategoryInflow> {
+  const out: Record<string, CategoryInflow> = {};
+  for (const adj of adjustments) {
+    const entry =
+      out[adj.targetCategoryId] ?? { amount: 0, sources: [] };
+    entry.amount = round2(entry.amount + adj.amount);
+    // Bucket sources by cont (analytics for same cont sum together).
+    const existing = entry.sources.find((s) => s.cont === adj.analyticCont);
+    if (existing) {
+      existing.amount = round2(existing.amount + adj.amount);
+    } else {
+      entry.sources.push({ cont: adj.analyticCont, amount: round2(adj.amount) });
+    }
+    out[adj.targetCategoryId] = entry;
+  }
+  // Sort sources within each category desc by amount.
+  for (const cat of Object.values(out)) {
+    cat.sources.sort((a, b) => b.amount - a.amount);
+  }
+  return out;
 }
 
 /**

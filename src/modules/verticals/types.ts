@@ -46,11 +46,22 @@ export interface AllocationView {
   splits: AllocationSplit[];
 }
 
-/** The resolved verticals for one cont. Always non-empty: if no rule matches,
- *  the caller's resolver returns the default vertical at 100%. */
+/** One CATEGORY-level allocation row. Used when a partner override redirects
+ *  rulaj to a CostCategory: instead of dropping the residue on the firm's
+ *  default vertical, the system asks "does this category itself know how to
+ *  split across lines of business?". If yes, use those splits; if no, default. */
+export interface CategoryAllocationView {
+  id: string;
+  clientId: string;
+  categoryId: string;
+  splits: AllocationSplit[];
+}
+
+/** The resolved verticals for one cont or category. Always non-empty: if no
+ *  rule matches, the resolver returns the default vertical at 100%. */
 export interface ResolvedAllocation {
   splits: AllocationSplit[];
-  /** Which scope matched, or "default" when we fell through to the firm's
-   *  default vertical. */
-  matchedScope: AllocationScope | "default";
+  /** Which rule matched. "category" means the resolution came from a
+   *  CategoryVerticalAllocation row (partner-override pathway). */
+  matchedScope: AllocationScope | "default" | "category";
 }

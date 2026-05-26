@@ -261,3 +261,83 @@ export async function clearAllocationAction(
     return { error: (err as Error).message };
   }
 }
+
+const setCategoryAllocationSchema = z.object({
+  clientId: z.string().min(1),
+  categoryId: z.string().min(1),
+  splits: z
+    .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
+    .min(1)
+    .max(5),
+});
+
+export async function setCategoryAllocationAction(
+  input: z.infer<typeof setCategoryAllocationSchema>
+): Promise<ActionResult> {
+  const parsed = setCategoryAllocationSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const before = await prisma.categoryVerticalAllocation.findFirst({
+      where: {
+        clientId: parsed.data.clientId,
+        categoryId: parsed.data.categoryId,
+      },
+      select: { id: true, splits: true },
+    });
+    const result = await service.setCategoryAllocation(prisma, parsed.data);
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: before ? "update" : "create",
+      entityType: "category_vertical_allocation",
+      entityId: result.id,
+      before: before
+        ? { categoryId: parsed.data.categoryId, splits: before.splits }
+        : null,
+      after: { categoryId: parsed.data.categoryId, splits: parsed.data.splits },
+    });
+    revalidatePath("/clients");
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+const clearCategoryAllocationSchema = z.object({
+  clientId: z.string().min(1),
+  categoryId: z.string().min(1),
+});
+
+export async function clearCategoryAllocationAction(
+  input: z.infer<typeof clearCategoryAllocationSchema>
+): Promise<ActionResult> {
+  const parsed = clearCategoryAllocationSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const deleted = await service.clearCategoryAllocation(
+      prisma,
+      parsed.data.clientId,
+      parsed.data.categoryId
+    );
+    if (!deleted) return {};
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: "delete",
+      entityType: "category_vertical_allocation",
+      entityId: deleted.id,
+      before: { categoryId: deleted.categoryId, splits: deleted.splits },
+      after: null,
+    });
+    revalidatePath("/clients");
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}

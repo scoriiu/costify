@@ -302,6 +302,9 @@ function CategoryAxisContent({
       clientId={data.clientId}
       period={data.period}
       onMutate={onMutate}
+      verticals={data.verticals}
+      categoryAllocations={data.categoryAllocations}
+      categoryInflows={data.categoryInflows}
     />
   );
 }
@@ -336,6 +339,7 @@ function VerticalAxisContent({
         enabled={data.verticalsEnabled}
         verticals={data.verticals}
         accounts={data.accounts}
+        defaultVerticalResidueAbsorbed={data.defaultVerticalResidueAbsorbed}
         onMutate={onMutate}
       />
 
@@ -433,12 +437,14 @@ function VerticalsPanel({
   enabled,
   verticals,
   accounts,
+  defaultVerticalResidueAbsorbed,
   onMutate,
 }: {
   clientId: string;
   enabled: boolean;
   verticals: VerticalView[];
   accounts: AccountListItem[];
+  defaultVerticalResidueAbsorbed: number;
   onMutate: () => void;
 }) {
   if (!enabled) {
@@ -449,6 +455,7 @@ function VerticalsPanel({
       clientId={clientId}
       verticals={verticals}
       accounts={accounts}
+      defaultVerticalResidueAbsorbed={defaultVerticalResidueAbsorbed}
       onMutate={onMutate}
     />
   );
@@ -503,11 +510,13 @@ function VerticalsOn({
   clientId,
   verticals,
   accounts,
+  defaultVerticalResidueAbsorbed,
   onMutate,
 }: {
   clientId: string;
   verticals: VerticalView[];
   accounts: AccountListItem[];
+  defaultVerticalResidueAbsorbed: number;
   onMutate: () => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -594,6 +603,9 @@ function VerticalsOn({
             vertical={v}
             colorIndex={i}
             accounts={accountsByVertical.get(v.id) ?? []}
+            residueAbsorbed={
+              v.isDefault ? defaultVerticalResidueAbsorbed : 0
+            }
             expanded={expandedId === v.id}
             anyExpanded={expandedId !== null}
             onToggle={() =>
@@ -702,6 +714,7 @@ function VerticalColumn({
   vertical,
   colorIndex,
   accounts,
+  residueAbsorbed,
   expanded,
   anyExpanded,
   onToggle,
@@ -712,6 +725,7 @@ function VerticalColumn({
   vertical: VerticalView;
   colorIndex: number;
   accounts: AccountListItem[];
+  residueAbsorbed: number;
   expanded: boolean;
   anyExpanded: boolean;
   onToggle: () => void;
@@ -761,6 +775,7 @@ function VerticalColumn({
         <ExpandedColumn
           vertical={vertical}
           accounts={accounts}
+          residueAbsorbed={residueAbsorbed}
           renaming={renaming}
           onStartRename={() => setRenaming(true)}
           onEndRename={() => {
@@ -834,6 +849,7 @@ function CollapsedColumn({
 function ExpandedColumn({
   vertical,
   accounts,
+  residueAbsorbed,
   renaming,
   onStartRename,
   onEndRename,
@@ -845,6 +861,7 @@ function ExpandedColumn({
 }: {
   vertical: VerticalView;
   accounts: AccountListItem[];
+  residueAbsorbed: number;
   renaming: boolean;
   onStartRename: () => void;
   onEndRename: () => void;
@@ -877,7 +894,7 @@ function ExpandedColumn({
               >
                 {vertical.name}
               </h4>
-              <div className="flex items-baseline gap-2 mt-0.5">
+              <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="font-mono text-[11px] text-gray-light tabular-nums">
                   {accounts.length}{" "}
                   {accounts.length === 1 ? "cont alocat" : "conturi alocate"}
@@ -886,6 +903,28 @@ function ExpandedColumn({
                   <Tooltip content="Verticala implicita unde merg conturile fara alocare explicita. Nu poti sterge, doar redenumi.">
                     <span className="font-mono text-[9px] uppercase tracking-wider text-gray cursor-help">
                       implicit
+                    </span>
+                  </Tooltip>
+                )}
+                {vertical.isDefault && residueAbsorbed > 0 && (
+                  <Tooltip
+                    content={
+                      <>
+                        Aceasta linie absoarbe{" "}
+                        <strong>{formatRon(residueAbsorbed)} lei</strong> din
+                        reziduul exceptiilor de partener, pentru ca acele
+                        exceptii pica pe categorii fara orizontala proprie
+                        setata. Seteaza orizontala categoriilor primitoare ca
+                        sa controlezi unde merg banii.
+                      </>
+                    }
+                  >
+                    <span
+                      data-testid="default-vertical-residue-badge"
+                      className="font-mono text-[10px] tabular-nums text-primary-light cursor-help inline-flex items-center gap-0.5"
+                      style={{ letterSpacing: "-0.02em" }}
+                    >
+                      ↙ {formatRon(residueAbsorbed)} lei reziduu
                     </span>
                   </Tooltip>
                 )}

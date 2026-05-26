@@ -80,6 +80,7 @@ model Client {
   partnerCategoryOverrides  PartnerCategoryOverride[]
   verticals                 Vertical[]
   verticalAllocations       VerticalAllocation[]
+  categoryVerticalAllocs    CategoryVerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -172,8 +173,9 @@ model Vertical {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  allocations VerticalAllocation[]
+  client              Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  allocations         VerticalAllocation[]
+  categoryAllocations CategoryVerticalAllocation[]
 
   @@unique([clientId, name])
   @@index([clientId])
@@ -245,16 +247,46 @@ model CostCategory {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  client            Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  parent            CostCategory?             @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children          CostCategory[]            @relation("CostCategoryTree")
-  mappings          AccountCategoryMapping[]
-  partnerOverrides  PartnerCategoryOverride[]
+  client             Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent             CostCategory?                @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children           CostCategory[]               @relation("CostCategoryTree")
+  mappings           AccountCategoryMapping[]
+  partnerOverrides   PartnerCategoryOverride[]
+  verticalAllocation CategoryVerticalAllocation?
 
   @@unique([clientId, parentId, name])
   @@index([clientId])
   @@index([clientId, kind])
   @@index([parentId])
+}
+
+/// Optional vertical split for a CostCategory. Used by the partner-override
+/// residue pathway: when a partner override redirects rulaj from a cont to a
+/// category, the redirected slice follows THIS allocation if defined, or the
+/// firm's default vertical otherwise.
+///
+/// Same `splits` shape and invariants as VerticalAllocation:
+///   - 1..5 entries, sum(percent) === 100, all integers 1..100,
+///   - all verticalIds belong to the same client and exist.
+///
+/// One row per category (unique constraint). Absence of a row means "use the
+/// firm default vertical" — the absence is the explicit fallback, not an error.
+model CategoryVerticalAllocation {
+  id         String   @id @default(cuid())
+  clientId   String
+  categoryId String   @unique
+  splits     Json // [{ verticalId, percent }]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  primaryVerticalId String?
+  primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([primaryVerticalId])
 }
 
 /// Maps a Romanian chart-of-accounts entry to a CostCategory leaf, scoped to

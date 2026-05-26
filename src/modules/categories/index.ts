@@ -35,7 +35,10 @@ export {
 export {
   loadMapariCashflow,
   computeCoverage,
+  aggregateCategoryInflows,
   type MapariCashflowData,
   type AccountListItem,
   type CoverageStats,
+  type CategoryInflow,
+  type CategoryInflowSource,
 } from "./loader";

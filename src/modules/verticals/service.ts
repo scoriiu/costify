@@ -10,6 +10,7 @@ import type {
   AllocationScope,
   AllocationSplit,
   AllocationView,
+  CategoryAllocationView,
   VerticalView,
 } from "./types";
 
@@ -204,6 +205,34 @@ export async function deleteVertical(
     });
   }
 
+  // Same renormalization treatment for category-level allocations referencing
+  // this vertical: drop the slice, renormalize the remainder; delete the row
+  // entirely if no splits remain.
+  const categoryAllocations = await prisma.categoryVerticalAllocation.findMany({
+    where: { clientId },
+  });
+  for (const allocation of categoryAllocations) {
+    const splits = parseSplits(allocation.splits);
+    const filtered = splits.filter((s) => s.verticalId !== verticalId);
+    if (filtered.length === splits.length) continue;
+
+    if (filtered.length === 0) {
+      await prisma.categoryVerticalAllocation.delete({
+        where: { id: allocation.id },
+      });
+      continue;
+    }
+    const total = filtered.reduce((s, x) => s + x.percent, 0);
+    const renormalized = renormalizeSplits(filtered, total);
+    await prisma.categoryVerticalAllocation.update({
+      where: { id: allocation.id },
+      data: {
+        splits: renormalized as unknown as Prisma.InputJsonValue,
+        primaryVerticalId: renormalized[0]?.verticalId ?? null,
+      },
+    });
+  }
+
   await prisma.vertical.delete({ where: { id: verticalId } });
   return existing;
 }
@@ -291,6 +320,89 @@ export async function clearAllocation(
   if (!existing) return null;
 
   await prisma.verticalAllocation.delete({ where: { id: existing.id } });
+  return existing;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         CATEGORY-LEVEL ALLOCATIONS                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Category-level allocations route partner-override residue to the right
+ * lines of business. They share validation rules with cont-level allocations
+ * (1..5 splits, integer percents summing to 100, verticals belong to client)
+ * but key by categoryId, not cont.
+ */
+export async function listCategoryAllocations(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<CategoryAllocationView[]> {
+  const rows = await prisma.categoryVerticalAllocation.findMany({
+    where: { clientId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    clientId: r.clientId,
+    categoryId: r.categoryId,
+    splits: parseSplits(r.splits),
+  }));
+}
+
+export interface SetCategoryAllocationInput {
+  clientId: string;
+  categoryId: string;
+  splits: AllocationSplit[];
+}
+
+export async function setCategoryAllocation(
+  prisma: PrismaClient,
+  input: SetCategoryAllocationInput
+) {
+  validateSplits(input.splits);
+
+  const vIds = Array.from(new Set(input.splits.map((s) => s.verticalId)));
+  const verticals = await prisma.vertical.findMany({
+    where: { clientId: input.clientId, id: { in: vIds } },
+    select: { id: true },
+  });
+  if (verticals.length !== vIds.length) {
+    throw new Error("Una sau mai multe verticale nu apartin acestei firme");
+  }
+
+  const category = await prisma.costCategory.findFirst({
+    where: { id: input.categoryId, clientId: input.clientId },
+    select: { id: true },
+  });
+  if (!category) {
+    throw new Error("Categoria nu exista pentru aceasta firma");
+  }
+
+  return prisma.categoryVerticalAllocation.upsert({
+    where: { categoryId: input.categoryId },
+    create: {
+      clientId: input.clientId,
+      categoryId: input.categoryId,
+      splits: input.splits as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: input.splits[0].verticalId,
+    },
+    update: {
+      splits: input.splits as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: input.splits[0].verticalId,
+    },
+  });
+}
+
+export async function clearCategoryAllocation(
+  prisma: PrismaClient,
+  clientId: string,
+  categoryId: string
+) {
+  const existing = await prisma.categoryVerticalAllocation.findFirst({
+    where: { clientId, categoryId },
+  });
+  if (!existing) return null;
+
+  await prisma.categoryVerticalAllocation.delete({ where: { id: existing.id } });
   return existing;
 }
 

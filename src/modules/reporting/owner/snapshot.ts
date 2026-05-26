@@ -43,12 +43,12 @@ import type { BalanceRowView } from "@/modules/balances";
 import {
   listVerticals,
   listAllocations,
+  listCategoryAllocations,
   buildVerticalResolver,
 } from "@/modules/verticals";
 import {
   listOverridesForClient,
-  computePartnerCategoryAdjustments,
-  type JournalLineForAggregation,
+  loadPartnerCategoryAdjustments,
 } from "@/modules/partner-mappings";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
@@ -180,12 +180,10 @@ export async function loadOwnerSnapshot(
   // from the cont's default category to the partner's chosen category.
   // Only fetches journal lines + partner names if we actually have any
   // overrides to apply — keeps the no-overrides path identical to before.
-  const partnerAdjustments = await loadPartnerAdjustmentsForPeriod(
-    clientId,
-    year,
-    month,
-    partnerOverrides
-  );
+  const partnerAdjustments =
+    partnerOverrides.length === 0
+      ? []
+      : await loadPartnerCategoryAdjustments(prisma, clientId, year, month);
 
   const expenseBreakdown = resolverState
     ? computeExpenseBreakdownFromCategories(
@@ -220,18 +218,24 @@ export async function loadOwnerSnapshot(
   });
   let verticalBreakdown: ReturnType<typeof computeVerticalBreakdown> = [];
   if (clientRow?.verticalsEnabled) {
-    const [verticals, allocations] = await Promise.all([
+    const [verticals, allocations, categoryAllocations] = await Promise.all([
       listVerticals(prisma, clientId),
       listAllocations(prisma, clientId),
+      listCategoryAllocations(prisma, clientId),
     ]);
     const defaultV = verticals.find((v) => v.isDefault);
     if (defaultV) {
-      const vResolver = buildVerticalResolver(allocations, defaultV.id);
+      const vResolver = buildVerticalResolver(
+        allocations,
+        defaultV.id,
+        categoryAllocations
+      );
       verticalBreakdown = computeVerticalBreakdown(
         rows,
         catalog,
         vResolver,
-        verticals.map((v) => ({ id: v.id, name: v.name, isDefault: v.isDefault }))
+        verticals.map((v) => ({ id: v.id, name: v.name, isDefault: v.isDefault })),
+        partnerAdjustments
       );
     }
   }
@@ -287,7 +291,7 @@ function computeDataQuality(
   _catalog: Map<string, CatalogAccount>,
   resolverState: ResolverState | null,
   partnerOverrides: Awaited<ReturnType<typeof listOverridesForClient>>,
-  partnerAdjustments: Awaited<ReturnType<typeof computePartnerCategoryAdjustments>>
+  partnerAdjustments: Awaited<ReturnType<typeof loadPartnerCategoryAdjustments>>
 ) {
   // Per-analytic partner-overridden rulaj for the period.
   const overriddenByAnalytic = new Map<string, number>();
@@ -335,62 +339,6 @@ function computeDataQuality(
   };
 }
 
-/**
- * Fetches journal lines + partner names for the YTD-cumulated period and
- * computes the PartnerCategoryAdjustment[] used by the category breakdown.
- *
- * Skips both the journal-line query and the partner-name query entirely
- * when there are no overrides — preserves the no-overrides hot path with
- * zero extra DB load.
- */
-async function loadPartnerAdjustmentsForPeriod(
-  clientId: string,
-  year: number,
-  month: number,
-  overrides: Awaited<ReturnType<typeof listOverridesForClient>>
-) {
-  if (overrides.length === 0) return [];
-
-  const [lineRows, partnerRows] = await Promise.all([
-    prisma.journalLine.findMany({
-      where: {
-        clientId,
-        year,
-        month: { lte: month },
-        deletedAt: null,
-        OR: [
-          { contDBase: { startsWith: "6" } },
-          { contCBase: { startsWith: "7" } },
-        ],
-      },
-      select: {
-        contD: true,
-        contDBase: true,
-        contC: true,
-        contCBase: true,
-        suma: true,
-      },
-    }),
-    prisma.journalPartner.findMany({
-      where: { clientId },
-      select: { analyticAccount: true, partnerName: true },
-    }),
-  ]);
-
-  const lines: JournalLineForAggregation[] = lineRows.map((r) => ({
-    contD: r.contD,
-    contDBase: r.contDBase,
-    contC: r.contC,
-    contCBase: r.contCBase,
-    suma: Number(r.suma),
-  }));
-
-  const partnerNames = new Map<string, string>();
-  for (const r of partnerRows) {
-    if (r.partnerName && r.partnerName.trim() !== "") {
-      partnerNames.set(r.analyticAccount, r.partnerName.trim());
-    }
-  }
-
-  return computePartnerCategoryAdjustments(lines, partnerNames, overrides);
-}
+// loadPartnerAdjustmentsForPeriod removed — replaced by the shared
+// loadPartnerCategoryAdjustments helper in @/modules/partner-mappings so the
+// owner snapshot and the Mapari Cashflow loader use the exact same code path.

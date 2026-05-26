@@ -17,9 +17,11 @@ import type { PrismaClient } from "@prisma/client";
 import {
   aggregatePartnersForCont,
   summarizePartnersForCont,
+  computePartnerCategoryAdjustments,
   type ContKind,
   type JournalLineForAggregation,
   type PartnerAggregationResult,
+  type PartnerCategoryAdjustment,
   type PartnerSummary,
 } from "./aggregator";
 import {
@@ -479,4 +481,28 @@ export async function loadAllExceptions(
   // to inspect than the 5 lei one — show it first.
   rows.sort((a, b) => Math.abs(b.rulaj) - Math.abs(a.rulaj));
   return rows;
+}
+
+/**
+ * Public helper: compute the PartnerCategoryAdjustment[] for a client's YTD
+ * period. Used by both the owner snapshot and the Mapari Cashflow loader to
+ * surface the residue rule consistently.
+ *
+ * Fast-path: returns [] without any DB hit when there are no overrides.
+ */
+export async function loadPartnerCategoryAdjustments(
+  prisma: PrismaClient,
+  clientId: string,
+  year: number,
+  month: number
+): Promise<PartnerCategoryAdjustment[]> {
+  const overrides = await listOverridesForClient(prisma, clientId);
+  if (overrides.length === 0) return [];
+
+  const [lines, partnerNames] = await Promise.all([
+    fetchAllCostAndRevenueLines(prisma, clientId, year, month),
+    fetchPartnerNames(prisma, clientId),
+  ]);
+
+  return computePartnerCategoryAdjustments(lines, partnerNames, overrides);
 }

@@ -18,12 +18,18 @@ import type {
   AllocationScope,
   AllocationSplit,
   AllocationView,
+  CategoryAllocationView,
   ResolvedAllocation,
 } from "./types";
 
 export interface VerticalResolverState {
-  /** Allocations indexed by cont for O(1) lookup. */
+  /** Cont-level allocations indexed by cont for O(1) lookup. */
   byCont: Map<string, AllocationView>;
+  /** Category-level allocations indexed by categoryId. Used by the
+   *  partner-override residue pathway: when an override redirects rulaj to
+   *  a target category, we consult this map to decide which lines of business
+   *  receive that money before falling back to the default vertical. */
+  byCategoryId: Map<string, CategoryAllocationView>;
   /** Vertical id used as fallback when nothing else matches. Must always be set
    *  when verticalsEnabled = true. */
   defaultVerticalId: string;
@@ -31,11 +37,14 @@ export interface VerticalResolverState {
 
 export function buildVerticalResolver(
   allocations: AllocationView[],
-  defaultVerticalId: string
+  defaultVerticalId: string,
+  categoryAllocations: CategoryAllocationView[] = []
 ): VerticalResolverState {
   const byCont = new Map<string, AllocationView>();
   for (const a of allocations) byCont.set(a.cont, a);
-  return { byCont, defaultVerticalId };
+  const byCategoryId = new Map<string, CategoryAllocationView>();
+  for (const c of categoryAllocations) byCategoryId.set(c.categoryId, c);
+  return { byCont, byCategoryId, defaultVerticalId };
 }
 
 export function resolveAllocationForCont(
@@ -61,6 +70,24 @@ export function resolveAllocationForCont(
     }
   }
 
+  return {
+    splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
+    matchedScope: "default",
+  };
+}
+
+/**
+ * Resolve a category to its vertical splits. Used by the partner-override
+ * residue pathway: when a partner redirects rulaj from a cont to a category,
+ * the redirected slice follows the category's allocation if defined, or the
+ * firm's default vertical otherwise.
+ */
+export function resolveAllocationForCategory(
+  categoryId: string,
+  state: VerticalResolverState
+): ResolvedAllocation {
+  const hit = state.byCategoryId.get(categoryId);
+  if (hit) return { splits: hit.splits, matchedScope: "category" };
   return {
     splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
     matchedScope: "default",

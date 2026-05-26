@@ -17,7 +17,11 @@ import type { CatalogAccount } from "@/modules/accounts";
 import type { ResolverState } from "@/modules/categories";
 import { resolveCategoryForCont } from "@/modules/categories";
 import type { VerticalResolverState } from "@/modules/verticals";
-import { resolveAllocationForCont, applySplit } from "@/modules/verticals";
+import {
+  resolveAllocationForCont,
+  resolveAllocationForCategory,
+  applySplit,
+} from "@/modules/verticals";
 import type { PartnerCategoryAdjustment } from "@/modules/partner-mappings";
 import type {
   FinancialSummary,
@@ -922,8 +926,18 @@ function computeBreakdownByCategory(
  * For every leaf class 6 / 7 account:
  *   1. Determine the monthly amount (rulajD for expenses, rulajC for revenues,
  *      contra-account 609/709 subtracts).
- *   2. Resolve the cont through the VerticalResolver to get its splits.
- *   3. Apply the percentages and add the slices to each vertical's bucket.
+ *   2. Subtract the partner-override adjustments that target OTHER categories
+ *      from this analytic cont — these slices leave the cont's horizontal and
+ *      will be re-distributed below according to their target category's own
+ *      allocation. What stays on the cont is the "reziduu".
+ *   3. Resolve the cont through the VerticalResolver and split the reziduu.
+ * Then, for every partner adjustment:
+ *   4. Resolve the TARGET CATEGORY through the same resolver (category-level
+ *      allocations win; otherwise fall back to the firm's default vertical).
+ *   5. Add slices to the target vertical buckets.
+ *
+ * Without (4)+(5), axa B would double-count: the rulaj appears in axa A under
+ * the override's target category but stays on the cont's horizontal here.
  *
  * Verticals with zero in both revenue and expenses are still returned with all
  * zeros — the UI may want to show them so the patron sees "yes, my Coworking
@@ -933,10 +947,21 @@ export function computeVerticalBreakdown(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>,
   resolver: VerticalResolverState,
-  verticals: Array<{ id: string; name: string; isDefault: boolean }>
+  verticals: Array<{ id: string; name: string; isDefault: boolean }>,
+  partnerAdjustments: PartnerCategoryAdjustment[] = []
 ): VerticalBreakdownItem[] {
   const totals = new Map<string, { revenue: number; expenses: number }>();
   for (const v of verticals) totals.set(v.id, { revenue: 0, expenses: 0 });
+
+  // Bucket adjustments by analyticCont so a single pass over rows can ask
+  // "how much was diverted away from THIS cont?" in O(1).
+  const adjustedAwayByCont = new Map<string, number>();
+  for (const adj of partnerAdjustments) {
+    adjustedAwayByCont.set(
+      adj.analyticCont,
+      (adjustedAwayByCont.get(adj.analyticCont) ?? 0) + adj.amount
+    );
+  }
 
   const leaves = rows.filter((r) => r.isLeaf);
   for (const row of leaves) {
@@ -965,10 +990,35 @@ export function computeVerticalBreakdown(
       }
       bucket = "revenue";
     }
-    if (Math.abs(amount) < 0.01) continue;
+
+    // Subtract whatever this cont has redirected to other categories via
+    // partner overrides. The redirected slices follow the TARGET category's
+    // own allocation in the second loop below.
+    const adjustedAway = adjustedAwayByCont.get(row.cont) ?? 0;
+    const residual = amount - adjustedAway;
+
+    if (Math.abs(residual) < 0.01) continue;
 
     const allocation = resolveAllocationForCont(row.cont, resolver);
-    const slices = applySplit(amount, allocation.splits);
+    const slices = applySplit(residual, allocation.splits);
+    for (const slice of slices) {
+      const entry = totals.get(slice.verticalId);
+      if (!entry) continue;
+      entry[bucket] += slice.amount;
+    }
+  }
+
+  // Apply each partner-override adjustment to the TARGET category's vertical
+  // allocation (or the firm default if the category has no allocation).
+  for (const adj of partnerAdjustments) {
+    const adjBase = adj.analyticCont.split(".")[0].replace(/[^0-9]/g, "");
+    const first = adjBase.charAt(0);
+    if (first !== "6" && first !== "7") continue;
+    const bucket: "revenue" | "expenses" =
+      first === "6" ? "expenses" : "revenue";
+
+    const resolved = resolveAllocationForCategory(adj.targetCategoryId, resolver);
+    const slices = applySplit(adj.amount, resolved.splits);
     for (const slice of slices) {
       const entry = totals.get(slice.verticalId);
       if (!entry) continue;

@@ -21,7 +21,7 @@
  */
 
 import { useState, useTransition, useMemo, createContext, useContext } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -31,7 +31,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type {
   CostCategoryNode,
   AccountListItem,
+  CategoryInflow,
 } from "@/modules/categories";
+import type { VerticalView, CategoryAllocationView } from "@/modules/verticals";
 import {
   createCategoryAction,
   renameCategoryAction,
@@ -41,6 +43,7 @@ import {
 } from "@/modules/categories/actions";
 import { CategoryTreemap } from "./category-treemap";
 import { PartnerPanel } from "./partner-panel";
+import { EditCategoryAllocationDialog } from "./edit-allocation-dialog";
 
 type Filter = "all" | "unmapped" | "expense" | "revenue";
 
@@ -50,6 +53,15 @@ interface Props {
   clientId: string;
   period: { year: number; month: number } | null;
   onMutate: () => void;
+  /** Verticals for this firm — drives the category-allocation dialog. Empty
+   *  array when verticalsEnabled = false; in that case markers/CTAs hide. */
+  verticals?: VerticalView[];
+  /** Per-categoryId vertical allocations. Drives the marker tooltip's
+   *  "100% Outsourcing" line and pre-populates the dialog. */
+  categoryAllocations?: CategoryAllocationView[];
+  /** Per-categoryId inflow from partner-override residue. Missing key = no
+   *  inflow this period. Drives the inflow marker on the category row. */
+  categoryInflows?: Record<string, CategoryInflow>;
 }
 
 /**
@@ -66,13 +78,68 @@ function usePartnerPanel() {
   return useContext(PartnerPanelContext);
 }
 
+/**
+ * Context for the residue indicators (cont marker, category marker, allocation
+ * dialog trigger). Lives at the workspace root so any nested AccountRow or
+ * CategoryNode can opt in without prop drilling.
+ */
+interface ResidueContextValue {
+  verticals: VerticalView[];
+  /** Lookup helper: per-categoryId vertical allocations. */
+  categoryAllocations: Map<string, CategoryAllocationView>;
+  /** Lookup helper: per-categoryId inflow rolled up to category + descendants.
+   *  Roll-up so a parent category shows the sum of its children's inflows. */
+  inflowByCategoryId: Map<string, CategoryInflow>;
+  openCategoryAllocation: (category: CostCategoryNode) => void;
+}
+
+const ResidueContext = createContext<ResidueContextValue | null>(null);
+function useResidue() {
+  return useContext(ResidueContext);
+}
+
 type ViewMode = "list" | "treemap";
 
-export function CategoryWorkspace({ tree, accounts, clientId, period, onMutate }: Props) {
+export function CategoryWorkspace({
+  tree,
+  accounts,
+  clientId,
+  period,
+  onMutate,
+  verticals = [],
+  categoryAllocations = [],
+  categoryInflows = {},
+}: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("list");
   const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
+  const [editingCategoryAlloc, setEditingCategoryAlloc] =
+    useState<CostCategoryNode | null>(null);
+
+  // Pre-index category allocations for O(1) lookup in the tree walk.
+  const categoryAllocationsById = useMemo(() => {
+    const m = new Map<string, CategoryAllocationView>();
+    for (const ca of categoryAllocations) m.set(ca.categoryId, ca);
+    return m;
+  }, [categoryAllocations]);
+
+  // Roll up inflows so a parent category shows the SUM of its children's
+  // direct inflows (if any) plus its own. Walks the tree once per render.
+  const inflowByCategoryId = useMemo(
+    () => rollUpInflows(tree, categoryInflows),
+    [tree, categoryInflows]
+  );
+
+  const residueValue: ResidueContextValue = useMemo(
+    () => ({
+      verticals,
+      categoryAllocations: categoryAllocationsById,
+      inflowByCategoryId,
+      openCategoryAllocation: setEditingCategoryAlloc,
+    }),
+    [verticals, categoryAllocationsById, inflowByCategoryId]
+  );
 
   // Lookup map: categoryId -> human display name. Used to label the panel's
   // "Default contului (X)" option so the contabil sees exactly which category
@@ -122,6 +189,7 @@ export function CategoryWorkspace({ tree, accounts, clientId, period, onMutate }
 
   return (
     <PartnerPanelContext.Provider value={{ open: setPanelAccount }}>
+     <ResidueContext.Provider value={residueValue}>
       <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
         <WorkspaceHeader
           totalAccounts={accounts.length}
@@ -183,7 +251,28 @@ export function CategoryWorkspace({ tree, accounts, clientId, period, onMutate }
           onClose={() => setPanelAccount(null)}
           onMutate={onMutate}
         />
+
+        {editingCategoryAlloc && (
+          <EditCategoryAllocationDialog
+            open
+            categoryId={editingCategoryAlloc.id}
+            categoryName={editingCategoryAlloc.name}
+            kind={editingCategoryAlloc.kind}
+            inflow={inflowByCategoryId.get(editingCategoryAlloc.id)?.amount ?? 0}
+            currentSplits={
+              categoryAllocationsById.get(editingCategoryAlloc.id)?.splits ?? []
+            }
+            verticals={verticals}
+            clientId={clientId}
+            onClose={() => setEditingCategoryAlloc(null)}
+            onSaved={() => {
+              setEditingCategoryAlloc(null);
+              onMutate();
+            }}
+          />
+        )}
       </div>
+     </ResidueContext.Provider>
     </PartnerPanelContext.Provider>
   );
 }
@@ -566,6 +655,7 @@ function CategoryNode({
               {directAccounts.length > 0 && totalRulaj !== 0 && " · "}
               {totalRulaj !== 0 && `${formatRon(totalRulaj)} lei`}
             </span>
+            <CategoryResidueMarker node={node} />
             <div className="flex items-center gap-0.5 shrink-0">
               <Tooltip content="Adauga sub-grup. Apare indentat sub acesta pe /firma.">
                 <button
@@ -673,6 +763,141 @@ function CategoryNode({
 }
 
 /* -------------------------------------------------------------------------- */
+/*                            RESIDUE MARKERS                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Tiny marker shown on a cont row whenever partner overrides redirect some
+ * of its rulaj to other categories. Visual: subtle gray "↗ X lei" with a
+ * tooltip explaining that the cont's horizontal applies only to the
+ * REMAINING rulaj.
+ *
+ * Returns null when there's no override activity, so the row stays as clean
+ * as before for the 90% of conts where this is irrelevant.
+ */
+function ContResidueMarker({
+  account,
+  grossRulaj,
+}: {
+  account: AccountListItem;
+  grossRulaj: number;
+}) {
+  const redirected = account.partnerOverriddenRulaj;
+  if (redirected <= 0) return null;
+  const residual = grossRulaj - redirected;
+  const tooltip = (
+    <>
+      Acest cont are <strong>{formatRon(redirected)} lei</strong> redirectati
+      la alte categorii prin exceptii de partener. Orizontala contului se
+      aplica doar pe reziduul de <strong>{formatRon(residual)} lei</strong>.
+    </>
+  );
+  return (
+    <Tooltip content={tooltip}>
+      <span
+        data-testid={`cont-residue-marker-${account.cont}`}
+        className="shrink-0 inline-flex items-center gap-0.5 font-mono text-[10px] text-gray tabular-nums cursor-help"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        <CornerUpRight size={11} aria-hidden />
+        {formatRon(redirected)} lei
+      </span>
+    </Tooltip>
+  );
+}
+
+/**
+ * Marker shown on a category row that RECEIVES partner-override residue.
+ * Visual: subtle primary-tinted "↙ X lei" with a tooltip that also acts as
+ * a CTA when the category has no horizontal allocation set ("Seteaza
+ * orizontala categoriei pentru a controla unde se duc banii").
+ *
+ * Clicks open the EditCategoryAllocationDialog through the residue context.
+ * Returns null when the category receives nothing this period.
+ */
+function CategoryResidueMarker({
+  node,
+}: {
+  node: CostCategoryNode;
+}) {
+  const residue = useResidue();
+  if (!residue) return null;
+  const inflow = residue.inflowByCategoryId.get(node.id);
+  if (!inflow || inflow.amount <= 0) return null;
+
+  const allocation = residue.categoryAllocations.get(node.id);
+  const hasAllocation = allocation !== undefined && allocation.splits.length > 0;
+  const verticalsAvailable = residue.verticals.length > 0;
+  const canEdit = verticalsAvailable; // even without allocation, opening lets user create one
+
+  // Build a friendly distribution sentence for the tooltip.
+  const distributionLine = (() => {
+    if (!verticalsAvailable) {
+      return "Activeaza Liniile de business ca sa controlezi unde merg acesti bani.";
+    }
+    if (hasAllocation) {
+      const pieces = allocation!.splits
+        .map((s) => {
+          const v = residue.verticals.find((x) => x.id === s.verticalId);
+          return `${s.percent}% ${v?.name ?? "?"}`;
+        })
+        .join(" · ");
+      return `Se distribuie: ${pieces}.`;
+    }
+    const def = residue.verticals.find((v) => v.isDefault);
+    return `Merg la ${def?.name ?? "verticala implicita"}. Click pentru a seta orizontala categoriei.`;
+  })();
+
+  const topSources = inflow.sources.slice(0, 3);
+  const tooltip = (
+    <>
+      <div>
+        Aceasta categorie primeste <strong>{formatRon(inflow.amount)} lei</strong>{" "}
+        din exceptii de partener.
+      </div>
+      {topSources.length > 0 && (
+        <div className="mt-1 text-[10px] opacity-80">
+          Provine din:{" "}
+          {topSources.map((s, i) => (
+            <span key={s.cont}>
+              {i > 0 && ", "}
+              cont {s.cont} ({formatRon(s.amount)} lei)
+            </span>
+          ))}
+          {inflow.sources.length > topSources.length &&
+            ` si inca ${inflow.sources.length - topSources.length}`}
+          .
+        </div>
+      )}
+      <div className="mt-1">{distributionLine}</div>
+    </>
+  );
+
+  const ariaLabel = `Reziduu primit: ${formatRon(inflow.amount)} lei`;
+
+  return (
+    <Tooltip content={tooltip}>
+      <button
+        type="button"
+        data-testid={`category-residue-marker-${node.id}`}
+        onClick={canEdit ? () => residue.openCategoryAllocation(node) : undefined}
+        disabled={!canEdit}
+        aria-label={ariaLabel}
+        className={`shrink-0 inline-flex items-center gap-0.5 font-mono text-[10px] tabular-nums rounded px-1 -mx-1 transition-colors ${
+          canEdit
+            ? "text-primary-light hover:bg-primary/15 cursor-pointer"
+            : "text-primary-light/60 cursor-help"
+        }`}
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        <CornerDownLeft size={11} aria-hidden />
+        {formatRon(inflow.amount)} lei
+      </button>
+    </Tooltip>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                              ACCOUNT ROW                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -763,6 +988,7 @@ function AccountRow({
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0">
         {formatRon(rulaj)} lei
       </span>
+      <ContResidueMarker account={account} grossRulaj={rulaj} />
       {showPartnersBadge && (
         <Tooltip
           content={
@@ -1186,6 +1412,52 @@ function buildAggregatedRulaj(
   }
   for (const root of tree) walk(root);
   return m;
+}
+
+/**
+ * Compute per-categoryId inflow totals, rolled up through descendants. So a
+ * parent category's marker reflects its OWN direct inflow plus everything
+ * funneling into its children. The rolled-up sources list is the union of
+ * all per-cont sources across the sub-tree, summed by cont.
+ *
+ * Pure — exported indirectly through useMemo. Easy to unit-test in isolation
+ * if we ever extract it.
+ */
+function rollUpInflows(
+  tree: CostCategoryNode[],
+  directByCategoryId: Record<string, CategoryInflow>
+): Map<string, CategoryInflow> {
+  const out = new Map<string, CategoryInflow>();
+
+  function walk(node: CostCategoryNode): CategoryInflow {
+    const direct = directByCategoryId[node.id];
+    const combined: CategoryInflow = {
+      amount: direct?.amount ?? 0,
+      sources: direct ? [...direct.sources] : [],
+    };
+    for (const child of node.children) {
+      const childRolled = walk(child);
+      if (childRolled.amount === 0) continue;
+      combined.amount = round2(combined.amount + childRolled.amount);
+      for (const src of childRolled.sources) {
+        const existing = combined.sources.find((s) => s.cont === src.cont);
+        if (existing) {
+          existing.amount = round2(existing.amount + src.amount);
+        } else {
+          combined.sources.push({ ...src });
+        }
+      }
+    }
+    combined.sources.sort((a, b) => b.amount - a.amount);
+    if (combined.amount > 0) out.set(node.id, combined);
+    return combined;
+  }
+  for (const root of tree) walk(root);
+  return out;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 function matchesQuery(

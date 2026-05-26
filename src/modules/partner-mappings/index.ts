@@ -14,6 +14,7 @@ export {
 export {
   loadPartnersForCont,
   loadPartnerSummariesForClient,
+  loadPartnerCategoryAdjustments,
   loadSuggestionQueue,
   loadAllExceptions,
   type SuggestionQueueItem,

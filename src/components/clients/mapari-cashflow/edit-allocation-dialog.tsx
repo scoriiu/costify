@@ -1,20 +1,32 @@
 "use client";
 
 /**
- * Edit allocation dialog opened by clicking a cont row in the verticals
- * accordion. Surfaces:
+ * Edit allocation dialog opened from one of TWO entry points:
+ *
+ *   - A CONT row in the verticals accordion (the original entry — sets the
+ *     cont's horizontal across lines of business).
+ *   - A CATEGORY row in the Mapari Cashflow workspace (sets the category's
+ *     horizontal — consulted when a partner override redirects rulaj here).
+ *
+ * Both flows share the EXACT same UI (split editor, validation, "balanced"
+ * helper, "back to default", same Salveaza/Renunta buttons). They differ
+ * only in:
+ *   - Header text ("Cont 6022 · Combustibil" vs "Categorie · Servicii curierat")
+ *   - Save/clear action wired into the entity by the caller.
+ *
+ * Surfaces:
  *
  *   - Current allocation visualised as a color-coded bar + legend with
  *     percents and per-vertical rulaj amounts.
- *   - "Schimbă alocarea" → opens an inline edit form with one row per
+ *   - "Schimba alocarea" → opens an inline edit form with one row per
  *     vertical (mirrors SplitPopover but as part of the same modal so the
  *     contabil never sees stacked modals).
- *   - "Înapoi la implicit" → clears any explicit allocation, the cont falls
- *     back to the firm's default vertical (Toata firma).
+ *   - "Inapoi la implicit" → clears any explicit allocation, the entity
+ *     falls back to the firm's default vertical (Toata firma).
  *
  * Splits are strictly between real verticals (isDefault === false). To send
- * a cont back to Toata firma the user uses "Înapoi la implicit", not a split
- * row with the default vertical.
+ * an entity back to Toata firma the user uses "Inapoi la implicit", not a
+ * split row with the default vertical.
  */
 
 import { useState, useTransition } from "react";
@@ -26,6 +38,8 @@ import type { AccountListItem } from "@/modules/categories";
 import {
   setAllocationAction,
   clearAllocationAction,
+  setCategoryAllocationAction,
+  clearCategoryAllocationAction,
 } from "@/modules/verticals/actions";
 
 const VERTICAL_COLORS = [
@@ -37,15 +51,39 @@ const VERTICAL_COLORS = [
 ] as const;
 const DEFAULT_COLOR = "bg-gray/40";
 
-interface Props {
-  open: boolean;
-  account: AccountListItem;
-  verticals: VerticalView[];
-  clientId: string;
-  onClose: () => void;
-  onSaved: () => void;
+/* -------------------------------------------------------------------------- */
+/*                     ENTITY ABSTRACTION (cont OR category)                  */
+/* -------------------------------------------------------------------------- */
+
+export interface AllocationDialogEntity {
+  /** Visual mode + caller behaviour. */
+  kind: "account" | "category";
+  /** Short code shown left of the name. For accounts: cont code. null
+   *  for categories (no code, only a name). */
+  code: string | null;
+  /** Display name. */
+  name: string;
+  /** Rulaj-style figure for context. For accounts: cont's gross. For
+   *  categories: total inflow received from partner overrides this period. */
+  rulaj: number;
+  /** Drives the secondary header label ("cheltuiala" / "venit"). */
+  financialKind: "expense" | "revenue";
+  /** Current allocation. null = no explicit allocation, inherits firm default. */
+  currentAllocation: { splits: AllocationSplit[] } | null;
+  /** Bound save callback. Caller wires to the right server action. */
+  save: (splits: AllocationSplit[]) => Promise<{ error?: string }>;
+  /** Bound clear callback. Caller wires to the right server action. */
+  clear: () => Promise<{ error?: string }>;
 }
 
+/* -------------------------------------------------------------------------- */
+/*               BACKWARD-COMPAT WRAPPERS (account & category)                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Original entry point. Kept for the verticals accordion — every existing
+ * caller can keep its call site verbatim.
+ */
 export function EditAllocationDialog({
   open,
   account,
@@ -53,7 +91,113 @@ export function EditAllocationDialog({
   clientId,
   onClose,
   onSaved,
-}: Props) {
+}: {
+  open: boolean;
+  account: AccountListItem;
+  verticals: VerticalView[];
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const entity: AllocationDialogEntity = {
+    kind: "account",
+    code: account.cont,
+    name: account.denumire,
+    rulaj: account.kind === "expense" ? account.rulajD : account.rulajC,
+    financialKind: account.kind,
+    currentAllocation: account.currentAllocation,
+    save: (splits) =>
+      setAllocationAction({
+        clientId,
+        scope: account.cont !== account.contBase ? "analytic" : "contBase",
+        cont: account.cont,
+        splits,
+      }),
+    clear: () => clearAllocationAction({ clientId, cont: account.cont }),
+  };
+  return (
+    <AllocationDialogCore
+      open={open}
+      entity={entity}
+      verticals={verticals}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
+/**
+ * New entry point: edits the vertical split for a CostCategory. Same UI as
+ * the cont dialog — the contabil learns one concept, uses it in two places.
+ */
+export function EditCategoryAllocationDialog({
+  open,
+  categoryId,
+  categoryName,
+  kind,
+  inflow,
+  currentSplits,
+  verticals,
+  clientId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  categoryId: string;
+  categoryName: string;
+  kind: "expense" | "revenue";
+  /** Total inflow received from partner overrides in the period — shown as
+   *  context in the header so the contabil sees how much money this split
+   *  will affect. */
+  inflow: number;
+  /** Current allocation splits, [] when category has no explicit allocation. */
+  currentSplits: AllocationSplit[];
+  verticals: VerticalView[];
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const entity: AllocationDialogEntity = {
+    kind: "category",
+    code: null,
+    name: categoryName,
+    rulaj: inflow,
+    financialKind: kind,
+    currentAllocation: currentSplits.length > 0 ? { splits: currentSplits } : null,
+    save: (splits) =>
+      setCategoryAllocationAction({ clientId, categoryId, splits }),
+    clear: () => clearCategoryAllocationAction({ clientId, categoryId }),
+  };
+  return (
+    <AllocationDialogCore
+      open={open}
+      entity={entity}
+      verticals={verticals}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              CORE DIALOG                                   */
+/* -------------------------------------------------------------------------- */
+
+interface CoreProps {
+  open: boolean;
+  entity: AllocationDialogEntity;
+  verticals: VerticalView[];
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function AllocationDialogCore({
+  open,
+  entity,
+  verticals,
+  onClose,
+  onSaved,
+}: CoreProps) {
   const [mode, setMode] = useState<"view" | "edit">("view");
 
   if (!open) return null;
@@ -72,12 +216,11 @@ export function EditAllocationDialog({
         className="w-full max-w-xl rounded-xl border border-dark-3 bg-dark-2"
         onClick={(e) => e.stopPropagation()}
       >
-        <DialogHeader account={account} onClose={handleClose} />
+        <DialogHeader entity={entity} onClose={handleClose} />
         {mode === "view" ? (
           <ViewMode
-            account={account}
+            entity={entity}
             verticals={verticals}
-            clientId={clientId}
             onEdit={() => setMode("edit")}
             onSaved={() => {
               onSaved();
@@ -86,9 +229,8 @@ export function EditAllocationDialog({
           />
         ) : (
           <EditMode
-            account={account}
+            entity={entity}
             verticals={verticals}
-            clientId={clientId}
             onCancel={() => setMode("view")}
             onSaved={() => {
               onSaved();
@@ -102,35 +244,47 @@ export function EditAllocationDialog({
 }
 
 function DialogHeader({
-  account,
+  entity,
   onClose,
 }: {
-  account: AccountListItem;
+  entity: AllocationDialogEntity;
   onClose: () => void;
 }) {
-  const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
+  const contextLabel =
+    entity.kind === "account"
+      ? `rulaj total ${formatRon(entity.rulaj)} lei · ${
+          entity.financialKind === "expense" ? "cheltuiala" : "venit"
+        }`
+      : entity.rulaj > 0
+        ? `primeste ${formatRon(entity.rulaj)} lei din exceptii de partener · ${
+            entity.financialKind === "expense" ? "cheltuiala" : "venit"
+          }`
+        : `categorie · ${
+            entity.financialKind === "expense" ? "cheltuiala" : "venit"
+          }`;
+
   return (
     <div className="flex items-start justify-between gap-3 p-5 border-b border-dark-3">
       <div className="min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[13px] text-white tabular-nums">
-            {account.cont}
-          </span>
+          {entity.code && (
+            <span className="font-mono text-[13px] text-white tabular-nums">
+              {entity.code}
+            </span>
+          )}
           <span
             className="text-[14px] font-semibold text-white truncate"
             style={{ letterSpacing: "-0.04em" }}
-            title={account.denumire}
+            title={entity.name}
           >
-            {account.denumire}
+            {entity.name}
           </span>
         </div>
         <p
           className="mt-1 font-mono text-[11px] text-gray tabular-nums"
           style={{ letterSpacing: "-0.02em" }}
         >
-          rulaj total {formatRon(rulaj)} lei
-          {" · "}
-          {account.kind === "expense" ? "cheltuiala" : "venit"}
+          {contextLabel}
         </p>
       </div>
       <button
@@ -146,39 +300,42 @@ function DialogHeader({
 }
 
 function ViewMode({
-  account,
+  entity,
   verticals,
-  clientId,
   onEdit,
   onSaved,
 }: {
-  account: AccountListItem;
+  entity: AllocationDialogEntity;
   verticals: VerticalView[];
-  clientId: string;
   onEdit: () => void;
   onSaved: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
-
-  const segments = buildSegments(account, verticals);
+  const segments = buildSegments(entity, verticals);
 
   function backToDefault() {
+    const targetLabel =
+      entity.kind === "account" ? entity.code ?? entity.name : entity.name;
     if (
       !confirm(
-        `Sterg alocarea pentru ${account.cont}? Contul va merge la "Toata firma".`
+        `Sterg alocarea pentru "${targetLabel}"? Va merge la "Toata firma".`
       )
     )
       return;
     startTransition(async () => {
-      await clearAllocationAction({ clientId, cont: account.cont });
+      await entity.clear();
       onSaved();
     });
   }
 
   const hasExplicitAllocation =
-    account.currentAllocation !== null &&
-    account.currentAllocation.splits.length > 0;
+    entity.currentAllocation !== null &&
+    entity.currentAllocation.splits.length > 0;
+
+  const emptyStateMessage =
+    entity.kind === "account"
+      ? "Acest cont nu are alocare explicita — mosteneste verticala implicita a firmei (Toata firma)."
+      : "Aceasta categorie nu are alocare explicita. Banii redirectati aici prin exceptii de partener merg la verticala implicita (Toata firma). Seteaza o orizontala daca vrei sa controlezi unde merg.";
 
   return (
     <div className="p-5 space-y-5">
@@ -213,7 +370,7 @@ function ViewMode({
                 {seg.percent}%
               </span>
               <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0 min-w-[100px] text-right">
-                {formatRon((rulaj * seg.percent) / 100)}{" "}
+                {formatRon((entity.rulaj * seg.percent) / 100)}{" "}
                 <span className="text-gray">lei</span>
               </span>
             </li>
@@ -225,8 +382,7 @@ function ViewMode({
             className="mt-3 text-[11px] text-gray italic"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Acest cont nu are alocare explicita — mosteneste verticala
-            implicita a firmei (Toata firma).
+            {emptyStateMessage}
           </p>
         )}
       </div>
@@ -255,15 +411,13 @@ function ViewMode({
 }
 
 function EditMode({
-  account,
+  entity,
   verticals,
-  clientId,
   onCancel,
   onSaved,
 }: {
-  account: AccountListItem;
+  entity: AllocationDialogEntity;
   verticals: VerticalView[];
-  clientId: string;
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -272,8 +426,8 @@ function EditMode({
   // Pre-fill with current splits, or with the first real vertical at 100% to
   // give the contabil a sane starting point.
   const initial: AllocationSplit[] =
-    account.currentAllocation && account.currentAllocation.splits.length > 0
-      ? account.currentAllocation.splits
+    entity.currentAllocation && entity.currentAllocation.splits.length > 0
+      ? entity.currentAllocation.splits
       : splittable.length > 0
       ? [{ verticalId: splittable[0].id, percent: 100 }]
       : [];
@@ -333,7 +487,7 @@ function EditMode({
     setError(null);
     if (stagedClear) {
       startTransition(async () => {
-        await clearAllocationAction({ clientId, cont: account.cont });
+        await entity.clear();
         onSaved();
       });
       return;
@@ -343,12 +497,7 @@ function EditMode({
       return;
     }
     startTransition(async () => {
-      const r = await setAllocationAction({
-        clientId,
-        scope: account.cont !== account.contBase ? "analytic" : "contBase",
-        cont: account.cont,
-        splits: rows,
-      });
+      const r = await entity.save(rows);
       if (r.error) setError(r.error);
       else onSaved();
     });
@@ -365,8 +514,7 @@ function EditMode({
 
   const defaultVertical = verticals.find((v) => v.isDefault);
   const isAlreadyOnDefault =
-    !account.currentAllocation ||
-    account.currentAllocation.splits.length === 0;
+    !entity.currentAllocation || entity.currentAllocation.splits.length === 0;
 
   const canSave = stagedClear || valid;
 
@@ -432,8 +580,8 @@ function StagedClearNotice({
         style={{ letterSpacing: "-0.02em" }}
       >
         Cand apesi <strong className="text-white">Salveaza</strong>, alocarea
-        explicita pentru acest cont va fi stearsa si rulajul va merge integral
-        catre <strong className="text-white">{defaultName}</strong>.
+        explicita va fi stearsa si totul va merge integral catre{" "}
+        <strong className="text-white">{defaultName}</strong>.
       </p>
       <button
         type="button"
@@ -556,7 +704,7 @@ function SplitEditor({
               onClick={onStageDefault}
               className="text-gray hover:text-gray-light underline underline-offset-2"
               style={{ letterSpacing: "-0.02em" }}
-              title={`Trimite acest cont la ${defaultVertical.name}.`}
+              title={`Trimite la ${defaultVertical.name}.`}
             >
               Trimite la {defaultVertical.name}
             </button>
@@ -605,18 +753,17 @@ function buildVerticalOptions(
 }
 
 function buildSegments(
-  account: AccountListItem,
+  entity: AllocationDialogEntity,
   verticals: VerticalView[]
 ): Segment[] {
   const realVerticals = verticals.filter((v) => !v.isDefault);
   const defaultVertical = verticals.find((v) => v.isDefault);
 
-  // When the cont has explicit allocation, map each split to its vertical.
   if (
-    account.currentAllocation &&
-    account.currentAllocation.splits.length > 0
+    entity.currentAllocation &&
+    entity.currentAllocation.splits.length > 0
   ) {
-    return account.currentAllocation.splits.map((s, i) => {
+    return entity.currentAllocation.splits.map((s) => {
       const v =
         realVerticals.find((x) => x.id === s.verticalId) ??
         verticals.find((x) => x.id === s.verticalId);
@@ -634,7 +781,6 @@ function buildSegments(
     });
   }
 
-  // No explicit allocation → 100% goes to the firm default (Toata firma).
   if (defaultVertical) {
     return [
       {

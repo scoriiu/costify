@@ -722,6 +722,11 @@ din UI, **acea promisiune este buggy si trebuie ridicata**.
 | Trasabilitate partener override → KPI categorii pe `/firma` | ✅ | Sprint 6 — `computePartnerCategoryAdjustments` threadat in `computeBreakdownByCategory`. **Axa A corecta.** |
 | Vizualizare centralizata "Toate exceptiile pe parteneri" | ✅ | Post-Sprint-7 polish — `<AllExceptionsDialog>` cu search, edit inline, delete. |
 | Audit log pentru fiecare modificare de override | ✅ | `recordClientMutation` cu metadata enrich (contBase, partnerName, categoryName). |
+| **Regula reziduului pe axa B (linii de business)** | ✅ | Mai 2026 — PR "Integritate cifre". `computeVerticalBreakdown` primeste `partnerAdjustments` si aplica orizontala contului doar pe **reziduu** (brut − sumele redirectate). Reconciliere completa pe ambele axe — vezi `tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts` (Exemplul C byte-for-byte). |
+| **Orizontala pe categorie** (refolosesc acelasi UI ca pe cont) | ✅ | Mai 2026 — model nou `CategoryVerticalAllocation`. Cand un partener override duce bani la categoria X, banii urmeaza orizontala X (sau verticala default daca X n-are orizontala). UI: dialog `EditCategoryAllocationDialog` cu **exact aceleasi controale** ca `EditAllocationDialog` (split editor, validare sum=100, "imparte egal", "inapoi la implicit"). |
+| Marker `↗` pe cont cand are reziduu redirectionat la alte categorii | ✅ | Mai 2026 — `ContResidueMarker` pe rand cont in workspace-ul Mapari Cashflow. Tooltip explica "X lei redirectati; orizontala se aplica pe reziduul de Y lei". |
+| Marker `↙` pe categorie cand primeste reziduu din exceptii partener | ✅ | Mai 2026 — `CategoryResidueMarker` pe rand categorie. Click pe marker deschide dialogul de orizontala categorie. Tooltip listeaza top 3 conturi sursa + cum se distribuie (split categorie sau verticala default). |
+| Badge `↙ X lei reziduu` pe coloana verticalei implicite in tab "Linii de business" | ✅ | Mai 2026 — apare cand verticala default absoarbe reziduu (categorii fara orizontala proprie). Tooltip invita la setarea orizontalei pe categoriile primitoare. |
 
 ### Ce e partial / poate insela
 
@@ -734,7 +739,6 @@ din UI, **acea promisiune este buggy si trebuie ridicata**.
 
 | Promisiunea paginii | Stare | Impact | Effort |
 |---|---|---|---|
-| **Regula reziduului pe axa verticale (linii de business)** — vezi sectiunea cu acelasi nume mai sus | ❌ | **BUG SEMANTIC**. Cand un partener override muta X lei intr-o alta categorie, splitul orizontal 10/20/70 al contului se aplica pe **brut**, nu pe (brut − X). Cei X lei sunt numarati de doua ori in raportul antreprenorului (o data ca alta categorie, o data ca parte din splitul orizontal). Vezi `computeVerticalBreakdown` in `src/modules/reporting/owner/compute.ts:932` — semnatura nu primeste `partnerAdjustments`. | ~3-4h |
 | **Nivelul 2: exceptie pe tranzactie individuala** (precedenta sectiune) | ❌ | Sistemul respecta Nivel 0 (default cont) + Nivel 1 (regula partener), dar **NU exista** Nivel 2. Nu poti spune "factura asta specifica e in alta categorie decat ce zice regula partenerului". In docs e descris ca "rar" si nu blocheaza pe nimeni in real-life, dar tehnic e o promisiune neonorata. | ~6-8h (model nou `JournalLineCategoryOverride` + UI per-linie in tabul Balanta) |
 | **Blocarea modificarilor pe perioade publicate** | ❌ | Modelul `PublishedPeriod` exista. Hookul anti-modificare in `partner-mappings/actions.ts` si `verticals/actions.ts` lipseste — contabilul poate edita ininteruct un override pe martie chiar daca martie a fost raportat la patron in aprilie. Audit log inregistreaza modificarea, dar nu o opreste. | ~4-5h |
 | Tooltip "de ce e in categoria X?" pe sume in raportul antreprenorului | ❌ | Vezi sectiunea de mai sus "trasabilitate". Resolver-ul are info; trebuie expus prin hover + dialog explicativ. | ~2h |
@@ -742,17 +746,16 @@ din UI, **acea promisiune este buggy si trebuie ridicata**.
 
 ### Workflow recomandat de prioritizare (urmatorul PR mare)
 
-Daca ar fi sa atac aceste lipsuri grupat, ar avea cel mai mare sens un PR
-de **"Integritate cifre"** care livreaza impreuna:
+Dupa PR-ul "Integritate cifre" (mai 2026) care a rezolvat regula reziduului,
+urmatoarea bucata logica este **"Inghet & trasabilitate"**:
 
-1. **Regula reziduului pe axa B** — corecteaza dubla-numarare.
-2. **Lock perioade publicate** — opreste editarile post-raport.
-3. Teste de integrare care reconciliaza Exemplul C din docs byte-for-byte
-   (`32.500 = Combustibil 31.600 + Servicii curierat 900` pe ambele axe).
+1. **Lock perioade publicate** — opreste editarile post-raport.
+2. **Tooltip "de ce e in categoria X?"** pe raportul antreprenorului.
+3. Teste de integrare care simuleaza scenariul "raportez aprilie, accountantul
+   incearca sa modifice o exceptie pe martie" si confirma blocarea.
 
-Cumulat ~8-10h. Beneficiu: raportul antreprenorului devine onest pe ambele
-axe, iar lockul previne categoria de "am uitat ca am raportat deja, am
-modificat istoricul fara sa-mi dau seama".
+Cumulat ~6-7h. Beneficiu: completeaza promisiunea de transparenta — fiecare
+suma poate fi explicata, fiecare cifra publicata e congelata.
 
 ### Surse de adevar — daca te indoiesti
 
@@ -763,8 +766,12 @@ modificat istoricul fara sa-mi dau seama".
   despre modul; actualizat in lockstep cu fiecare PR.
 - **`tests/unit/modules/partner-mappings/filters.test.ts`** — comportamentul
   exact al filtrelor + threshold + Pareto + bulk targets, in 124 cases.
-- **`tests/ui/mapari-cashflow-partner-overrides.spec.ts`** — 20 teste
-  Playwright care verifica end-to-end ce vede contabilul in UI.
+- **`tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts`** —
+  regula reziduului, reconciliere completa pe axa B (Exemplul C), category
+  allocations, 9 scenarii edge-case.
+- **`tests/ui/mapari-cashflow-partner-overrides.spec.ts`** — 26 teste
+  Playwright care verifica end-to-end ce vede contabilul in UI (inclusiv
+  markerii `↗` cont, `↙` categorie, `↙` reziduu pe verticala default).
 
 ---
 
