@@ -971,6 +971,13 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const baseCount = await rows.count();
     expect(baseCount).toBeGreaterThan(0);
 
+    // Inner column list — baseline count before residue click.
+    const innerList = page
+      .getByRole("tab", { selected: true })
+      .locator("ul > li");
+    const innerBaseCount = await innerList.count();
+    expect(innerBaseCount).toBeGreaterThan(0);
+
     await badge.click();
 
     // Banner switches to "residue mode" + the badge gains data-active.
@@ -980,10 +987,22 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await expect(banner).toContainText(/conturile.*sursa.*reziduu/i);
     await expect(badge).toHaveAttribute("data-active", "true");
 
-    // The list shrank to the source conts (≥1, since 6058 contributes).
+    // The OUTER list shrank to the source conts (≥1, since 6058 contributes).
     const narrowedCount = await rows.count();
     expect(narrowedCount).toBeGreaterThanOrEqual(1);
     expect(narrowedCount).toBeLessThanOrEqual(baseCount);
+
+    // The INNER column list ALSO narrows — both views stay consistent so the
+    // contabil sees the same filter applied wherever conts are listed.
+    const innerNarrowedCount = await innerList.count();
+    expect(innerNarrowedCount).toBeGreaterThanOrEqual(1);
+    expect(innerNarrowedCount).toBeLessThanOrEqual(innerBaseCount);
+
+    // Column subtitle switches from "X conturi alocate" to "X conturi sursa
+    // reziduu" — clear visual cue that the list is narrowed.
+    await expect(
+      page.getByText(/conturi sursa reziduu|cont sursa reziduu/i).first()
+    ).toBeVisible();
 
     // Click "Sterge filtru" on the banner → residue filter clears.
     // Vertical filter on default vertical also clears (banner gone).
@@ -996,6 +1015,117 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     await expect(banner).toHaveCount(0);
     await expect(badge).not.toHaveAttribute("data-active", "true");
     await expect(defaultColumn).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("36. Cont rows inside an expanded vertical are individually expandable", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    // The default vertical auto-expands on the verticals tab.
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+
+    // Cont 6058 exists for QHM21 with a partner override. Find its row.
+    const row = page.locator("[data-testid='vertical-cont-row-6058']");
+    await expect(row).toBeVisible({ timeout: 5000 });
+
+    // Drawer is collapsed initially — the toggle button has aria-expanded=false.
+    const toggle = row.getByRole("button").first();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    // Click to expand → drawer reveals the vertical-aware headline that
+    // tells the contabil how much of this cont lands on the current
+    // vertical, plus a "Vezi parteneri" link.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(row.getByText(/Pe .* ajung .* lei/i)).toBeVisible();
+    await expect(
+      row.getByRole("button", { name: /Vezi parteneri/i })
+    ).toBeVisible();
+
+    // Re-click collapses.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("38. Drawer headline answers 'how much of this cont lands on this vertical'", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+
+    // Cont 6058 on QHM21 has 100% allocation to Toata firma (default).
+    const row = page.locator("[data-testid='vertical-cont-row-6058']");
+    await expect(row).toBeVisible({ timeout: 5000 });
+    await row.getByRole("button").first().click();
+
+    // Headline must mention the vertical name + the amount + "tot rulajul"
+    // for the 100% case (full-flow phrasing).
+    await expect(
+      row.getByText(/Pe .* ajung .* lei .* tot rulajul/i).first()
+    ).toBeVisible();
+
+    // The cont-level partner distribution section also visible (context),
+    // labelled with the "distributia contului intre parteneri" header.
+    await expect(
+      row.getByText(/Distributia contului intre parteneri/i)
+    ).toBeVisible();
+
+    // 6058 has 2 partner overrides on QHM21 → "parteneri cu exceptie" row.
+    await expect(
+      row.getByText(/parteneri? cu exceptie/i).first()
+    ).toBeVisible();
+  });
+
+  test("37. Search box inside the expanded vertical filters the cont list", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+
+    // Find the search input inside the expanded default-vertical column.
+    const expandedColumn = page.getByRole("tab", { selected: true });
+    const innerSearch = expandedColumn.getByPlaceholder(
+      /Cauta in aceasta verticala/i
+    );
+    await expect(innerSearch).toBeVisible();
+
+    const rows = expandedColumn.locator("ul > li");
+    const baseCount = await rows.count();
+    expect(baseCount).toBeGreaterThan(3);
+
+    // Type a partial denumire — narrows the list.
+    await innerSearch.fill("salar");
+    await expect(
+      expandedColumn.getByText(/\d+ din \d+ (cont|conturi)/i)
+    ).toBeVisible();
+    const narrowedCount = await rows.count();
+    expect(narrowedCount).toBeLessThan(baseCount);
+
+    // Type something that matches nothing → empty-state copy.
+    await innerSearch.fill("xyzzy-nothing-matches");
+    await expect(
+      expandedColumn.getByText(/Niciun rezultat pentru/i)
+    ).toBeVisible();
+
+    // Clear → restored.
+    await innerSearch.fill("");
+    const restoredCount = await rows.count();
+    expect(restoredCount).toBe(baseCount);
   });
 
   test("29. Partner rows with active exception are visually distinguished (badge + left border)", async ({

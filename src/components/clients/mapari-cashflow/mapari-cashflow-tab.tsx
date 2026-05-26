@@ -28,7 +28,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -44,6 +44,7 @@ import type {
   MapariCashflowData,
   CoverageStats,
 } from "@/modules/categories";
+import type { PartnerSummary } from "@/modules/partner-mappings";
 import {
   createCategoryAction,
   renameCategoryAction,
@@ -71,6 +72,14 @@ interface Props {
 }
 
 type Filter = "all" | "unmapped" | "expense" | "revenue" | "unallocated" | "split";
+
+/** Per-cont breakdown of how much it contributes to default-vertical residue,
+ *  with the absorbing target categories. Empty entries are omitted (use
+ *  `Map.has(cont)` to check). Sorted desc by per-target amount. */
+type ResidueSourceDetail = {
+  totalAmount: number;
+  targets: { categoryId: string; categoryName: string; amount: number }[];
+};
 
 type CashflowTab = "categorii" | "verticale";
 
@@ -113,17 +122,48 @@ export function MapariCashflowTab({ data }: Props) {
   // horizontal allocation (CategoryVerticalAllocation), every cont that
   // funneled money into it counts. Pre-computed once per render; only used
   // when the contabil clicks the residue badge to drill in.
-  const defaultVerticalResidueSourceConts = useMemo(() => {
+  //
+  // Output: a map keyed by cont with both the total residue amount and the
+  // per-target breakdown (one entry per absorbed category). Empty when no
+  // residue exists, so the consumer can detect "filter to nothing" upfront.
+  const defaultVerticalResidueSourceDetails = useMemo(() => {
     const allocatedSet = new Set(
       data.categoryAllocations.map((a) => a.categoryId)
     );
-    const out = new Set<string>();
+    const categoryNamesById = new Map<string, string>();
+    const walk = (n: CostCategoryNode) => {
+      categoryNamesById.set(n.id, n.name);
+      for (const child of n.children) walk(child);
+    };
+    for (const n of data.tree) walk(n);
+
+    const out = new Map<
+      string,
+      {
+        totalAmount: number;
+        targets: { categoryId: string; categoryName: string; amount: number }[];
+      }
+    >();
     for (const [categoryId, inflow] of Object.entries(data.categoryInflows)) {
-      if (allocatedSet.has(categoryId)) continue; // own horizontal -> not on default
-      for (const src of inflow.sources) out.add(src.cont);
+      if (allocatedSet.has(categoryId)) continue;
+      const categoryName = categoryNamesById.get(categoryId) ?? "Necunoscut";
+      for (const src of inflow.sources) {
+        const entry = out.get(src.cont) ?? { totalAmount: 0, targets: [] };
+        entry.totalAmount += src.amount;
+        entry.targets.push({ categoryId, categoryName, amount: src.amount });
+        out.set(src.cont, entry);
+      }
+    }
+    for (const entry of out.values()) {
+      entry.targets.sort((a, b) => b.amount - a.amount);
     }
     return out;
-  }, [data.categoryAllocations, data.categoryInflows]);
+  }, [data.categoryAllocations, data.categoryInflows, data.tree]);
+
+  const defaultVerticalResidueSourceConts = useMemo(
+    () => new Set(defaultVerticalResidueSourceDetails.keys()),
+    [defaultVerticalResidueSourceDetails]
+  );
 
   const filteredAccounts = filterAccounts(
     data.accounts,
@@ -181,6 +221,8 @@ export function MapariCashflowTab({ data }: Props) {
           residueFilterActive={residueFilterActive}
           setResidueFilterActive={setResidueFilterActive}
           residueSourceContCount={defaultVerticalResidueSourceConts.size}
+          residueSourceConts={defaultVerticalResidueSourceConts}
+          residueSourceDetails={defaultVerticalResidueSourceDetails}
           onMutate={onMutate}
         />
       )}
@@ -363,6 +405,8 @@ function VerticalAxisContent({
   residueFilterActive,
   setResidueFilterActive,
   residueSourceContCount,
+  residueSourceConts,
+  residueSourceDetails,
   onMutate,
 }: {
   data: MapariCashflowData;
@@ -379,6 +423,8 @@ function VerticalAxisContent({
   residueFilterActive: boolean;
   setResidueFilterActive: (v: boolean) => void;
   residueSourceContCount: number;
+  residueSourceConts: Set<string>;
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
   onMutate: () => void;
 }) {
   return (
@@ -389,10 +435,13 @@ function VerticalAxisContent({
         verticals={data.verticals}
         accounts={data.accounts}
         defaultVerticalResidueAbsorbed={data.defaultVerticalResidueAbsorbed}
+        partnerSummariesByCont={data.partnerSummariesByCont}
+        residueSourceDetails={residueSourceDetails}
         verticalFilter={verticalFilter}
         setVerticalFilter={setVerticalFilter}
         residueFilterActive={residueFilterActive}
         setResidueFilterActive={setResidueFilterActive}
+        residueSourceConts={residueSourceConts}
         onMutate={onMutate}
       />
 
@@ -499,10 +548,13 @@ function VerticalsPanel({
   verticals,
   accounts,
   defaultVerticalResidueAbsorbed,
+  partnerSummariesByCont,
+  residueSourceDetails,
   verticalFilter,
   setVerticalFilter,
   residueFilterActive,
   setResidueFilterActive,
+  residueSourceConts,
   onMutate,
 }: {
   clientId: string;
@@ -510,10 +562,13 @@ function VerticalsPanel({
   verticals: VerticalView[];
   accounts: AccountListItem[];
   defaultVerticalResidueAbsorbed: number;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
   verticalFilter: string | null;
   setVerticalFilter: (id: string | null) => void;
   residueFilterActive: boolean;
   setResidueFilterActive: (v: boolean) => void;
+  residueSourceConts: Set<string>;
   onMutate: () => void;
 }) {
   if (!enabled) {
@@ -525,10 +580,13 @@ function VerticalsPanel({
       verticals={verticals}
       accounts={accounts}
       defaultVerticalResidueAbsorbed={defaultVerticalResidueAbsorbed}
+      partnerSummariesByCont={partnerSummariesByCont}
+      residueSourceDetails={residueSourceDetails}
       verticalFilter={verticalFilter}
       setVerticalFilter={setVerticalFilter}
       residueFilterActive={residueFilterActive}
       setResidueFilterActive={setResidueFilterActive}
+      residueSourceConts={residueSourceConts}
       onMutate={onMutate}
     />
   );
@@ -584,20 +642,29 @@ function VerticalsOn({
   verticals,
   accounts,
   defaultVerticalResidueAbsorbed,
+  partnerSummariesByCont,
+  residueSourceDetails,
   verticalFilter,
   setVerticalFilter,
   residueFilterActive,
   setResidueFilterActive,
+  residueSourceConts,
   onMutate,
 }: {
   clientId: string;
   verticals: VerticalView[];
   accounts: AccountListItem[];
   defaultVerticalResidueAbsorbed: number;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
   verticalFilter: string | null;
   setVerticalFilter: (id: string | null) => void;
   residueFilterActive: boolean;
   setResidueFilterActive: (v: boolean) => void;
+  /** Conts that contribute to default-vertical residue. When residueFilter
+   *  is active, the default vertical's inner conts list is narrowed to
+   *  this set so the visual inside-the-column matches the outer list. */
+  residueSourceConts: Set<string>;
   onMutate: () => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -703,7 +770,17 @@ function VerticalsOn({
             key={v.id}
             vertical={v}
             colorIndex={i}
-            accounts={accountsByVertical.get(v.id) ?? []}
+            accounts={(() => {
+              const list = accountsByVertical.get(v.id) ?? [];
+              // When the contabil drilled in via the residue badge, the
+              // inside-the-column list mirrors the outer AccountListPanel:
+              // narrowed to the source conts that contribute to residue.
+              // Same filter, two views — consistent at all times.
+              if (v.isDefault && residueFilterActive) {
+                return list.filter((a) => residueSourceConts.has(a.cont));
+              }
+              return list;
+            })()}
             residueAbsorbed={
               v.isDefault ? defaultVerticalResidueAbsorbed : 0
             }
@@ -735,6 +812,8 @@ function VerticalsOn({
               setResidueFilterActive(!residueFilterActive);
             }}
             onAccountClick={(cont) => setEditingCont(cont)}
+            partnerSummariesByCont={partnerSummariesByCont}
+            residueSourceDetails={residueSourceDetails}
             clientId={clientId}
             onMutate={onMutate}
           />
@@ -845,6 +924,8 @@ function VerticalColumn({
   onToggle,
   onResidueBadgeClick,
   onAccountClick,
+  partnerSummariesByCont,
+  residueSourceDetails,
   clientId,
   onMutate,
 }: {
@@ -868,6 +949,8 @@ function VerticalColumn({
    *  to the source conts contributing to that residue. */
   onResidueBadgeClick: () => void;
   onAccountClick: (cont: string) => void;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
   clientId: string;
   onMutate: () => void;
 }) {
@@ -924,6 +1007,8 @@ function VerticalColumn({
           residueAbsorbed={residueAbsorbed}
           residueFilterActive={residueFilterActive}
           onResidueBadgeClick={onResidueBadgeClick}
+          partnerSummariesByCont={partnerSummariesByCont}
+          residueSourceDetails={residueSourceDetails}
           renaming={renaming}
           onStartRename={() => setRenaming(true)}
           onEndRename={() => {
@@ -1000,6 +1085,8 @@ function ExpandedColumn({
   residueAbsorbed,
   residueFilterActive,
   onResidueBadgeClick,
+  partnerSummariesByCont,
+  residueSourceDetails,
   renaming,
   onStartRename,
   onEndRename,
@@ -1014,6 +1101,8 @@ function ExpandedColumn({
   residueAbsorbed: number;
   residueFilterActive: boolean;
   onResidueBadgeClick: () => void;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
   renaming: boolean;
   onStartRename: () => void;
   onEndRename: () => void;
@@ -1049,7 +1138,13 @@ function ExpandedColumn({
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="font-mono text-[11px] text-gray-light tabular-nums">
                   {accounts.length}{" "}
-                  {accounts.length === 1 ? "cont alocat" : "conturi alocate"}
+                  {residueFilterActive
+                    ? accounts.length === 1
+                      ? "cont sursa reziduu"
+                      : "conturi sursa reziduu"
+                    : accounts.length === 1
+                      ? "cont alocat"
+                      : "conturi alocate"}
                 </span>
                 {vertical.isDefault && (
                   <Tooltip content="Verticala implicita unde merg conturile fara alocare explicita. Nu poti sterge, doar redenumi.">
@@ -1124,6 +1219,80 @@ function ExpandedColumn({
         )}
       </div>
 
+      <ExpandedColumnBody
+        accounts={accounts}
+        vertical={vertical}
+        partnerSummariesByCont={partnerSummariesByCont}
+        residueSourceDetails={residueSourceDetails}
+        residueFilterActive={residueFilterActive}
+        onAccountClick={onAccountClick}
+      />
+    </div>
+  );
+}
+
+/**
+ * The scrollable body of an expanded vertical column. Owns its own search
+ * state so the contabil can quickly find a cont inside a long list without
+ * leaving the column. Filters by cont number, contBase, or denumire —
+ * diacritic-insensitive — same matching rules as the outer search.
+ */
+function ExpandedColumnBody({
+  accounts,
+  vertical,
+  partnerSummariesByCont,
+  residueSourceDetails,
+  residueFilterActive,
+  onAccountClick,
+}: {
+  accounts: AccountListItem[];
+  vertical: VerticalView;
+  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
+  residueSourceDetails: Map<string, ResidueSourceDetail>;
+  residueFilterActive: boolean;
+  onAccountClick: (cont: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const trimmed = query.trim();
+  const filtered =
+    trimmed.length === 0
+      ? accounts
+      : (() => {
+          const needle = stripDiacritics(trimmed.toLowerCase());
+          return accounts.filter((a) =>
+            stripDiacritics(
+              `${a.cont} ${a.contBase} ${a.denumire}`.toLowerCase()
+            ).includes(needle)
+          );
+        })();
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {accounts.length > 0 && (
+        <div
+          className="px-3 py-2 border-b border-dark-3/40"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Cauta in aceasta verticala..."
+            className="h-8 text-[12px]"
+          />
+          {trimmed.length > 0 && (
+            <p
+              className="mt-1 text-[10px] text-gray"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              {filtered.length === 0
+                ? "Niciun cont nu se potriveste."
+                : `${filtered.length} din ${accounts.length} ${
+                    accounts.length === 1 ? "cont" : "conturi"
+                  }.`}
+            </p>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto">
         {accounts.length === 0 ? (
           <p
@@ -1132,46 +1301,381 @@ function ExpandedColumn({
           >
             Niciun cont alocat la aceasta verticala inca.
           </p>
+        ) : filtered.length === 0 ? (
+          <p
+            className="p-4 text-[12px] text-gray italic text-center"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Niciun rezultat pentru &quot;{trimmed}&quot;.
+          </p>
         ) : (
           <ul>
-            {accounts.map((a) => {
-              const rulaj = a.kind === "expense" ? a.rulajD : a.rulajC;
-              const split = a.currentAllocation?.splits.find(
-                (s) => s.verticalId === vertical.id
-              );
-              const percent = split?.percent ?? 100;
-              return (
-                <li key={a.cont} className="border-b border-dark-3/40 last:border-b-0">
-                  <button
-                    type="button"
-                    onClick={() => onAccountClick(a.cont)}
-                    className="w-full flex items-baseline gap-3 px-4 py-2 text-left hover:bg-dark-3/40 transition-colors"
-                    title="Click pentru a edita alocarea"
-                  >
-                    <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[50px]">
-                      {a.cont}
-                    </span>
-                    <span
-                      className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
-                      style={{ letterSpacing: "-0.02em" }}
-                      title={a.denumire}
-                    >
-                      {a.denumire}
-                    </span>
-                    <span className="font-mono text-[10px] tabular-nums shrink-0 w-10 text-right text-gray">
-                      {percent}%
-                    </span>
-                    <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0 min-w-[110px] text-right">
-                      {formatRon(rulaj * (percent / 100))}{" "}
-                      <span className="text-gray">lei</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
+            {filtered.map((a) => (
+              <VerticalContRow
+                key={a.cont}
+                account={a}
+                vertical={vertical}
+                partnerSummary={partnerSummariesByCont[a.contBase] ?? null}
+                residueDetail={
+                  vertical.isDefault
+                    ? residueSourceDetails.get(a.cont) ?? null
+                    : null
+                }
+                residueFilterActive={residueFilterActive}
+                onAccountClick={onAccountClick}
+              />
+            ))}
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * One cont row inside an expanded vertical column. Click on the row body
+ * toggles an inline partner-breakdown drawer; the right-edge "Editeaza"
+ * button still opens the slide-panel for full edit. Progressive disclosure:
+ * compact by default, rich on demand, full editing in the panel.
+ *
+ * The drawer shows: distribution sentence, the 3-segment bar, breakdown
+ * counts/amounts, plus — when the row is a residue source under the default
+ * vertical — the absorbed-by category breakdown so the contabil reads
+ * "this cont contributes X lei via these targets" in one glance.
+ */
+function VerticalContRow({
+  account,
+  vertical,
+  partnerSummary,
+  residueDetail,
+  residueFilterActive,
+  onAccountClick,
+}: {
+  account: AccountListItem;
+  vertical: VerticalView;
+  partnerSummary: PartnerSummary | null;
+  residueDetail: ResidueSourceDetail | null;
+  residueFilterActive: boolean;
+  onAccountClick: (cont: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
+  const split = account.currentAllocation?.splits.find(
+    (s) => s.verticalId === vertical.id
+  );
+  const percent = split?.percent ?? 100;
+  // In residue mode on the default vertical, the displayed amount is the
+  // cont's contribution to residue (not its full rulaj × percent). Same
+  // truth shown both on outer banner and inside the column.
+  const showResidueAmount =
+    residueFilterActive && vertical.isDefault && residueDetail !== null;
+  const displayAmount = showResidueAmount
+    ? residueDetail!.totalAmount
+    : rulaj * (percent / 100);
+  const residuePct =
+    showResidueAmount && rulaj !== 0
+      ? Math.round((residueDetail!.totalAmount / Math.abs(rulaj)) * 100)
+      : null;
+
+  return (
+    <li
+      className="border-b border-dark-3/40 last:border-b-0"
+      data-testid={`vertical-cont-row-${account.cont}`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="group w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-dark-3/40 transition-colors"
+        aria-expanded={open}
+        aria-controls={`vertical-cont-detail-${account.cont}`}
+      >
+        <span
+          className={`shrink-0 transition-colors ${
+            open ? "text-primary" : "text-gray group-hover:text-gray-light"
+          }`}
+          aria-hidden
+        >
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </span>
+        <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[50px]">
+          {account.cont}
+        </span>
+        <span
+          className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
+          style={{ letterSpacing: "-0.02em" }}
+          title={account.denumire}
+        >
+          {account.denumire}
+        </span>
+        {showResidueAmount ? (
+          <span
+            className="font-mono text-[10px] tabular-nums shrink-0 w-12 text-right text-primary"
+            title="Cota din rulajul contului care contribuie la reziduul Toata firma"
+          >
+            {residuePct}%
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] tabular-nums shrink-0 w-10 text-right text-gray">
+            {percent}%
+          </span>
+        )}
+        <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0 min-w-[110px] text-right">
+          {formatRon(displayAmount)} <span className="text-gray">lei</span>
+        </span>
+      </button>
+      {open && (
+        <div
+          id={`vertical-cont-detail-${account.cont}`}
+          className="bg-dark-3/30 px-4 py-3 border-t border-dark-3/40"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ContInlineBreakdown
+            account={account}
+            rulaj={rulaj}
+            vertical={vertical}
+            verticalPercent={percent}
+            residueFilterActive={residueFilterActive}
+            partnerSummary={partnerSummary}
+            residueDetail={
+              vertical.isDefault ? residueDetail : null
+            }
+          />
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => onAccountClick(account.cont)}
+              className="inline-flex items-center gap-1 rounded-md border border-dark-3 bg-dark-2 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-gray-light hover:text-white hover:border-primary/40"
+              style={{ letterSpacing: "0.02em" }}
+            >
+              Vezi parteneri
+              <CornerUpRight size={11} />
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Read-only drawer rendered inside a cont row in the expanded vertical
+ * column. The drawer answers ONE question first, prominently: how much of
+ * this cont's rulaj lands on the selected line of business. Then it shows
+ * the cont-level partner distribution (informative context) and, on the
+ * default vertical, which target categories absorbed residue here.
+ *
+ * The vertical-aware headline is the most important element — the contabil
+ * shouldn't have to do math to know "100% = all 2.991 lei land here".
+ */
+function ContInlineBreakdown({
+  rulaj,
+  vertical,
+  verticalPercent,
+  residueFilterActive,
+  partnerSummary,
+  residueDetail,
+}: {
+  account: AccountListItem;
+  rulaj: number;
+  vertical: VerticalView;
+  /** % of this cont's rulaj that lands on the displayed vertical (1-100).
+   *  Comes from the cont's allocation split for this vertical, or 100 when
+   *  the cont has no explicit allocation and the vertical is the default. */
+  verticalPercent: number;
+  /** True when the user drilled in via the residue badge. Changes the
+   *  headline to talk about residue contribution instead of total flow. */
+  residueFilterActive: boolean;
+  partnerSummary: PartnerSummary | null;
+  residueDetail: ResidueSourceDetail | null;
+}) {
+  const totalRulaj = Math.abs(rulaj);
+  const amountOnVertical = (totalRulaj * verticalPercent) / 100;
+  const residueAmount = residueDetail?.totalAmount ?? 0;
+  const residuePct =
+    totalRulaj > 0 ? Math.round((residueAmount / totalRulaj) * 100) : 0;
+
+  const overridden = partnerSummary?.overriddenRulaj ?? 0;
+  const unresolved = partnerSummary?.unresolvedRulaj ?? 0;
+  const partnerRulaj = partnerSummary?.totalPartnerRulaj ?? 0;
+  const followRulaj = Math.max(0, partnerRulaj - overridden);
+  const overridePct =
+    totalRulaj > 0 ? Math.round((overridden / totalRulaj) * 100) : 0;
+  const followPct =
+    totalRulaj > 0 ? Math.round((followRulaj / totalRulaj) * 100) : 0;
+  const unresolvedPct =
+    totalRulaj > 0 ? Math.round((unresolved / totalRulaj) * 100) : 0;
+  const hasOverrides = (partnerSummary?.mappedPartnerCount ?? 0) > 0;
+  const followCount =
+    (partnerSummary?.partnerCount ?? 0) -
+    (partnerSummary?.mappedPartnerCount ?? 0);
+  const fullFlow = verticalPercent >= 100;
+
+  return (
+    <div className="space-y-3">
+      {/* The headline — the answer to "how much of this cont lands here". */}
+      <div className="rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2">
+        {residueFilterActive && residueDetail ? (
+          <p
+            className="text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Contul contribuie cu{" "}
+            <span className="font-mono text-white tabular-nums font-semibold">
+              {formatRon(residueAmount)} lei
+            </span>{" "}
+            reziduu pe{" "}
+            <span className="font-semibold text-white">{vertical.name}</span>
+            {" "}({residuePct}% din rulajul cumulat de{" "}
+            <span className="font-mono tabular-nums">
+              {formatRon(totalRulaj)} lei
+            </span>
+            ).
+          </p>
+        ) : (
+          <p
+            className="text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Pe{" "}
+            <span className="font-semibold text-white">{vertical.name}</span>{" "}
+            ajung{" "}
+            <span className="font-mono text-white tabular-nums font-semibold">
+              {formatRon(amountOnVertical)} lei
+            </span>
+            {fullFlow ? (
+              <>
+                {" "}— tot rulajul contului ({formatRon(totalRulaj)} lei).
+              </>
+            ) : (
+              <>
+                {" "}din{" "}
+                <span className="font-mono tabular-nums">
+                  {formatRon(totalRulaj)} lei
+                </span>{" "}
+                rulaj cumulat ({verticalPercent}%).
+              </>
+            )}
+          </p>
+        )}
+      </div>
+
+      {/* Cont-level partner distribution — context, not the headline answer.
+          When the cont has partner exceptions, show the 3-segment bar +
+          breakdown. When no exceptions, a single italic line. */}
+      {partnerSummary && (
+        <div className="space-y-1.5">
+          <p
+            className="font-mono text-[9px] uppercase tracking-wider text-gray"
+            style={{ letterSpacing: "0.06em" }}
+          >
+            Distributia contului intre parteneri
+          </p>
+          {hasOverrides ? (
+            <>
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-dark-2">
+                {followPct > 0 && (
+                  <div
+                    className="h-full bg-gray/40"
+                    style={{ width: `${followPct}%` }}
+                    aria-hidden
+                  />
+                )}
+                {overridePct > 0 && (
+                  <div
+                    className="h-full bg-primary"
+                    style={{ width: `${overridePct}%` }}
+                    aria-hidden
+                  />
+                )}
+                {unresolvedPct > 0 && (
+                  <div
+                    className="h-full bg-dark-3"
+                    style={{ width: `${unresolvedPct}%` }}
+                    aria-hidden
+                  />
+                )}
+              </div>
+              <ul
+                className="font-mono text-[10px] text-gray tabular-nums space-y-0.5"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                {partnerSummary.mappedPartnerCount > 0 && (
+                  <li>
+                    <span className="inline-block h-1.5 w-1.5 rounded-sm bg-primary mr-1.5 align-middle" />
+                    {partnerSummary.mappedPartnerCount}{" "}
+                    {partnerSummary.mappedPartnerCount === 1
+                      ? "partener cu exceptie"
+                      : "parteneri cu exceptie"}{" "}
+                    · {formatRon(overridden)} lei · {overridePct}%
+                  </li>
+                )}
+                {followCount > 0 && (
+                  <li>
+                    <span className="inline-block h-1.5 w-1.5 rounded-sm bg-gray/40 mr-1.5 align-middle" />
+                    {followCount}{" "}
+                    {followCount === 1
+                      ? "partener urmeaza contul"
+                      : "parteneri urmeaza contul"}{" "}
+                    · {formatRon(followRulaj)} lei · {followPct}%
+                  </li>
+                )}
+                {unresolved > 0 && (
+                  <li>
+                    <span className="inline-block h-1.5 w-1.5 rounded-sm bg-dark-3 border border-gray/30 mr-1.5 align-middle" />
+                    Fara partener identificat · {formatRon(unresolved)} lei ·{" "}
+                    {unresolvedPct}%
+                  </li>
+                )}
+              </ul>
+            </>
+          ) : (
+            <p
+              className="text-[11px] text-gray italic"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Toti partenerii urmeaza maparea contului. Niciun partener cu
+              exceptie individuala.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Residue absorption — ONLY when on default vertical and the cont
+          actually contributes residue (its partner exceptions target
+          categories without their own horizontal). */}
+      {residueDetail && residueDetail.targets.length > 0 && (
+        <div className="pt-2 border-t border-dark-3/60">
+          <p
+            className="text-[9px] uppercase tracking-wider text-gray font-mono mb-1"
+            style={{ letterSpacing: "0.06em" }}
+          >
+            Cum ajung banii pe {vertical.name}: reziduu din exceptii partener
+          </p>
+          <ul
+            className="font-mono text-[10px] text-gray-light tabular-nums space-y-0.5"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {residueDetail.targets.map((t) => (
+              <li key={t.categoryId} className="flex items-baseline gap-2">
+                <span className="text-primary" aria-hidden>
+                  ↙
+                </span>
+                <span className="flex-1 truncate" title={t.categoryName}>
+                  {t.categoryName}
+                </span>
+                <span className="shrink-0">{formatRon(t.amount)} lei</span>
+              </li>
+            ))}
+          </ul>
+          <p
+            className="mt-1 text-[10px] text-gray italic"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Banii cad pe {vertical.name} pentru ca aceste categorii nu au
+            orizontala proprie setata.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
