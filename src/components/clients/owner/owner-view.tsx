@@ -1,27 +1,36 @@
 /**
- * OwnerView (home / acasa) — the summary page of the firma module.
+ * OwnerView (home / acasa) — the firma's overview page.
  *
- * Renders inside OwnerLayout's content slot. Shows:
- *   - PageHeader: "Cum sta firma in {luna}"
- *   - 4 KPI cards (bani, de primit, de platit, profit)
- *   - Cash position
- *   - Evolution chart
- *   - Outstanding clienti + furnizori
- *   - Owner withdrawals
- *   - Insights
+ * Renders inside OwnerLayout. Information architecture:
  *
- * Each card/section links to its dedicated detail page (via buildPageHref).
+ *   1. PageHeader — title + period + trust badge
+ *   2. HeroSummary — cash + 3 supporting metrics (clicks into detail pages)
+ *   3. HealthPulse — 3-ring vitals (runway, salary, margin)
+ *   4. CashflowWaterfall — how the month moved cash
+ *   5. EvolutionChart — last 12 months, interactive
+ *   6. YoyComparison — vs same month a year ago
+ *   7. Two-up: CategoryBreakdown expenses + revenue (interactive donuts)
+ *   8. TopExpensesList — biggest single payments
+ *   9. VerticalBreakdownCard — per-business-line decomposition
+ *  10. CashPositionCard — disponibil vs obligatii
+ *  11. OutstandingTables — clienti + furnizori
+ *  12. OwnerWithdrawalsCard — money between owner and firm
+ *  13. InsightsList — semantic flags
+ *
+ * Each block links to its detail page so the antreprenor can drill in.
  */
 
 import Link from "next/link";
-import { Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
 import type { OwnerContext } from "./owner-layout";
 import { buildPageHref } from "./owner-context";
-import { lei, monthLabel } from "@/lib/owner-format";
+import { monthLabel } from "@/lib/owner-format";
 import { PageHeader } from "./page-header";
 import { TrustBadge } from "./trust-badge";
-import { KpiCard } from "./kpi-card";
+import { HeroSummary } from "./hero-summary";
+import { HealthPulse } from "./health-pulse";
+import { CashflowWaterfall } from "./cashflow-waterfall";
 import { CashPositionCard } from "./cash-position-card";
 import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
@@ -29,7 +38,6 @@ import { OutstandingTable } from "./outstanding-table";
 import { InsightsList } from "./insights-list";
 import { CategoryBreakdownCard } from "./category-breakdown-card";
 import { TopExpensesList } from "./top-expenses-list";
-import { RunwayAndSalaryCards } from "./runway-cards";
 import { YoyComparison } from "./yoy-comparison";
 import { VerticalBreakdownCard } from "./vertical-breakdown-card";
 
@@ -58,31 +66,14 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
     dataQuality,
   } = snapshot;
 
-  const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
-  const profit = summary.cifraAfaceriTotal - summary.cheltuieliTotal;
-
-  const sparkCash = trends.slice(-6).map((t) => t.cashEnd);
-  const sparkReceivables = trends.slice(-6).map((t) => t.receivables);
-  const sparkPayables = trends.slice(-6).map((t) => t.payables);
-  const sparkProfit = trends.slice(-6).map((t) => t.profit);
-
-  let cashHelper: string | undefined;
-  if (trends.length >= 2) {
-    const last = trends[trends.length - 1];
-    const prev = trends[trends.length - 2];
-    if (prev.cashEnd > 0) {
-      cashHelper =
-        last.cashEnd > prev.cashEnd
-          ? "In crestere fata de luna trecuta"
-          : "In scadere fata de luna trecuta";
-    }
-  }
+  const period = monthLabel(meta.year, meta.month);
 
   return (
     <>
       <PageHeader
-        title={`Cum sta firma in ${monthLabel(meta.year, meta.month)}`}
-        subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele sunt actualizate de fiecare data cand contabilul incarca un nou jurnal."
+        eyebrow={period}
+        title={`Cum sta ${meta.name}`}
+        subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele se actualizeaza dupa fiecare upload de jurnal."
         actions={
           dataQuality ? (
             <TrustBadge
@@ -94,111 +85,101 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         }
       />
 
-      {/* KPI grid — each card links to its detail page */}
-      <section className="mb-10">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCardLink href={buildPageHref(context, "bani")}>
-            <KpiCard
-              label="Bani in casa si banca"
-              value={lei(totalCash)}
-              helper={cashHelper}
-              tone="neutral"
-              sparkline={sparkCash}
-              icon={<Wallet size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "clienti")}>
-            <KpiCard
-              label="De primit de la clienti"
-              value={lei(summary.clientiNeincasati)}
-              helper={`${outstanding.clienti.length} clienti cu facturi neincasate`}
-              tone="neutral"
-              sparkline={sparkReceivables}
-              icon={<ArrowDownLeft size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "furnizori")}>
-            <KpiCard
-              label="De platit furnizorilor"
-              value={lei(summary.furnizoriNeachitati)}
-              helper={`${outstanding.furnizori.length} furnizori cu facturi neplatite`}
-              tone="neutral"
-              sparkline={sparkPayables}
-              icon={<ArrowUpRight size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "profit")}>
-            <KpiCard
-              label="Profit anul acesta"
-              value={lei(profit)}
-              helper={
-                marjaOperationala !== undefined && marjaOperationala !== null
-                  ? `Marja ${marjaOperationala.toFixed(1)}% din vanzari`
-                  : undefined
-              }
-              tone={profit >= 0 ? "positive" : "negative"}
-              sparkline={sparkProfit}
-              icon={<TrendingUp size={14} />}
-            />
-          </KpiCardLink>
-        </div>
-      </section>
+      {/* 1. Hero — cash + 3 metrics */}
+      <Section className="mb-8">
+        <HeroSummary
+          summary={summary}
+          trends={trends}
+          outstandingClientiCount={outstanding.clienti.length}
+          outstandingFurnizoriCount={outstanding.furnizori.length}
+          yoy={yoy}
+          marjaOperationala={marjaOperationala ?? null}
+          hrefs={{
+            bani: buildPageHref(context, "bani"),
+            clienti: buildPageHref(context, "clienti"),
+            furnizori: buildPageHref(context, "furnizori"),
+            profit: buildPageHref(context, "profit"),
+          }}
+        />
+      </Section>
 
+      {/* 2. Vital signs — runway, salary, margin */}
+      <Section className="mb-8">
+        <HealthPulse
+          runway={runway}
+          salary={salaryAffordability}
+          margin={marjaOperationala ?? null}
+        />
+      </Section>
+
+      {/* 3. Cashflow waterfall — how this month moved cash */}
+      <Section className="mb-8">
+        <CashflowWaterfall trends={trends} />
+      </Section>
+
+      {/* 4. Evolution chart — 12 months */}
+      <SectionWithLink
+        href={buildPageHref(context, "evolutie")}
+        label="Vezi evolutie completa"
+        className="mb-8"
+      >
+        <EvolutionChart data={trends} />
+      </SectionWithLink>
+
+      {/* 5. YoY (hidden when no prev-year data) */}
       {yoy.hasPreviousYear && (
-        <section className="mb-10">
+        <Section className="mb-8">
           <YoyComparison yoy={yoy} />
-        </section>
+        </Section>
       )}
 
-      <section className="mb-10">
-        <RunwayAndSalaryCards runway={runway} salary={salaryAffordability} />
-      </section>
-
-      <section className="mb-10">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* 6. Where did the money go + come from — two interactive donuts */}
+      <Section className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <CategoryBreakdownCard
             title="Unde s-au dus banii"
-            subtitle={`Cheltuielile lunii ${monthLabel(meta.year, meta.month)}, grupate.`}
+            subtitle={`Cheltuielile lunii ${period}, pe categorii.`}
             items={expenseBreakdown}
             tone="expenses"
             emptyMessage="Nicio cheltuiala inregistrata luna aceasta."
           />
           <CategoryBreakdownCard
             title="De unde au venit banii"
-            subtitle={`Veniturile lunii ${monthLabel(meta.year, meta.month)}, grupate.`}
+            subtitle={`Veniturile lunii ${period}, pe categorii.`}
             items={revenueBreakdown}
             tone="revenue"
             emptyMessage="Niciun venit inregistrat luna aceasta."
           />
         </div>
-      </section>
+      </Section>
 
-      <section className="mb-10">
+      {/* 7. Top expenses */}
+      <Section className="mb-8">
         <TopExpensesList
           items={topMonthlyExpenses}
           subtitle="Cele mai mari plati ale lunii, ordonate descrescator."
         />
-      </section>
+      </Section>
 
+      {/* 8. Verticals (hidden when feature off) */}
       {verticalBreakdown.length > 0 && (
-        <section className="mb-10">
-          <VerticalBreakdownCard
-            items={verticalBreakdown}
-            periodLabel={monthLabel(meta.year, meta.month)}
-          />
-        </section>
+        <Section className="mb-8">
+          <VerticalBreakdownCard items={verticalBreakdown} periodLabel={period} />
+        </Section>
       )}
 
-      <SectionWithLink href={buildPageHref(context, "bani")} label="Vezi detalii bani" className="mb-10">
+      {/* 9. Cash position */}
+      <SectionWithLink
+        href={buildPageHref(context, "bani")}
+        label="Vezi detalii bani"
+        className="mb-8"
+      >
         <CashPositionCard data={cashPosition} />
       </SectionWithLink>
 
-      <SectionWithLink href={buildPageHref(context, "evolutie")} label="Vezi evolutie completa" className="mb-10">
-        <EvolutionChart data={trends} />
-      </SectionWithLink>
-
-      <section className="mb-10">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* 10. Outstanding partners */}
+      <Section className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="space-y-2">
             <OutstandingTable variant="clienti" partners={outstanding.clienti} />
             <SectionLink href={buildPageHref(context, "clienti")} label="Vezi toti clientii" />
@@ -208,40 +189,51 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
             <SectionLink href={buildPageHref(context, "furnizori")} label="Vezi toti furnizorii" />
           </div>
         </div>
-      </section>
+      </Section>
 
-      <SectionWithLink href={buildPageHref(context, "eu")} label="Vezi istoricul complet" className="mb-10">
+      {/* 11. Owner withdrawals */}
+      <SectionWithLink
+        href={buildPageHref(context, "eu")}
+        label="Vezi istoricul complet"
+        className="mb-8"
+      >
         <OwnerWithdrawalsCard data={ownerWithdrawals} />
       </SectionWithLink>
 
-      <SectionWithLink href={buildPageHref(context, "sanatate")} label="Vezi toate semnalele" className="mb-10">
+      {/* 12. Insights */}
+      <SectionWithLink
+        href={buildPageHref(context, "sanatate")}
+        label="Vezi toate semnalele"
+        className="mb-8"
+      >
         <InsightsList insights={insights} />
       </SectionWithLink>
 
-      <section className="border-t border-dark-3 pt-6 space-y-2">
+      {/* Footer micro-print */}
+      <footer className="border-t border-dark-3 pt-6">
         <p
-          className="text-[12px] text-gray max-w-2xl"
+          className="text-[12px] text-gray max-w-2xl leading-relaxed"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Pentru detalii contabile (balanta, plan de conturi, F20), vorbeste cu contabilul tau. Acolo
-          gasesti numere oficiale, exact cele depuse la ANAF.
+          Pentru detalii contabile (balanta, plan de conturi, F20), vorbeste cu
+          contabilul tau. Acolo gasesti numere oficiale, exact cele depuse la
+          ANAF.
         </p>
-        {/* Docs link hidden until the owner-facing doc is rewritten in the
-            new vocabulary (orizontal/vertical/linie de business). */}
-      </section>
+      </footer>
     </>
   );
 }
 
-function KpiCardLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="block rounded-xl transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-    >
-      {children}
-    </Link>
-  );
+/* -------------------------- Layout primitives ---------------------------- */
+
+function Section({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <section className={className}>{children}</section>;
 }
 
 function SectionWithLink({
