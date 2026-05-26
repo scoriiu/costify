@@ -56,9 +56,11 @@ export default async function FirmaHomePage(props: Props) {
       ? await getPublishedView(client.id, requestedYear, requestedMonth)
       : await getLatestPublishedView(client.id);
 
+  const ownerUser = { name: user.name, email: user.email };
+
   if (!published) {
     return (
-      <OwnerLayout context={context}>
+      <OwnerLayout context={context} user={ownerUser}>
         <NothingPublishedScreen clientName={client.name} />
       </OwnerLayout>
     );
@@ -68,7 +70,7 @@ export default async function FirmaHomePage(props: Props) {
   const viewMode = mode === "detailed" ? "detailed" : "simple";
 
   return (
-    <OwnerLayout context={context}>
+    <OwnerLayout context={context} user={ownerUser}>
       <PublishedPeriodBanner
         year={published.year}
         month={published.month}

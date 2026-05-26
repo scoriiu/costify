@@ -1,7 +1,12 @@
 export { OwnerView } from "./owner-view";
 export { OwnerLayout } from "./owner-layout";
 export { PageHeader } from "./page-header";
-export type { OwnerContext, OwnerPageKey } from "./owner-layout";
+export type {
+  OwnerContext,
+  OwnerPageKey,
+  OwnerUser,
+  PreviewBackTarget,
+} from "./owner-layout";
 export { buildOwnerContextForFirma, buildOwnerContextForPreview } from "./owner-context";
 export { KpiCard } from "./kpi-card";
 export { CashPositionCard } from "./cash-position-card";

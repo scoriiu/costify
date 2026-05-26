@@ -76,20 +76,27 @@ export default async function ClientDetailPage(props: Props) {
       activePage: "home",
     });
 
-    // List of published periods for the period selector — these are the
-    // periods the owner can see in production. The accountant can also
-    // preview unpublished periods via year/month URL params.
+    // Back link for the preview strip — returns the accountant to the work
+    // view, preserving the tab/period they came from when possible.
+    const backParams = new URLSearchParams();
+    if (searchParams.tab) backParams.set("tab", searchParams.tab);
+    if (year) backParams.set("year", String(year));
+    if (month) backParams.set("month", String(month));
+    const backQs = backParams.toString();
+    const previewBack = {
+      href: `/clients/${client.slug}${backQs ? `?${backQs}` : ""}`,
+      label: client.name,
+    };
+
     const publishedList = await listPublishedPeriods(client.id);
     const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
 
-    // Determine which period to compute. URL year/month wins; otherwise the
-    // latest period with journal data.
     const previewYear = year ?? null;
     const previewMonth = month ?? null;
 
     if (!previewYear || !previewMonth) {
       return (
-        <OwnerLayout context={context}>
+        <OwnerLayout context={context} previewBack={previewBack}>
           <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
             <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
               Nicio luna disponibila
@@ -122,7 +129,7 @@ export default async function ClientDetailPage(props: Props) {
     const previewMarja = previewKpis?.marjaOperationala ?? null;
 
     return (
-      <OwnerLayout context={context}>
+      <OwnerLayout context={context} previewBack={previewBack}>
         <OwnerView
           snapshot={snapshot}
           context={context}

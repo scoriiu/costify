@@ -37,7 +37,8 @@ export default async function FirmaIstoricPage(props: Props) {
   const rows = await listOwnerAuditTrail(client.id, { limit: 100 });
 
   return (
-    <OwnerLayout context={context}>
+    <OwnerLayout context={context} user={{ name: user.name, email: user.email }}>
+
       <div className="mb-6">
         <h1
           className="text-[28px] font-semibold text-white"

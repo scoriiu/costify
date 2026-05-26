@@ -62,7 +62,7 @@ export function SectionQuickNav({ items }: Props) {
   return (
     <nav
       aria-label="Sectiunile paginii"
-      className="hidden xl:block fixed right-4 top-1/2 -translate-y-1/2 z-20"
+      className="hidden xl:block fixed right-4 top-24 z-20 max-h-[calc(100vh-7rem)] overflow-y-auto"
     >
       <ul className="space-y-1 rounded-xl border border-dark-3 bg-dark-2/80 backdrop-blur-md p-1.5 shadow-lg">
         {items.map((item) => {
