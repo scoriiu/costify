@@ -1,203 +1,375 @@
 /**
- * OwnerView (home / acasa) — the summary page of the firma module.
+ * OwnerView (Acasa) — the firma's overview page.
  *
- * Renders inside OwnerLayout's content slot. Shows:
- *   - PageHeader: "Cum sta firma in {luna}"
- *   - 4 KPI cards (bani, de primit, de platit, profit)
- *   - Cash position
- *   - Evolution chart
- *   - Outstanding clienti + furnizori
- *   - Owner withdrawals
- *   - Insights
+ * Per Claudia spec §4.1: ONE scrollable page, 9 sections, anchor TOC on the
+ * right (SectionQuickNav). No sub-routes. Every "see more" is a drill-down
+ * (expand inline / open dialog) — not a navigation away from this page.
  *
- * Each card/section links to its dedicated detail page (via buildPageHref).
+ *  §6  Pe scurt        — VerdictBanner + KpiStrip + HeroSummary
+ *  §10 Sanatate        — HealthScoreCard (composite + 4 subscores)
+ *  §8  Cash-flow       — CashflowSplitChart (O/I/F) + CashflowWaterfall
+ *  §7  Evolutie        — EvolutionChart (12 luni) + YoyComparison
+ *  §9  Venituri/chelt. — PnlWaterfall + CategoryBreakdown + TopActivity + TopExpenses
+ *      Verticals       — VerticalBreakdownCard (per linie de business)
+ *  §11 Obligatii       — ObligationsCalendar + CashPositionCard
+ *  §11 Parteneri       — OutstandingTable clienti + furnizori
+ *      Eu si firma     — OwnerWithdrawalsCard
+ *  §12 Patrimoniu      — PatrimoniuView (Activ vs Pasiv)
+ *  §10 L2              — RatiosCatalog (mode=detailed only)
+ *  §13 Insights        — InsightsList (semantic flags)
  */
 
-import Link from "next/link";
-import { Wallet, ArrowDownLeft, ArrowUpRight, TrendingUp, ArrowRight } from "lucide-react";
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
 import type { OwnerContext } from "./owner-layout";
-import { buildPageHref } from "./owner-context";
-import { lei, monthLabel } from "@/lib/owner-format";
+import { monthLabel } from "@/lib/owner-format";
 import { PageHeader } from "./page-header";
-import { KpiCard } from "./kpi-card";
+import { TrustBadge } from "./trust-badge";
+import { HeroSummary } from "./hero-summary";
+import { HealthScoreCard } from "./health-score-card";
+import { CashflowWaterfall } from "./cashflow-waterfall";
+import { CashflowSplitChart } from "./cashflow-split-chart";
 import { CashPositionCard } from "./cash-position-card";
 import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
 import { OutstandingTable } from "./outstanding-table";
 import { InsightsList } from "./insights-list";
+import { CategoryBreakdownCard } from "./category-breakdown-card";
+import { TopExpensesList } from "./top-expenses-list";
+import { YoyComparison } from "./yoy-comparison";
+import { VerticalBreakdownCard } from "./vertical-breakdown-card";
+import { SectionQuickNavDynamic } from "./section-quick-nav-dynamic";
+import { VerdictBanner } from "./verdict-banner";
+import { KpiStrip } from "./kpi-strip";
+import { PnlWaterfall } from "./pnl-waterfall";
+import { TopActivityList } from "./top-activity-list";
+import { ObligationsCalendar } from "./obligations-calendar";
+import { RatiosCatalog } from "./ratios-catalog";
+import { PatrimoniuView } from "./patrimoniu-view";
+import { PeriodSelector, type PeriodOption } from "./period-selector";
+import { ViewModeToggle } from "./view-mode-toggle";
+import {
+  ViewModeProvider,
+  DetailedOnly,
+  type ViewMode,
+} from "./view-mode-context";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
   context: OwnerContext;
   marjaOperationala?: number | null;
+  /** Published periods available for the period selector. When empty, the
+   *  selector is hidden. */
+  availablePeriods?: PeriodOption[];
+  /** Initial mode read from the URL (?mode=detailed). After mount, user
+   *  preference from localStorage wins. Defaults to "simple". */
+  mode?: ViewMode;
 }
 
-export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewProps) {
-  const { meta, summary, cashPosition, ownerWithdrawals, trends, insights, outstanding } = snapshot;
+export function OwnerView({
+  snapshot,
+  marjaOperationala,
+  availablePeriods = [],
+  mode = "simple",
+}: OwnerViewProps) {
+  const {
+    meta,
+    summary,
+    cashPosition,
+    ownerWithdrawals,
+    trends,
+    insights,
+    outstanding,
+    expenseBreakdown,
+    revenueBreakdown,
+    topMonthlyExpenses,
+    runway: _runway,
+    salaryAffordability: _salaryAffordability,
+    yoy,
+    verticalBreakdown,
+    dataQuality,
+    verdict,
+    kpiStrip,
+    cashflowBreakdown,
+    obligations,
+    healthScore,
+    ratios,
+    patrimoniu,
+    topCustomersByActivity,
+    topSuppliersByActivity,
+  } = snapshot;
 
-  const totalCash = summary.soldRegistruCasa + summary.soldConturiBancare;
-  const profit = summary.cifraAfaceriTotal - summary.cheltuieliTotal;
+  const period = monthLabel(meta.year, meta.month);
 
-  const sparkCash = trends.slice(-6).map((t) => t.cashEnd);
-  const sparkReceivables = trends.slice(-6).map((t) => t.receivables);
-  const sparkPayables = trends.slice(-6).map((t) => t.payables);
-  const sparkProfit = trends.slice(-6).map((t) => t.profit);
-
-  let cashHelper: string | undefined;
-  if (trends.length >= 2) {
-    const last = trends[trends.length - 1];
-    const prev = trends[trends.length - 2];
-    if (prev.cashEnd > 0) {
-      cashHelper =
-        last.cashEnd > prev.cashEnd
-          ? "In crestere fata de luna trecuta"
-          : "In scadere fata de luna trecuta";
-    }
-  }
+  const { base: baseNav, tail: tailNav } = buildNavItems({
+    hasYoy: yoy.hasPreviousYear,
+    hasVerticals: verticalBreakdown.length > 0,
+    hasInsights: insights.length > 0,
+    hasObligations: obligations.length > 0,
+    hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
+  });
 
   return (
-    <>
+    <ViewModeProvider initialMode={mode}>
       <PageHeader
-        title={`Cum sta firma in ${monthLabel(meta.year, meta.month)}`}
-        subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele sunt actualizate de fiecare data cand contabilul incarca un nou jurnal."
+        eyebrow={period}
+        title={`Cum sta ${meta.name}`}
+        subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele se actualizeaza dupa fiecare upload de jurnal."
+        actions={
+          <>
+            <ViewModeToggle />
+            {availablePeriods.length > 0 && (
+              <PeriodSelector
+                currentYear={meta.year}
+                currentMonth={meta.month}
+                options={availablePeriods}
+              />
+            )}
+            {dataQuality && (
+              <TrustBadge
+                coveragePercent={dataQuality.coveragePercent}
+                partnerOverrideCount={dataQuality.partnerOverrideCount}
+                hasAnyReview={dataQuality.hasAnyReview}
+              />
+            )}
+          </>
+        }
       />
 
-      {/* KPI grid — each card links to its detail page */}
-      <section className="mb-10">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCardLink href={buildPageHref(context, "bani")}>
-            <KpiCard
-              label="Bani in casa si banca"
-              value={lei(totalCash)}
-              helper={cashHelper}
-              tone="neutral"
-              sparkline={sparkCash}
-              icon={<Wallet size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "clienti")}>
-            <KpiCard
-              label="De primit de la clienti"
-              value={lei(summary.clientiNeincasati)}
-              helper={`${outstanding.clienti.length} clienti cu facturi neincasate`}
-              tone="neutral"
-              sparkline={sparkReceivables}
-              icon={<ArrowDownLeft size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "furnizori")}>
-            <KpiCard
-              label="De platit furnizorilor"
-              value={lei(summary.furnizoriNeachitati)}
-              helper={`${outstanding.furnizori.length} furnizori cu facturi neplatite`}
-              tone="neutral"
-              sparkline={sparkPayables}
-              icon={<ArrowUpRight size={14} />}
-            />
-          </KpiCardLink>
-          <KpiCardLink href={buildPageHref(context, "profit")}>
-            <KpiCard
-              label="Profit anul acesta"
-              value={lei(profit)}
-              helper={
-                marjaOperationala !== undefined && marjaOperationala !== null
-                  ? `Marja ${marjaOperationala.toFixed(1)}% din vanzari`
-                  : undefined
-              }
-              tone={profit >= 0 ? "positive" : "negative"}
-              sparkline={sparkProfit}
-              icon={<TrendingUp size={14} />}
-            />
-          </KpiCardLink>
-        </div>
-      </section>
+      <SectionQuickNavDynamic
+        baseItems={baseNav}
+        detailedOnlyItems={[{ id: "ratios", label: "Indicatori" }]}
+        tailItems={tailNav}
+      />
 
-      <SectionWithLink href={buildPageHref(context, "bani")} label="Vezi detalii bani" className="mb-10">
-        <CashPositionCard data={cashPosition} />
-      </SectionWithLink>
+      {/* §6 — Verdict narativ */}
+      <Section id="verdict" className="mb-6">
+        <VerdictBanner verdict={verdict} />
+      </Section>
 
-      <SectionWithLink href={buildPageHref(context, "evolutie")} label="Vezi evolutie completa" className="mb-10">
+      {/* §6 — KPI strip */}
+      {kpiStrip.length > 0 && (
+        <Section id="kpis" className="mb-8">
+          <KpiStrip items={kpiStrip} />
+        </Section>
+      )}
+
+      {/* §6 — Hero (cash + 3 metrics) */}
+      <Section id="hero" className="mb-8">
+        <HeroSummary
+          summary={summary}
+          trends={trends}
+          outstandingClientiCount={outstanding.clienti.length}
+          outstandingFurnizoriCount={outstanding.furnizori.length}
+          yoy={yoy}
+          marjaOperationala={marjaOperationala ?? null}
+        />
+      </Section>
+
+      {/* §10 — Health score composite */}
+      <Section id="sanatate" className="mb-8">
+        <HealthScoreCard data={healthScore} />
+      </Section>
+
+      {/* §8 — Operating/Investing/Financing split */}
+      <Section id="cashflow-split" className="mb-8">
+        <CashflowSplitChart data={cashflowBreakdown} />
+      </Section>
+
+      {/* §8 — Cashflow waterfall (Inceput → Final) */}
+      <Section id="cashflow" className="mb-8">
+        <CashflowWaterfall trends={trends} />
+      </Section>
+
+      {/* §7 — Evolution chart */}
+      <Section id="evolutie" className="mb-8">
         <EvolutionChart data={trends} />
-      </SectionWithLink>
+      </Section>
 
-      <section className="mb-10">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <OutstandingTable variant="clienti" partners={outstanding.clienti} />
-            <SectionLink href={buildPageHref(context, "clienti")} label="Vezi toti clientii" />
-          </div>
-          <div className="space-y-2">
-            <OutstandingTable variant="furnizori" partners={outstanding.furnizori} />
-            <SectionLink href={buildPageHref(context, "furnizori")} label="Vezi toti furnizorii" />
-          </div>
+      {/* §7 — YoY */}
+      {yoy.hasPreviousYear && (
+        <Section id="yoy" className="mb-8">
+          <YoyComparison yoy={yoy} />
+        </Section>
+      )}
+
+      {/* §9 — P&L waterfall */}
+      <Section id="profit" className="mb-8">
+        <PnlWaterfall summary={summary} expenseBreakdown={expenseBreakdown} />
+      </Section>
+
+      {/* §9 — Categories: where money came from + went */}
+      <Section id="breakdowns" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <CategoryBreakdownCard
+            title="Unde s-au dus banii"
+            subtitle={`Cheltuielile lunii ${period}, pe categorii.`}
+            items={expenseBreakdown}
+            tone="expenses"
+            emptyMessage="Nicio cheltuiala inregistrata luna aceasta."
+          />
+          <CategoryBreakdownCard
+            title="De unde au venit banii"
+            subtitle={`Veniturile lunii ${period}, pe categorii.`}
+            items={revenueBreakdown}
+            tone="revenue"
+            emptyMessage="Niciun venit inregistrat luna aceasta."
+          />
         </div>
-      </section>
+      </Section>
 
-      <SectionWithLink href={buildPageHref(context, "eu")} label="Vezi istoricul complet" className="mb-10">
+      {/* §9 — Top customers + suppliers by ACTIVITY this month */}
+      <Section id="top-activity" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <TopActivityList
+            title="Cine ti-a dat bani luna asta"
+            subtitle="Clientii care ti-au platit cele mai mari sume."
+            partners={topCustomersByActivity}
+            flow="in"
+            emptyMessage="Nicio incasare semnificativa de la clienti luna asta."
+          />
+          <TopActivityList
+            title="Cui i-ai dat tu bani luna asta"
+            subtitle="Furnizorii catre care s-au facut cele mai mari plati."
+            partners={topSuppliersByActivity}
+            flow="out"
+            emptyMessage="Nicio plata semnificativa catre furnizori luna asta."
+          />
+        </div>
+      </Section>
+
+      {/* Top single expenses */}
+      <Section id="top-cheltuieli" className="mb-8">
+        <TopExpensesList
+          items={topMonthlyExpenses}
+          subtitle="Cele mai mari plati individuale ale lunii, ordonate descrescator."
+        />
+      </Section>
+
+      {/* Verticals */}
+      {verticalBreakdown.length > 0 && (
+        <Section id="verticals" className="mb-8">
+          <VerticalBreakdownCard items={verticalBreakdown} periodLabel={period} />
+        </Section>
+      )}
+
+      {/* §11 — Obligations calendar + cash position */}
+      <Section id="obligations" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <ObligationsCalendar items={obligations} />
+          <CashPositionCard data={cashPosition} />
+        </div>
+      </Section>
+
+      {/* §11 — Outstanding partners */}
+      <Section id="parteneri" className="mb-8">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <OutstandingTable variant="clienti" partners={outstanding.clienti} />
+          <OutstandingTable variant="furnizori" partners={outstanding.furnizori} />
+        </div>
+      </Section>
+
+      {/* Owner withdrawals */}
+      <Section id="eu" className="mb-8">
         <OwnerWithdrawalsCard data={ownerWithdrawals} />
-      </SectionWithLink>
+      </Section>
 
-      <SectionWithLink href={buildPageHref(context, "sanatate")} label="Vezi toate semnalele" className="mb-10">
-        <InsightsList insights={insights} />
-      </SectionWithLink>
+      {/* §12 — Patrimoniu (Activ vs Pasiv) */}
+      {(patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0) && (
+        <Section id="patrimoniu" className="mb-8">
+          <PatrimoniuView data={patrimoniu} />
+        </Section>
+      )}
 
-      <section className="border-t border-dark-3 pt-6">
+      {/* §10 — Detailed ratios catalog (L2 only) */}
+      <DetailedOnly>
+        <Section id="ratios" className="mb-8">
+          <RatiosCatalog ratios={ratios} />
+        </Section>
+      </DetailedOnly>
+
+      {/* §13 — Insights */}
+      {insights.length > 0 && (
+        <Section id="insights" className="mb-8">
+          <InsightsList insights={insights} />
+        </Section>
+      )}
+
+      <footer className="border-t border-dark-3 pt-6">
         <p
-          className="text-[12px] text-gray max-w-2xl"
+          className="text-[12px] text-gray max-w-2xl leading-relaxed"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Pentru detalii contabile (balanta, plan de conturi, F20), vorbeste cu contabilul tau. Acolo
-          gasesti numere oficiale, exact cele depuse la ANAF.
+          Pentru detalii contabile (balanta, plan de conturi, F20), vorbeste cu
+          contabilul tau. Acolo gasesti numere oficiale, exact cele depuse la
+          ANAF.
         </p>
-      </section>
-    </>
+      </footer>
+    </ViewModeProvider>
   );
 }
 
-function KpiCardLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="block rounded-xl transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-    >
-      {children}
-    </Link>
-  );
-}
-
-function SectionWithLink({
-  href,
-  label,
+function Section({
+  id,
   children,
   className,
 }: {
-  href: string;
-  label: string;
+  id?: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <section className={className}>
-      <div className="space-y-2">
-        {children}
-        <SectionLink href={href} label={label} />
-      </div>
+    <section id={id} className={`scroll-mt-24 ${className ?? ""}`}>
+      {children}
     </section>
   );
 }
 
-function SectionLink({ href, label }: { href: string; label: string }) {
-  return (
-    <div className="flex justify-end">
-      <Link
-        href={href}
-        className="inline-flex items-center gap-1.5 text-[12px] font-medium text-gray-light hover:text-primary transition-colors"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        {label}
-        <ArrowRight size={12} />
-      </Link>
-    </div>
+/**
+ * Build the static parts of the right-side TOC. The mode-dependent
+ * "Indicatori" entry is injected by SectionQuickNavDynamic between `base`
+ * and `tail` when L2 is active — that keeps mode toggling instant
+ * (no server roundtrip, no parent re-render).
+ */
+function buildNavItems({
+  hasYoy,
+  hasVerticals,
+  hasInsights,
+  hasObligations,
+  hasPatrimoniu,
+}: {
+  hasYoy: boolean;
+  hasVerticals: boolean;
+  hasInsights: boolean;
+  hasObligations: boolean;
+  hasPatrimoniu: boolean;
+}): {
+  base: Array<{ id: string; label: string }>;
+  tail: Array<{ id: string; label: string }>;
+} {
+  const base: Array<{ id: string; label: string }> = [
+    { id: "verdict", label: "Pe scurt" },
+    { id: "hero", label: "Privire" },
+    { id: "sanatate", label: "Scor sanatate" },
+    { id: "cashflow-split", label: "Cash O/I/F" },
+    { id: "evolutie", label: "Evolutie" },
+  ];
+  if (hasYoy) base.push({ id: "yoy", label: "An vs an" });
+  base.push(
+    { id: "profit", label: "P&L" },
+    { id: "breakdowns", label: "Categorii" },
+    { id: "top-activity", label: "Top clienti" },
+    { id: "top-cheltuieli", label: "Top plati" }
   );
+  if (hasVerticals) base.push({ id: "verticals", label: "Linii" });
+  if (hasObligations) base.push({ id: "obligations", label: "De platit" });
+  base.push(
+    { id: "parteneri", label: "Parteneri" },
+    { id: "eu", label: "Eu si firma" }
+  );
+  if (hasPatrimoniu) base.push({ id: "patrimoniu", label: "Patrimoniu" });
+
+  const tail: Array<{ id: string; label: string }> = [];
+  if (hasInsights) tail.push({ id: "insights", label: "Semnale" });
+
+  return { base, tail };
 }

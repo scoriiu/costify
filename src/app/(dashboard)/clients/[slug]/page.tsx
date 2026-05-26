@@ -1,22 +1,33 @@
+import type { ReactNode } from "react";
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAvailablePeriods } from "@/modules/balances";
-import { getTransitions } from "@/modules/clients/tax-regime";
 import { computeKpis } from "@/modules/reporting";
 import { getBalanceRows } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
 import { loadOwnerSnapshot } from "@/modules/reporting/owner";
 import { listAccessesForClient } from "@/modules/roles";
+import {
+  listPublishedPeriods,
+  getPublishedView,
+  getLatestPublishedView,
+} from "@/modules/publishing";
+import { listAccountantAuditTrail } from "@/modules/audit";
+import { loadMapariCashflow } from "@/modules/categories";
 import { ClientDetail } from "@/components/clients/client-detail";
+import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
 import { AccessSection } from "@/components/clients/access-section";
+import {
+  PublishingSection,
+  type PublishingSectionRow,
+} from "@/components/clients/publishing-section";
+import { PublishStatusBar } from "@/components/clients/publish-status-bar";
+import { AuditSection } from "@/components/clients/audit-section";
 import {
   OwnerLayout,
   OwnerView,
-  EmptyPagePlaceholder,
   buildOwnerContextForPreview,
-  OWNER_PAGES,
-  type OwnerPageKey,
 } from "@/components/clients/owner";
 
 interface Props {
@@ -26,18 +37,9 @@ interface Props {
     year?: string;
     month?: string;
     view?: string;
-    page?: string;
+    mode?: string;
+    "cashflow-year"?: string;
   }>;
-}
-
-const VALID_OWNER_PAGES: OwnerPageKey[] = [
-  "home", "bani", "clienti", "furnizori", "cheltuieli", "venituri",
-  "profit", "eu", "stat", "evolutie", "sanatate",
-];
-
-function resolveOwnerPage(page: string | undefined): OwnerPageKey {
-  if (!page) return "home";
-  return (VALID_OWNER_PAGES as string[]).includes(page) ? (page as OwnerPageKey) : "home";
 }
 
 export default async function ClientDetailPage(props: Props) {
@@ -62,71 +64,147 @@ export default async function ClientDetailPage(props: Props) {
   const year = searchParams.year ? parseInt(searchParams.year) : lastPeriod?.year;
   const month = searchParams.month ? parseInt(searchParams.month) : lastPeriod?.month;
 
-  // Owner preview branch
+  // Owner preview branch — accountant sees a LIVE recompute (not the stored
+  // published snapshot) so they can preview new dashboard features before
+  // publishing. The owner (/firma) still sees the stored published view.
   if (searchParams.view === "owner") {
-    const activePage = resolveOwnerPage(searchParams.page);
+    const mode = searchParams.mode === "detailed" ? "detailed" : "simple";
     const context = buildOwnerContextForPreview({
       clientId: client.id,
       clientName: client.name,
       slug: client.slug,
-      activePage,
+      activePage: "home",
     });
 
-    // No data → show inside OwnerLayout with a simple message
-    if (!year || !month) {
+    // Back link for the preview strip — returns the accountant to the work
+    // view, preserving the tab/period they came from when possible.
+    const backParams = new URLSearchParams();
+    if (searchParams.tab) backParams.set("tab", searchParams.tab);
+    if (year) backParams.set("year", String(year));
+    if (month) backParams.set("month", String(month));
+    const backQs = backParams.toString();
+    const previewBack = {
+      href: `/clients/${client.slug}${backQs ? `?${backQs}` : ""}`,
+      label: client.name,
+    };
+
+    const publishedList = await listPublishedPeriods(client.id);
+    const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
+
+    const previewYear = year ?? null;
+    const previewMonth = month ?? null;
+
+    if (!previewYear || !previewMonth) {
       return (
-        <OwnerLayout context={context}>
+        <OwnerLayout context={context} previewBack={previewBack}>
           <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
             <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
-              Inca nu ai date despre firma
+              Nicio luna disponibila
             </h1>
-            <p className="mt-3 text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-              Cand contabilul incarca primul jurnal, vei vedea aici cum sta firma.
+            <p className="mt-3 max-w-xl text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              Importa un jurnal pentru a putea previzualiza ce vede patronul.
             </p>
           </div>
         </OwnerLayout>
       );
     }
 
-    // Sub-pages other than home: render placeholder (until real pages are built)
-    if (activePage !== "home") {
-      const meta = OWNER_PAGES[activePage];
-      return (
-        <OwnerLayout context={context}>
-          <EmptyPagePlaceholder title={meta.title} subtitle={meta.subtitle} preview={meta.preview} />
-        </OwnerLayout>
-      );
-    }
+    const snapshot = await loadOwnerSnapshot({
+      clientId: client.id,
+      clientName: client.name,
+      clientCui: client.cui,
+      clientSlug: client.slug,
+      year: previewYear,
+      month: previewMonth,
+    });
 
-    // Home page — full snapshot
-    const [snapshot, balanceResult, catalog] = await Promise.all([
-      loadOwnerSnapshot({
-        clientId: client.id,
-        clientName: client.name,
-        clientCui: client.cui,
-        clientSlug: client.slug,
-        year,
-        month,
-      }),
-      getBalanceRows(client.id, year, month),
+    // Compute marjaOperationala for the hero (used by HeroSummary tooltip).
+    const [previewBalanceRows, previewCatalog] = await Promise.all([
+      getBalanceRows(client.id, previewYear, previewMonth),
       getCatalogMap(),
     ]);
-
-    const marja = balanceResult.ok ? computeKpis(balanceResult.data, catalog).marjaOperationala : null;
+    const previewKpis = previewBalanceRows.ok
+      ? computeKpis(previewBalanceRows.data, previewCatalog)
+      : null;
+    const previewMarja = previewKpis?.marjaOperationala ?? null;
 
     return (
-      <OwnerLayout context={context}>
-        <OwnerView snapshot={snapshot} context={context} marjaOperationala={marja} />
+      <OwnerLayout context={context} previewBack={previewBack}>
+        <OwnerView
+          snapshot={snapshot}
+          context={context}
+          marjaOperationala={previewMarja}
+          availablePeriods={availablePeriods}
+          mode={mode}
+        />
       </OwnerLayout>
     );
   }
 
   // Default: accountant view with tabs
-  const [transitions, accesses] = await Promise.all([
-    getTransitions(client.id),
+  const [accesses, publishedPeriods, currentStatus, auditRows] = await Promise.all([
     listAccessesForClient(client.id),
+    listPublishedPeriods(client.id),
+    year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
+    listAccountantAuditTrail(client.id, { limit: 50 }),
   ]);
   const tab = searchParams.tab ?? "jurnal";
+
+  // Merge journal-having periods with published rows so the Setari panel shows
+  // both "ready to publish" and "already published" months in a single timeline.
+  const publishedMap = new Map(
+    publishedPeriods.map((p) => [`${p.year}-${p.month}`, p])
+  );
+  const journalKeys = new Set(periods.map((p) => `${p.year}-${p.month}`));
+  const allKeys = new Set<string>([...publishedMap.keys(), ...journalKeys]);
+  const publishingRows: PublishingSectionRow[] = Array.from(allKeys)
+    .map((k) => {
+      const [yStr, mStr] = k.split("-");
+      const py = parseInt(yStr, 10);
+      const pm = parseInt(mStr, 10);
+      const pub = publishedMap.get(k);
+      return {
+        year: py,
+        month: pm,
+        isPublished: pub !== undefined,
+        publishedAt: pub ? pub.publishedAt.toISOString() : null,
+        publisherName: pub?.publisherName ?? null,
+        noteForOwner: pub?.noteForOwner ?? null,
+        stale: pub?.stale ?? false,
+        hasJournalData: journalKeys.has(k),
+      };
+    })
+    .sort((a, b) => b.year - a.year || b.month - a.month);
+
+  // Lazy-load the "Mapari Cashflow" tab content only when the user is on
+  // that tab. This avoids running the loader (which fetches balance rows
+  // for the latest period) on every page visit.
+  let mapariCashflowSection: ReactNode = null;
+  if (tab === "mapari-cashflow") {
+    const cashflowYearRaw = searchParams["cashflow-year"];
+    const cashflowYear = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : undefined;
+    const mapariData = await loadMapariCashflow(client.id, {
+      year: Number.isFinite(cashflowYear) ? cashflowYear : undefined,
+    });
+    mapariCashflowSection = <MapariCashflowTab data={mapariData} />;
+  }
+
+  const publishBar =
+    year && month ? (
+      <PublishStatusBar
+        clientId={client.id}
+        clientSlug={client.slug}
+        year={year}
+        month={month}
+        status={{
+          isPublished: currentStatus !== null,
+          publishedAt: currentStatus?.publishedAt.toISOString() ?? null,
+          publisherName: currentStatus?.publisherName ?? null,
+          noteForOwner: currentStatus?.noteForOwner ?? null,
+          stale: currentStatus?.stale ?? false,
+        }}
+      />
+    ) : null;
 
   return (
     <ClientDetail
@@ -152,12 +230,6 @@ export default async function ClientDetailPage(props: Props) {
       activeTab={tab}
       selectedYear={year}
       selectedMonth={month}
-      transitions={transitions.map((t) => ({
-        id: t.id,
-        startDate: t.startDate.toISOString(),
-        taxRegime: t.taxRegime,
-        reason: t.reason,
-      }))}
       accessSection={
         <AccessSection
           clientId={client.id}
@@ -171,6 +243,16 @@ export default async function ClientDetailPage(props: Props) {
           }))}
         />
       }
+      publishSection={
+        <PublishingSection
+          clientId={client.id}
+          clientSlug={client.slug}
+          rows={publishingRows}
+        />
+      }
+      publishBar={publishBar}
+      auditSection={<AuditSection rows={auditRows} />}
+      mapariCashflowSection={mapariCashflowSection}
     />
   );
 }

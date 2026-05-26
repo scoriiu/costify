@@ -61,7 +61,7 @@
         "Impozit (cont conform regimului fiscal valabil pe perioada: 691→rd.78 standard / 698→rd.82 micro / 697→rd.81 IMCA / 695→rd.82 specific)",
         "Rezultat net = rezultat brut - impozit"
       ],
-      "tax_regime_display": "In header-ul tab-ului CPP, regimul valabil pe perioada selectata se afiseaza ca eticheta read-only ('Profit standard 16% · Cont 691'), nu ca dropdown. Schimbarea se face din tab-ul Setari, sectiunea Regim fiscal — un click pe linkul 'Gestioneaza' duce direct acolo. Asta forteaza schimbarea regimului sa fie un act constient cu data de start, nu un toggle accidental pe pagina de raport.",
+      "tax_regime_display": "In header-ul tab-ului CPP, regimul valabil pe perioada selectata se afiseaza ca eticheta read-only ('Profit standard 16% · Cont 691'). Regimul este DETECTAT AUTOMAT din registru jurnal — nu exista UI pentru a-l configura, nu exista un buton 'Gestioneaza'. Sursa de adevar este jurnalul: contul de impozit pe care contabilul l-a folosit determina regimul valabil pentru perioada respectiva.",
       "f20_structure_source": "seeds/f20-structure.json — 84 randuri cu formule simbolice ('rd.16 - rd.54' etc.) pentru subtotale/totaluri si liste explicite de conturi contribuabile pentru randurile de detaliu. Configuratia upgrade-safe: dualRowAccounts (711/712 split pe rd.07/08), taxRegimeAccounts (regim → cont → rand), summary (denumiri agregate → randurile care le poarta) — toate in JSON, deci OMF urmator se aplica prin inlocuirea fisierului fara modificare de cod.",
       "costi_tool": "get_cpp accepta un parametru 'mode' optional: 'simplified' (default) sau 'f20'. Raspunsul contine cheia 'mode' si — pentru f20 — o lista 'rows' cu rowNumber, label, section (A-G), indent, kind (detail/info/subtotal/total), value, accounts (conturile contribuabile) si formula (pentru subtotale/totaluri)."
     },
@@ -140,25 +140,14 @@
     "period_selector": "Vizibil pe tab-urile Balanta si CPP, permite selectie an + luna"
   },
   "setari_tab": {
-    "description": "Al cincilea tab pe pagina clientului. Configuratie per-firma — nu se schimba la fiecare deschidere a aplicatiei. Trei sectiuni separate, vizibil distincte, fiecare cu rolul ei.",
-    "url_pattern": "/clients/{slug}?tab=setari (cu ancora #regim-fiscal pentru deep-link din CPP)",
+    "description": "Al cincilea tab pe pagina clientului. Configuratie per-firma — nu se schimba la fiecare deschidere a aplicatiei. Doua sectiuni separate, vizibil distincte. Sectiunea 'Regim fiscal' a fost ELIMINATA — regimul se detecteaza automat din jurnal si se afiseaza doar in tab-ul CPP (read-only).",
+    "url_pattern": "/clients/{slug}?tab=setari",
     "sections": {
       "informatii_generale": {
         "purpose": "Date de identificare ale firmei — denumire, CUI, CAEN, data adaugarii in platforma.",
         "fields": ["name (denumire firma)", "cui (cod fiscal)", "caen (cod CAEN principal)", "createdAt (read-only)", "entryCount (read-only, derivat)"],
         "edit_pattern": "Mod read-only la deschidere. Buton 'Modifica' transforma blocul in inputs cu Salveaza/Anuleaza. Niciun inline-edit pe click — accountantii asteapta intentie clara pentru modificare.",
         "action": "updateClientInfoAction(clientId, name, cui, caen)"
-      },
-      "regim_fiscal": {
-        "purpose": "Timeline-ul regimurilor fiscale ale firmei. O firma poate trece de la micro la profit standard in cursul anului (depasire prag, optiune voluntara, schimbare an fiscal) — fiecare tranzitie trebuie inregistrata cu data exacta de start.",
-        "model": "TaxRegimePeriod (clientId, startDate UNIQUE per client, taxRegime, reason?, createdBy). Fiecare rand = O tranzitie. NU stocam regim per luna; stocam doar momentele de schimbare.",
-        "ui_pattern": "Lista timeline cu: tranzitia curenta in top (cu badge 'Curent'), urmata de istoric in jos. Buton 'Adauga tranzitie' deschide modal cu data start + regim + motiv optional. Tranzitiile pot fi editate sau sterse (cu exceptia celei initiale daca e singura).",
-        "inception_marker": "Tranzitiile cu startDate <= 1970-01-01 sunt afisate ca 'De la inceput' (nu ca data calendaristica) — sunt seed-uite automat pentru clientii legacy ca sa avem mereu cel putin un rand in timeline.",
-        "actions": [
-          "createTransitionAction(clientId, startDate, taxRegime, reason?)",
-          "updateTransitionAction(clientId, transitionId, {startDate?, taxRegime?, reason?})",
-          "deleteTransitionAction(clientId, transitionId)"
-        ]
       },
       "zona_periculoasa": {
         "purpose": "Operatii destructive separate vizual (border rosu, titlu rosu) astfel incat sa nu fie executate accidental.",
@@ -168,28 +157,41 @@
     }
   },
   "tax_regime_timeline": {
-    "description": "Sistemul de regim fiscal este un timeline, nu un flag pe Client. Fiecare schimbare e o tranzitie cu data de start. Regimul valabil la (year, month) se rezolva luand cea mai recenta tranzitie cu startDate <= ultima zi a lunii.",
-    "model": "TaxRegimePeriod { id, clientId, startDate (UNIQUE per client), taxRegime, reason?, createdBy?, createdAt }",
-    "resolution_algorithm": [
-      "1. Calculeaza ultima zi a lunii (year, month)",
-      "2. SELECT * FROM TaxRegimePeriod WHERE clientId=X AND startDate <= ultima_zi ORDER BY startDate DESC LIMIT 1",
-      "3. Daca exista, regimul e taxRegime al acelei tranzitii",
-      "4. Fallback: Client.taxRegime (coloana legacy, pastrata temporar pentru clientii fara timeline seed-uit)",
-      "5. Fallback final: DEFAULT_TAX_REGIME = 'profit_standard'"
+    "description": "Regimul fiscal este DETECTAT AUTOMAT din registru jurnal. Nu exista UI pentru a-l configura, nu exista tabel in baza de date care sa-l stocheze. Sursa unica de adevar este jurnalul: contul de impozit pe care contabilul l-a folosit determina regimul valabil pentru perioada. Schimbarile de regim se vad din schimbarile de cont in jurnal.",
+    "detector_module": "src/modules/clients/tax-regime-detector.ts — pure function detectTaxRegimeTimeline(entries) returneaza un array de tranzitii cu startDate snap la 1 ianuarie, plus confidence si warnings.",
+    "signature_accounts": {
+      "691 / 4411": "Impozit pe profit — regim profit_standard (16%)",
+      "698 / 4418": "Impozit pe venit micro — regim profit_micro_1 (daca exista salarii pe 421 in acelasi an) sau profit_micro_3 (altfel)",
+      "697 / 4418": "Impozit minim pe cifra de afaceri — regim imca",
+      "695 / 4411 sau 4418": "Impozit specific HoReCa — regim profit_specific"
+    },
+    "detection_algorithm": [
+      "1. Filtreaza entries la 'originating tax accruals' — perechi (contDBase, contCBase) din lista de mai sus. Inregistrarile de inchidere (121 = 69x) sunt ignorate ca sa nu se contorizeze de doua ori.",
+      "2. Grupeaza pe an fiscal. Pentru fiecare an: suma de RON debitata pe 691, 698, 697, 695.",
+      "3. Daca 698 e dominant in anul Y, verifica daca exista miscare pe 421 (salarii) in acelasi an. Cu salarii → profit_micro_1 (1%); fara → profit_micro_3 (3%).",
+      "4. Daca cifra de afaceri (suma rulajTC pe clasa 70x) depaseste plafonul micro (2.500.000 RON pana in 2025, 500.000 RON din 2026), se emite un warning ca firma ar trebui sa fie pe profit_standard.",
+      "5. Anii cu semnale multiple (atat 691 cat si 698) primesc warning 'posibila tranzitie mid-an sau rebooking la inchidere'. Detectorul alege contul cu suma cea mai mare.",
+      "6. Tranzitiile se snap la 1 ianuarie a anului in care apare un regim nou — regimul fiscal romanesc se schimba la inceput de an.",
+      "7. Pentru perioade inainte de orice tranzitie detectata, se returneaza fallback (profit_standard) cu isFallback=true."
     ],
-    "legacy_compat": "Coloana Client.taxRegime e marcata @deprecated in schema.prisma si va fi eliminata dupa ce toti clientii au cel putin un rand in TaxRegimePeriod. Helper seedInceptionTransitionsForLegacyClients() e idempotent si poate fi rulat oricand.",
+    "resolution_for_period": "detectRegimeForPeriod(entries, year, month) ruleaza detectorul si rezolva care tranzitie acopera luna selectata, returnand { taxRegime, source, isFallback }. UI o apeleaza la fiecare schimbare de luna. CPP, F20, KPI si Costi folosesc aceeasi functie.",
     "regimes": {
       "profit_standard": "Profit standard, 16%, contul de impozit 691",
-      "profit_micro_1": "Microintreprindere 1% (sub 60k EUR cifra de afaceri), contul 698",
-      "profit_micro_3": "Microintreprindere 3% (intre 60k si 250k/500k EUR), contul 698",
-      "imca": "Impozit Minim pe Cifra de Afaceri, contul 697 (pentru firme >50M EUR)",
+      "profit_micro_1": "Microintreprindere 1% (cu minim un salariat), contul 698",
+      "profit_micro_3": "Microintreprindere 3% (fara salariati), contul 698",
+      "imca": "Impozit Minim pe Cifra de Afaceri, contul 697",
       "profit_specific": "Impozit specific HoReCa, contul 695",
       "deferred": "Impozit amanat (temporar, mapat pe 698)"
     },
-    "rationale": "Inainte aveam un dropdown pe pagina CPP care schimba un singur Client.taxRegime — acelasi camp pentru toata istoria firmei. Asta era contabil incorect: o firma care a depasit pragul micro la 1 aprilie are nevoie ca Q1 sa fie raportat ca micro si Q2-Q4 ca profit standard. Timeline-ul rezolva asta corect, fara ca contabilul sa schimbe ceva manual la fiecare deschidere de raport.",
+    "rationale": "Inainte stocam regimul intr-un tabel TaxRegimePeriod si contabilul trebuia sa-l mentina manual. Era redundant: jurnalul deja contine raspunsul (contul de impozit folosit). Acum scoatem informatia direct de acolo, fara o sursa secundara care poate sa intre in dezacord. Cand contabilul booking-uieste impozit pe 691 in loc de 698, regimul se schimba automat in toate rapoartele.",
+    "ambiguity_cases": [
+      "Primul trimestru al unei firme noi — niciun impozit acumulat inca. detectRegimeForPeriod returneaza isFallback=true, profit_standard. UI poate afisa ca 'regim implicit'.",
+      "Anul de tranzitie de la micro la profit — uneori contabilul booking-uieste atat 698 (Q1-Q3 micro) cat si 691 (Q4 dupa depasire prag). Detectorul ridica warning si alege contul cu suma cea mai mare.",
+      "Anul cu cifra de afaceri peste plafon dar booking-uit pe micro — warning explicit 'depaseste plafonul micro, firma ar trebui sa fie pe profit_standard'."
+    ],
     "costi_tools_available": [
-      "get_tax_regime_timeline(client_name) → istoricul complet al regimurilor pentru o firma",
-      "get_cpp(client_name, year, month, mode?) → returneaza in raspuns campul taxRegime cu regimul rezolvat pentru acea perioada"
+      "get_tax_regime_timeline(client_name) → istoricul complet detectat din jurnal: fiecare tranzitie cu startDate, regim, confidence, reason, warnings",
+      "get_cpp(client_name, year, month, mode?) → returneaza in raspuns campul taxRegime cu regimul rezolvat pentru acea perioada (detectat din jurnal)"
     ]
   },
   "accounts": {
@@ -221,6 +223,120 @@
       "get_unmapped_accounts(client_name, year, month) → lista conturilor nemapate cu solduri",
       "get_account_catalog(code | prefix | cpp_group) → cauta in catalogul OMFP standard",
       "get_balance returneaza acum si unmappedCount si flag unmapped per rand"
+    ]
+  },
+  "firma_module": {
+    "description": "Modulul /firma este interfata antreprenorului (OWNER) — limbaj patron, fara coduri OMFP, fara debit/credit. Contabilul (ACCOUNTANT) acceseaza acelasi URL cu '?as=clientId' ca preview.",
+    "identity_model": {
+      "User.userRole": "OWNER | ACCOUNTANT",
+      "ClientAccess": "tabel separat: cine (User OWNER) are acces la ce client (read-only)",
+      "redirect_after_login": "OWNER cu 1 client → /firma. OWNER cu N>1 → /firma/selectie. ACCOUNTANT → /clients."
+    },
+    "publishing_model": {
+      "purpose": "OWNER nu vede date in timp real — vede doar luni pe care contabilul le-a publicat explicit. Asta evita ca antreprenorul sa vada cifre incomplete sau in lucru.",
+      "entity": "PublishedPeriod (clientId, year, month, snapshotData, snapshotHash, staleSince, publishedBy)",
+      "lifecycle": "Contabilul publica o luna → snapshot OwnerSnapshot frozen + audit. Modificari ulterioare in jurnal seteaza staleSince. Contabilul republica → snapshot nou.",
+      "ui_accountant": "Tab Balanta/CPP arata bara contextuala 'aprilie 2026 publicat de tine pe X (Re-publica | Retrage)'. Tab Setari arata sectiunea 'Publicare catre firma' cu timeline complet (default 6 luni vizibile, toggle 'Vezi toate').",
+      "ui_owner": "Banner sus 'Date publicate: aprilie 2026 · publicat pe X de Y'. Daca stale: 'Necesita re-publicare'. Daca luna selectata nu este publicata: ecran 'Asteapta sa-ti publice contabilul prima luna'."
+    },
+    "owner_home_cards": {
+      "description": "Pagina /firma (Home) arata urmatoarele sectiuni in ordine, toate calculate din balanta publicata, fara coduri OMFP:",
+      "sections": [
+        "4 KPI cards: Bani in casa si banca, De primit de la clienti, De platit furnizorilor, Profit anul acesta",
+        "Year-over-Year strip: 4 metrici (Vanzari/Cheltuieli/Profit/Cash) comparate cu aceeasi luna anul trecut, cu sageti si pct (ascuns daca nu exista date din anul precedent)",
+        "Runway + Salary cards: 'Cati bani iti ajung' (cash / burn rate mediu pe 3 luni) si 'Cate salarii poti plati' (cash / clasa 64) cu status comfortable/tight/critical",
+        "Breakdown bars: 'Unde s-au dus banii' (categorii cheltuieli 6x cu label patron — Salarii, Servicii, Energie etc) + 'De unde au venit banii' (categorii venituri 7x)",
+        "Top cheltuieli ale lunii: top 10 conturi 6x cu rulajD desc, denumire + pct + suma",
+        "Cash position card, Evolution chart (12 luni), Outstanding clienti/furnizori, Owner withdrawals, Insights"
+      ],
+      "patron_labels": "60→Marfa/materii prime, 61→Energie/apa/intretinere, 62→Servicii externe, 63→Taxe, 64→Salarii, 65→Comisioane, 66→Dobanzi, 68→Amortizare, 69→Impozit profit. Pentru venituri: 70→Vanzari, 74→Subventii, 75→Alte venituri, 76→Financiare.",
+      "implementation": "src/modules/reporting/owner/compute.ts (pure functions). Tipuri in types.ts. UI in src/components/clients/owner/. SNAPSHOT_VERSION=2 (PR-2a)."
+    },
+    "audit_visibility": {
+      "owner_view": "/firma/istoric arata cronologia traduceriilor patron-friendly (filtreaza din audit_event: import, stergere istoric, schimbare denumire cont/banca, publicare luna). NU expune internal noise (firma_dashboard preview, tax_regime transitions).",
+      "accountant_view": "Tab Setari → sectiunea 'Istoric actiuni' arata ultimele 50 evenimente cu vocabular contabil."
+    },
+    "tools_available_for_costi": [
+      "Costi NU are tools care sa atinga direct OwnerSnapshot — el opereaza in vocabular contabil (balanta/CPP/journal/F20).",
+      "Dar Costi trebuie sa stie ce vede firma (snapshot publicat) cand un patron il intreaba: foloseste get_balance/get_cpp pe luna publicata."
+    ]
+  },
+  "mapari_cashflow_module": {
+    "description": "Tab nou pe pagina clientului (intre 'Plan de Conturi' si 'Setari'). Aici contabilul mapeaza conturile OMFP la categorii patron-friendly. Categoriile sunt sursa pentru breakdown-urile pe /firma ('Unde s-au dus banii', 'De unde au venit banii').",
+    "axa_A_vs_axa_B": {
+      "axa_A_natura_cheltuielii": "PR-2b. Generica, partajata cu toate firmele. Categorii ca 'Salarii', 'Electricitate', 'Chirie', 'Servicii IT'. Default OMFP la prima vizita. Contabilul poate restructura.",
+      "axa_B_verticale": "PR-2c (urmator). Specifica fiecarei firme. Pentru QHM21: Outsourcing, Recruitment, Coworking. Majoritatea firmelor nu vor avea verticale. Flag verticalsEnabled pe Client controleaza vizibilitatea.",
+      "rationale": "In Excel-ul lui Sorin, randurile sunt natura cheltuielii (Electricitate apare in toate 4 sheet-uri identic), iar sheet-urile sunt verticalele (Outsourcing/Recruitment/Coworking impart aceeasi Electricitate in proportii diferite). Axele sunt ORTOGONALE. Nu se incoreaza in numele categoriei (NU 'Electricitate Outsourcing')."
+    },
+    "data_model": {
+      "CostCategory": "Ierarhie recursiva (parentId) per client. Field-uri: clientId, parentId, name, kind ('expense'|'revenue'), position, isOmfpDefault. Pure 4-level visual recommandation, dar fara cap hard.",
+      "AccountCategoryMapping": "clientId + cont + scope ('contBase'|'analytic') + categoryId. Unique pe (clientId, cont). Analytic ('628.01') castiga peste contBase ('628') la resolve."
+    },
+    "resolver_algorithm": [
+      "1. Analytic exact match pentru cont complet (628.01 -> Outsourcing)",
+      "2. ContBase match pentru getContBase(cont) (628 -> Servicii)",
+      "3. Prefix walk (628 -> 62 -> 6) pana gaseste hit",
+      "4. Fallback la OMFP hardcoded 2-digit labels din PR-2a"
+    ],
+    "seed_strategy": "Lista categoriilor default e in src/modules/categories/seed.ts (NU in DB). Idempotent: la prima deschidere a tab-ului, daca clientul are 0 categorii, creem 10 expense + 6 revenue. Daca exista deja vreo categorie, nu atingem nimic. Defaults se modifica prin PR review.",
+    "ui_accountant": "Two-panel: stanga arbore Cheltuieli + Venituri (cu Plus/Pencil/Trash pe hover), dreapta lista conturilor 6x/7x cu rulajul ultimei luni si dropdown Categorie. Filter Toate/Nemapate/Cheltuieli/Venituri. Pentru cont analitic: buton 'din baza / individual' (creeaza override analytic). PR Sprint 1-2 mapari-cashflow-rewrite: header arata 'Acoperire generala' (bar tonal + cifre + callout neg/pos). Pe rand cont apare badge 'X parteneri · Y mapati' cand cont are >=3 parteneri.",
+    "partner_overrides": {
+      "description": "PR Sprints 2-6 ale rewrite-ului Mapari Cashflow. Permite contabilului sa mape un partener specific pe un cont la o categorie diferita de default-ul contului. Exemplu: contul 6022 (Combustibil) are default Combustibil, dar partenerul SC Logistic SRL pe 6022 este Servicii curierat — nu combustibil.",
+      "data_model": "PartnerCategoryOverride: (clientId, contBase, partnerNameNormalized) UNIQUE. partnerNameOriginal pentru afisare, source ('manual'|'bulk'|'suggested'), confirmedAt.",
+      "normalizer": "src/lib/partner-normalize.ts: lowercase, strip puncutuatie, drop legal forms (SRL, SRL-D, SA, SC, etc.). 'FAN COURIER SRL' si 'Fan Courier S.R.L.' colapseaza la 'fan courier'. NU strip diacritics.",
+      "ui_slide_panel": "Slide-in panel din dreapta (~480px wide) deschis cu click pe badge 'X parteneri' pe randul contului. Antet: cod cont + denumire + rulaj total + buton X close. Coverage detail: cati lei mapati explicit / pe default / fara partener. Bulk action bar cu Select + 'Aplica' + preview modal (Sprint 3). Filter ToggleGroup 'Toti/Nemapati/Top 10' + SearchInput diacritic-insensitive. Lista parteneri sortata DESC dupa rulaj cu Select(categorie) per rand: prima optiune 'Default contului (X)' care la pick sterge override-ul. Sugestiile Sprint 4 (cross-cont memory) au fundal galben + dot tone-warn + Select pre-filled. Inferior: linie 'Fara partener identificat: X lei' pentru lines fara JournalPartner (TVA, dobanzi, transferuri).",
+      "coverage_extension": "computeCoverage din Sprint 1 trateaza ca 'mapat' rulajul de pe parteneri cu override. Cont fara cont-mapping dar cu acoperire partiala de parteneri = 'partial mapat' (mappedRulaj proportional, dar NU in unmappedCount). Cont cu cont-mapping ignora partner overrides la calculul coverage (cont-mapping castiga).",
+      "scope_per_contBase": "Override e per (contBase, partner), nu per analytic. Decizia exprima semantica de business ('OMV inseamna combustibil pe 6022'), iar analytic-ul in Saga e de regula proiect/locatie. Multiple analytics sub aceeasi contBase share aceeasi suma de partener overrides.",
+      "cross_cont_memory": "Sprint 4: cand un partener apare pe un cont fara override dar are override pe ALT cont, sistemul propune aceeasi categorie. Regula strict-majority: best > all-others combined. Ties si splits = fara sugestie (conservator). Lazy persistence: sugestiile NU se persist in DB, sunt computate la load time; cand contabilul confirma, se creeaza un row real cu source='manual'.",
+      "review_queue": "Sprint 5: dialog card-by-card 'Coada de revizuire' deschis din header callout galben. Itemii sortati DESC dupa rulaj (cel mai mare impact prima). Per card: cont + partener + suma + sistem-propune + motiv (alti conti unde a fost mapat la fel) + actiuni Sari peste/Schimba/Confirma. ESC sau backdrop close.",
+      "redistribution_to_kpi": "Sprint 6: partner overrides afecteaza calculul categoriilor pe /firma. computePartnerCategoryAdjustments produce {analyticCont, targetCategoryId, amount}[]; threadat in computeBreakdownByCategory care subtracts din categoria default a contului si adds la categoria override. Per-analytic granularity (nu doar per-contBase) ca sa respecte default-uri diferite pentru analitice diferite sub acelasi contBase. Totaluri se pastreaza intacte. KPI-uri (cifra afaceri, cheltuieli, rezultat) NU se schimba pentru ca sunt aggregate de cont, nu de categorie. Verticals (axa B) raman per-cont — partener override nu schimba split-ul vertical.",
+      "centralised_exceptions_view": "Post-Sprint-7 polish: dialog 'Toate exceptiile pe parteneri' deschis din header callout (vizibil cand totalOverrideCount > 0). Listeaza toate override-urile firmei intr-un singur loc, sortate DESC dupa rulajul cumulat. Per rand: cont + partener + suma + Select(categorie) inline-editable + buton sterge. Util pentru audit ('ce override-uri am acumulat?'), bulk edit cross-cont si cleanup de override-uri istorice. Search diacritic-insensitive pe partener/cont/categorie. Loader: loadAllExceptions in src/modules/partner-mappings/loader.ts. Action: loadAllExceptionsAction.",
+      "honest_header_truth_line": "Post-Sprint-7 polish: PanelHeader din slide-panel arata un mesaj fix care reflecta starea REALA. Cinci variante: (a) cont nemapat → 'Contul nu e mapat. Partenerii fara exceptie apar pe /firma in Alte cheltuieli/venituri', (b) zero overrides → 'Toti partenerii merg in [Categorie] prin maparea contului', (c) unele overrides → '5 parteneri urmeaza maparea contului catre [Categorie]. 1 partener are exceptie individuala.', (d) toate overrides → 'Toti partenerii au exceptie individuala. Categoria contului ([X]) nu se aplica niciunui partener.', (e) loaded dar fara parteneri → 'Contul e mapat la [Categorie]'. Niciodata mintim — daca contabilul a pus o exceptie, headerul recunoaste.",
+      "badge_threshold": "MIN_PARTNERS_FOR_BADGE = 2 (lowered from 3 Nov 2026 dupa data analysis: ~14% din conturi au exact 2 parteneri si acolo se ascund cele mai multe clasificari gresite). Conturile cu 0 sau 1 partener nu au badge — decizia ramane pe cont. Conturile cu overrides primesc treatment vizual mai puternic: border-l-2 border-primary/40 pe randul intreg + badge cu font-semibold + bg-primary/10. Scanand workspace-ul top-to-bottom, conturile cu interventii manuale sar in ochi.",
+      "modul_claudiei_filters_and_bulk": "Mai 2026, 6 items: (1) Bulk acts on CURRENT filter result — same toggle+search+threshold that filters the rendered list also scopes the bulk write, so the contabil's screen IS the bulk preview. Header phrasing flips to 'din rezultatul curent' when any filter is active so we never lie. (2) Materialitate threshold input 'Peste X lei' cu trei chips preset (1.000/5.000/10.000) + Sterge — taie coada lunga instant. Accepts virgula romaneasca. Empty-state copy is threshold-aware ('Niciun partener nu trece pragul de Y lei'). (3) Bulk bar PROMOTED to primary — visible imediat, no opt-in link, Select pre-populat cu categoria contului default. Hint when default still selected ('Categoria selectata este deja default-ul contului — nimic de redirectionat'). (4) Bare orizontale de rulaj pe fiecare rand partener (3px, bg-primary/40), scaled la maxRulaj din VISIBLE set (re-anchors la fiecare filtru). (5) Pareto indicator + long-tail separator: 'Top N parteneri = X% din rulaj. Restul de M reprezinta Y%' + dashed-border row '↓ COADA LUNGA · M parteneri · Y% din rulaj' intre head si tail. Hidden cand visible.length <= 3 (no signal). (6) Preview modal cu breakdown explicit: 'N parteneri primesc o exceptie noua (X lei)' + 'M exceptii manuale existente in scope (Y lei) — nimic suprascris'. Toggle optional 'Suprascrie cele M exceptii existente' DOAR cand M > 0; toggle DISABLED cand selected = cont default (ar crea exceptii redundante). Button label adapts: 'Aplica' vs 'Aplica si suprascrie M exceptii'.",
+      "filter_helpers": "Toate functiile pure in src/modules/partner-mappings/filters.ts: filterPartners(partners, toggle, query, minRulaj=0), computeBulkTargets(partners, toggle, query, {includeOverridden?, minRulaj?}), computeParetoCutoff(partners, threshold=80), maxRulaj(partners), rulajBarPercent(rulaj, max), splitTargetsByExistence(targets), sumRulaj, normalizeForSearch. Unit-tested in tests/unit/modules/partner-mappings/filters.test.ts — 54 cases incluzand edge cases (empty, zero, all-equal, single huge, threshold>=100, etc). Component-level imports din '@/modules/partner-mappings' (re-exported din index.ts).",
+      "no_op_detection": "BulkActionBar disable Aplica cand (a) niciun categoryId ales, (b) action in flight, sau (c) isNoOp = categoryId === contCategoryId && targets.every(p => p.override === null). Caz (c) evita scrierea de exceptii redundante mirror la cont default. Hint friendly explica situatia. La nivel de preview modal, overwrite toggle e dezactivat in aceleasi conditii (overwrite cu cont default = exceptii redundante).",
+      "residue_rule_axa_B": "Mai 2026, PR 'Integritate cifre'. Regula reziduului pe axa B (linii de business): cand o exceptie de partener redirectioneaza X lei de pe contul C catre categoria T, orizontala contului C se aplica doar pe (rulaj_C − X), iar cei X lei urmeaza orizontala CATEGORIEI T (nou model `CategoryVerticalAllocation`) sau cad pe verticala default daca T n-are orizontala proprie. Astfel ambele axe reconciliaza exact la rulajul brut; nu mai exista dubla-numarare. Implementat in `computeVerticalBreakdown` (`src/modules/reporting/owner/compute.ts`) — semnatura accepta `partnerAdjustments` si consulta `VerticalResolverState.byCategoryId`. Reconciliere testata in tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts (9 cazuri incluzand Exemplul C din docs).",
+      "category_horizontal": "Mai 2026. Categoria CAPATA orizontala — refoloseste exact UI-ul `EditAllocationDialog` (refactored entity-agnostic). Entry point: marker `↙` pe rand categorie in workspace-ul Mapari Cashflow. Click → dialog identic cu cel de pe cont (split editor, validare sum=100, imparte egal, inapoi la implicit). Model `CategoryVerticalAllocation` (clientId, categoryId UNIQUE, splits JSON). Server actions: setCategoryAllocationAction, clearCategoryAllocationAction. Cand verticala referentiata e stearsa, allocatiile sunt renormalizate sau sterse (mirror pentru cont allocations). Important: dialog NU stie ce entitate edita — primeste `AllocationDialogEntity` cu callbacks `save/clear`, asa ca cont-level si category-level partajeaza tot UI/UX.",
+      "residue_markers_ui": "Mai 2026. Trei markeri vizuali in workspace-ul Mapari Cashflow: (1) `↗ X lei` pe rand cont (data-testid='cont-residue-marker-<cont>') cand `partnerOverriddenRulaj > 0`. Tooltip: 'Redirectati X lei la alte categorii; orizontala se aplica pe reziduul de Y lei.' (2) `↙ X lei` pe rand categorie (data-testid='category-residue-marker-<categoryId>') cand categoria primeste exceptii (rolled up din copii). Click → deschide dialog orizontala categorie. Tooltip listeaza top 3 conturi sursa + cum se distribuie (split categorie sau verticala default; cand n-are orizontala, tooltipul devine CTA implicit). (3) `↙ X lei reziduu` pe coloana verticalei implicite in tab 'Linii de business' (data-testid='default-vertical-residue-badge') cand absoarbe reziduu din categorii fara orizontala proprie. Markerii folosesc CornerUpRight / CornerDownLeft din lucide-react la size=11, text-gray pentru outflow / text-primary-light pentru inflow — fara culori noi. Helpers loader: `aggregateCategoryInflows`, `sumDefaultVerticalAbsorption` (ambele pure, unit-tested).",
+      "click_to_filter_verticals": "Mai 2026. UX rule generala in Costify: orice agregat vizual (coloana, KPI, breakdown row) trebuie sa filtreze contextul cand e clicked. Implementare initiala in tab 'Linii de business': click pe coloana verticalei (orizontal accordion) face DOUA lucruri simultan — (a) expandeaza coloana, (b) filtreaza lista de conturi de mai jos doar la conturile alocate pe acea verticala. Visual cue: coloana activa primeste `data-filtered='true'` + ring primary; banner deasupra listei 'Lista e filtrata la conturile pe <Nume> · Sterge filtru'; subtitle din verticals header schimba din '<N> conturi alocate' in link 'Anuleaza filtrul'. Toggle off via banner 'Sterge filtru', via subtitle 'Anuleaza filtrul', sau click pe alta coloana (auto-switch). data-testid='vertical-filter-banner'. Filtering inclusiv pentru verticala default — accounts fara explicit allocation merg automat la default. Stergerea filtrului PASTREAZA expandedId — contabilul a drillat in, n-are sens sa colapsam coloana la clear. Tests #32, #33, #34 in tests/ui/mapari-cashflow-partner-overrides.spec.ts.",
+      "click_to_filter_residue_badge": "Mai 2026. Badge `↙ X lei reziduu` pe coloana verticalei implicite e BUTTON (era span). Click → DOUA actiuni simultan: (a) expandeaza Toata firma, (b) filtreaza lista de conturi doar la SURSELE care contribuie cu reziduu (conturi cu exceptii partener pe categorii fara orizontala). Set source-conts pre-computat in MapariCashflowTab via `defaultVerticalResidueSourceDetails` (Map<cont, { totalAmount, targets: [{categoryId, categoryName, amount}] }>) walking categoryInflows × categoryAllocations × tree pentru lookup category names. Badge activ are `data-active='true'` + bg primary. Banner schimba copy in mod reziduu: 'Lista e filtrata la conturile sursa care contribuie cu reziduu la <Default>'. Toggle off via re-click pe badge sau Sterge filtru pe banner (clear face full clear — both verticalFilter + residueFilterActive). Sub-coloana INTERN: ExpandedColumn al default vertical isi narrows si lista intern la sources; copy header schimba din 'X conturi alocate' in 'X conturi sursa reziduu' pentru consistenta. Test #35.",
+      "expandable_cont_rows_inside_verticals": "Mai 2026. Conturile din interiorul ExpandedColumn (orizontal accordion al tab-ului 'Linii de business') sunt acum click-to-expand. Fiecare rand are un chevron lucide ChevronRight/ChevronDown la size=14 (text-gray → text-primary cand deschis) si un drawer inline cu progressive disclosure: (1) Headline vertical-aware in cartonas primary tint care raspunde direct la 'pe verticala asta cat ajunge din rulajul contului' — 5 variante text: full-flow ('tot rulajul contului'), partial-percent ('X lei din Y rulaj (Z%)'), residue mode ('contul contribuie cu X lei reziduu'). (2) Distributia contului intre parteneri (3-segment stacked bar mirror al slide-panel-ului) — reframed cu eyebrow 'DISTRIBUTIA CONTULUI INTRE PARTENERI' ca sa fie clar ca-i context, nu raspunsul-headline. (3) Cand pe default vertical si contul e residue source, sectiune 'Cum ajung banii pe <Vertical>: reziduu din exceptii partener' cu lista target categories + sumele absorbite. (4) Footer cu buton 'Vezi parteneri ↗' care deschide slide-panel pentru editare completa. Folosit `partnerSummariesByCont` din MapariCashflowData (deja loaded server-side) — zero round-trips. data-testid pe rand: 'vertical-cont-row-<cont>'. Tests #36, #38.",
+      "search_inside_expanded_vertical": "Mai 2026. Search box `<SearchInput>` h-8 la inceputul ExpandedColumnBody (sub header, deasupra listei de conturi). Filtreaza diacritic-insensitive dupa cont, contBase, denumire — aceeasi logica ca outer search. Counter '<N> din <M> conturi' afisat cand query non-empty. Empty-state copy 'Niciun rezultat pentru \"<query>\"' cand 0 match. Placeholder: 'Cauta in aceasta verticala...'. Stopagation pe click ca search-ul sa nu inchida coloana. Test #37.",
+      "pageheader_kpi_drillin": "Mai 2026. Cardurile KPI din PageHeader (`CoveragePanel`) sunt acum integral clickable, nu doar text-link-ul din colt. Trei carduri: (1) 'X conturi nemapate' (red strip) → switch la 'Categorii' tab + apply 'Nemapate' filter (era doar switch tab); (2) 'X parteneri sugerati' (yellow strip) → deschide `ReviewQueueDialog`; (3) 'X exceptii individuale' (teal strip) → deschide `AllExceptionsDialog`. data-testids: coverage-card-unmapped / -suggestions / -exceptions. Hover state pe intregul card (bg + border tint mai puternic). Implementare via `initialFilter` prop pe CategoryWorkspace + useEffect re-apply on change.",
+      "dialog_cont_drillin": "Mai 2026. In AllExceptionsDialog si ReviewQueueDialog, referintele 'cont X' sunt acum link-uri drill-in. AllExceptionsDialog: prima coloana cu contBase + denumire e button (data-testid='exception-row-cont-<contBase>') cu hover ring primary. ReviewQueueDialog: eyebrow 'Pe contul X' devine button (data-testid='queue-card-cont-<contBase>') cu sageata → primary hover. Click → openContPanelFromDialog(contBase) in MapariCashflowTab: inchide dialogul, switch activeTab='categorii', set pendingPanelContBase. CategoryWorkspace primeste `initialPanelContBase` prop, useEffect cauta AccountListItem matching prin contBase, deschide slide-panel-ul si apeleaza onInitialPanelOpened ca parent sa-l reseteze (one-shot trigger pentru click repetabil)."
+    },
+    "owner_view": "Patronul NU vede acest tab. Vede doar rezultatul pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii' — labels-urile devin numele categoriilor patron, amounts rolup la nivelul ROOT. Sprint 7 va adauga trust badge mic ('Date revizuite manual · acoperire X%').",
+    "tools_available_for_costi": [
+      "Costi nu are inca tools dedicate pentru partner overrides. Pentru a raspunde 'cati parteneri am pe contul X?' sau 'ce override-uri am pus pe firma X?', poate citi din DB direct prin get_balance (vede conturile + rulajele) sau cere context contabilului.",
+      "Posibil viitor: get_category_mapping(client_name), get_partner_overrides(client_name, cont_base), get_all_exceptions(client_name) — pentru a putea raspunde direct la 'ce exceptii am acumulat pe firma X?'."
+    ]
+  },
+  "verticals_module": {
+    "description": "PR-2c. Axa B (linii de business) per firma. Activabila prin flag Client.verticalsEnabled. Permite contabilului sa imparta cheltuieli si venituri intre 'verticale' specifice firmei (QHM21: Outsourcing/Recruitment/Coworking; o firma de constructii: Proiect Bucuresti/Cluj/Service).",
+    "axa_A_vs_axa_B": "Axa A (categorii) e in mapari_cashflow_module. Axa B (verticale) e aici. Sunt ORTOGONALE: aceeasi Electricitate (categorie) se poate imparti 60/40 intre doua verticale. NU se incorporeaza in numele categoriei.",
+    "scope": "Verticalele sunt STRICT per Client. Doi clienti diferiti pot avea fiecare 'Outsourcing' fara interferenta — sunt rows separate izolate prin clientId. Nu exista template global.",
+    "data_model": {
+      "Vertical": "clientId + name + position + isDefault. Pe activare se creeaza automat 'Toata firma' cu isDefault=true ca fallback pentru conturi nealocate.",
+      "VerticalAllocation": "clientId + scope ('contBase' | 'analytic') + cont + splits (JSON array). Splits = [{verticalId, percent}], sum=100, 1-5 entries, integer percent 1..100. Unique pe (clientId, cont). Analytic castiga peste contBase la resolve.",
+      "CategoryVerticalAllocation": "Mai 2026 (PR 'Integritate cifre'). clientId + categoryId UNIQUE + splits (acelasi format ca VerticalAllocation). O singura alocare pe categorie. Consultata DOAR de regula reziduului: cand un partner override redirectioneaza bani la categoria T, banii urmeaza orizontala T (daca exista) sau cad pe verticala default. NU influenteaza splitul direct pe conturi mapate la T — acela ramane pe orizontala contului."
+    },
+    "resolver_algorithm": [
+      "1. Analytic exact match pentru cont complet",
+      "2. ContBase match pe getContBase(cont)",
+      "3. Prefix walk pana la 1 digit",
+      "4. Fallback: default vertical la 100%"
+    ],
+    "ui_accountant": {
+      "setari_section": "Sectiune 'Verticale de business' in tab Setari. OFF state arata pitch + buton 'Activeaza verticale' (deschide modal cu input pentru 1-3 nume initiale). ON state arata lista cu Add/Rename/Delete + link 'Dezactiveaza' (soft, pastreaza datele).",
+      "mapari_cashflow_column": "Cand verticalsEnabled=true, tab-ul Mapari Cashflow primeste a doua coloana 'Verticala' langa 'Categorie'. Dropdown simplu per cont. Pentru splits: optiune 'Impartit intre mai multe verticale...' deschide popover cu input % per verticala, validare sum=100 live, buton 'imparte egal' ca shortcut."
+    },
+    "ui_owner": "Pe /firma sub Top Cheltuieli apare cardul 'Pe linii de business' cu revenue/expenses/profit per verticala. Profit verde daca pozitiv, rosu daca negativ. Card-ul e ascuns automat cand verticalsEnabled=false sau cand nu exista date.",
+    "snapshot_field": "OwnerSnapshot.verticalBreakdown: VerticalBreakdownItem[]. Empty cand flag off. Calculat la publicare ca: pentru fiecare leaf cont 6x/7x, calcul reziduu = rulaj − sum(partnerAdjustments pe acelasi analytic) -> resolva alocarea -> aplica splits pe reziduu -> agregheaza pe verticala; apoi pentru fiecare partner adjustment, resolva categoria target (orizontala categoriei sau default) -> aplica splits pe amount -> agregheaza. Astfel reconciliaza la rulajul brut pe ambele axe (vezi tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts).",
+    "residue_rule": "Regula reziduului — singura asimetrie de azi intre axa A (categorii) si axa B (linii de business): pe axa A, partner overrides muta intre buckets de categorii care SUNT AICI (axa A). Pe axa B, partner overrides genereaza un 'reziduu' care urmeaza orizontala TARGET-ului (categoriei), nu a contului sursa. Asta evita dubla-numarare: rulajul brut pe cont devine reziduu (pe orizontala contului) + redirected (pe orizontala categoriei target). Suma pe verticale = rulajul brut, exact. Reconciliere garantata de tests/unit/modules/verticals/compute-vertical-breakdown-residue.test.ts.",
+    "tools_available_for_costi": [
+      "Costi nu are inca tools dedicate pentru verticale. Pentru intrebari ca 'cum sta Outsourcing-ul?', el poate citi din publishedPeriod.snapshotData.verticalBreakdown (snapshot publicat). Pentru live, get_balance + cunoasterea alocarilor.",
+      "Viitor PR-2d: tools de buget per (categorie x verticala x luna)."
     ]
   },
   "multi_tenant": {

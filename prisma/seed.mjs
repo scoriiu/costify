@@ -12,8 +12,34 @@
 import { PrismaClient } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+const BCRYPT_COST = 12;
+
+/**
+ * Essential users that must exist on every fresh DB (local + production).
+ *
+ * Idempotent: upsert on email — passwords are re-hashed on every run so a
+ * change here propagates after the next init-container cycle. This is the
+ * mechanism by which the antreprenor (OWNER) and the operator accountants
+ * can log in immediately after a `prisma db push --force-reset` or any
+ * other DB wipe.
+ *
+ * NB on the plaintext password: this is deliberate, per product owner.
+ * Costify is at the stage where the operator-known admin accounts are
+ * deterministically seeded; treat this list as the access boundary and
+ * rotate via this file when needed.
+ */
+const ESSENTIAL_USERS = [
+  {
+    email: "sorin.crisan@costify.ro",
+    name: "Sorin Crisan",
+    password: "Alpine*Cedar92",
+    userRole: "OWNER",
+  },
+];
 
 // --- flag derivation (mirrors src/modules/accounts/flags.ts) ---
 
@@ -173,7 +199,48 @@ async function main() {
 
   console.log(`Seeded AccountCatalog: ${created} created, ${updated} updated`);
 
+  await seedEssentialUsers();
   await seedInceptionTaxRegimePeriods();
+}
+
+async function seedEssentialUsers() {
+  if (ESSENTIAL_USERS.length === 0) return;
+
+  let created = 0;
+  let refreshed = 0;
+
+  for (const u of ESSENTIAL_USERS) {
+    const passwordHash = await bcrypt.hash(u.password, BCRYPT_COST);
+    const existing = await prisma.user.findUnique({
+      where: { email: u.email },
+      select: { id: true },
+    });
+
+    await prisma.user.upsert({
+      where: { email: u.email },
+      create: {
+        email: u.email,
+        name: u.name,
+        passwordHash,
+        userRole: u.userRole,
+        emailVerified: true,
+        active: true,
+      },
+      update: {
+        name: u.name,
+        passwordHash,
+        userRole: u.userRole,
+        active: true,
+      },
+    });
+
+    if (existing) refreshed++;
+    else created++;
+  }
+
+  console.log(
+    `Seeded essential users: ${created} created, ${refreshed} refreshed (passwords re-hashed)`
+  );
 }
 
 /**

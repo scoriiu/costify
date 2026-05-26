@@ -66,6 +66,25 @@ export function CostiChat() {
     }
   }, []);
 
+  // External callers (e.g., InsightsList "Intreaba Costi" button) can open
+  // the chat with a prefilled question via:
+  //   window.dispatchEvent(new CustomEvent("costify:ask-costi",
+  //     { detail: { question: "..." } }))
+  // The chat opens, focuses the input, and pre-fills it. The user reviews
+  // the question and presses Send (we never auto-submit on their behalf).
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<{ question?: string }>).detail;
+      if (detail?.question) {
+        setInput(detail.question);
+      }
+      setOpen(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+    window.addEventListener("costify:ask-costi", handler);
+    return () => window.removeEventListener("costify:ask-costi", handler);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);

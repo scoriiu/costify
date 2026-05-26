@@ -19,6 +19,22 @@
   --selection-bg: rgba(13, 107, 94, 0.3);
   --warn: #FDCB6E;
   --primary-light: #34D3A0;
+
+  /* Semantic tone tokens — use everywhere instead of Tailwind palette colors.
+   * They render with the right saturation on both themes (washed Tailwind
+   * shades like text-rose-300/text-emerald-300 are illegible on cream). */
+  --c-pos: #34D3A0;
+  --c-neg: #FCA5A5;
+  --c-warn: #FCD34D;
+  --c-info: #7DD3FC;
+  --c-pos-bg: rgba(52, 211, 160, 0.10);
+  --c-neg-bg: rgba(252, 165, 165, 0.10);
+  --c-warn-bg: rgba(252, 211, 77, 0.10);
+  --c-info-bg: rgba(125, 211, 252, 0.10);
+  --c-pos-border: rgba(52, 211, 160, 0.25);
+  --c-neg-border: rgba(252, 165, 165, 0.25);
+  --c-warn-border: rgba(252, 211, 77, 0.25);
+  --c-info-border: rgba(125, 211, 252, 0.25);
 }
 
 html.light,
@@ -37,6 +53,22 @@ html.light *,
   --selection-bg: rgba(13, 107, 94, 0.2) !important;
   --warn: #B45309 !important;
   --primary-light: #0F8A6E !important;
+
+  /* Light theme: deep, saturated semantic tones that read on cream surfaces.
+   * Tailwind 300-shade hues are washy on light-theme cream — we override
+   * here with deeper hues that carry real contrast. */
+  --c-pos: #0F8A6E !important;
+  --c-neg: #9F1239 !important;
+  --c-warn: #B45309 !important;
+  --c-info: #0369A1 !important;
+  --c-pos-bg: rgba(15, 138, 110, 0.08) !important;
+  --c-neg-bg: rgba(159, 18, 57, 0.08) !important;
+  --c-warn-bg: rgba(180, 83, 9, 0.08) !important;
+  --c-info-bg: rgba(3, 105, 161, 0.08) !important;
+  --c-pos-border: rgba(15, 138, 110, 0.30) !important;
+  --c-neg-border: rgba(159, 18, 57, 0.30) !important;
+  --c-warn-border: rgba(180, 83, 9, 0.30) !important;
+  --c-info-border: rgba(3, 105, 161, 0.30) !important;
 }
 
 @theme inline {
@@ -63,6 +95,21 @@ html.light *,
   --color-orange: #F0883E;
   --color-purple: #BC8CFF;
   --color-warm: #FD79A8;
+
+  /* Semantic tones — always use these instead of Tailwind palette colors
+   * (text-rose-300, text-emerald-300, etc.). They auto-adapt per theme. */
+  --color-pos: var(--c-pos);
+  --color-neg: var(--c-neg);
+  --color-tone-warn: var(--c-warn);
+  --color-info: var(--c-info);
+  --color-pos-bg: var(--c-pos-bg);
+  --color-neg-bg: var(--c-neg-bg);
+  --color-tone-warn-bg: var(--c-warn-bg);
+  --color-info-bg: var(--c-info-bg);
+  --color-pos-border: var(--c-pos-border);
+  --color-neg-border: var(--c-neg-border);
+  --color-tone-warn-border: var(--c-warn-border);
+  --color-info-border: var(--c-info-border);
 
   --font-sans: var(--font-altform);
   --font-mono: var(--font-geist-mono);

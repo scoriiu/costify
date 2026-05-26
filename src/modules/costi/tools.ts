@@ -97,7 +97,7 @@ export const COSTI_TOOLS: Tool[] = [
   },
   {
     name: "get_tax_regime_timeline",
-    description: "Returneaza istoricul regimurilor fiscale ale unei firme — fiecare tranzitie (data start, regim, motiv). Util cand contabilul intreaba 'ce regim are clientul X' sau 'cand a trecut firma de la micro la profit'. Costify foloseste un timeline (TaxRegimePeriod), nu un singur flag, pentru ca o firma poate trece intre regimuri in cursul anului. Pentru un raport CPP pe luna X, regimul valabil este cea mai recenta tranzitie cu startDate <= ultima zi a lunii X.",
+    description: "Returneaza istoricul regimurilor fiscale detectate automat din registru jurnal — fiecare tranzitie (data start, regim, motiv, nivel de incredere, avertismente). Util cand contabilul intreaba 'ce regim are clientul X' sau 'cand a trecut firma de la micro la profit'. Regimul este dedus din contul de impozit folosit in jurnal: 691/4411 = profit standard 16%, 698/4418 = micro (1% daca exista salarii pe 421, altfel 3%), 697/4418 = IMCA, 695 = HoReCa. Tranzitiile se snap la 1 ianuarie (regim fiscal romanesc se schimba la inceput de an). Pentru un raport CPP pe luna X, regimul valabil este cea mai recenta tranzitie detectata cu startDate <= ultima zi a lunii X. Costify NU mai stocheaza regimul manual — sursa unica de adevar este jurnalul. Daca jurnalul nu are inca acumulare de impozit pe perioada respectiva (firma noua, primul trimestru), regimul cade pe fallback (profit_standard).",
     input_schema: {
       type: "object" as const,
       properties: {

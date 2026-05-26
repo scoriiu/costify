@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AnswerBlock, type DocAnswerData } from "./answer-block";
+import { renderMockup } from "./mockups";
 
 interface Props {
   content: string;
@@ -253,6 +254,24 @@ export function DocMarkdown({
             ))}
           </ol>
         );
+        continue;
+      }
+
+      // Mockup fence (`:::mockup name` ... `:::`). Renders a preconfigured
+      // React component from the mockup registry. Used in cashflow docs to
+      // show pixel-close previews of the live UI without dragging in real
+      // data. Single-line variant (`:::mockup name`) is also supported.
+      const mockupOpen = line.match(/^:::mockup\s+([a-z0-9-]+)\s*$/);
+      if (mockupOpen) {
+        const name = mockupOpen[1];
+        // Skip optional body lines until closing ::: (we don't use the body
+        // for now, mockups are fully self-contained).
+        if (!line.endsWith(":::")) {
+          i++;
+          while (i < lines.length && !lines[i].startsWith(":::")) i++;
+        }
+        i++;
+        result.push(<div key={key++}>{renderMockup(name)}</div>);
         continue;
       }
 

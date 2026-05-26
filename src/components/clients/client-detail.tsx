@@ -11,11 +11,11 @@ import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
-import { SetariTab, type TransitionView } from "@/components/clients/setari-tab";
+import { SetariTab } from "@/components/clients/setari-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
-type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "setari";
+type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "mapari-cashflow" | "setari";
 
 interface ImportEventInfo {
   id: string;
@@ -42,9 +42,17 @@ interface Props {
   activeTab: string;
   selectedYear?: number;
   selectedMonth?: number;
-  transitions: TransitionView[];
   /** Server-rendered "Acces clientului" section shown inside the Setari tab. */
   accessSection?: React.ReactNode;
+  /** Server-rendered "Publicare" section shown inside the Setari tab. */
+  publishSection?: React.ReactNode;
+  /** Publish status bar for the currently selected (year, month) — only set
+   *  when on balanta/cpp tabs. Server-fetched. */
+  publishBar?: React.ReactNode;
+  /** Server-rendered "Istoric actiuni" section shown inside the Setari tab. */
+  auditSection?: React.ReactNode;
+  /** Server-rendered "Mapari Cashflow" tab content. Lazily server-loaded. */
+  mapariCashflowSection?: React.ReactNode;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -52,6 +60,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "balanta", label: "Balanta de Verificare" },
   { key: "cpp", label: "Cont Profit si Pierdere" },
   { key: "plan", label: "Plan de Conturi" },
+  { key: "mapari-cashflow", label: "Mapari Cashflow" },
   { key: "setari", label: "Setari" },
 ];
 
@@ -63,8 +72,11 @@ export function ClientDetail({
   activeTab,
   selectedYear,
   selectedMonth,
-  transitions,
   accessSection,
+  publishSection,
+  publishBar,
+  auditSection,
+  mapariCashflowSection,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -128,7 +140,21 @@ export function ClientDetail({
         </div>
       </div>
 
-      <TabBar active={tab} onTabChange={(t) => navigate({ tab: t, year: selectedYear, month: selectedMonth })} />
+      <TabBar
+        active={tab}
+        onTabChange={(t) => {
+          const needsPeriodNext = t === "balanta" || t === "cpp";
+          navigate(
+            needsPeriodNext
+              ? { tab: t, year: selectedYear, month: selectedMonth }
+              : { tab: t }
+          );
+        }}
+      />
+
+      {(tab === "balanta" || tab === "cpp") && selectedYear && selectedMonth && publishBar && (
+        <div className="mt-4">{publishBar}</div>
+      )}
 
       {unmappedRows.length > 0 && (
         <div className="mt-4">
@@ -146,7 +172,6 @@ export function ClientDetail({
         {tab === "cpp" && selectedYear && selectedMonth && (
           <CppTab
             clientId={client.id}
-            clientSlug={client.slug}
             year={selectedYear}
             month={selectedMonth}
             onUnmappedFound={setUnmappedRows}
@@ -160,13 +185,15 @@ export function ClientDetail({
             month={selectedMonth}
           />
         )}
+        {tab === "mapari-cashflow" && mapariCashflowSection}
         {tab === "setari" && (
           <SetariTab
             client={client}
             entryCount={entryCount}
-            transitions={transitions}
             onOpenDeleteModal={() => setDeleteOpen(true)}
             accessSection={accessSection}
+            publishSection={publishSection}
+            auditSection={auditSection}
           />
         )}
         {(tab === "balanta" || tab === "cpp") && (!selectedYear || !selectedMonth) && (

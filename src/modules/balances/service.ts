@@ -79,7 +79,7 @@ export async function getAvailableYears(clientId: string): Promise<number[]> {
   return rows.map((r) => r.year);
 }
 
-async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
+export async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
   const lines = await prisma.journalLine.findMany({
     where: { clientId, deletedAt: null },
     orderBy: [{ data: "asc" }, { ndp: "asc" }],

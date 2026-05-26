@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/db";
-import { getBalanceRows } from "@/modules/balances";
+import { getBalanceRows, getActiveEntries } from "@/modules/balances";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import {
   getRegimeForPeriod,
-  getTransitions,
   taxRegimeLabel,
   taxRegimeAccount,
 } from "@/modules/clients/tax-regime";
+import { detectTaxRegimeTimeline } from "@/modules/clients/tax-regime-detector";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -304,34 +304,27 @@ async function handleGetTaxRegimeTimeline(
   const resolved = await resolveClient(userId, input.client_name as string);
   if ("error" in resolved) return JSON.stringify(resolved);
 
-  const transitions = await getTransitions(resolved.client.id);
+  const entries = await getActiveEntries(resolved.client.id);
+  const timeline = detectTaxRegimeTimeline(entries);
 
-  if (transitions.length === 0) {
+  if (timeline.length === 0) {
     return JSON.stringify({
       client: resolved.client.name,
       transitions: [],
-      note: "Acest client nu are niciun rand in TaxRegimePeriod. Pentru perioade fara tranzitie, regimul cade pe Client.taxRegime (legacy) sau pe DEFAULT (profit_standard).",
+      note: "Nu exista intrari in jurnal pentru acest client. Regimul nu poate fi detectat fara date.",
     });
   }
 
-  const sorted = [...transitions].sort(
-    (a, b) => b.startDate.getTime() - a.startDate.getTime()
-  );
-  const current = sorted[0];
-
-  const timeline = transitions
-    .slice()
-    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-    .map((t) => {
-      const isInception = t.startDate.getUTCFullYear() <= 1970;
-      return {
-        startDate: isInception ? "de la inceput" : t.startDate.toISOString().slice(0, 10),
-        taxRegime: t.taxRegime,
-        label: taxRegimeLabel(t.taxRegime),
-        cont: taxRegimeAccount(t.taxRegime),
-        reason: t.reason,
-      };
-    });
+  const current = timeline[timeline.length - 1];
+  const serializedTimeline = timeline.map((t) => ({
+    startDate: t.startDate.toISOString().slice(0, 10),
+    taxRegime: t.taxRegime,
+    label: taxRegimeLabel(t.taxRegime),
+    cont: taxRegimeAccount(t.taxRegime),
+    confidence: t.confidence,
+    reason: t.reason,
+    warnings: t.warnings,
+  }));
 
   return JSON.stringify({
     client: resolved.client.name,
@@ -339,14 +332,11 @@ async function handleGetTaxRegimeTimeline(
       taxRegime: current.taxRegime,
       label: taxRegimeLabel(current.taxRegime),
       cont: taxRegimeAccount(current.taxRegime),
-      since:
-        current.startDate.getUTCFullYear() <= 1970
-          ? "de la inceput"
-          : current.startDate.toISOString().slice(0, 10),
+      since: current.startDate.toISOString().slice(0, 10),
     },
-    transitions: timeline,
+    transitions: serializedTimeline,
     note:
-      "Pentru un raport CPP pe (year, month), regimul valabil este cea mai recenta tranzitie cu startDate <= ultima zi a lunii.",
+      "Timeline detectat din registru jurnal pe baza conturilor 69x (impozit). Pentru perioade fara impozit acumulat, regimul ramane cel din ultima tranzitie. Avertismentele indica ani cu semnale mixte (rebooking la inchidere) sau cifra de afaceri peste plafon micro.",
   });
 }
 

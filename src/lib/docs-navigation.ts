@@ -30,6 +30,14 @@ export const DOC_NAVIGATION: DocCategory[] = [
     ],
   },
   {
+    id: "cashflow",
+    label: "Modulul Cashflow",
+    description: "Limbajul si conceptele de baza ale maparii",
+    pages: [
+      { slug: "cashflow-limbajul-mapari", title: "Limbajul maparii (orizontal, vertical, linie de business)", description: "Cele 4 cuvinte de baza ale modulului Cashflow, cu ASCII-uri si exemple concrete pe contul 6022" },
+    ],
+  },
+  {
     id: "ghiduri",
     label: "Ghiduri",
     description: "Cum sa folosesti Costify pas cu pas",

@@ -23,9 +23,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions       Session[]
-  clients        Client[]
-  clientAccesses ClientAccess[]
+  sessions          Session[]
+  clients           Client[]
+  clientAccesses    ClientAccess[]
+  publishedPeriods  PublishedPeriod[]
 
   @@index([userRole])
 }
@@ -54,18 +55,32 @@ model Client {
   cui        String?
   caen       String?
   /// @deprecated Use TaxRegimePeriod timeline instead. Kept as fallback until all clients have at least one TaxRegimePeriod row.
-  taxRegime  String   @default("profit_standard")
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  taxRegime         String  @default("profit_standard")
+  active            Boolean @default(true)
+  /// PR-2c. When true, the firm tracks costs and revenues per business
+  /// vertical (Outsourcing, Recruitment, Coworking for QHM21; project
+  /// names for a construction firm; service lines for a SaaS). Most small
+  /// firms have only one implicit vertical — leave this false. When
+  /// flipped on, a default "Toata firma" Vertical is auto-created so
+  /// every account immediately has somewhere to land.
+  verticalsEnabled  Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journalLines     JournalLine[]
-  importEvents     ImportEvent[]
-  journalPartners  JournalPartner[]
-  clientAccounts   ClientAccount[]
-  taxRegimePeriods TaxRegimePeriod[]
-  accesses         ClientAccess[]
+  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines          JournalLine[]
+  importEvents          ImportEvent[]
+  journalPartners       JournalPartner[]
+  clientAccounts        ClientAccount[]
+  taxRegimePeriods      TaxRegimePeriod[]
+  accesses              ClientAccess[]
+  publishedPeriods      PublishedPeriod[]
+  costCategories            CostCategory[]
+  accountCategoryMaps       AccountCategoryMapping[]
+  partnerCategoryOverrides  PartnerCategoryOverride[]
+  verticals                 Vertical[]
+  verticalAllocations       VerticalAllocation[]
+  categoryVerticalAllocs    CategoryVerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -92,6 +107,260 @@ model ClientAccess {
   @@unique([userId, clientId])
   @@index([userId])
   @@index([clientId])
+}
+
+/// A snapshot of computed financials for one (client, year, month) period that
+/// the accountant has explicitly marked as visible to the firm's OWNER(s).
+///
+/// Publishing semantics:
+///   - The OWNER only sees periods that have a row here.
+///   - The displayed values come from `snapshotData` (frozen at publish time),
+///     NOT from a live recompute. This protects the patron from in-flight
+///     accountant edits and lets us answer "what did Sorin see on April 18?".
+///   - Re-publishing the same (clientId, year, month) overwrites `snapshotData`,
+///     `publishedAt`, `noteForOwner` and bumps the audit trail.
+///   - Unpublishing deletes the row; OWNER then sees the next-most-recent
+///     published period, or the "nothing published yet" empty state.
+///
+/// `snapshotData` shape is versioned via `snapshotVersion` so we can migrate
+/// the JSON forward as the OwnerSnapshot type evolves. See `modules/publishing`.
+model PublishedPeriod {
+  id              String   @id @default(cuid())
+  clientId        String
+  year            Int
+  month           Int // 1..12
+  publishedBy     String // accountant userId
+  publishedAt     DateTime @default(now())
+  noteForOwner    String? // optional one-liner shown to the OWNER ("Salariile dec incluse")
+  snapshotVersion Int      @default(1)
+  snapshotData    Json // serialized OwnerSnapshot (summary, cashPosition, trends, etc.)
+  snapshotHash    String // SHA-256 of canonical snapshot JSON. Used by audit + change detection.
+  /// Non-null means: the underlying journal for this period changed after `publishedAt`,
+  /// and the accountant should re-publish. Set by import/delete services, cleared by publish.
+  /// Index supports "list stale periods for this client" in O(log n).
+  staleSince      DateTime?
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  publisher User   @relation(fields: [publishedBy], references: [id])
+
+  @@unique([clientId, year, month])
+  @@index([clientId, year(sort: Desc), month(sort: Desc)])
+  @@index([clientId, publishedAt(sort: Desc)])
+  @@index([clientId, staleSince])
+}
+
+/// PR-2c. A business vertical (axa B) for one client.
+///
+/// Verticals are strictly per-firm: QHM21 has Outsourcing/Recruitment/
+/// Coworking; a construction firm has Proiect-Bucuresti/Proiect-Cluj.
+/// Two different clients can have a Vertical with the same `name` — they
+/// are isolated by `clientId`. There is no global template.
+///
+/// Lifecycle:
+///   - Verticals exist only when Client.verticalsEnabled = true. Disabling
+///     the flag hides them everywhere but keeps the rows for safe re-enable.
+///   - One vertical per client carries `isDefault = true` ("Toata firma" by
+///     convention). It catches accounts with no explicit allocation so the
+///     totals always reconcile. Default is auto-created on activation.
+///   - Accountant freely renames, reorders and adds verticals. They cannot
+///     delete the default — they can only rename it.
+model Vertical {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  position  Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client              Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  allocations         VerticalAllocation[]
+  categoryAllocations CategoryVerticalAllocation[]
+
+  @@unique([clientId, name])
+  @@index([clientId])
+}
+
+/// PR-2c. Maps a Romanian chart-of-accounts entry to one or more Verticals
+/// with percentages, scoped to one client.
+///
+/// Two scopes supported (same convention as AccountCategoryMapping):
+///   - "contBase":  applies to every analytic under the 3-digit base unless
+///                  an analytic-scope row overrides it.
+///   - "analytic":  applies to the full analytic cont and wins over base.
+///
+/// `splits` shape: `[{ "verticalId": "...", "percent": 60 }, ...]`.
+/// Invariants enforced in the service layer (validation on every write):
+///   - 1 to 5 entries,
+///   - all percent values are integers 1..100,
+///   - sum(percent) === 100,
+///   - all verticalIds belong to the same client and exist.
+///
+/// Accounts WITHOUT a matching row roll up to the client's default Vertical
+/// (the "Toata firma" one). This guarantees totals reconcile across breakdowns.
+model VerticalAllocation {
+  id        String   @id @default(cuid())
+  clientId  String
+  scope     String // "contBase" | "analytic"
+  cont      String
+  splits    Json // [{ verticalId, percent }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Convenience FK so cascading deletes (vertical removed) can be detected by
+  // the service layer. Not all splits link here — only the first one. This is
+  // an indexing/audit helper, not a uniqueness constraint.
+  primaryVerticalId String?
+  primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, cont])
+  @@index([clientId])
+  @@index([primaryVerticalId])
+}
+
+/// Hierarchical patron-facing taxonomy for one client. The accountant edits
+/// this tree in the "Categorii" tab; the OWNER consumes the result on /firma
+/// under "Unde s-au dus banii" / "De unde au venit banii".
+///
+/// Each row is one node. Roots have `parentId = null`. Recursion through
+/// `parent`/`children` allows arbitrary depth; the UI suggests 4 levels but
+/// does not enforce a hard cap so the model survives Sorin-style 5-level
+/// decompositions (Outsourcing > Echipa > Salarii > Bonus > Q4).
+///
+/// `kind` is fixed at the root and inherited by all descendants — a tree
+/// is always pure "expense" or pure "revenue". Mixing is not meaningful for
+/// the patron view.
+///
+/// `isOmfpDefault` marks nodes seeded by the auto-bootstrap from OMFP labels.
+/// They can be renamed or deleted, but the UI shows a small badge so the
+/// accountant knows what was the system's starting point.
+model CostCategory {
+  id            String   @id @default(cuid())
+  clientId      String
+  parentId      String?
+  name          String
+  kind          String // "expense" | "revenue"
+  position      Int      @default(0)
+  isOmfpDefault Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client             Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent             CostCategory?                @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children           CostCategory[]               @relation("CostCategoryTree")
+  mappings           AccountCategoryMapping[]
+  partnerOverrides   PartnerCategoryOverride[]
+  verticalAllocation CategoryVerticalAllocation?
+
+  @@unique([clientId, parentId, name])
+  @@index([clientId])
+  @@index([clientId, kind])
+  @@index([parentId])
+}
+
+/// Optional vertical split for a CostCategory. Used by the partner-override
+/// residue pathway: when a partner override redirects rulaj from a cont to a
+/// category, the redirected slice follows THIS allocation if defined, or the
+/// firm's default vertical otherwise.
+///
+/// Same `splits` shape and invariants as VerticalAllocation:
+///   - 1..5 entries, sum(percent) === 100, all integers 1..100,
+///   - all verticalIds belong to the same client and exist.
+///
+/// One row per category (unique constraint). Absence of a row means "use the
+/// firm default vertical" — the absence is the explicit fallback, not an error.
+model CategoryVerticalAllocation {
+  id         String   @id @default(cuid())
+  clientId   String
+  categoryId String   @unique
+  splits     Json // [{ verticalId, percent }]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  primaryVerticalId String?
+  primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([primaryVerticalId])
+}
+
+/// Maps a Romanian chart-of-accounts entry to a CostCategory leaf, scoped to
+/// one client. Two scopes are supported:
+///   - "contBase":  the base 3-digit code (e.g. "628") — applies to every
+///                  analytic under it unless overridden.
+///   - "analytic":  the full analytic code (e.g. "628.01") — wins over the
+///                  base mapping at resolve time.
+///
+/// Resolution at query time (see modules/categories/resolver.ts):
+///   1. Look up `scope=analytic` row for the exact `cont`.
+///   2. Look up `scope=contBase` for `getContBase(cont)`.
+///   3. Walk shorter prefixes (e.g. "628" → "62" → "6") until a match.
+///   4. Fall back to OMFP hardcoded labels from PR-2a.
+///
+/// Uniqueness on `(clientId, cont)` enforces "one cont = one category". To
+/// move a cont, the row is updated, not duplicated.
+model AccountCategoryMapping {
+  id         String   @id @default(cuid())
+  clientId   String
+  scope      String // "contBase" | "analytic"
+  cont       String
+  categoryId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, cont])
+  @@index([clientId])
+  @@index([categoryId])
+}
+
+/// Partner-level override of the cont's default category. When a journal line
+/// hits a cont where a partner-override exists for the partner involved, the
+/// override category wins (precedence "Nivel 1 — Regulă pe partener", see
+/// docs/ro/cashflow-limbajul-mapari.md).
+///
+/// Grain: (clientId, contBase, partnerNameNormalized). One row per partner
+/// per cont base — not per analytic — because the override expresses a
+/// business semantic decision ("OMV always means combustibil on cont 6022"),
+/// and analytic splits in Saga are usually project/location, not partner.
+///
+/// `partnerNameNormalized` is produced by src/lib/partner-normalize.ts and
+/// is the matching key. `partnerNameOriginal` keeps one representative spelling
+/// for display in the UI ("OMV PETROM SRL") — it's the spelling at the time
+/// the override was created and is not updated on subsequent occurrences.
+///
+/// `source` distinguishes how the override was created so the UI can surface
+/// state (Nivel "auto-sugerată" vs "confirmată", see §9 of the language doc):
+///   - "manual"    — contabilul mapat explicit.
+///   - "bulk"      — vine din "aplica la toti" — confirmedAt set imediat.
+///   - "suggested" — sistemul a pre-completat din memorie sau matching;
+///                  confirmedAt este null pana cand contabilul valideaza.
+model PartnerCategoryOverride {
+  id                    String   @id @default(cuid())
+  clientId              String
+  contBase              String
+  partnerNameNormalized String
+  partnerNameOriginal   String
+  categoryId            String
+  source                String   // "manual" | "bulk" | "suggested"
+  confirmedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, contBase, partnerNameNormalized])
+  @@index([clientId])
+  @@index([clientId, contBase])
+  @@index([categoryId])
 }
 
 /// Timeline of tax regime transitions for a client.

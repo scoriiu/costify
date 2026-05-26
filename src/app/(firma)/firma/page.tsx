@@ -1,19 +1,32 @@
 import { redirect } from "next/navigation";
-import { OwnerLayout, OwnerView, buildOwnerContextForFirma } from "@/components/clients/owner";
-import { loadOwnerSnapshot } from "@/modules/reporting/owner";
-import { getBalanceRows, getAvailablePeriods } from "@/modules/balances";
-import { getCatalogMap } from "@/modules/accounts";
-import { computeKpis } from "@/modules/reporting";
+import {
+  OwnerLayout,
+  OwnerView,
+  buildOwnerContextForFirma,
+} from "@/components/clients/owner";
+import {
+  getLatestPublishedView,
+  getPublishedView,
+  listPublishedPeriods,
+} from "@/modules/publishing";
 import { resolveFirmaContext } from "./_lib/resolve-client";
 import { recordFirmaAccessAudit } from "./_lib/audit";
 import { NoAccessScreen } from "./_lib/no-access";
+import { NothingPublishedScreen } from "./_lib/nothing-published";
+import { PublishedPeriodBanner } from "./_lib/published-banner";
 
 interface Props {
-  searchParams: Promise<{ as?: string; firm?: string }>;
+  searchParams: Promise<{
+    as?: string;
+    firm?: string;
+    year?: string;
+    month?: string;
+    mode?: string;
+  }>;
 }
 
 export default async function FirmaHomePage(props: Props) {
-  const { as, firm } = await props.searchParams;
+  const { as, firm, year, month, mode } = await props.searchParams;
   const result = await resolveFirmaContext({
     asClientId: as ?? null,
     firmSlug: firm ?? null,
@@ -33,38 +46,46 @@ export default async function FirmaHomePage(props: Props) {
     activePage: "home",
   });
 
-  const periods = await getAvailablePeriods(client.id);
-  const last = periods[periods.length - 1];
-  if (!last) {
+  const publishedList = await listPublishedPeriods(client.id);
+  const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
+
+  const requestedYear = year ? parseInt(year, 10) : null;
+  const requestedMonth = month ? parseInt(month, 10) : null;
+  const published =
+    requestedYear && requestedMonth
+      ? await getPublishedView(client.id, requestedYear, requestedMonth)
+      : await getLatestPublishedView(client.id);
+
+  const ownerUser = { name: user.name, email: user.email };
+
+  if (!published) {
     return (
-      <OwnerLayout context={context}>
-        <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
-          <p className="text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-            Inca nu ai date despre firma. Cand contabilul incarca primul jurnal, vei vedea aici cum sta firma.
-          </p>
-        </div>
+      <OwnerLayout context={context} user={ownerUser}>
+        <NothingPublishedScreen clientName={client.name} />
       </OwnerLayout>
     );
   }
 
-  const [snapshot, balanceResult, catalog] = await Promise.all([
-    loadOwnerSnapshot({
-      clientId: client.id,
-      clientName: client.name,
-      clientCui: client.cui,
-      clientSlug: client.slug,
-      year: last.year,
-      month: last.month,
-    }),
-    getBalanceRows(client.id, last.year, last.month),
-    getCatalogMap(),
-  ]);
-
-  const marja = balanceResult.ok ? computeKpis(balanceResult.data, catalog).marjaOperationala : null;
+  const { snapshot } = published;
+  const viewMode = mode === "detailed" ? "detailed" : "simple";
 
   return (
-    <OwnerLayout context={context}>
-      <OwnerView snapshot={snapshot} context={context} marjaOperationala={marja} />
+    <OwnerLayout context={context} user={ownerUser}>
+      <PublishedPeriodBanner
+        year={published.year}
+        month={published.month}
+        publishedAt={published.publishedAt}
+        publisherName={published.publisherName}
+        noteForOwner={published.noteForOwner}
+        stale={published.stale && viaAccountantPreview}
+      />
+      <OwnerView
+        snapshot={snapshot}
+        context={context}
+        marjaOperationala={null}
+        availablePeriods={availablePeriods}
+        mode={viewMode}
+      />
     </OwnerLayout>
   );
 }
