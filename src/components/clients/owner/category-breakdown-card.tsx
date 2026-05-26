@@ -213,28 +213,36 @@ function DonutCenter({
 }) {
   const headlineTone =
     tone === "expenses" ? "text-rose-300" : "text-emerald-300";
+  // Inner radius (between center and the inside of the stroke) = R - stroke/2.
+  // We keep the text comfortably inside that disc so it never paints over the ring.
+  const innerDiameter = (DONUT_R - DONUT_STROKE / 2) * 2;
+  const maxWidthPx = Math.floor(innerDiameter * 0.85);
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-      <p
-        className="font-mono text-[9px] uppercase tracking-wider text-gray"
-        style={{ letterSpacing: "0.06em" }}
-      >
-        {hovered ? hovered.root.label : tone === "expenses" ? "Total" : "Total"}
-      </p>
-      <p
-        className={`mt-1 font-mono text-[20px] font-semibold tabular-nums ${headlineTone}`}
-        style={{ letterSpacing: "-0.04em" }}
-      >
-        {lei(hovered ? Math.abs(hovered.root.value) : total)}
-      </p>
-      {hovered && (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-2"
+    >
+      <div className="flex flex-col items-center" style={{ maxWidth: maxWidthPx }}>
         <p
-          className="mt-0.5 font-mono text-[10px] text-gray-light"
-          style={{ letterSpacing: "-0.02em" }}
+          className="font-mono text-[9px] uppercase tracking-wider text-gray leading-tight line-clamp-2"
+          style={{ letterSpacing: "0.06em" }}
         >
-          {pct(hovered.root.percent)} din total
+          {hovered ? hovered.root.label : "Total"}
         </p>
-      )}
+        <p
+          className={`mt-1 font-mono text-[18px] font-semibold tabular-nums whitespace-nowrap ${headlineTone}`}
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          {lei(hovered ? Math.abs(hovered.root.value) : total)}
+        </p>
+        {hovered && (
+          <p
+            className="mt-0.5 font-mono text-[10px] text-gray-light whitespace-nowrap"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {pct(hovered.root.percent)} din total
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -332,11 +340,11 @@ function BreakdownGroup({
               </span>
             )}
           </span>
-          <span className="flex items-center gap-2 shrink-0">
-            <span className="font-mono text-[13px] text-white tabular-nums">
+          <span className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+            <span className="font-mono text-[13px] text-white tabular-nums whitespace-nowrap">
               {lei(root.value)}
             </span>
-            <span className="font-mono text-[10px] text-gray tabular-nums w-10 text-right">
+            <span className="font-mono text-[10px] text-gray tabular-nums w-12 text-right whitespace-nowrap">
               {pct(root.percent)}
             </span>
           </span>
@@ -366,7 +374,7 @@ function BreakdownGroup({
                 </span>
                 {child.label}
               </span>
-              <span className="font-mono text-[12px] text-gray-light tabular-nums shrink-0">
+              <span className="font-mono text-[12px] text-gray-light tabular-nums shrink-0 whitespace-nowrap">
                 {lei(child.value)}
               </span>
             </li>
