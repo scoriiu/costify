@@ -793,6 +793,211 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     expect(width).toBeLessThanOrEqual(680);
   });
 
+  test("32. Clicking a vertical column filters the conts list below + banner + clear", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+    // Wait for the verticals accordion (Outsourcing/Recrutare/etc. on QHM21).
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+
+    // Baseline count of conts visible in the list panel before filtering.
+    // The list lives in AccountListPanel — the LAST rounded-xl card on page.
+    const accountListPanel = page.locator("div.rounded-xl.border.border-dark-3.bg-dark-2.p-5").last();
+    await expect(accountListPanel).toBeVisible();
+    const allRows = accountListPanel.locator("ul > li");
+    const baselineCount = await allRows.count();
+    expect(baselineCount).toBeGreaterThan(0);
+
+    // No filter banner shown by default.
+    await expect(page.locator("[data-testid='vertical-filter-banner']")).toHaveCount(0);
+
+    // Pick the first NON-default vertical column (default carries "implicit").
+    const tabs = tablist.getByRole("tab");
+    const tabsCount = await tabs.count();
+    expect(tabsCount).toBeGreaterThan(1);
+    let clickedTab = null;
+    for (let i = 0; i < tabsCount; i++) {
+      const candidate = tabs.nth(i);
+      const txt = (await candidate.innerText()).trim();
+      if (!/implicit/i.test(txt)) {
+        clickedTab = candidate;
+        break;
+      }
+    }
+    expect(clickedTab).not.toBeNull();
+    await clickedTab!.click();
+
+    // Banner appears with name + count + "Sterge filtru" button.
+    const banner = page.locator("[data-testid='vertical-filter-banner']");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/Lista e filtrata la conturile pe/i);
+    await expect(banner.getByRole("button", { name: /Sterge filtru/i })).toBeVisible();
+
+    // The clicked column has data-filtered="true" + visible ring.
+    await expect(clickedTab!).toHaveAttribute("data-filtered", "true");
+
+    // Subtitle in the verticals header switched to "Anuleaza filtrul" link.
+    await expect(page.getByRole("button", { name: /Anuleaza filtrul/i })).toBeVisible();
+
+    // The list of conts shrunk (or at most equal — never grows).
+    const filteredCount = await allRows.count();
+    expect(filteredCount).toBeLessThanOrEqual(baselineCount);
+
+    // Click "Sterge filtru" in the banner → filter cleared, banner gone,
+    // count restored.
+    await banner.getByRole("button", { name: /Sterge filtru/i }).click();
+    await expect(banner).toHaveCount(0);
+    const restoredCount = await allRows.count();
+    expect(restoredCount).toBe(baselineCount);
+  });
+
+  test("33. 'Anuleaza filtrul' link in verticals header clears the active filter", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+    const tabs = tablist.getByRole("tab");
+    const tabsCount = await tabs.count();
+    let target = null;
+    for (let i = 0; i < tabsCount; i++) {
+      const candidate = tabs.nth(i);
+      const txt = (await candidate.innerText()).trim();
+      if (!/implicit/i.test(txt)) {
+        target = candidate;
+        break;
+      }
+    }
+    expect(target).not.toBeNull();
+
+    // Baseline: no filter — verticals header subtitle shows "X conturi alocate"
+    // (the first match in DOM order; the expanded column has its own count).
+    await expect(
+      page.getByText(/\d+ conturi alocate|\d+ cont alocat/).first()
+    ).toBeVisible();
+
+    await target!.click();
+    await expect(page.locator("[data-testid='vertical-filter-banner']")).toBeVisible();
+
+    // Subtitle SWAPS from count to "Anuleaza filtrul" link — visible cue that
+    // the verticals header is now in "filter-active" mode.
+    const clearLink = page.getByRole("button", { name: /Anuleaza filtrul/i });
+    await expect(clearLink).toBeVisible();
+
+    // Click it → filter clears, banner hides, attribute removed.
+    await clearLink.click();
+    await expect(page.locator("[data-testid='vertical-filter-banner']")).toHaveCount(0);
+    await expect(target!).not.toHaveAttribute("data-filtered", "true");
+    await expect(
+      page.getByText(/\d+ conturi alocate|\d+ cont alocat/).first()
+    ).toBeVisible();
+  });
+
+  test("34. Clearing the filter leaves the column expanded (context preserved)", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    const tablist = page.getByRole("tablist", { name: /Verticale firmei/i });
+    await expect(tablist).toBeVisible({ timeout: 5000 });
+    const tabs = tablist.getByRole("tab");
+    const tabsCount = await tabs.count();
+    let target = null;
+    for (let i = 0; i < tabsCount; i++) {
+      const candidate = tabs.nth(i);
+      const txt = (await candidate.innerText()).trim();
+      if (!/implicit/i.test(txt)) {
+        target = candidate;
+        break;
+      }
+    }
+    expect(target).not.toBeNull();
+
+    await target!.click();
+    await expect(target!).toHaveAttribute("aria-selected", "true");
+    await expect(target!).toHaveAttribute("data-filtered", "true");
+
+    // Click the "Anuleaza filtrul" header link.
+    await page.getByRole("button", { name: /Anuleaza filtrul/i }).click();
+
+    // Filter cleared (no banner, no data-filtered) — but column STILL expanded
+    // (aria-selected stays true). Context preserved.
+    await expect(page.locator("[data-testid='vertical-filter-banner']")).toHaveCount(0);
+    await expect(target!).not.toHaveAttribute("data-filtered", "true");
+    await expect(target!).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("35. Clicking the residue badge filters list to source conts contributing to it", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+
+    // Ensure cont 6058's override target category has NO horizontal (so its
+    // override 992 lei falls on the default vertical residue).
+    const override = await prisma.partnerCategoryOverride.findFirst({
+      where: { clientId, contBase: "6058" },
+      select: { categoryId: true },
+    });
+    if (!override) throw new Error("Test prerequisite: 6058 override missing");
+    await prisma.categoryVerticalAllocation.deleteMany({
+      where: { clientId, categoryId: override.categoryId },
+    });
+
+    await page.goto(MAPARI_URL);
+    await page.waitForSelector("text=Cheltuieli", { timeout: 5000 });
+    await page.getByRole("tab", { name: /Linii de business/ }).click();
+
+    // Default vertical auto-expands; the residue badge is a button.
+    const badge = page.locator("[data-testid='default-vertical-residue-badge']");
+    await expect(badge).toBeVisible({ timeout: 5000 });
+
+    // Baseline: list shows ALL default-vertical conts.
+    const accountListPanel = page
+      .locator("div.rounded-xl.border.border-dark-3.bg-dark-2.p-5")
+      .last();
+    const rows = accountListPanel.locator("ul > li");
+    const baseCount = await rows.count();
+    expect(baseCount).toBeGreaterThan(0);
+
+    await badge.click();
+
+    // Banner switches to "residue mode" + the badge gains data-active.
+    const banner = page.locator("[data-testid='vertical-filter-banner']");
+    await expect(banner).toBeVisible();
+    await expect(banner).toHaveAttribute("data-residue-mode", "true");
+    await expect(banner).toContainText(/conturile.*sursa.*reziduu/i);
+    await expect(badge).toHaveAttribute("data-active", "true");
+
+    // The list shrank to the source conts (≥1, since 6058 contributes).
+    const narrowedCount = await rows.count();
+    expect(narrowedCount).toBeGreaterThanOrEqual(1);
+    expect(narrowedCount).toBeLessThanOrEqual(baseCount);
+
+    // Click "Sterge filtru" on the banner → residue filter clears.
+    // Vertical filter on default vertical also clears (banner gone).
+    // The default vertical column STAYS expanded (no auto-collapse).
+    const defaultColumn = page
+      .getByRole("tab")
+      .filter({ hasText: /implicit/i })
+      .first();
+    await banner.getByRole("button", { name: /Sterge filtru/i }).click();
+    await expect(banner).toHaveCount(0);
+    await expect(badge).not.toHaveAttribute("data-active", "true");
+    await expect(defaultColumn).toHaveAttribute("aria-selected", "true");
+  });
+
   test("29. Partner rows with active exception are visually distinguished (badge + left border)", async ({
     context,
   }) => {
@@ -858,13 +1063,16 @@ test.describe("Mapari Cashflow — partner overrides UX", () => {
     const text = (await badge.innerText()).trim();
     expect(text).toMatch(/lei reziduu$/);
 
-    // Tooltip explains the absorption + CTA.
+    // Tooltip explains the absorption + the click-to-filter CTA (post-May
+    // 2026: the badge is now a button that drills into the source conts;
+    // the tooltip messaging changed from "set the horizontal" guidance to
+    // "click to see the source conts" — same data, more useful affordance).
     await badge.hover();
     await expect(
       page.getByText(/absoarbe.*din reziduul exceptiilor de partener/i).first()
     ).toBeVisible();
     await expect(
-      page.getByText(/Seteaza orizontala categoriilor primitoare/i).first()
+      page.getByText(/Apasa ca sa vezi conturile sursa/i).first()
     ).toBeVisible();
   });
 

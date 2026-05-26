@@ -26,7 +26,7 @@
  * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,16 @@ export function MapariCashflowTab({ data }: Props) {
   const [query, setQuery] = useState("");
   const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
   const [allExceptionsOpen, setAllExceptionsOpen] = useState(false);
+  // Active vertical filter on the "Linii de business" tab. Set when the
+  // contabil clicks a vertical column (the column expands AND the conts
+  // list below filters to that vertical's allocations). null = no filter.
+  const [verticalFilter, setVerticalFilter] = useState<string | null>(null);
+  // Sub-filter: when true, the conts list is narrowed further to only the
+  // SOURCE conts that contribute residue absorbed by the default vertical
+  // (i.e. conts with partner overrides whose target category has no own
+  // horizontal). Triggered by clicking the default-vertical residue badge.
+  // Implies verticalFilter === default vertical id (we set both together).
+  const [residueFilterActive, setResidueFilterActive] = useState(false);
   const onMutate = () => router.refresh();
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
@@ -98,7 +108,31 @@ export function MapariCashflowTab({ data }: Props) {
     router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }
 
-  const filteredAccounts = filterAccounts(data.accounts, filter, query);
+  // Source conts that contribute to the default-vertical residue absorption:
+  // for every category that RECEIVES partner-override inflow but has NO own
+  // horizontal allocation (CategoryVerticalAllocation), every cont that
+  // funneled money into it counts. Pre-computed once per render; only used
+  // when the contabil clicks the residue badge to drill in.
+  const defaultVerticalResidueSourceConts = useMemo(() => {
+    const allocatedSet = new Set(
+      data.categoryAllocations.map((a) => a.categoryId)
+    );
+    const out = new Set<string>();
+    for (const [categoryId, inflow] of Object.entries(data.categoryInflows)) {
+      if (allocatedSet.has(categoryId)) continue; // own horizontal -> not on default
+      for (const src of inflow.sources) out.add(src.cont);
+    }
+    return out;
+  }, [data.categoryAllocations, data.categoryInflows]);
+
+  const filteredAccounts = filterAccounts(
+    data.accounts,
+    filter,
+    query,
+    verticalFilter,
+    data.verticals,
+    residueFilterActive ? defaultVerticalResidueSourceConts : null
+  );
   const unmappedCount = data.accounts.filter((a) => a.currentMapping === null).length;
   const unallocatedCount = data.accounts.filter(
     (a) => a.currentAllocation === null || a.currentAllocation.splits.length === 0
@@ -142,6 +176,11 @@ export function MapariCashflowTab({ data }: Props) {
           setFilter={setFilter}
           query={query}
           setQuery={setQuery}
+          verticalFilter={verticalFilter}
+          setVerticalFilter={setVerticalFilter}
+          residueFilterActive={residueFilterActive}
+          setResidueFilterActive={setResidueFilterActive}
+          residueSourceContCount={defaultVerticalResidueSourceConts.size}
           onMutate={onMutate}
         />
       )}
@@ -319,6 +358,11 @@ function VerticalAxisContent({
   setFilter,
   query,
   setQuery,
+  verticalFilter,
+  setVerticalFilter,
+  residueFilterActive,
+  setResidueFilterActive,
+  residueSourceContCount,
   onMutate,
 }: {
   data: MapariCashflowData;
@@ -330,6 +374,11 @@ function VerticalAxisContent({
   setFilter: (v: Filter) => void;
   query: string;
   setQuery: (v: string) => void;
+  verticalFilter: string | null;
+  setVerticalFilter: (id: string | null) => void;
+  residueFilterActive: boolean;
+  setResidueFilterActive: (v: boolean) => void;
+  residueSourceContCount: number;
   onMutate: () => void;
 }) {
   return (
@@ -340,6 +389,10 @@ function VerticalAxisContent({
         verticals={data.verticals}
         accounts={data.accounts}
         defaultVerticalResidueAbsorbed={data.defaultVerticalResidueAbsorbed}
+        verticalFilter={verticalFilter}
+        setVerticalFilter={setVerticalFilter}
+        residueFilterActive={residueFilterActive}
+        setResidueFilterActive={setResidueFilterActive}
         onMutate={onMutate}
       />
 
@@ -362,6 +415,14 @@ function VerticalAxisContent({
           verticalsEnabled={data.verticalsEnabled}
           verticals={data.verticals}
           mode="vertical"
+          verticalFilter={verticalFilter}
+          onClearVerticalFilter={() => {
+            setVerticalFilter(null);
+            setResidueFilterActive(false);
+          }}
+          residueFilterActive={residueFilterActive}
+          residueSourceContCount={residueSourceContCount}
+          onClearResidueFilter={() => setResidueFilterActive(false)}
           onMutate={onMutate}
         />
       )}
@@ -438,6 +499,10 @@ function VerticalsPanel({
   verticals,
   accounts,
   defaultVerticalResidueAbsorbed,
+  verticalFilter,
+  setVerticalFilter,
+  residueFilterActive,
+  setResidueFilterActive,
   onMutate,
 }: {
   clientId: string;
@@ -445,6 +510,10 @@ function VerticalsPanel({
   verticals: VerticalView[];
   accounts: AccountListItem[];
   defaultVerticalResidueAbsorbed: number;
+  verticalFilter: string | null;
+  setVerticalFilter: (id: string | null) => void;
+  residueFilterActive: boolean;
+  setResidueFilterActive: (v: boolean) => void;
   onMutate: () => void;
 }) {
   if (!enabled) {
@@ -456,6 +525,10 @@ function VerticalsPanel({
       verticals={verticals}
       accounts={accounts}
       defaultVerticalResidueAbsorbed={defaultVerticalResidueAbsorbed}
+      verticalFilter={verticalFilter}
+      setVerticalFilter={setVerticalFilter}
+      residueFilterActive={residueFilterActive}
+      setResidueFilterActive={setResidueFilterActive}
       onMutate={onMutate}
     />
   );
@@ -511,12 +584,20 @@ function VerticalsOn({
   verticals,
   accounts,
   defaultVerticalResidueAbsorbed,
+  verticalFilter,
+  setVerticalFilter,
+  residueFilterActive,
+  setResidueFilterActive,
   onMutate,
 }: {
   clientId: string;
   verticals: VerticalView[];
   accounts: AccountListItem[];
   defaultVerticalResidueAbsorbed: number;
+  verticalFilter: string | null;
+  setVerticalFilter: (id: string | null) => void;
+  residueFilterActive: boolean;
+  setResidueFilterActive: (v: boolean) => void;
   onMutate: () => void;
 }) {
   const [adding, setAdding] = useState(false);
@@ -567,13 +648,33 @@ function VerticalsOn({
             {realCount}{" "}
             {realCount === 1 ? "linie de business" : "linii de business"}
           </h3>
-          <span
-            className="font-mono text-[11px] text-gray"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            {totalAccounts}{" "}
-            {totalAccounts === 1 ? "cont alocat" : "conturi alocate"}
-          </span>
+          {verticalFilter ? (
+            <button
+              type="button"
+              onClick={() => {
+                // Clear the filter but LEAVE the column expanded — once the
+                // contabil has drilled in, collapsing it on filter-clear
+                // would erase context they wanted to keep. They can still
+                // collapse manually by clicking another column.
+                setVerticalFilter(null);
+                setResidueFilterActive(false);
+              }}
+              className="inline-flex items-center gap-1 font-mono text-[11px] text-primary hover:text-primary-light underline underline-offset-2 cursor-pointer"
+              style={{ letterSpacing: "-0.02em" }}
+              title="Sterge filtrul pe verticala"
+            >
+              <X size={11} />
+              Anuleaza filtrul
+            </button>
+          ) : (
+            <span
+              className="font-mono text-[11px] text-gray"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              {totalAccounts}{" "}
+              {totalAccounts === 1 ? "cont alocat" : "conturi alocate"}
+            </span>
+          )}
         </div>
         <Tooltip content="Ascunde verticalele peste tot. Datele se pastreaza si pot fi reactivate oricand.">
           <button
@@ -608,9 +709,31 @@ function VerticalsOn({
             }
             expanded={expandedId === v.id}
             anyExpanded={expandedId !== null}
-            onToggle={() =>
-              setExpandedId((curr) => (curr === v.id ? null : v.id))
-            }
+            filtered={verticalFilter === v.id}
+            residueFilterActive={v.isDefault && residueFilterActive}
+            onToggle={() => {
+              setExpandedId((curr) => {
+                const next = curr === v.id ? null : v.id;
+                // Sync the list filter below: opening a column filters the
+                // conts list to that vertical, closing clears the filter.
+                // Toggling AWAY from the default vertical also clears the
+                // residue-source sub-filter so we don't leave a stale view.
+                setVerticalFilter(next);
+                if (!v.isDefault || next !== v.id) {
+                  setResidueFilterActive(false);
+                }
+                return next;
+              });
+            }}
+            onResidueBadgeClick={() => {
+              // Clicking the residue badge implies "I want to see the source
+              // conts". Expand the default column (so the visual context is
+              // right), set the vertical filter to it, and turn on the
+              // residue-source narrowing. Toggle off on re-click.
+              setExpandedId(v.id);
+              setVerticalFilter(v.id);
+              setResidueFilterActive(!residueFilterActive);
+            }}
             onAccountClick={(cont) => setEditingCont(cont)}
             clientId={clientId}
             onMutate={onMutate}
@@ -717,7 +840,10 @@ function VerticalColumn({
   residueAbsorbed,
   expanded,
   anyExpanded,
+  filtered,
+  residueFilterActive,
   onToggle,
+  onResidueBadgeClick,
   onAccountClick,
   clientId,
   onMutate,
@@ -728,7 +854,19 @@ function VerticalColumn({
   residueAbsorbed: number;
   expanded: boolean;
   anyExpanded: boolean;
+  /** True when the conts list below is currently filtered to this vertical.
+   *  Drives a subtle visual cue (stronger border + ring) so the contabil
+   *  sees at a glance which column is actively scoping the list view. */
+  filtered: boolean;
+  /** True ONLY on the default vertical when the contabil has clicked the
+   *  residue badge — applies an extra highlight on the badge itself so the
+   *  "active drill-in" state reads at a glance. */
+  residueFilterActive: boolean;
   onToggle: () => void;
+  /** Fired when the contabil clicks the `↙ X lei reziduu` badge inside the
+   *  expanded default vertical. Bubbles up to drill-in / drill-out the list
+   *  to the source conts contributing to that residue. */
+  onResidueBadgeClick: () => void;
   onAccountClick: (cont: string) => void;
   clientId: string;
   onMutate: () => void;
@@ -759,10 +897,18 @@ function VerticalColumn({
     <div
       role="tab"
       aria-selected={expanded}
+      data-filtered={filtered ? "true" : undefined}
       onClick={onToggle}
+      title={
+        filtered
+          ? `Lista de mai jos e filtrata la conturile pe ${vertical.name}. Apasa din nou ca sa elimini filtrul.`
+          : `Vezi conturile alocate la ${vertical.name}.`
+      }
       className={`group relative h-full rounded-lg border bg-dark/40 cursor-pointer overflow-hidden transition-all duration-300 ease-out ${
         expanded
-          ? "flex-1 border-dark-3"
+          ? filtered
+            ? "flex-1 border-primary/50 ring-1 ring-primary/30"
+            : "flex-1 border-dark-3"
           : anyExpanded
           ? "w-14 border-dark-3/60 hover:border-dark-3"
           : "flex-1 border-dark-3/80 hover:border-dark-3"
@@ -776,6 +922,8 @@ function VerticalColumn({
           vertical={vertical}
           accounts={accounts}
           residueAbsorbed={residueAbsorbed}
+          residueFilterActive={residueFilterActive}
+          onResidueBadgeClick={onResidueBadgeClick}
           renaming={renaming}
           onStartRename={() => setRenaming(true)}
           onEndRename={() => {
@@ -850,6 +998,8 @@ function ExpandedColumn({
   vertical,
   accounts,
   residueAbsorbed,
+  residueFilterActive,
+  onResidueBadgeClick,
   renaming,
   onStartRename,
   onEndRename,
@@ -862,6 +1012,8 @@ function ExpandedColumn({
   vertical: VerticalView;
   accounts: AccountListItem[];
   residueAbsorbed: number;
+  residueFilterActive: boolean;
+  onResidueBadgeClick: () => void;
   renaming: boolean;
   onStartRename: () => void;
   onEndRename: () => void;
@@ -914,18 +1066,30 @@ function ExpandedColumn({
                         <strong>{formatRon(residueAbsorbed)} lei</strong> din
                         reziduul exceptiilor de partener, pentru ca acele
                         exceptii pica pe categorii fara orizontala proprie
-                        setata. Seteaza orizontala categoriilor primitoare ca
-                        sa controlezi unde merg banii.
+                        setata.{" "}
+                        {residueFilterActive
+                          ? "Apasa din nou ca sa elimini filtrul."
+                          : "Apasa ca sa vezi conturile sursa care contribuie."}
                       </>
                     }
                   >
-                    <span
+                    <button
+                      type="button"
                       data-testid="default-vertical-residue-badge"
-                      className="font-mono text-[10px] tabular-nums text-primary-light cursor-help inline-flex items-center gap-0.5"
+                      data-active={residueFilterActive ? "true" : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onResidueBadgeClick();
+                      }}
+                      className={`font-mono text-[10px] tabular-nums inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 transition-colors ${
+                        residueFilterActive
+                          ? "bg-primary/20 text-primary border border-primary/40"
+                          : "text-primary-light hover:bg-primary/10 hover:text-primary border border-transparent"
+                      }`}
                       style={{ letterSpacing: "-0.02em" }}
                     >
                       ↙ {formatRon(residueAbsorbed)} lei reziduu
-                    </span>
+                    </button>
                   </Tooltip>
                 )}
               </div>
@@ -2196,6 +2360,11 @@ function AccountListPanel({
   verticalsEnabled,
   verticals,
   mode,
+  verticalFilter,
+  onClearVerticalFilter,
+  residueFilterActive,
+  residueSourceContCount,
+  onClearResidueFilter,
   onMutate,
 }: {
   accounts: AccountListItem[];
@@ -2219,8 +2388,24 @@ function AccountListPanel({
    *  + the surface header copy + the "Nemapat" definition (category mode
    *  flags conturi without category; vertical mode does not). */
   mode: "category" | "vertical";
+  /** When set (vertical mode only), the list is scoped to conts allocated
+   *  to this vertical id. Driven by clicking a column above. null = no
+   *  vertical filter applied. */
+  verticalFilter?: string | null;
+  /** Callback fired when the contabil clicks the "Sterge filtru" affordance
+   *  on the active-filter banner. */
+  onClearVerticalFilter?: () => void;
+  /** True when the list is narrowed to source conts contributing to
+   *  default-vertical residue (clicked the `↙ X lei reziduu` badge). */
+  residueFilterActive?: boolean;
+  residueSourceContCount?: number;
+  onClearResidueFilter?: () => void;
   onMutate: () => void;
 }) {
+  const activeVerticalFilterName =
+    verticalFilter !== null && verticalFilter !== undefined
+      ? verticals.find((v) => v.id === verticalFilter)?.name ?? null
+      : null;
   const expensePicker = flattenTreeForPicker(tree, "expense");
   const revenuePicker = flattenTreeForPicker(tree, "revenue");
 
@@ -2328,6 +2513,60 @@ function AccountListPanel({
           options={filterOptions}
         />
       </div>
+
+      {activeVerticalFilterName && onClearVerticalFilter && (
+        <div
+          data-testid="vertical-filter-banner"
+          data-residue-mode={residueFilterActive ? "true" : undefined}
+          className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/[0.08] px-3 py-2"
+        >
+          <p
+            className="text-[12px] text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {residueFilterActive ? (
+              <>
+                Lista e filtrata la conturile{" "}
+                <span className="font-semibold text-white">sursa</span> care
+                contribuie cu reziduu la{" "}
+                <span className="font-semibold text-white">
+                  {activeVerticalFilterName}
+                </span>
+                .{" "}
+                <span className="text-gray">
+                  {visibleCount} din {residueSourceContCount ?? visibleCount}{" "}
+                  {(residueSourceContCount ?? visibleCount) === 1
+                    ? "cont sursa"
+                    : "conturi sursa"}
+                  . Conturile au exceptii de partener redirectate la categorii
+                  fara orizontala proprie — banii cad pe verticala implicita.
+                </span>
+              </>
+            ) : (
+              <>
+                Lista e filtrata la conturile pe{" "}
+                <span className="font-semibold text-white">
+                  {activeVerticalFilterName}
+                </span>
+                .{" "}
+                <span className="text-gray">
+                  {visibleCount} din {totalAccounts}{" "}
+                  {totalAccounts === 1 ? "cont" : "conturi"}.
+                </span>
+              </>
+            )}
+          </p>
+          <button
+            type="button"
+            onClick={onClearVerticalFilter}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dark-3 bg-dark-3/40 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-gray-light hover:text-white hover:border-primary/40"
+            style={{ letterSpacing: "0.02em" }}
+          >
+            <X size={11} />
+            Sterge filtru
+          </button>
+        </div>
+      )}
 
       {filterActive && (
         <p
@@ -2628,11 +2867,25 @@ function formatRon(value: number): string {
 /** Apply the category-toggle filter + the fuzzy search query against an
  *  account list. Search matches on cont, contBase, and denumire — all
  *  case-insensitive, diacritic-insensitive, and supports partial matches.
- *  The toggle filter is applied first (cheaper), then the search. */
+ *  The toggle filter is applied first (cheaper), then the search, then the
+ *  vertical filter (when clicking a column in the verticals accordion).
+ *
+ *  A cont matches `verticalFilter = X` when its allocation contains a split
+ *  on vertical X. Accounts WITHOUT explicit allocation flow to the default
+ *  vertical, so when X is the default they're included as well.
+ */
 function filterAccounts(
   accounts: AccountListItem[],
   filter: Filter,
-  query: string
+  query: string,
+  verticalFilter: string | null = null,
+  verticals: VerticalView[] = [],
+  /** When non-null, further narrows the result to only conts whose `cont`
+   *  string is in this set. Used when the contabil clicks the default-
+   *  vertical residue badge: we want to see ONLY the source conts that
+   *  contribute to that residue absorption, not the entire default-vertical
+   *  bucket. Applied last, AFTER all other filters. */
+  residueSourceConts: Set<string> | null = null
 ): AccountListItem[] {
   const byCategory = accounts.filter((a) => {
     if (filter === "expense") return a.kind === "expense";
@@ -2650,15 +2903,35 @@ function filterAccounts(
   });
 
   const trimmed = query.trim();
-  if (trimmed.length === 0) return byCategory;
+  const byQuery =
+    trimmed.length === 0
+      ? byCategory
+      : (() => {
+          const needle = stripDiacritics(trimmed.toLowerCase());
+          return byCategory.filter((a) => {
+            const haystack = stripDiacritics(
+              `${a.cont} ${a.contBase} ${a.denumire}`.toLowerCase()
+            );
+            return haystack.includes(needle);
+          });
+        })();
 
-  const needle = stripDiacritics(trimmed.toLowerCase());
-  return byCategory.filter((a) => {
-    const haystack = stripDiacritics(
-      `${a.cont} ${a.contBase} ${a.denumire}`.toLowerCase()
-    );
-    return haystack.includes(needle);
-  });
+  const byVertical = (() => {
+    if (!verticalFilter) return byQuery;
+    const defaultId = verticals.find((v) => v.isDefault)?.id;
+    const filteringDefault = verticalFilter === defaultId;
+    return byQuery.filter((a) => {
+      const hasAlloc =
+        a.currentAllocation !== null && a.currentAllocation.splits.length > 0;
+      if (!hasAlloc) return filteringDefault;
+      return a.currentAllocation!.splits.some(
+        (s) => s.verticalId === verticalFilter
+      );
+    });
+  })();
+
+  if (!residueSourceConts) return byVertical;
+  return byVertical.filter((a) => residueSourceConts.has(a.cont));
 }
 
 /** Remove Romanian diacritics so 'sosele' matches 'sosele' and 'cheltuieli'
