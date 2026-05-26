@@ -115,8 +115,9 @@ export function HealthPulse({ runway, salary, margin }: HealthPulseProps) {
 
 /* --------------------------------- Rings --------------------------------- */
 
-const RING_RADII = { outer: 96, middle: 76, inner: 56 } as const;
+const RING_RADII = { outer: 110, middle: 88, inner: 66 } as const;
 const RING_STROKE = 12;
+const CENTER_CLEAR_PX = (RING_RADII.inner - RING_STROKE / 2 - 4) * 2; // ~112px
 
 function ConcentricRings({
   vitals,
@@ -186,20 +187,29 @@ function ConcentricRings({
 }
 
 function CenterReadout({ vital }: { vital: Vital }) {
+  // Headline scales down for longer strings ("12 luni" stays big; "peste 999
+  // luni" or "—" both fit). Keeps the readout inside the inner ring radius.
+  const headlineSize =
+    vital.headline.length <= 6 ? 28 : vital.headline.length <= 10 ? 22 : 18;
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-      <p
-        className="font-mono text-[9px] uppercase tracking-wider text-gray"
-        style={{ letterSpacing: "0.06em" }}
+      <div
+        className="flex flex-col items-center"
+        style={{ maxWidth: `${CENTER_CLEAR_PX}px` }}
       >
-        {vital.label}
-      </p>
-      <p
-        className={`mt-1 font-mono text-[26px] font-semibold tabular-nums ${toneText(vital.tone)}`}
-        style={{ letterSpacing: "-0.04em" }}
-      >
-        {vital.headline}
-      </p>
+        <p
+          className="font-mono text-[9px] uppercase tracking-wider text-gray leading-tight"
+          style={{ letterSpacing: "0.06em" }}
+        >
+          {vital.label}
+        </p>
+        <p
+          className={`mt-1.5 font-mono font-semibold tabular-nums leading-none ${toneText(vital.tone)}`}
+          style={{ letterSpacing: "-0.04em", fontSize: `${headlineSize}px` }}
+        >
+          {vital.headline}
+        </p>
+      </div>
     </div>
   );
 }

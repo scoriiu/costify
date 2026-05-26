@@ -40,6 +40,7 @@ import { CategoryBreakdownCard } from "./category-breakdown-card";
 import { TopExpensesList } from "./top-expenses-list";
 import { YoyComparison } from "./yoy-comparison";
 import { VerticalBreakdownCard } from "./vertical-breakdown-card";
+import { SectionQuickNav } from "./section-quick-nav";
 
 interface OwnerViewProps {
   snapshot: OwnerSnapshot;
@@ -85,8 +86,16 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
         }
       />
 
+      <SectionQuickNav
+        items={buildNavItems({
+          hasYoy: yoy.hasPreviousYear,
+          hasVerticals: verticalBreakdown.length > 0,
+          hasInsights: insights.length > 0,
+        })}
+      />
+
       {/* 1. Hero — cash + 3 metrics */}
-      <Section className="mb-8">
+      <Section id="hero" className="mb-8">
         <HeroSummary
           summary={summary}
           trends={trends}
@@ -104,7 +113,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       </Section>
 
       {/* 2. Vital signs — runway, salary, margin */}
-      <Section className="mb-8">
+      <Section id="sanatate" className="mb-8">
         <HealthPulse
           runway={runway}
           salary={salaryAffordability}
@@ -113,12 +122,13 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       </Section>
 
       {/* 3. Cashflow waterfall — how this month moved cash */}
-      <Section className="mb-8">
+      <Section id="cashflow" className="mb-8">
         <CashflowWaterfall trends={trends} />
       </Section>
 
       {/* 4. Evolution chart — 12 months */}
       <SectionWithLink
+        id="evolutie"
         href={buildPageHref(context, "evolutie")}
         label="Vezi evolutie completa"
         className="mb-8"
@@ -128,13 +138,13 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
 
       {/* 5. YoY (hidden when no prev-year data) */}
       {yoy.hasPreviousYear && (
-        <Section className="mb-8">
+        <Section id="yoy" className="mb-8">
           <YoyComparison yoy={yoy} />
         </Section>
       )}
 
       {/* 6. Where did the money go + come from — two interactive donuts */}
-      <Section className="mb-8">
+      <Section id="breakdowns" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <CategoryBreakdownCard
             title="Unde s-au dus banii"
@@ -154,7 +164,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       </Section>
 
       {/* 7. Top expenses */}
-      <Section className="mb-8">
+      <Section id="top-cheltuieli" className="mb-8">
         <TopExpensesList
           items={topMonthlyExpenses}
           subtitle="Cele mai mari plati ale lunii, ordonate descrescator."
@@ -163,13 +173,14 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
 
       {/* 8. Verticals (hidden when feature off) */}
       {verticalBreakdown.length > 0 && (
-        <Section className="mb-8">
+        <Section id="verticals" className="mb-8">
           <VerticalBreakdownCard items={verticalBreakdown} periodLabel={period} />
         </Section>
       )}
 
       {/* 9. Cash position */}
       <SectionWithLink
+        id="cash-position"
         href={buildPageHref(context, "bani")}
         label="Vezi detalii bani"
         className="mb-8"
@@ -178,7 +189,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       </SectionWithLink>
 
       {/* 10. Outstanding partners */}
-      <Section className="mb-8">
+      <Section id="parteneri" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <div className="space-y-2">
             <OutstandingTable variant="clienti" partners={outstanding.clienti} />
@@ -193,6 +204,7 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
 
       {/* 11. Owner withdrawals */}
       <SectionWithLink
+        id="eu"
         href={buildPageHref(context, "eu")}
         label="Vezi istoricul complet"
         className="mb-8"
@@ -201,13 +213,16 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
       </SectionWithLink>
 
       {/* 12. Insights */}
-      <SectionWithLink
-        href={buildPageHref(context, "sanatate")}
-        label="Vezi toate semnalele"
-        className="mb-8"
-      >
-        <InsightsList insights={insights} />
-      </SectionWithLink>
+      {insights.length > 0 && (
+        <SectionWithLink
+          id="insights"
+          href={buildPageHref(context, "sanatate")}
+          label="Vezi toate semnalele"
+          className="mb-8"
+        >
+          <InsightsList insights={insights} />
+        </SectionWithLink>
+      )}
 
       {/* Footer micro-print */}
       <footer className="border-t border-dark-3 pt-6">
@@ -227,34 +242,72 @@ export function OwnerView({ snapshot, context, marjaOperationala }: OwnerViewPro
 /* -------------------------- Layout primitives ---------------------------- */
 
 function Section({
+  id,
   children,
   className,
 }: {
+  id?: string;
   children: React.ReactNode;
   className?: string;
 }) {
-  return <section className={className}>{children}</section>;
+  return (
+    <section id={id} className={`scroll-mt-24 ${className ?? ""}`}>
+      {children}
+    </section>
+  );
 }
 
 function SectionWithLink({
+  id,
   href,
   label,
   children,
   className,
 }: {
+  id?: string;
   href: string;
   label: string;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <section className={className}>
+    <section id={id} className={`scroll-mt-24 ${className ?? ""}`}>
       <div className="space-y-2">
         {children}
         <SectionLink href={href} label={label} />
       </div>
     </section>
   );
+}
+
+function buildNavItems({
+  hasYoy,
+  hasVerticals,
+  hasInsights,
+}: {
+  hasYoy: boolean;
+  hasVerticals: boolean;
+  hasInsights: boolean;
+}): Array<{ id: string; label: string }> {
+  const items: Array<{ id: string; label: string }> = [
+    { id: "hero", label: "Privire" },
+    { id: "sanatate", label: "Sanatate" },
+    { id: "cashflow", label: "Cashflow" },
+    { id: "evolutie", label: "Evolutie" },
+  ];
+  if (hasYoy) items.push({ id: "yoy", label: "An vs an" });
+  items.push(
+    { id: "breakdowns", label: "Categorii" },
+    { id: "top-cheltuieli", label: "Top plati" }
+  );
+  if (hasVerticals) items.push({ id: "verticals", label: "Linii" });
+  items.push(
+    { id: "cash-position", label: "Obligatii" },
+    { id: "parteneri", label: "Parteneri" },
+    { id: "eu", label: "Eu si firma" }
+  );
+  if (hasInsights) items.push({ id: "insights", label: "Semnale" });
+  return items;
 }
 
 function SectionLink({ href, label }: { href: string; label: string }) {

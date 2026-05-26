@@ -21,6 +21,7 @@
  *   └──────────────┴───────────────┴──────────────────────────┘
  */
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowUp,
@@ -86,6 +87,7 @@ export function HeroSummary({
           banca={summary.soldConturiBancare}
           delta={cashDelta}
           spark={trends.slice(-6).map((t) => t.cashEnd)}
+          sparkLabels={trends.slice(-6).map((t) => t.monthLabel)}
         />
         <ArrowRight
           size={16}
@@ -149,12 +151,14 @@ function CashHero({
   banca,
   delta,
   spark,
+  sparkLabels,
 }: {
   totalCash: number;
   casa: number;
   banca: number;
   delta: { value: number; pct: number | null; previousLabel: string } | null;
   spark: number[];
+  sparkLabels: string[];
 }) {
   const direction = delta
     ? delta.value > 0
@@ -166,7 +170,7 @@ function CashHero({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-4 pr-8 sm:pr-10">
         <div>
           <p
             className="font-mono text-[11px] uppercase tracking-wider text-gray inline-flex items-center gap-2"
@@ -193,7 +197,7 @@ function CashHero({
         )}
       </div>
 
-      {spark.length >= 2 && <BigSparkline values={spark} />}
+      {spark.length >= 2 && <BigSparkline values={spark} labels={sparkLabels} />}
     </div>
   );
 }
@@ -253,52 +257,119 @@ function DeltaPill({
   );
 }
 
-function BigSparkline({ values }: { values: number[] }) {
-  // Render an inline area+line composite so the hero number is visually
-  // grounded by its recent trajectory. Plain SVG — small enough that
-  // recharts overhead isn't worth it.
+function BigSparkline({
+  values,
+  labels,
+}: {
+  values: number[];
+  labels: string[];
+}) {
+  // Interactive hero spark: hover any month → readout above the line shows
+  // the month + the exact cash value at that point. Cursor crosshair stays
+  // anchored to the closest data point so the readout always feels precise.
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const w = 720;
-  const h = 56;
+  const h = 72;
+  const padY = 10;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
   const stepX = w / (values.length - 1);
   const xs = values.map((_, i) => i * stepX);
-  const ys = values.map((v) => h - ((v - min) / range) * (h - 8) - 4);
+  const ys = values.map((v) => h - ((v - min) / range) * (h - padY * 2) - padY);
   const linePath = xs
     .map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`)
     .join(" ");
   const areaPath = `${linePath} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`;
+
+  const active = hoverIdx !== null ? hoverIdx : values.length - 1;
+  const activeLabel = labels[active] ?? "";
+  const activeValue = values[active];
+
+  function onMove(evt: React.MouseEvent<SVGSVGElement>) {
+    const rect = evt.currentTarget.getBoundingClientRect();
+    const rel = (evt.clientX - rect.left) / rect.width;
+    const i = Math.max(0, Math.min(values.length - 1, Math.round(rel * (values.length - 1))));
+    setHoverIdx(i);
+  }
+
   return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="w-full h-12 sm:h-14"
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id="hero-cash-area" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-          <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#hero-cash-area)" />
-      <path
-        d={linePath}
-        fill="none"
-        stroke="var(--color-primary)"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Dot on the latest point */}
-      <circle
-        cx={xs[xs.length - 1]}
-        cy={ys[ys.length - 1]}
-        r={3}
-        fill="var(--color-primary)"
-      />
-    </svg>
+    <div className="relative">
+      {/* Floating readout */}
+      <div className="flex items-baseline justify-between mb-1.5">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "0.04em" }}
+        >
+          Ultimele 6 luni{hoverIdx !== null ? ` · ${activeLabel}` : ""}
+        </span>
+        <span
+          className="font-mono text-[12px] text-gray-light tabular-nums"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {lei(activeValue)}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="w-full h-14 sm:h-16 cursor-crosshair"
+        preserveAspectRatio="none"
+        onMouseMove={onMove}
+        onMouseLeave={() => setHoverIdx(null)}
+        role="img"
+        aria-label={`Cash la finalul ultimelor ${values.length} luni`}
+      >
+        <defs>
+          <linearGradient id="hero-cash-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill="url(#hero-cash-area)" />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Crosshair on hover */}
+        {hoverIdx !== null && (
+          <>
+            <line
+              x1={xs[hoverIdx]}
+              x2={xs[hoverIdx]}
+              y1={0}
+              y2={h}
+              stroke="var(--color-primary)"
+              strokeOpacity={0.4}
+              strokeDasharray="2 3"
+              strokeWidth={1}
+            />
+            <circle
+              cx={xs[hoverIdx]}
+              cy={ys[hoverIdx]}
+              r={5}
+              fill="var(--color-primary)"
+              stroke="var(--color-dark-2)"
+              strokeWidth={2}
+            />
+          </>
+        )}
+        {/* Default endpoint dot (when not hovering) */}
+        {hoverIdx === null && (
+          <circle
+            cx={xs[xs.length - 1]}
+            cy={ys[ys.length - 1]}
+            r={4}
+            fill="var(--color-primary)"
+            stroke="var(--color-dark-2)"
+            strokeWidth={2}
+          />
+        )}
+      </svg>
+    </div>
   );
 }
 
