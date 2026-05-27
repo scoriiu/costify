@@ -23,10 +23,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions          Session[]
-  clients           Client[]
-  clientAccesses    ClientAccess[]
-  publishedPeriods  PublishedPeriod[]
+  sessions         Session[]
+  clients          Client[]
+  clientAccesses   ClientAccess[]
+  publishedPeriods PublishedPeriod[]
 
   @@index([userRole])
 }
@@ -48,22 +48,22 @@ model Session {
 }
 
 model Client {
-  id         String   @id @default(cuid())
-  userId     String
-  name       String
-  slug       String
-  cui        String?
-  caen       String?
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  slug             String
+  cui              String?
+  caen             String?
   /// @deprecated Use TaxRegimePeriod timeline instead. Kept as fallback until all clients have at least one TaxRegimePeriod row.
-  taxRegime         String  @default("profit_standard")
-  active            Boolean @default(true)
+  taxRegime        String   @default("profit_standard")
+  active           Boolean  @default(true)
   /// PR-2c. When true, the firm tracks costs and revenues per business
   /// vertical (Outsourcing, Recruitment, Coworking for QHM21; project
   /// names for a construction firm; service lines for a SaaS). Most small
   /// firms have only one implicit vertical — leave this false. When
   /// flipped on, a default "Toata firma" Vertical is auto-created so
   /// every account immediately has somewhere to land.
-  verticalsEnabled  Boolean @default(false)
+  verticalsEnabled Boolean  @default(false)
   /// Monotonic counter bumped whenever data that affects computed outputs
   /// (balance, CPP, mapari, owner snapshot, KPIs) changes:
   ///   - journal upload / soft-delete (any JournalLine write)
@@ -72,24 +72,25 @@ model Client {
   /// This is the cache key suffix for unstable_cache wrapping of every heavy
   /// loader, so a cache hit guarantees the cached value matches the current
   /// data state — no manual revalidation needed. See modules/clients/data-version.ts.
-  dataVersion       Int     @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  dataVersion      Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  user                  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  journalLines          JournalLine[]
-  importEvents          ImportEvent[]
-  journalPartners       JournalPartner[]
-  clientAccounts        ClientAccount[]
-  taxRegimePeriods      TaxRegimePeriod[]
-  accesses              ClientAccess[]
-  publishedPeriods      PublishedPeriod[]
-  costCategories            CostCategory[]
-  accountCategoryMaps       AccountCategoryMapping[]
-  partnerCategoryOverrides  PartnerCategoryOverride[]
-  verticals                 Vertical[]
-  verticalAllocations       VerticalAllocation[]
-  categoryVerticalAllocs    CategoryVerticalAllocation[]
+  user                     User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journalLines             JournalLine[]
+  importEvents             ImportEvent[]
+  journalPartners          JournalPartner[]
+  clientAccounts           ClientAccount[]
+  taxRegimePeriods         TaxRegimePeriod[]
+  computedPeriods          ComputedPeriod[]
+  accesses                 ClientAccess[]
+  publishedPeriods         PublishedPeriod[]
+  costCategories           CostCategory[]
+  accountCategoryMaps      AccountCategoryMapping[]
+  partnerCategoryOverrides PartnerCategoryOverride[]
+  verticals                Vertical[]
+  verticalAllocations      VerticalAllocation[]
+  categoryVerticalAllocs   CategoryVerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -134,14 +135,14 @@ model ClientAccess {
 /// `snapshotData` shape is versioned via `snapshotVersion` so we can migrate
 /// the JSON forward as the OwnerSnapshot type evolves. See `modules/publishing`.
 model PublishedPeriod {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   clientId        String
   year            Int
   month           Int // 1..12
   publishedBy     String // accountant userId
-  publishedAt     DateTime @default(now())
+  publishedAt     DateTime  @default(now())
   noteForOwner    String? // optional one-liner shown to the OWNER ("Salariile dec incluse")
-  snapshotVersion Int      @default(1)
+  snapshotVersion Int       @default(1)
   snapshotData    Json // serialized OwnerSnapshot (summary, cashPosition, trends, etc.)
   snapshotHash    String // SHA-256 of canonical snapshot JSON. Used by audit + change detection.
   /// Non-null means: the underlying journal for this period changed after `publishedAt`,
@@ -256,9 +257,9 @@ model CostCategory {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  client             Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  parent             CostCategory?                @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children           CostCategory[]               @relation("CostCategoryTree")
+  client             Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent             CostCategory?               @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children           CostCategory[]              @relation("CostCategoryTree")
   mappings           AccountCategoryMapping[]
   partnerOverrides   PartnerCategoryOverride[]
   verticalAllocation CategoryVerticalAllocation?
@@ -352,16 +353,16 @@ model AccountCategoryMapping {
 ///   - "suggested" — sistemul a pre-completat din memorie sau matching;
 ///                  confirmedAt este null pana cand contabilul valideaza.
 model PartnerCategoryOverride {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   clientId              String
   contBase              String
   partnerNameNormalized String
   partnerNameOriginal   String
   categoryId            String
-  source                String   // "manual" | "bulk" | "suggested"
+  source                String // "manual" | "bulk" | "suggested"
   confirmedAt           DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -381,14 +382,14 @@ model PartnerCategoryOverride {
 ///   pick the row where startDate <= LAST_DAY(Y,M), ordered by startDate desc, limit 1.
 /// If no rows exist, fall back to Client.taxRegime (legacy).
 model TaxRegimePeriod {
-  id         String   @id @default(cuid())
-  clientId   String
-  startDate  DateTime @db.Date
-  taxRegime  String   // profit_standard | profit_micro_1 | profit_micro_3 | profit_specific | imca | deferred
-  reason     String?  // optional free-text note: "scadere venituri sub 500k EUR"
-  createdBy  String?  // user id who created this transition (null for synthetic/migration)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  clientId  String
+  startDate DateTime @db.Date
+  taxRegime String // profit_standard | profit_micro_1 | profit_micro_3 | profit_specific | imca | deferred
+  reason    String? // optional free-text note: "scadere venituri sub 500k EUR"
+  createdBy String? // user id who created this transition (null for synthetic/migration)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -410,16 +411,16 @@ model TaxRegimePeriod {
 // safely. If a worker crashes mid-import (pod restart, OOM), another pod
 // reclaims the row once `lockedAt < now() - 5 minutes`.
 model ImportEvent {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   clientId     String
   fileName     String
   fileHash     String
-  sourceFormat String   @default("saga")
-  entriesAdded Int      @default(0)
+  sourceFormat String    @default("saga")
+  entriesAdded Int       @default(0)
   dateStart    DateTime?
   dateEnd      DateTime?
-  status       String   @default("queued")
-  createdAt    DateTime @default(now())
+  status       String    @default("queued")
+  createdAt    DateTime  @default(now())
 
   // Queue / progress fields.
   progress         Int       @default(0)
@@ -440,20 +441,20 @@ model ImportEvent {
 }
 
 model JournalLine {
-  id            String    @id @default(cuid())
+  id            String @id @default(cuid())
   clientId      String
   importEventId String
 
-  data      DateTime
-  year      Int
-  month     Int
-  ndp       String
+  data  DateTime
+  year  Int
+  month Int
+  ndp   String
 
   contD     String
   contDBase String
   contC     String
   contCBase String
-  suma      Decimal  @default(0) @db.Decimal(18, 2)
+  suma      Decimal @default(0) @db.Decimal(18, 2)
 
   explicatie String
   felD       String   @default("")
@@ -476,8 +477,58 @@ model JournalLine {
   @@index([importEventId])
 }
 
+/// Materialized balance + KPI + CPP + CPP-F20 + tax regime per (client, year, month).
+///
+/// Populated by the import worker (eager) and the live-read fallback (lazy).
+/// A row is valid iff `dataVersion` equals the current `Client.dataVersion` at
+/// read time — same key-as-version model we use for in-memory caches. Stale
+/// rows are simply ignored on read; a fresh recompute overwrites them. We
+/// never DELETE on bump because two parallel imports / corrections could
+/// race a delete against another worker's write.
+///
+/// Storage shape: each computed period is ~50 KB JSON for Upperhouse-sized
+/// clients (846 balance rows). At 1,000 clients × ~24 months that's about
+/// 1.2 GB — cheap on Postgres.
+///
+/// Why JSONB columns and not relational rows: balance rows have ~20 columns
+/// of computed numbers each, joined across tables that don't exist as
+/// such (no "BalanceRow" table). JSONB lets us snapshot exactly the shape
+/// the API route returns to the client. Reads are one keyed SELECT and
+/// the route handler skips fetch + compute + KPI + CPP entirely.
+model ComputedPeriod {
+  id          String @id @default(cuid())
+  clientId    String
+  year        Int
+  month       Int
+  /// Snapshot of Client.dataVersion at the moment of computation. If
+  /// Client.dataVersion advances past this, the row is stale and ignored.
+  dataVersion Int
+  /// Tax regime that was active for this period when the snapshot was
+  /// taken. Stored separately so the read path can return it without
+  /// touching the journal.
+  taxRegime   String
+
+  /// BalanceRowView[] — exactly what /api/balance returns under `rows`.
+  rows   Json
+  /// ComputedKpis | null
+  kpis   Json
+  /// CppData | null
+  cpp    Json
+  /// CppF20Data | null
+  cppF20 Json
+
+  computedAt DateTime @default(now())
+  /// How the row was populated. "eager" = import worker. "lazy" = read-fallback.
+  computedBy String   @default("lazy")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, year, month])
+  @@index([clientId, dataVersion])
+}
+
 model JournalPartner {
-  id              String @id @default(cuid())
+  id              String  @id @default(cuid())
   clientId        String
   analyticAccount String
   contBase        String
@@ -513,7 +564,7 @@ model AuditEvent {
 }
 
 model AccountCatalog {
-  code       String  @id
+  code       String @id
   name       String
   type       String // "A" | "P" | "B"
   classDigit Int
@@ -563,7 +614,7 @@ model ClientAccount {
   clientId    String
   code        String
   customName  String
-  source      String   // "saga_import" | "user_edit" | "saga_explicatie" | "auto_created"
+  source      String // "saga_import" | "user_edit" | "saga_explicatie" | "auto_created"
   partnerCode String?
   needsReview Boolean  @default(false) // D14: contBase not in AccountCatalog
   firstSeenAt DateTime @default(now())

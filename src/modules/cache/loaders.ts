@@ -51,6 +51,12 @@ const CACHE_REVALIDATE_SECONDS = 24 * 60 * 60;
 /*                             getBalanceRowsCached                            */
 /* -------------------------------------------------------------------------- */
 
+// TODO(post-computed-period): once `ComputedPeriod` materialization has been
+// running in prod without stale-data complaints for ~2 weeks, remove this
+// wrapper and call `getBalanceRows` directly. The materialized tier already
+// caches the full API response (rows + KPIs + CPP) keyed on dataVersion;
+// this in-memory tier only re-caches the row subset and only fires on the
+// rare live-compute fallback path.
 const cachedBalanceRows = unstable_cache(
   async (
     clientId: string,

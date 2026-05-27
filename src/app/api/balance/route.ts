@@ -1,3 +1,23 @@
+/**
+ * Balance + KPI + CPP + tax-regime read endpoint — three-tier cache.
+ *
+ * Read path, in order:
+ *   1. ComputedPeriod (materialized) — one keyed SELECT, ~20 ms server.
+ *      Valid when row's dataVersion matches Client.dataVersion.
+ *   2. unstable_cache (in-memory, version-keyed) — kept as a safety net
+ *      during ComputedPeriod rollout. Also helpful on fresh pods that
+ *      haven't materialized yet.
+ *   3. Live compute — fetch journal, run computeBalanceFromJournal +
+ *      KPIs + CPP + CPP-F20 + regime. Writes back to ComputedPeriod
+ *      so the next read is instant. ~1.5 s.
+ *
+ * Mutation invalidation: every write that affects derived data bumps
+ * Client.dataVersion. Stale ComputedPeriod rows become unreachable
+ * by the WHERE-clause version filter, so we never serve incorrect
+ * data. We deliberately do NOT delete stale rows on bump — concurrent
+ * writers would race and stranger bugs would appear. The next read
+ * triggers a fresh recompute and overwrites via upsert.
+ */
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
@@ -5,6 +25,11 @@ import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
+import {
+  readComputedPeriod,
+  writeComputedPeriod,
+  type ComputedPeriodPayload,
+} from "@/modules/balances/computed-period";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -22,6 +47,22 @@ export async function GET(request: Request) {
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
+  // Tier 1: materialized read. If we have a row whose dataVersion
+  // matches the client's current data version, we can return it
+  // unconditionally — no compute, no journal fetch.
+  const tCacheStart = Date.now();
+  const cached = await readComputedPeriod(clientId, year, month);
+  const tCache = Date.now() - tCacheStart;
+  if (cached) {
+    console.log(
+      `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${cached.rows.length} | source=computed cache=${tCache}ms`,
+    );
+    return NextResponse.json(cached, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  // Tier 2 + 3: live compute (still goes through the in-memory
+  // unstable_cache for the balance rows themselves). On success we
+  // materialize the result so the next read goes through tier 1.
   const t0 = Date.now();
   const [balanceResult, catalog, taxRegime] = await Promise.all([
     getBalanceRowsCached(clientId, year, month),
@@ -49,19 +90,30 @@ export async function GET(request: Request) {
   const t3 = Date.now();
   const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });
   const tF20 = Date.now() - t3;
+
+  const payload: ComputedPeriodPayload = {
+    rows: balanceResult.data,
+    kpis,
+    cpp,
+    cppF20,
+    taxRegime,
+  };
+
+  // Materialize for future reads. Don't block the response on the write —
+  // failure here is a perf regression, not a correctness bug, because the
+  // next read will just go through this same path again.
+  writeComputedPeriod(clientId, year, month, payload, "lazy").catch((e) => {
+    console.warn(
+      `[api/balance] failed to materialize client=${clientId.slice(0, 8)} y=${year} m=${month}:`,
+      e instanceof Error ? e.message : e,
+    );
+  });
+
   console.log(
-    `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${balanceResult.data.length} | load=${tLoad}ms kpi=${tKpi}ms cpp=${tCpp}ms f20=${tF20}ms`,
+    `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${balanceResult.data.length} | source=live cache=${tCache}ms load=${tLoad}ms kpi=${tKpi}ms cpp=${tCpp}ms f20=${tF20}ms`,
   );
 
-  return NextResponse.json(
-    { rows: balanceResult.data, kpis, cpp, cppF20, taxRegime },
-    {
-      headers: {
-        // The server-side cache (unstable_cache keyed on dataVersion) gives us
-        // the speedup. The browser must not cache: response correctness depends
-        // on the freshest dataVersion which we read server-side per request.
-        "Cache-Control": "no-store",
-      },
-    }
-  );
+  return NextResponse.json(payload, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }
