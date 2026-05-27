@@ -59,12 +59,21 @@ spec:
                 secretKeyRef:
                   name: costify-secrets
                   key: ANTHROPIC_API_KEY
+            # XLSX parsing for large Saga exports (>15 MB files like
+            # UpperHouse's 19 MB journal) explodes to 200+ MB of live heap
+            # during workbook decompression + row parsing. Node's default
+            # --max-old-space-size is ~1.4 GB on a 2 GB container, which
+            # caused V8 OOM segfaults (exit 139) on real-world imports.
+            # 3 GB heap inside a 4 GB pod gives us headroom until imports
+            # are moved off the request path into a BullMQ job.
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=3072"
           resources:
             requests:
-              memory: 1Gi
+              memory: 2Gi
               cpu: 1000m
             limits:
-              memory: 2Gi
+              memory: 4Gi
               cpu: 3000m
           readinessProbe:
             httpGet:
