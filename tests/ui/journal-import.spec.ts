@@ -37,6 +37,7 @@ const HAS_FIXTURE = existsSync(FIXTURE);
 
 let prisma: PrismaClient;
 let sessionToken: string;
+let userId: string;
 let testClientId: string;
 let testClientSlug: string;
 
@@ -51,44 +52,52 @@ test.beforeAll(async () => {
     select: { id: true },
   });
   if (!user) throw new Error("Test user not found");
+  userId = user.id;
 
   sessionToken = crypto.randomBytes(32).toString("hex");
   await prisma.session.create({
     data: {
-      userId: user.id,
+      userId,
       token: sessionToken,
       expiresAt: new Date(Date.now() + 3600_000),
       ipAddress: "127.0.0.1",
       userAgent: "playwright-journal-import",
     },
   });
+});
 
-  // Throwaway client unique to this test run so we never collide with
-  // existing data and can hard-delete on teardown.
-  testClientSlug = `e2e-import-${Date.now()}`;
+test.beforeEach(async () => {
+  if (!HAS_FIXTURE) return;
+  // Each test gets a fresh throwaway client so imports never see prior
+  // dedupHashes. Without this the second test in the file would see
+  // entriesAdded: 0 because the first test already imported every row.
+  const stamp = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  testClientSlug = `e2e-import-${stamp}`;
   const client = await prisma.client.create({
     data: {
-      userId: user.id,
-      name: `E2E Import Test ${Date.now()}`,
+      userId,
+      name: `E2E Import Test ${stamp}`,
       slug: testClientSlug,
-      cui: `E2E${Date.now().toString().slice(-7)}`,
+      cui: `E2E${stamp.replace(/[^0-9]/g, "").slice(-7)}`,
     },
     select: { id: true },
   });
   testClientId = client.id;
 });
 
+test.afterEach(async () => {
+  if (!HAS_FIXTURE || !testClientId) return;
+  await prisma.journalLine.deleteMany({ where: { clientId: testClientId } });
+  await prisma.journalPartner.deleteMany({ where: { clientId: testClientId } });
+  await prisma.clientAccount.deleteMany({ where: { clientId: testClientId } });
+  await prisma.importEvent.deleteMany({ where: { clientId: testClientId } });
+  await prisma.client.delete({ where: { id: testClientId } }).catch(() => undefined);
+  testClientId = "";
+  testClientSlug = "";
+});
+
 test.afterAll(async () => {
   if (!HAS_FIXTURE) return;
-  // Cascading deletes: order matters because of FK constraints. Journal
-  // lines first, then dependent rows, then the client itself.
-  if (testClientId) {
-    await prisma.journalLine.deleteMany({ where: { clientId: testClientId } });
-    await prisma.journalPartner.deleteMany({ where: { clientId: testClientId } });
-    await prisma.clientAccount.deleteMany({ where: { clientId: testClientId } });
-    await prisma.importEvent.deleteMany({ where: { clientId: testClientId } });
-    await prisma.client.delete({ where: { id: testClientId } }).catch(() => undefined);
-  }
   await prisma.session.deleteMany({
     where: { userAgent: "playwright-journal-import" },
   });
@@ -104,6 +113,51 @@ async function authedPage(context: BrowserContext): Promise<Page> {
 }
 
 test.describe("Journal import — UpperHouse 19 MB fixture", () => {
+  test("shows calibrated progress bar that advances during the upload", async ({
+    context,
+  }) => {
+    test.setTimeout(150_000);
+    const page = await authedPage(context);
+    await page.goto(`${BASE}/clients/${testClientSlug}/import`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.waitFor({ state: "attached" });
+    await fileInput.setInputFiles(FIXTURE);
+
+    const importBtn = page.getByRole("button", { name: /^Import$/ });
+    await expect(importBtn).toBeEnabled();
+
+    const importResponsePromise = page.waitForResponse(
+      (r) => r.url().includes("/api/import") && r.request().method() === "POST",
+      { timeout: 130_000 }
+    );
+    await importBtn.click();
+
+    // The progress block replaces the Import button once upload starts.
+    // We give it 2 seconds to appear because the curve starts at ~15% by
+    // ~1.5s into the upload.
+    const progressLabel = page.locator("text=/incarc|citeste|salveaza|finalizeaza/i").first();
+    await expect(progressLabel).toBeVisible({ timeout: 2_000 });
+
+    // The bar should reach a healthy mid-percentage well before the response
+    // arrives. Sample at ~5 s — by then the curve is in the parse stage.
+    await page.waitForTimeout(5_000);
+    const percentTextMid = await page
+      .locator("[class*='font-mono']")
+      .filter({ hasText: /%/ })
+      .first()
+      .innerText();
+    const midPct = parseInt(percentTextMid.replace("%", ""), 10);
+    expect(midPct).toBeGreaterThan(20);
+    expect(midPct).toBeLessThanOrEqual(95);
+
+    // Wait for the real response — bar should snap to 100 then we redirect.
+    const importResponse = await importResponsePromise;
+    expect(importResponse.status()).toBe(200);
+  });
+
   test("streams 200k-row Saga export without OOM, completes inside maxDuration", async ({
     context,
   }) => {

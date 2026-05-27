@@ -3,8 +3,9 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Upload, FileSpreadsheet, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { buildProgressCurve, type ProgressSample } from "./import-progress";
 
 interface ImportWizardProps {
   clientId: string;
@@ -18,6 +19,11 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressSample>({
+    percent: 0,
+    label: "",
+    finishing: false,
+  });
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -37,6 +43,21 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
     setUploading(true);
     setError(null);
 
+    // Drive the calibrated progress curve from upload-start. We tick on a
+    // requestAnimationFrame loop so the bar fills smoothly without burning
+    // CPU; React batches the state updates.
+    const curve = buildProgressCurve(file.size);
+    const startedAt = performance.now();
+    let raf = 0;
+    let stopped = false;
+    const tick = () => {
+      if (stopped) return;
+      const elapsed = performance.now() - startedAt;
+      setProgress(curve.sample(elapsed));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("clientId", clientId);
@@ -45,12 +66,27 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
     try {
       const res = await fetch("/api/import", { method: "POST", body: formData });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Importul a esuat"); setUploading(false); return; }
-      router.push(`/clients/${clientSlug}`);
-      router.refresh();
+      // Snap to 100 smoothly, then redirect. The ~250 ms hold lets the eye
+      // register completion before the page change.
+      stopped = true;
+      cancelAnimationFrame(raf);
+      if (!res.ok) {
+        setError(data.error || "Importul a esuat");
+        setUploading(false);
+        setProgress({ percent: 0, label: "", finishing: false });
+        return;
+      }
+      setProgress({ percent: 100, label: "Import finalizat", finishing: true });
+      setTimeout(() => {
+        router.push(`/clients/${clientSlug}`);
+        router.refresh();
+      }, 250);
     } catch {
+      stopped = true;
+      cancelAnimationFrame(raf);
       setError("Eroare de retea. Incearca din nou.");
       setUploading(false);
+      setProgress({ percent: 0, label: "", finishing: false });
     }
   };
 
@@ -83,7 +119,14 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
             error={!file ? error : null}
           />
         ) : (
-          <FilePreview file={file} uploading={uploading} onUpload={handleUpload} onClear={() => setFile(null)} error={error} />
+          <FilePreview
+            file={file}
+            uploading={uploading}
+            progress={progress}
+            onUpload={handleUpload}
+            onClear={() => setFile(null)}
+            error={error}
+          />
         )}
       </div>
 
@@ -126,8 +169,13 @@ function DropZone({ dragging, onDragOver, onDragLeave, onDrop, onFileSelect, err
   );
 }
 
-function FilePreview({ file, uploading, onUpload, onClear, error }: {
-  file: File; uploading: boolean; onUpload: () => void; onClear: () => void; error: string | null;
+function FilePreview({ file, uploading, progress, onUpload, onClear, error }: {
+  file: File;
+  uploading: boolean;
+  progress: ProgressSample;
+  onUpload: () => void;
+  onClear: () => void;
+  error: string | null;
 }) {
   return (
     <div className="space-y-3">
@@ -148,14 +196,44 @@ function FilePreview({ file, uploading, onUpload, onClear, error }: {
           {error}
         </div>
       )}
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={onClear} disabled={uploading} className="flex-1">
-          Cancel
-        </Button>
-        <Button onClick={onUpload} disabled={uploading} className="flex-1">
-          {uploading ? <><Loader2 size={14} className="animate-spin" /> Importing...</> : <><Upload size={14} /> Import</>}
-        </Button>
+      {uploading ? (
+        <ImportProgress progress={progress} />
+      ) : (
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onClear} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={onUpload} className="flex-1">
+            <Upload size={14} /> Import
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportProgress({ progress }: { progress: ProgressSample }) {
+  // Render width with one decimal so the bar's CSS transition feels smooth
+  // even when the underlying percent value rounds.
+  const widthPct = Math.min(100, progress.percent).toFixed(1);
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-medium text-white">{progress.label}</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-gray">
+          {Math.round(progress.percent)}%
+        </span>
       </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-dark-3">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+          style={{ width: `${widthPct}%`, boxShadow: "0 0 16px rgba(13,107,94,0.35)" }}
+        />
+      </div>
+      <p className="mt-3 text-xs text-gray">
+        Procesarea poate dura pana la 30 de secunde pentru registre mari. Nu inchide aceasta
+        pagina.
+      </p>
     </div>
   );
 }
