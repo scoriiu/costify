@@ -1,6 +1,21 @@
 import { getContBase, isPnlAccount, getAccountType, computeLeafFlags } from "@/lib/accounts";
 import { round2 } from "@/lib/money";
-import type { JournalEntry, BalanceRowData } from "@/modules/ingestion/types";
+import type { BalanceRowData } from "@/modules/ingestion/types";
+
+/**
+ * Minimum row shape needed by the balance computation. The hot path
+ * (`getSlimEntries`) only pulls these 5 columns from Postgres to avoid
+ * shipping ~25 MB → ~10 MB of unused journal metadata per request.
+ * Full `JournalEntry` is a structural superset, so existing callers
+ * keep working unchanged.
+ */
+interface ComputeEntry {
+  year: number;
+  month: number;
+  contD: string;
+  contC: string;
+  suma: number;
+}
 
 interface AccountAgg {
   cumDBefore: number;
@@ -12,7 +27,7 @@ interface AccountAgg {
 }
 
 export function computeBalanceFromJournal(
-  entries: JournalEntry[],
+  entries: ComputeEntry[],
   year: number,
   month?: number,
   accountNames?: Map<string, string>,
@@ -62,7 +77,7 @@ function addSyntheticParents(accounts: Map<string, AccountAgg>): Map<string, Acc
   return result;
 }
 
-function findLastMonth(entries: JournalEntry[], year: number): number {
+function findLastMonth(entries: ComputeEntry[], year: number): number {
   let max = 0;
   for (const e of entries) {
     if (e.year === year && e.month > max) max = e.month;
@@ -70,7 +85,7 @@ function findLastMonth(entries: JournalEntry[], year: number): number {
   return max || 12;
 }
 
-function computeOpeningBalances(entries: JournalEntry[], year: number): Map<string, { d: number; c: number }> {
+function computeOpeningBalances(entries: ComputeEntry[], year: number): Map<string, { d: number; c: number }> {
   const cumBal = new Map<string, { d: number; c: number }>();
   const ensure = (cont: string) => {
     let b = cumBal.get(cont);
@@ -108,7 +123,7 @@ function computeOpeningBalances(entries: JournalEntry[], year: number): Map<stri
 }
 
 function buildAccountAggregations(
-  entries: JournalEntry[], year: number, periodMonth: number,
+  entries: ComputeEntry[], year: number, periodMonth: number,
   openingBal: Map<string, { d: number; c: number }>
 ): Map<string, AccountAgg> {
   const accounts = new Map<string, AccountAgg>();

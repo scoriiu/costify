@@ -34,6 +34,14 @@
  */
 
 import type { JournalEntry } from "@/modules/ingestion/types";
+
+/**
+ * Minimum shape the detector reads: year + base accounts + amount. Full
+ * `JournalEntry` is a structural superset, so existing callers compile
+ * unchanged, but the slim path (`getSlimEntries`) avoids shipping the
+ * 10 other unused columns over the wire.
+ */
+type DetectorEntry = Pick<JournalEntry, "year" | "contDBase" | "contCBase" | "suma">;
 import type { TaxRegime } from "@/modules/accounts";
 import {
   DEFAULT_TAX_REGIME,
@@ -74,7 +82,7 @@ function microThresholdFor(year: number): number {
   return year >= 2026 ? MICRO_THRESHOLD_FROM_2026 : MICRO_THRESHOLD_BEFORE_2026;
 }
 
-function isOriginatingTaxEntry(e: JournalEntry): boolean {
+function isOriginatingTaxEntry(e: DetectorEntry): boolean {
   const d = e.contDBase;
   const c = e.contCBase;
   if (d === "691" && c === "4411") return true;
@@ -84,7 +92,7 @@ function isOriginatingTaxEntry(e: JournalEntry): boolean {
   return false;
 }
 
-function buildYearSignals(entries: JournalEntry[]): Map<number, YearSignal> {
+function buildYearSignals(entries: DetectorEntry[]): Map<number, YearSignal> {
   const signals = new Map<number, YearSignal>();
 
   const ensure = (year: number): YearSignal => {
@@ -177,14 +185,14 @@ function classifyYear(s: YearSignal): {
   };
 }
 
-function firstEntryYear(entries: JournalEntry[]): number | null {
+function firstEntryYear(entries: DetectorEntry[]): number | null {
   let min = Infinity;
   for (const e of entries) if (e.year < min) min = e.year;
   return Number.isFinite(min) ? min : null;
 }
 
 export function detectTaxRegimeTimeline(
-  entries: JournalEntry[],
+  entries: DetectorEntry[],
   options: DetectorOptions = {}
 ): DetectedTransition[] {
   const fallback: TaxRegime = options.fallback ?? "profit_standard";
@@ -248,7 +256,7 @@ export interface DetectedRegimeForPeriod {
  * badge always reflects what the journal says for that period.
  */
 export function detectRegimeForPeriod(
-  entries: JournalEntry[],
+  entries: DetectorEntry[],
   year: number,
   month: number,
   options: DetectorOptions = {}

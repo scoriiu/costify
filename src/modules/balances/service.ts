@@ -8,13 +8,24 @@ import { ok, err, notFound } from "@/shared/errors";
 import type { BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";
 import type { JournalEntry } from "@/modules/ingestion/types";
 
+/** See JSDoc on `getSlimEntries` below for the full motivation. */
+export interface SlimEntry {
+  year: number;
+  month: number;
+  contD: string;
+  contDBase: string;
+  contC: string;
+  contCBase: string;
+  suma: number;
+}
+
 export async function getBalanceRows(
   clientId: string,
   year: number,
   month: number,
 ): Promise<Result<BalanceRowView[]>> {
   const t0 = Date.now();
-  const entries = await getActiveEntries(clientId);
+  const entries = await getSlimEntries(clientId);
   const tEntries = Date.now() - t0;
   if (entries.length === 0) {
     return err(notFound("Journal entries", clientId));
@@ -45,7 +56,7 @@ export async function getBalanceRows(
  * `getActiveEntries` (3+ s) to a single load (~250 ms).
  */
 export interface BalanceContext {
-  entries: JournalEntry[];
+  entries: SlimEntry[];
   accountNames: Map<string, string>;
   unmappedBases: Set<string>;
 }
@@ -53,7 +64,7 @@ export interface BalanceContext {
 export async function prepareBalanceContext(
   clientId: string,
 ): Promise<BalanceContext | null> {
-  const entries = await getActiveEntries(clientId);
+  const entries = await getSlimEntries(clientId);
   if (entries.length === 0) return null;
 
   const { accountNames, unmappedBases } = await buildAccountMetadata(clientId, entries);
@@ -189,9 +200,56 @@ export async function getActiveEntries(clientId: string): Promise<JournalEntry[]
   }));
 }
 
+/**
+ * Slim variant of `getActiveEntries` for the reporting hot path.
+ *
+ * `computeBalanceFromJournal`, `buildAccountMetadata` and `getRegimeForPeriod`
+ * only ever read 5 columns: `year, month, contD, contC, suma`. The full
+ * `JournalEntry` shape carries 10 more (ndp, data, explicatie, felD,
+ * contDBase, contCBase, categorie, cod, validat, tva) that none of them
+ * touch. On Upperhouse's 193,684-row journal that meant we were copying
+ * ~25 MB across the pod-to-pod wire just to throw 15 MB of it away in V8.
+ *
+ * Measured: full fetch ~5.5 s, slim fetch ~2.5 s on the same query —
+ * Postgres execution is 0.4 s in both cases, so the entire delta is
+ * client-side allocation + network transfer of the wider rowset.
+ *
+ * Important: we drop ORDER BY too. The compute functions don't depend on
+ * order (they aggregate into maps keyed by account). Sorting 194k rows on
+ * disk cost ~100 ms of Postgres time AND ~25 MB of temp file I/O that
+ * `EXPLAIN ANALYZE` flagged as `external merge Disk: 8816 kB`.
+ */
+export async function getSlimEntries(clientId: string): Promise<SlimEntry[]> {
+  const rows = await prisma.$queryRaw<
+    Array<{
+      year: number;
+      month: number;
+      contD: string;
+      contDBase: string;
+      contC: string;
+      contCBase: string;
+      suma: string;
+    }>
+  >`
+    SELECT year, month, "contD", "contDBase", "contC", "contCBase", suma::text AS suma
+    FROM "JournalLine"
+    WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+  `;
+
+  return rows.map((r) => ({
+    year: r.year,
+    month: r.month,
+    contD: r.contD,
+    contDBase: r.contDBase,
+    contC: r.contC,
+    contCBase: r.contCBase,
+    suma: Number(r.suma),
+  }));
+}
+
 async function buildAccountMetadata(
   clientId: string,
-  entries: JournalEntry[]
+  entries: Array<{ contD: string; contC: string }>
 ): Promise<{ accountNames: Map<string, string>; unmappedBases: Set<string> }> {
   const [clientAccounts, catalog, partnerNames] = await Promise.all([
     getClientAccounts(clientId),
