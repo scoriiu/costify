@@ -87,28 +87,62 @@ export async function getAvailableYears(clientId: string): Promise<number[]> {
   return rows.map((r) => r.year);
 }
 
+/**
+ * Hot path: returns every active journal entry for a client (10k-100k+ rows).
+ *
+ * Uses $queryRaw instead of prisma.journalLine.findMany to bypass Prisma's
+ * per-row ORM hydration. On a 16,802-row client, findMany took 750-2000 ms
+ * in production (most of that was wrapping each `suma` Decimal column in a
+ * Prisma Decimal class instance and constructing model objects); $queryRaw
+ * returns plain JS objects and is typically 5-10× faster.
+ *
+ * The cast to number for `suma`/`tva` happens here once, so callers get the
+ * same JournalEntry shape they had before.
+ */
 export async function getActiveEntries(clientId: string): Promise<JournalEntry[]> {
-  const lines = await prisma.journalLine.findMany({
-    where: { clientId, deletedAt: null },
-    orderBy: [{ data: "asc" }, { ndp: "asc" }],
-  });
+  const rows = await prisma.$queryRaw<
+    Array<{
+      data: Date;
+      year: number;
+      month: number;
+      ndp: string;
+      contD: string;
+      contDBase: string;
+      contC: string;
+      contCBase: string;
+      suma: string; // pg numeric → string in node-postgres
+      explicatie: string;
+      felD: string;
+      categorie: string | null;
+      cod: string | null;
+      validat: string | null;
+      tva: string | null;
+    }>
+  >`
+    SELECT data, year, month, ndp, "contD", "contDBase", "contC", "contCBase",
+           suma::text AS suma, explicatie, "felD", categorie, cod, validat,
+           tva::text AS tva
+    FROM "JournalLine"
+    WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+    ORDER BY data ASC, ndp ASC
+  `;
 
-  return lines.map((l) => ({
-    data: l.data,
-    year: l.year,
-    month: l.month,
-    ndp: l.ndp,
-    contD: l.contD,
-    contDBase: l.contDBase,
-    contC: l.contC,
-    contCBase: l.contCBase,
-    suma: Number(l.suma),
-    explicatie: l.explicatie,
-    felD: l.felD,
-    categorie: l.categorie,
-    cod: l.cod,
-    validat: l.validat,
-    tva: l.tva ? Number(l.tva) : null,
+  return rows.map((r) => ({
+    data: r.data,
+    year: r.year,
+    month: r.month,
+    ndp: r.ndp,
+    contD: r.contD,
+    contDBase: r.contDBase,
+    contC: r.contC,
+    contCBase: r.contCBase,
+    suma: Number(r.suma),
+    explicatie: r.explicatie,
+    felD: r.felD,
+    categorie: r.categorie,
+    cod: r.cod,
+    validat: r.validat,
+    tva: r.tva === null ? null : Number(r.tva),
   }));
 }
 
