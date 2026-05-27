@@ -24,7 +24,8 @@ import {
   CreateBucketCommand,
   type S3ClientConfig,
 } from "@aws-sdk/client-s3";
-import { Readable } from "node:stream";
+import { Upload } from "@aws-sdk/lib-storage";
+import { Readable, PassThrough } from "node:stream";
 
 const ENDPOINT = process.env.S3_ENDPOINT ?? "http://minio:9000";
 const ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID ?? "";
@@ -82,6 +83,52 @@ export async function putBuffer(key: string, buffer: Buffer, contentType = "appl
     })
   );
 }
+
+/**
+ * Stream an arbitrary Readable into S3 without buffering the full body
+ * in our process memory. Uses the AWS SDK's lib-storage Upload helper,
+ * which transparently does S3 multipart upload — each 5 MB chunk is sent
+ * as it arrives. Returns once the last part is acknowledged.
+ *
+ * This is the right shape for the journal import route: we pipe the
+ * multipart file part directly from the HTTP request through to S3, so
+ * our Node heap never holds the whole 19 MB at once. Pre-refactor the
+ * route called `await request.formData()` (buffers everything) and then
+ * `Buffer.from(await file.arrayBuffer())` (a second copy). On a 100 MB
+ * file that pattern would risk the same V8 OOM we hit with the XLSX
+ * parser before the streaming fix.
+ */
+export interface PutStreamOptions {
+  contentType?: string;
+  /** Optional onProgress callback receiving bytes uploaded so far. */
+  onProgress?: (bytes: number) => void;
+}
+
+export async function putStream(
+  key: string,
+  body: Readable,
+  options: PutStreamOptions = {},
+): Promise<void> {
+  const upload = new Upload({
+    client: client(),
+    params: {
+      Bucket: BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: options.contentType ?? "application/octet-stream",
+    },
+    queueSize: 4,
+    partSize: 5 * 1024 * 1024,
+  });
+  if (options.onProgress) {
+    upload.on("httpUploadProgress", (p) => {
+      if (typeof p.loaded === "number") options.onProgress!(p.loaded);
+    });
+  }
+  await upload.done();
+}
+
+export { PassThrough };
 
 /**
  * Fetch an object as a Buffer. For the import use case the worker calls

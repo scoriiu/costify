@@ -46,6 +46,14 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Real upload progress driven by XHR's upload.onprogress event. `null`
+  // means we haven't started uploading yet; `0..100` reflects bytes sent /
+  // total bytes. We keep `submitting` separate because the upload can
+  // finish (100%) seconds before the server's 202 response arrives — the
+  // server still has to parse the multipart, PUT to MinIO, and INSERT the
+  // row. During that window we show 100% bar with the "Finalizez
+  // incarcarea..." label.
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -64,26 +72,50 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
     if (!file || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
+    setUploadPercent(0);
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("clientId", clientId);
     formData.append("name", file.name.replace(/\.(xlsx|xls)$/i, ""));
 
+    // We use XHR not fetch because fetch() can't report upload progress
+    // in any browser yet. xhr.upload.onprogress fires per chunk written
+    // to the network buffer with { loaded, total } in bytes.
     try {
-      const res = await fetch("/api/import", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        setSubmitError(data.error || "Importul a esuat la incarcare");
-        setSubmitting(false);
-        return;
-      }
+      const result = await new Promise<{ importEventId: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/import");
+        xhr.responseType = "json";
+        xhr.upload.onprogress = (ev) => {
+          if (!ev.lengthComputable) return;
+          const pct = Math.round((ev.loaded / ev.total) * 100);
+          setUploadPercent(pct);
+        };
+        xhr.upload.onload = () => {
+          // Bytes are fully sent — the server is now parsing + S3 PUT +
+          // DB write. Snap to 100% so the bar looks done while the user
+          // waits the remaining ~1-2s for the 202.
+          setUploadPercent(100);
+        };
+        xhr.onload = () => {
+          if (xhr.status === 202 && xhr.response?.importEventId) {
+            resolve(xhr.response);
+          } else {
+            const msg = xhr.response?.error || `Eroare server (HTTP ${xhr.status})`;
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Eroare de retea"));
+        xhr.send(formData);
+      });
       // Hand off to the polling view by putting the event id in the URL.
       // Refreshing the page from this point on resumes the same poll.
-      router.replace(`?event=${encodeURIComponent(data.importEventId)}`, { scroll: false });
-    } catch {
-      setSubmitError("Eroare de retea la incarcarea fisierului. Incearca din nou.");
+      router.replace(`?event=${encodeURIComponent(result.importEventId)}`, { scroll: false });
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Eroare la incarcare");
       setSubmitting(false);
+      setUploadPercent(null);
     }
   };
 
@@ -129,6 +161,7 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
           <FilePreview
             file={file}
             uploading={submitting}
+            uploadPercent={uploadPercent}
             onUpload={handleUpload}
             onClear={() => setFile(null)}
             error={submitError}
@@ -351,9 +384,10 @@ function DropZone({ dragging, onDragOver, onDragLeave, onDrop, onFileSelect, err
   );
 }
 
-function FilePreview({ file, uploading, onUpload, onClear, error }: {
+function FilePreview({ file, uploading, uploadPercent, onUpload, onClear, error }: {
   file: File;
   uploading: boolean;
+  uploadPercent: number | null;
   onUpload: () => void;
   onClear: () => void;
   error: string | null;
@@ -364,7 +398,7 @@ function FilePreview({ file, uploading, onUpload, onClear, error }: {
         <FileSpreadsheet size={24} className={error ? "text-danger shrink-0" : "text-accent shrink-0"} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-white">{file.name}</div>
-          <div className="text-xs text-gray">{(file.size / 1024).toFixed(0)} KB</div>
+          <div className="text-xs text-gray">{formatBytes(file.size)}</div>
         </div>
         {!uploading && (
           <button onClick={onClear} className="text-xs text-gray hover:text-white cursor-pointer">
@@ -377,16 +411,59 @@ function FilePreview({ file, uploading, onUpload, onClear, error }: {
           {error}
         </div>
       )}
-      <div className="flex gap-3">
-        <Button variant="ghost" onClick={onClear} disabled={uploading} className="flex-1">
-          Cancel
-        </Button>
-        <Button onClick={onUpload} disabled={uploading} className="flex-1">
-          <Upload size={14} /> {uploading ? "Se incarca..." : "Import"}
-        </Button>
+      {uploading && uploadPercent !== null ? (
+        <UploadProgressBar percent={uploadPercent} fileSize={file.size} />
+      ) : (
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onClear} disabled={uploading} className="flex-1">
+            Cancel
+          </Button>
+          <Button onClick={onUpload} disabled={uploading} className="flex-1">
+            <Upload size={14} /> Import
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Real upload progress driven by XHR's upload.onprogress event in the
+ * parent. At 100% we switch the label to "Finalizez incarcarea..." to
+ * cover the ~1-2s window between the last byte going out and the
+ * server's 202 arriving — when the multipart parse + S3 PUT + DB write
+ * happen. After that we transition into the queue-status polling view
+ * via a router.replace().
+ */
+function UploadProgressBar({ percent, fileSize }: { percent: number; fileSize: number }) {
+  const bytesSent = Math.round((fileSize * percent) / 100);
+  const widthPct = Math.min(100, Math.max(0, percent)).toFixed(1);
+  const label =
+    percent < 100 ? "Se incarca fisierul pe server" : "Finalizez incarcarea pe server";
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-medium text-white">{label}</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-gray">
+          {Math.round(percent)}%
+        </span>
+      </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-dark-3">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-150 ease-out"
+          style={{ width: `${widthPct}%`, boxShadow: "0 0 16px rgba(13,107,94,0.35)" }}
+        />
+      </div>
+      <div className="mt-3 font-mono text-[11px] text-gray">
+        {formatBytes(bytesSent)} / {formatBytes(fileSize)}
       </div>
     </div>
   );
+}
+
+function formatBytes(n: number): string {
+  if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(n / 1024).toFixed(0)} KB`;
 }
 
 const EXAMPLE_ROWS = [
