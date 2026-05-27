@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import { recordClientMutation } from "@/modules/audit";
+import { bumpClientDataVersion } from "@/modules/clients/data-version";
 
 const createClientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
@@ -155,6 +156,10 @@ export async function updateClientAccountNameAction(
     metadata: { code: parsed.data.code },
   });
 
+  // ClientAccount.customName feeds every downstream computed surface that
+  // renders account names (Balanta, CPP, Mapari, owner snapshot). Bump the
+  // version so cached results recompute on the next read.
+  await bumpClientDataVersion(parsed.data.clientId);
   revalidatePath(`/clients/${client.slug}`);
   return { ok: true };
 }
@@ -211,6 +216,9 @@ export async function toggleClientAccountReviewAction(
     metadata: { code: parsed.data.code },
   });
 
+  // needsReview can flow into the `unmapped` flag surfaced by buildAccountMetadata;
+  // bump so cached balance / KPIs / Mapari recompute and reflect the toggle.
+  await bumpClientDataVersion(parsed.data.clientId);
   revalidatePath(`/clients/${client.slug}`);
   return { ok: true };
 }

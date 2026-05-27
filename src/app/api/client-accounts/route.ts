@@ -20,7 +20,18 @@ export async function GET(request: Request) {
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
   const period = !isNaN(year) && !isNaN(month) ? { year, month } : undefined;
+  const t0 = performance.now();
   const rows = await getClientPlan(clientId, { period });
+  const t1 = performance.now();
+  const body = JSON.stringify({ rows });
+  const t2 = performance.now();
+  console.log(
+    `[client-accounts] client=${clientId.slice(0, 8)} rows=${rows.length} ` +
+    `getClientPlan=${(t1 - t0).toFixed(0)}ms serialize=${(t2 - t1).toFixed(0)}ms ` +
+    `bodyBytes=${body.length}`
+  );
 
-  return NextResponse.json({ rows });
+  return new NextResponse(body, {
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }
