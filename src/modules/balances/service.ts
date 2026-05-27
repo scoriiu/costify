@@ -13,22 +13,14 @@ export async function getBalanceRows(
   year: number,
   month: number,
 ): Promise<Result<BalanceRowView[]>> {
-  const t0 = performance.now();
   const entries = await getActiveEntries(clientId);
-  const t1 = performance.now();
   if (entries.length === 0) {
     return err(notFound("Journal entries", clientId));
   }
 
   const { accountNames, unmappedBases } = await buildAccountMetadata(clientId, entries);
-  const t2 = performance.now();
   const rows = computeBalanceFromJournal(entries, year, month, accountNames, unmappedBases);
-  const t3 = performance.now();
 
-  console.log(
-    `[getBalanceRows] entries=${entries.length} getActiveEntries=${(t1 - t0).toFixed(0)}ms ` +
-    `buildMeta=${(t2 - t1).toFixed(0)}ms compute=${(t3 - t2).toFixed(0)}ms rows=${rows.length}`
-  );
   return ok(rows.map(toBalanceRowView));
 }
 

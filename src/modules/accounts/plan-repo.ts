@@ -21,28 +21,15 @@ export async function getClientPlan(
   clientId: string,
   options: GetPlanOptions = {}
 ): Promise<PlanRow[]> {
-  const t0 = performance.now();
   const [catalog, clientAccounts, partnerNames, usage, balanceRows] = await Promise.all([
-    timed("catalog", () => getCatalogMap()),
-    timed("clientAccounts", () => getClientAccounts(clientId)),
-    timed("partnerNames", () => getPartnerNames(clientId)),
-    timed("usageStats", () => loadUsageStats(clientId)),
-    timed("balance", () => loadBalanceForPeriod(clientId, options.period)),
+    getCatalogMap(),
+    getClientAccounts(clientId),
+    getPartnerNames(clientId),
+    loadUsageStats(clientId),
+    loadBalanceForPeriod(clientId, options.period),
   ]);
-  const t1 = performance.now();
-  const rows = buildPlan({ catalog, clientAccounts, partnerNames, usage, balanceRows });
-  const t2 = performance.now();
-  console.log(
-    `[getClientPlan] parallel=${(t1 - t0).toFixed(0)}ms buildPlan=${(t2 - t1).toFixed(0)}ms rows=${rows.length}`
-  );
-  return rows;
-}
 
-async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
-  const t0 = performance.now();
-  const result = await fn();
-  console.log(`[getClientPlan]   ${label}=${(performance.now() - t0).toFixed(0)}ms`);
-  return result;
+  return buildPlan({ catalog, clientAccounts, partnerNames, usage, balanceRows });
 }
 
 /**
