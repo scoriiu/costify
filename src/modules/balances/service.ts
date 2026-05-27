@@ -201,23 +201,33 @@ export async function getActiveEntries(clientId: string): Promise<JournalEntry[]
 }
 
 /**
- * Slim variant of `getActiveEntries` for the reporting hot path.
+ * Slim variant of `getActiveEntries` for the reporting hot path —
+ * SQL-side aggregated by (year, month, contD, contC).
  *
- * `computeBalanceFromJournal`, `buildAccountMetadata` and `getRegimeForPeriod`
- * only ever read 5 columns: `year, month, contD, contC, suma`. The full
- * `JournalEntry` shape carries 10 more (ndp, data, explicatie, felD,
- * contDBase, contCBase, categorie, cod, validat, tva) that none of them
- * touch. On Upperhouse's 193,684-row journal that meant we were copying
- * ~25 MB across the pod-to-pod wire just to throw 15 MB of it away in V8.
+ * Why aggregate in SQL: `computeBalanceFromJournal`,
+ * `buildAccountMetadata` and `detectRegimeForPeriod` iterate every row
+ * only to bump per-account sums (`rulajD`, `rulajtD`, etc). Whether the
+ * loop sees three rows of `suma=100` or one row of `suma=300` makes no
+ * difference to the final number — addition is associative and the
+ * filter conditions (`year`, `month`, `contD === "%"`) are functions of
+ * the group keys, so they apply identically to the group as to each row.
  *
- * Measured: full fetch ~5.5 s, slim fetch ~2.5 s on the same query —
- * Postgres execution is 0.4 s in both cases, so the entire delta is
- * client-side allocation + network transfer of the wider rowset.
+ * `contDBase` / `contCBase` are GROUP BY columns even though they're
+ * derivable from `contD`/`contC` — Postgres needs them in the grouping
+ * to project them in SELECT, and they're cheap on the index.
  *
- * Important: we drop ORDER BY too. The compute functions don't depend on
- * order (they aggregate into maps keyed by account). Sorting 194k rows on
- * disk cost ~100 ms of Postgres time AND ~25 MB of temp file I/O that
- * `EXPLAIN ANALYZE` flagged as `external merge Disk: 8816 kB`.
+ * Why this matters: on Upperhouse's 193,684 raw rows there are only
+ * 89,761 distinct (year, month, contD, contC) groups — a 2.2x shrink.
+ * Plus the SUM happens in Postgres's tight C loop instead of V8.
+ *
+ * Earlier wins still apply: only the 7 columns the compute actually
+ * reads (full row is 15), and no ORDER BY (the compute aggregates into
+ * maps keyed by account, row order is irrelevant).
+ *
+ * Measured journey on Upperhouse's 193,684-row journal:
+ *   Full fetch (15 cols, 194k rows):                 ~5.5 s
+ *   Slim fetch (7 cols, 194k rows):                  ~2.2 s
+ *   Slim + SQL-aggregated (7 cols, 90k groups):    target ~0.8 s
  */
 export async function getSlimEntries(clientId: string): Promise<SlimEntry[]> {
   const rows = await prisma.$queryRaw<
@@ -231,9 +241,11 @@ export async function getSlimEntries(clientId: string): Promise<SlimEntry[]> {
       suma: string;
     }>
   >`
-    SELECT year, month, "contD", "contDBase", "contC", "contCBase", suma::text AS suma
+    SELECT year, month, "contD", "contDBase", "contC", "contCBase",
+           SUM(suma)::text AS suma
     FROM "JournalLine"
     WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+    GROUP BY year, month, "contD", "contDBase", "contC", "contCBase"
   `;
 
   return rows.map((r) => ({
