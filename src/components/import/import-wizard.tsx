@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+/**
+ * Queue-based journal import wizard.
+ *
+ * The user picks a file -> we POST it to /api/import -> the server saves
+ * it to MinIO and returns an importEventId (status: queued) within
+ * ~200 ms. We then navigate to `?event=<id>` so the URL is the source of
+ * truth: refreshing, sharing, or returning to the page later all resume
+ * the same poll loop.
+ *
+ * Progress is driven by the real ImportEvent row, which the worker updates
+ * as it parses, stores, and finalizes. No fake curve, no time-based
+ * animation — the bar moves when there is genuine work to report.
+ */
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Upload, FileSpreadsheet, ArrowLeft } from "lucide-react";
+import { Upload, FileSpreadsheet, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { buildProgressCurve, type ProgressSample } from "./import-progress";
 
 interface ImportWizardProps {
   clientId: string;
@@ -13,50 +25,45 @@ interface ImportWizardProps {
   clientName: string;
 }
 
+interface ImportStatus {
+  id: string;
+  status: "queued" | "parsing" | "storing" | "finalizing" | "ready" | "failed";
+  progress: number;
+  progressLabel: string;
+  totalEntries: number | null;
+  processedEntries: number | null;
+  entriesAdded: number;
+  errorMessage: string | null;
+  fileName: string;
+}
+
 export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const eventId = searchParams.get("event");
+
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<ProgressSample>({
-    percent: 0,
-    label: "",
-    finishing: false,
-  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
     const f = e.dataTransfer.files[0];
     if (f && (f.name.endsWith(".xlsx") || f.name.endsWith(".xls"))) setFile(f);
-    else setError("Doar fisiere .xlsx si .xls sunt acceptate");
+    else setSubmitError("Doar fisiere .xlsx si .xls sunt acceptate");
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { setFile(f); setError(null); }
+    if (f) { setFile(f); setSubmitError(null); }
   }, []);
 
   const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-
-    // Drive the calibrated progress curve from upload-start. We tick on a
-    // requestAnimationFrame loop so the bar fills smoothly without burning
-    // CPU; React batches the state updates.
-    const curve = buildProgressCurve(file.size);
-    const startedAt = performance.now();
-    let raf = 0;
-    let stopped = false;
-    const tick = () => {
-      if (stopped) return;
-      const elapsed = performance.now() - startedAt;
-      setProgress(curve.sample(elapsed));
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    if (!file || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -66,27 +73,17 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
     try {
       const res = await fetch("/api/import", { method: "POST", body: formData });
       const data = await res.json();
-      // Snap to 100 smoothly, then redirect. The ~250 ms hold lets the eye
-      // register completion before the page change.
-      stopped = true;
-      cancelAnimationFrame(raf);
       if (!res.ok) {
-        setError(data.error || "Importul a esuat");
-        setUploading(false);
-        setProgress({ percent: 0, label: "", finishing: false });
+        setSubmitError(data.error || "Importul a esuat la incarcare");
+        setSubmitting(false);
         return;
       }
-      setProgress({ percent: 100, label: "Import finalizat", finishing: true });
-      setTimeout(() => {
-        router.push(`/clients/${clientSlug}`);
-        router.refresh();
-      }, 250);
+      // Hand off to the polling view by putting the event id in the URL.
+      // Refreshing the page from this point on resumes the same poll.
+      router.replace(`?event=${encodeURIComponent(data.importEventId)}`, { scroll: false });
     } catch {
-      stopped = true;
-      cancelAnimationFrame(raf);
-      setError("Eroare de retea. Incearca din nou.");
-      setUploading(false);
-      setProgress({ percent: 0, label: "", finishing: false });
+      setSubmitError("Eroare de retea la incarcarea fisierului. Incearca din nou.");
+      setSubmitting(false);
     }
   };
 
@@ -109,30 +106,215 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
       </div>
 
       <div className="mx-auto max-w-lg">
-        {!file ? (
+        {eventId ? (
+          <ImportPolling
+            eventId={eventId}
+            clientSlug={clientSlug}
+            onCancel={() => {
+              router.replace(window.location.pathname, { scroll: false });
+              setFile(null);
+              setSubmitting(false);
+            }}
+          />
+        ) : !file ? (
           <DropZone
             dragging={dragging}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             onFileSelect={handleFileSelect}
-            error={!file ? error : null}
+            error={submitError}
           />
         ) : (
           <FilePreview
             file={file}
-            uploading={uploading}
-            progress={progress}
+            uploading={submitting}
             onUpload={handleUpload}
             onClear={() => setFile(null)}
-            error={error}
+            error={submitError}
           />
         )}
       </div>
 
-      <div className="mt-8">
-        <FormatGuide />
+      {!eventId && (
+        <div className="mt-8">
+          <FormatGuide />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportPolling({
+  eventId,
+  clientSlug,
+  onCancel,
+}: {
+  eventId: string;
+  clientSlug: string;
+  onCancel: () => void;
+}) {
+  const router = useRouter();
+  const [state, setState] = useState<ImportStatus | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
+  const redirectingRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/import/${encodeURIComponent(eventId)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          if (cancelled) return;
+          const data = await res.json().catch(() => ({}));
+          setPollError(data.error || "Nu pot urmari progresul importului");
+          return;
+        }
+        const data = (await res.json()) as ImportStatus;
+        if (cancelled) return;
+        setState(data);
+        setPollError(null);
+
+        if (data.status === "ready" && !redirectingRef.current) {
+          redirectingRef.current = true;
+          // Brief hold so the 100% state registers visually.
+          setTimeout(() => {
+            router.push(`/clients/${clientSlug}`);
+            router.refresh();
+          }, 600);
+        }
+      } catch {
+        if (!cancelled) setPollError("Conexiune intrerupta. Se reincearca...");
+      }
+    };
+
+    poll();
+    const handle = window.setInterval(poll, 500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(handle);
+    };
+  }, [eventId, clientSlug, router]);
+
+  if (!state) {
+    return (
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 text-center text-sm text-gray">
+        Se incarca statusul importului...
       </div>
+    );
+  }
+
+  if (state.status === "failed") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-danger/30 bg-danger/5 p-5">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="mt-0.5 shrink-0 text-danger" />
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-white">Importul a esuat</div>
+              <div className="mt-1 text-xs text-gray break-words">
+                {state.errorMessage ?? "Eroare necunoscuta"}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onCancel} className="flex-1">
+            Inapoi
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.status === "ready") {
+    return (
+      <div className="rounded-xl border border-accent/30 bg-accent/5 p-5">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 size={18} className="shrink-0 text-accent" />
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-white">
+              Import finalizat — {state.entriesAdded.toLocaleString("ro-RO")} intrari adaugate
+            </div>
+            <div className="mt-0.5 text-xs text-gray">
+              Te redirectez catre client...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-4 rounded-xl border border-dark-3 bg-dark-2 p-5">
+        <FileSpreadsheet size={24} className="shrink-0 text-accent" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-white">{state.fileName}</div>
+          <div className="text-xs text-gray">
+            {translateStatus(state.status)}
+          </div>
+        </div>
+      </div>
+
+      <ProgressBlock state={state} />
+
+      {pollError && (
+        <div className="rounded-lg border border-warn/30 bg-warn/5 px-4 py-2.5 text-xs text-warn">
+          {pollError}
+        </div>
+      )}
+
+      <p className="text-xs text-gray">
+        Poti inchide aceasta pagina — importul continua in fundal. Reincarcand pagina o sa vezi
+        progresul actualizat.
+      </p>
+    </div>
+  );
+}
+
+function translateStatus(s: ImportStatus["status"]): string {
+  switch (s) {
+    case "queued":
+      return "In coada de procesare";
+    case "parsing":
+      return "In procesare — citire";
+    case "storing":
+      return "In procesare — salvare";
+    case "finalizing":
+      return "In procesare — finalizare";
+    case "ready":
+      return "Finalizat";
+    case "failed":
+      return "Esuat";
+  }
+}
+
+function ProgressBlock({ state }: { state: ImportStatus }) {
+  const widthPct = Math.min(100, Math.max(0, state.progress)).toFixed(1);
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-medium text-white">{state.progressLabel || "Se proceseaza"}</span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-gray">
+          {Math.round(state.progress)}%
+        </span>
+      </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-dark-3">
+        <div
+          className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+          style={{ width: `${widthPct}%`, boxShadow: "0 0 16px rgba(13,107,94,0.35)" }}
+        />
+      </div>
+      {state.totalEntries !== null && state.totalEntries > 0 && (
+        <div className="mt-3 font-mono text-[11px] text-gray">
+          {(state.processedEntries ?? 0).toLocaleString("ro-RO")} /{" "}
+          {state.totalEntries.toLocaleString("ro-RO")} intrari
+        </div>
+      )}
     </div>
   );
 }
@@ -169,10 +351,9 @@ function DropZone({ dragging, onDragOver, onDragLeave, onDrop, onFileSelect, err
   );
 }
 
-function FilePreview({ file, uploading, progress, onUpload, onClear, error }: {
+function FilePreview({ file, uploading, onUpload, onClear, error }: {
   file: File;
   uploading: boolean;
-  progress: ProgressSample;
   onUpload: () => void;
   onClear: () => void;
   error: string | null;
@@ -196,44 +377,14 @@ function FilePreview({ file, uploading, progress, onUpload, onClear, error }: {
           {error}
         </div>
       )}
-      {uploading ? (
-        <ImportProgress progress={progress} />
-      ) : (
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={onClear} className="flex-1">
-            Cancel
-          </Button>
-          <Button onClick={onUpload} className="flex-1">
-            <Upload size={14} /> Import
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ImportProgress({ progress }: { progress: ProgressSample }) {
-  // Render width with one decimal so the bar's CSS transition feels smooth
-  // even when the underlying percent value rounds.
-  const widthPct = Math.min(100, progress.percent).toFixed(1);
-  return (
-    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-white">{progress.label}</span>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-gray">
-          {Math.round(progress.percent)}%
-        </span>
+      <div className="flex gap-3">
+        <Button variant="ghost" onClick={onClear} disabled={uploading} className="flex-1">
+          Cancel
+        </Button>
+        <Button onClick={onUpload} disabled={uploading} className="flex-1">
+          <Upload size={14} /> {uploading ? "Se incarca..." : "Import"}
+        </Button>
       </div>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-dark-3">
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
-          style={{ width: `${widthPct}%`, boxShadow: "0 0 16px rgba(13,107,94,0.35)" }}
-        />
-      </div>
-      <p className="mt-3 text-xs text-gray">
-        Procesarea poate dura pana la 30 de secunde pentru registre mari. Nu inchide aceasta
-        pagina.
-      </p>
     </div>
   );
 }
@@ -275,47 +426,32 @@ function FormatGuide() {
                 <th
                   key={col.key}
                   className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${
-                    col.key === "suma" ? "text-right" : "text-left"
-                  } ${i < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""}`}
+                    i < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""
+                  } text-left`}
                 >
                   {col.label}
-                  {col.required && <span className="ml-0.5 text-primary">*</span>}
+                  {col.required && <span className="text-primary"> *</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {EXAMPLE_ROWS.map((row, ri) => (
-              <tr key={ri} className="border-b border-dark-3/50">
-                {COLUMNS.map((col, ci) => (
+            {EXAMPLE_ROWS.map((row, i) => (
+              <tr key={i} className="border-b border-dark-3/50 last:border-b-0">
+                {COLUMNS.map((col, j) => (
                   <td
                     key={col.key}
-                    className={`whitespace-nowrap px-3 py-1.5 font-mono text-xs text-gray-light ${
-                      col.key === "suma" ? "text-right" : "text-left"
-                    } ${ci < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""}`}
+                    className={`px-3 py-2 font-mono text-xs text-gray-light ${
+                      j < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""
+                    }`}
                   >
-                    {row[col.key]}
+                    {row[col.key as keyof typeof row]}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
-      <div className="mt-3 space-y-1">
-        <p className="text-[11px] text-gray">
-          <span className="font-mono font-medium text-gray-light">Data</span> — format DD.MM.YYYY sau YYYY-MM-DD
-        </p>
-        <p className="text-[11px] text-gray">
-          <span className="font-mono font-medium text-gray-light">Cont Debit / Credit</span> — conturi analitice (ex: 4111.00015) sau sintetice (ex: 5121)
-        </p>
-        <p className="text-[11px] text-gray">
-          <span className="font-mono font-medium text-gray-light">Suma</span> — format romanesc (1.234,56) sau international (1234.56)
-        </p>
-        <p className="text-[11px] text-gray">
-          Acceptam export din <span className="font-medium text-gray-light">Saga C</span>, <span className="font-medium text-gray-light">Ciel</span>, <span className="font-medium text-gray-light">WinMentor</span> si alte programe contabile.
-        </p>
       </div>
     </div>
   );

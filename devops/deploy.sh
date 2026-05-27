@@ -20,6 +20,7 @@ docker buildx build \
 echo "==> Applying k8s manifests..."
 kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/namespace.yaml"
 kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/postgres.yaml"
+kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/minio.yaml"
 kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/registry.yaml"
 kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/umami.yaml"
 kubectl --kubeconfig="$KUBECONFIG" apply -f "$SCRIPT_DIR/app.yaml"

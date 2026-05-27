@@ -396,6 +396,19 @@ model TaxRegimePeriod {
   @@index([clientId, startDate])
 }
 
+// ImportEvent doubles as both an audit record AND the queue job record.
+// Lifecycle of `status`:
+//   queued      -> file in object storage, awaiting a worker
+//   parsing     -> worker has claimed it, decoding the XLSX
+//   storing     -> writing parsed rows into JournalLine (most expensive stage)
+//   finalizing  -> partner mappings, account upserts, version bump
+//   ready       -> visible in the journal, balance recomputable
+//   failed      -> terminal, errorMessage populated
+//
+// `lockedAt` + `lockedBy` are the atomic-claim mechanism: an `UPDATE ...
+// WHERE lockedAt IS NULL RETURNING *` lets two pods race for the same job
+// safely. If a worker crashes mid-import (pod restart, OOM), another pod
+// reclaims the row once `lockedAt < now() - 5 minutes`.
 model ImportEvent {
   id           String   @id @default(cuid())
   clientId     String
@@ -405,13 +418,25 @@ model ImportEvent {
   entriesAdded Int      @default(0)
   dateStart    DateTime?
   dateEnd      DateTime?
-  status       String   @default("processing")
+  status       String   @default("queued")
   createdAt    DateTime @default(now())
+
+  // Queue / progress fields.
+  progress         Int       @default(0)
+  progressLabel    String?
+  totalEntries     Int?
+  processedEntries Int?
+  errorMessage     String?
+  fileKey          String?
+  attempts         Int       @default(0)
+  lockedAt         DateTime?
+  lockedBy         String?
 
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   journalLines JournalLine[]
 
   @@index([clientId, createdAt(sort: Desc)])
+  @@index([status, lockedAt])
 }
 
 model JournalLine {

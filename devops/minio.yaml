@@ -1,0 +1,115 @@
+# MinIO — S3-compatible object storage for in-cluster file storage.
+#
+# Used by the queue-based journal import: when the user uploads a Saga XLSX,
+# the API route streams the multipart body straight into MinIO and returns
+# a 202 with the importEventId in ~200 ms. The worker process (running
+# inside the same costify Deployment but on a separate polling loop) then
+# pulls the file out of MinIO when it picks up the job.
+#
+# Why MinIO and not a shared k8s PVC: we run two costify pods for zero-
+# downtime rolling deploys, and a ReadWriteOnce PVC can't be mounted by
+# both. A ReadWriteMany PVC needs NFS or similar on k3s, which is more
+# operational overhead than running a single MinIO pod that both costify
+# pods reach over the cluster network.
+#
+# Storage is 10 Gi — generous headroom for the import use case (each
+# Saga XLSX is < 50 MB) and any future attachment / export features we
+# plug into the same bucket.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: costify
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: costify
+spec:
+  replicas: 1
+  # Recreate (not RollingUpdate) — the PVC is RWO and can't be attached to
+  # two pods simultaneously, which would block a rolling restart.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9001"
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: MINIO_ROOT_PASSWORD
+          volumeMounts:
+            - name: minio-storage
+              mountPath: /data
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          # Health probes use MinIO's built-in /minio/health/live endpoint.
+          readinessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: minio-storage
+          persistentVolumeClaim:
+            claimName: minio-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: costify
+spec:
+  selector:
+    app: minio
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: api
+    - port: 9001
+      targetPort: 9001
+      name: console

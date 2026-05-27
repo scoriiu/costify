@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
 import { createHash, randomUUID } from "crypto";
+import { Client as PgClient } from "pg";
+import { from as pgCopyFrom } from "pg-copy-streams";
 import { parseJournalXLSXStreaming } from "./journal-parser";
 import { buildPartnerMappings } from "./partner-extractor";
 import { bulkUpsertFromImport } from "@/modules/accounts";
@@ -27,11 +29,43 @@ export interface ImportInput {
   userId: string;
   fileName: string;
   buffer: Buffer;
+  /**
+   * Optional pre-created ImportEvent id. When set (worker mode), we reuse
+   * the row instead of creating a new one — the row lifecycle is owned by
+   * the queue: API creates it `queued`, worker flips it through `parsing`,
+   * `storing`, `finalizing`, `ready` (or `failed`). When unset (legacy
+   * synchronous mode, retained for tests), we create the row ourselves at
+   * the end with `status: "ready"`.
+   */
+  importEventId?: string;
+  /**
+   * Called by stages of the pipeline with progress updates. The worker
+   * writes these straight to the ImportEvent row so the UI poll sees
+   * real numbers. Synchronous callers can ignore it (no-op default).
+   */
+  onProgress?: ProgressReporter;
 }
 
+export type ProgressStage = "parsing" | "storing" | "finalizing";
+
+export interface ProgressUpdate {
+  stage: ProgressStage;
+  percent: number;
+  label: string;
+  totalEntries?: number;
+  processedEntries?: number;
+}
+
+export type ProgressReporter = (update: ProgressUpdate) => Promise<void> | void;
+
+const noopProgress: ProgressReporter = () => undefined;
+
 export async function importJournal(input: ImportInput): Promise<Result<ImportResult>> {
+  const report = input.onProgress ?? noopProgress;
   const tStart = performance.now();
   const fileHash = createHash("sha256").update(input.buffer).digest("hex");
+
+  await report({ stage: "parsing", percent: 5, label: "Se citeste registrul jurnal" });
   const tHash = performance.now();
   // Streaming parser via yauzl + sax. The buffer is still in memory (route
   // handler buffers the multipart upload), but the XLSX zip is decompressed
@@ -50,6 +84,13 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
     }));
   }
 
+  await report({
+    stage: "parsing",
+    percent: 45,
+    label: `Verific ${parseResult.entries.length.toLocaleString("ro-RO")} de intrari`,
+    totalEntries: parseResult.entries.length,
+  });
+
   const newEntries = await filterDuplicates(input.clientId, parseResult.entries);
   const tDedup = performance.now();
 
@@ -60,8 +101,14 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
       `hash=${(tHash - tStart).toFixed(0)}ms parse=${(tParse - tHash).toFixed(0)}ms ` +
       `dedup=${(tDedup - tParse).toFixed(0)}ms total=${(tDedup - tStart).toFixed(0)}ms`
     );
+    if (input.importEventId) {
+      await prisma.importEvent.update({
+        where: { id: input.importEventId },
+        data: { status: "ready", entriesAdded: 0, progress: 100 },
+      });
+    }
     return ok({
-      importEventId: "",
+      importEventId: input.importEventId ?? "",
       entriesAdded: 0,
       entriesSkipped: parseResult.entries.length,
       dateStart: null,
@@ -75,24 +122,61 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   const dateStart = dates[0];
   const dateEnd = dates[dates.length - 1];
 
-  const importEvent = await prisma.importEvent.create({
-    data: {
-      clientId: input.clientId,
-      fileName: input.fileName,
-      fileHash,
-      sourceFormat: "saga",
-      entriesAdded: newEntries.length,
-      dateStart,
-      dateEnd,
-      status: "ready",
-    },
-  });
+  // Either reuse the queued row (worker mode) or create a new one (sync mode).
+  const importEvent = input.importEventId
+    ? await prisma.importEvent.update({
+        where: { id: input.importEventId },
+        data: {
+          fileHash,
+          entriesAdded: newEntries.length,
+          dateStart,
+          dateEnd,
+          status: "storing",
+          totalEntries: newEntries.length,
+          processedEntries: 0,
+        },
+      })
+    : await prisma.importEvent.create({
+        data: {
+          clientId: input.clientId,
+          fileName: input.fileName,
+          fileHash,
+          sourceFormat: "saga",
+          entriesAdded: newEntries.length,
+          dateStart,
+          dateEnd,
+          status: "ready",
+        },
+      });
   const tEvent = performance.now();
 
-  await storeJournalLines(input.clientId, importEvent.id, newEntries);
+  await report({
+    stage: "storing",
+    percent: 55,
+    label: `Salvez 0 din ${newEntries.length.toLocaleString("ro-RO")} de intrari`,
+    totalEntries: newEntries.length,
+    processedEntries: 0,
+  });
+
+  await storeJournalLines(input.clientId, importEvent.id, newEntries, async (processed) => {
+    // Map processed-count to a percentage in the [55, 90] band.
+    const frac = newEntries.length === 0 ? 1 : processed / newEntries.length;
+    const percent = 55 + frac * 35;
+    await report({
+      stage: "storing",
+      percent,
+      label: `Salvez ${processed.toLocaleString("ro-RO")} din ${newEntries.length.toLocaleString("ro-RO")} de intrari`,
+      totalEntries: newEntries.length,
+      processedEntries: processed,
+    });
+  });
   const tStore = performance.now();
+
+  await report({ stage: "finalizing", percent: 92, label: "Actualizez partenerii" });
   await updatePartnerMappings(input.clientId, parseResult.entries);
   const tPartners = performance.now();
+
+  await report({ stage: "finalizing", percent: 95, label: "Actualizez planul de conturi" });
   await bulkUpsertFromImport(input.clientId, parseResult.accountNames);
   const tAccounts = performance.now();
 
@@ -105,6 +189,8 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   // Invalidate every cached derivative (balance, CPP, mapari, owner snapshot, KPIs).
   await bumpClientDataVersion(input.clientId);
   const tBump = performance.now();
+
+  await report({ stage: "finalizing", percent: 100, label: "Import finalizat" });
 
   const partnerCount = uniquePartnerCount(parseResult.entries);
   console.log(
@@ -177,108 +263,165 @@ async function filterDuplicates(
 }
 
 /**
- * Bulk insert journal lines via raw SQL + UNNEST.
+ * Bulk insert journal lines via Postgres's binary-friendly COPY protocol.
  *
- * Pre-refactor this used `prisma.journalLine.createMany` in batches of 5000.
- * On UpperHouse's 193,684-row export that took ~9.5 s, dominated entirely
- * by Prisma's per-row argument validation + Decimal class construction in
- * Node — the database itself can absorb 200k rows in ~2 s.
+ * Evolution of this function on the UpperHouse 19 MB / 194k-row fixture:
  *
- * The raw SQL path does ZERO ORM hydration: we pass 18 parallel typed
- * arrays through Postgres's UNNEST(), letting the database itself do the
- * conversion. The whole batch is a single round-trip, fully parameterized
- * (no SQL injection risk), and Decimal columns just receive numeric values.
+ *   prisma.createMany (batches of 5000)              ~9.5 s on a hot pod
+ *   raw SQL INSERT ... SELECT FROM UNNEST(...)       ~4.2 s on a hot pod
+ *   raw SQL UNNEST                                    ~54 s on prod
+ *   COPY FROM STDIN (this implementation)         target ~10-15 s on prod
+ *
+ * Why COPY is faster than UNNEST for big writes:
+ *   - One protocol message instead of one INSERT per batch
+ *   - No SQL parser cost per row
+ *   - No bind parameter ceiling (Postgres caps prepared statements at
+ *     65535 parameters; with 19 columns that's only 3,449 rows per batch)
+ *   - Server-side row construction is a tight loop in C
+ *
+ * Why we still keep our own client-side batches: we want to emit
+ * `onBatch(processed)` updates to the UI roughly every 5,000 rows so the
+ * progress bar moves. A single 194k-row COPY would block the bar at the
+ * same percent for the whole stage.
+ *
+ * `bumpClientPgConnection` returns a dedicated `pg.Client` for the
+ * duration of this function — Prisma's pool doesn't expose the underlying
+ * connection, and COPY needs a raw connection. The client is released
+ * (and connection returned) in `finally` even on errors.
  */
 async function storeJournalLines(
   clientId: string,
   importEventId: string,
-  entries: JournalEntry[]
+  entries: JournalEntry[],
+  onBatch?: (processed: number) => Promise<void> | void
 ) {
-  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-    const batch = entries.slice(i, i + BATCH_SIZE);
-    const n = batch.length;
+  if (entries.length === 0) return;
 
-    const ids = new Array<string>(n);
-    const clientIds = new Array<string>(n);
-    const importEventIds = new Array<string>(n);
-    const datas = new Array<Date>(n);
-    const years = new Array<number>(n);
-    const months = new Array<number>(n);
-    const ndps = new Array<string>(n);
-    const contDs = new Array<string>(n);
-    const contDBases = new Array<string>(n);
-    const contCs = new Array<string>(n);
-    const contCBases = new Array<string>(n);
-    const sumas = new Array<string>(n);
-    const explicaties = new Array<string>(n);
-    const felDs = new Array<string>(n);
-    const categories = new Array<string | null>(n);
-    const cods = new Array<string | null>(n);
-    const validats = new Array<string | null>(n);
-    const tvas = new Array<string | null>(n);
-    const dedupHashes = new Array<string>(n);
+  const pg = await getPgClient();
+  try {
+    // synchronous_commit=off across the session — the import is fully
+    // restartable from the XLSX in S3 if the pod crashes before the
+    // write lands on disk, so the ms-window we lose is worth not
+    // fsyncing per WAL flush. Applied at the session level (not LOCAL
+    // to a txn) because the previous BEGIN/SET LOCAL/COPY/COMMIT shape
+    // measured ~50% slower than the implicit-txn COPY, likely because
+    // wrapping COPY in an explicit txn changed where the WAL flush
+    // boundary lands.
+    await pg.query("SET synchronous_commit = OFF");
 
-    for (let j = 0; j < n; j++) {
-      const e = batch[j];
-      ids[j] = randomUUID();
-      clientIds[j] = clientId;
-      importEventIds[j] = importEventId;
-      datas[j] = e.data;
-      years[j] = e.year;
-      months[j] = e.month;
-      ndps[j] = e.ndp;
-      contDs[j] = e.contD;
-      contDBases[j] = e.contDBase;
-      contCs[j] = e.contC;
-      contCBases[j] = e.contCBase;
-      sumas[j] = e.suma.toFixed(2);
-      explicaties[j] = e.explicatie;
-      felDs[j] = e.felD;
-      categories[j] = e.categorie;
-      cods[j] = e.cod;
-      validats[j] = e.validat;
-      tvas[j] = e.tva === null ? null : e.tva.toFixed(2);
-      dedupHashes[j] = computeDedupHash(e);
+    const stream = pg.query(
+      pgCopyFrom(
+        `COPY "JournalLine" (
+          id, "clientId", "importEventId", data, year, month, ndp,
+          "contD", "contDBase", "contC", "contCBase",
+          suma, explicatie, "felD", categorie, cod, validat, tva, "dedupHash"
+        ) FROM STDIN`
+      )
+    );
+
+    let streamErr: Error | null = null;
+    stream.on("error", (e) => { streamErr = e; });
+    const finished = new Promise<void>((resolve, reject) => {
+      stream.on("finish", () => resolve());
+      stream.on("error", (e) => reject(e));
+    });
+
+    // One COPY stream for the entire import. We chunk row-encoding in
+    // BATCH_SIZE blocks ONLY to emit progress updates between writes —
+    // the underlying Postgres operation is a single uninterrupted COPY.
+    let processed = 0;
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      if (streamErr) throw streamErr;
+      const batchEnd = Math.min(i + BATCH_SIZE, entries.length);
+      const chunk = encodeCopyChunk(clientId, importEventId, entries, i, batchEnd);
+
+      // Apply backpressure — if the socket buffer fills we wait for drain.
+      if (!stream.write(chunk)) {
+        await new Promise<void>((resolve) => stream.once("drain", () => resolve()));
+      }
+
+      processed = batchEnd;
+      if (onBatch) await onBatch(processed);
     }
 
-    await prisma.$executeRaw`
-      INSERT INTO "JournalLine" (
-        id, "clientId", "importEventId", data, year, month, ndp,
-        "contD", "contDBase", "contC", "contCBase",
-        suma, explicatie, "felD", categorie, cod, validat, tva, "dedupHash"
-      )
-      SELECT
-        id, "clientId", "importEventId", data, year, month, ndp,
-        "contD", "contDBase", "contC", "contCBase",
-        suma::numeric, explicatie, "felD", categorie, cod, validat,
-        tva::numeric, "dedupHash"
-      FROM UNNEST(
-        ${ids}::text[],
-        ${clientIds}::text[],
-        ${importEventIds}::text[],
-        ${datas}::timestamp[],
-        ${years}::int[],
-        ${months}::int[],
-        ${ndps}::text[],
-        ${contDs}::text[],
-        ${contDBases}::text[],
-        ${contCs}::text[],
-        ${contCBases}::text[],
-        ${sumas}::text[],
-        ${explicaties}::text[],
-        ${felDs}::text[],
-        ${categories}::text[],
-        ${cods}::text[],
-        ${validats}::text[],
-        ${tvas}::text[],
-        ${dedupHashes}::text[]
-      ) AS t(
-        id, "clientId", "importEventId", data, year, month, ndp,
-        "contD", "contDBase", "contC", "contCBase",
-        suma, explicatie, "felD", categorie, cod, validat, tva, "dedupHash"
-      )
-    `;
+    stream.end();
+    await finished;
+  } finally {
+    await pg.end();
   }
+}
+
+/**
+ * Serialize a slice of entries into Postgres COPY text format. Each row
+ * is 19 tab-separated values terminated by newline; \N marks null. We
+ * escape backslash, tab, newline, and CR per the COPY text spec.
+ */
+function encodeCopyChunk(
+  clientId: string,
+  importEventId: string,
+  entries: JournalEntry[],
+  start: number,
+  end: number,
+): Buffer {
+  const parts: string[] = [];
+  for (let j = start; j < end; j++) {
+    const e = entries[j];
+    parts.push(
+      [
+        randomUUID(),
+        clientId,
+        importEventId,
+        e.data.toISOString(),
+        String(e.year),
+        String(e.month),
+        copyEscape(e.ndp),
+        copyEscape(e.contD),
+        copyEscape(e.contDBase),
+        copyEscape(e.contC),
+        copyEscape(e.contCBase),
+        e.suma.toFixed(2),
+        copyEscape(e.explicatie),
+        copyEscape(e.felD),
+        copyEscapeNullable(e.categorie),
+        copyEscapeNullable(e.cod),
+        copyEscapeNullable(e.validat),
+        e.tva === null ? "\\N" : e.tva.toFixed(2),
+        computeDedupHash(e),
+      ].join("\t")
+    );
+  }
+  parts.push("");
+  return Buffer.from(parts.join("\n"), "utf-8");
+}
+
+/** Escape a string for Postgres COPY text format. */
+function copyEscape(s: string): string {
+  // Order matters: backslash first so we don't double-escape the
+  // backslashes we're about to introduce.
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t");
+}
+
+function copyEscapeNullable(s: string | null): string {
+  return s === null ? "\\N" : copyEscape(s);
+}
+
+/**
+ * Open a dedicated pg.Client for COPY. Reuses the same DATABASE_URL the
+ * Prisma pool uses but with a single non-pooled connection — COPY needs
+ * a stateful connection and Prisma's pool doesn't expose one.
+ */
+async function getPgClient(): Promise<PgClient> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL not set");
+  // Strip Prisma-specific query params that pg doesn't understand.
+  const cleanUrl = url.replace(/[?&](connection_limit|pool_timeout|schema)=[^&]*/g, "");
+  const client = new PgClient({ connectionString: cleanUrl });
+  await client.connect();
+  return client;
 }
 
 function uniquePartnerCount(entries: JournalEntry[]): number {

@@ -23,9 +23,28 @@
  */
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import crypto from "node:crypto";
+
+// Load .env.local explicitly so the test's Prisma client targets the same
+// database as the dev server. By default `@prisma/client` picks up `.env`
+// at module-load time, which on this repo points at a local DB while
+// `.env.local` redirects to the port-forwarded production DB.
+function loadEnvLocal() {
+  const path = resolve(__dirname, "../../.env.local");
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, "");
+    process.env[key] = val;
+  }
+}
+loadEnvLocal();
 
 const BASE = "http://localhost:3041";
 const FIXTURE = resolve(
@@ -113,10 +132,10 @@ async function authedPage(context: BrowserContext): Promise<Page> {
 }
 
 test.describe("Journal import — UpperHouse 19 MB fixture", () => {
-  test("shows calibrated progress bar that advances during the upload", async ({
+  test("queue flow: returns 202 quickly, poll-driven bar reaches ready", async ({
     context,
   }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(180_000);
     const page = await authedPage(context);
     await page.goto(`${BASE}/clients/${testClientSlug}/import`, {
       waitUntil: "domcontentloaded",
@@ -129,83 +148,120 @@ test.describe("Journal import — UpperHouse 19 MB fixture", () => {
     const importBtn = page.getByRole("button", { name: /^Import$/ });
     await expect(importBtn).toBeEnabled();
 
-    const importResponsePromise = page.waitForResponse(
+    // 1. POST /api/import must return 202 quickly — the whole point of
+    //    the queue is that the user doesn't wait for the import to finish.
+    const enqueueStart = Date.now();
+    const enqueueResponse = page.waitForResponse(
       (r) => r.url().includes("/api/import") && r.request().method() === "POST",
-      { timeout: 130_000 }
+      { timeout: 30_000 }
     );
     await importBtn.click();
+    const res = await enqueueResponse;
+    const enqueueMs = Date.now() - enqueueStart;
+    expect(res.status()).toBe(202);
+    // 60s is generous; on prod-class infra this is closer to 5-10s for
+    // a 19 MB file (network + multipart parse + S3 PUT).
+    expect(enqueueMs).toBeLessThan(60_000);
 
-    // The progress block replaces the Import button once upload starts.
-    // We give it 2 seconds to appear because the curve starts at ~15% by
-    // ~1.5s into the upload.
-    const progressLabel = page.locator("text=/incarc|citeste|salveaza|finalizeaza/i").first();
-    await expect(progressLabel).toBeVisible({ timeout: 2_000 });
+    const body = (await res.json()) as { importEventId: string };
+    expect(body.importEventId).toBeTruthy();
 
-    // The bar should reach a healthy mid-percentage well before the response
-    // arrives. Sample at ~5 s — by then the curve is in the parse stage.
-    await page.waitForTimeout(5_000);
-    const percentTextMid = await page
-      .locator("[class*='font-mono']")
-      .filter({ hasText: /%/ })
-      .first()
-      .innerText();
-    const midPct = parseInt(percentTextMid.replace("%", ""), 10);
-    expect(midPct).toBeGreaterThan(20);
-    expect(midPct).toBeLessThanOrEqual(95);
+    // 2. URL must update to ?event=<id> so refresh resumes the same poll.
+    await expect(page).toHaveURL(new RegExp(`event=${body.importEventId}`));
 
-    // Wait for the real response — bar should snap to 100 then we redirect.
-    const importResponse = await importResponsePromise;
-    expect(importResponse.status()).toBe(200);
-  });
+    // 3. Progress bar shows a real label from the worker.
+    const progressLabel = page
+      .locator("text=/incepe procesarea|citeste registrul|salvez|finalizeaza|partener|plan/i")
+      .first();
+    await expect(progressLabel).toBeVisible({ timeout: 30_000 });
 
-  test("streams 200k-row Saga export without OOM, completes inside maxDuration", async ({
-    context,
-  }) => {
-    test.setTimeout(150_000); // generous: full pipeline includes parse + dedup + N+1 partner upserts
-
-    const page = await authedPage(context);
-    await page.goto(`${BASE}/clients/${testClientSlug}/import`, {
-      waitUntil: "domcontentloaded",
-    });
-
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.waitFor({ state: "attached" });
-    await fileInput.setInputFiles(FIXTURE);
-
-    // The import wizard is a two-step UI: drop/pick the file first, then
-    // click the "Import" button to start the upload.
-    const importBtn = page.getByRole("button", { name: /^Import$/ });
-    await expect(importBtn).toBeEnabled();
-
-    const importResponsePromise = page.waitForResponse(
-      (r) => r.url().includes("/api/import") && r.request().method() === "POST",
-      { timeout: 130_000 }
-    );
-    await importBtn.click();
-
-    const importResponse = await importResponsePromise;
-    expect(importResponse.status()).toBe(200);
-
-    const payload = (await importResponse.json()) as {
-      entriesAdded: number;
-      totalParsed: number;
-      errorsCount: number;
+    // 4. Poll the status API ourselves and assert we see actual movement.
+    const pollUntilReady = async () => {
+      const deadline = Date.now() + 150_000;
+      let lastProgress = -1;
+      let sawMidProgress = false;
+      while (Date.now() < deadline) {
+        const sr = await page.request.get(`${BASE}/api/import/${body.importEventId}`);
+        if (!sr.ok()) {
+          await page.waitForTimeout(500);
+          continue;
+        }
+        const data = (await sr.json()) as {
+          status: string;
+          progress: number;
+          totalEntries: number | null;
+          processedEntries: number | null;
+        };
+        if (data.progress > lastProgress) lastProgress = data.progress;
+        if (data.progress > 20 && data.progress < 100) sawMidProgress = true;
+        if (data.status === "ready") return { ...data, sawMidProgress };
+        if (data.status === "failed") throw new Error(`Import failed: ${JSON.stringify(data)}`);
+        await page.waitForTimeout(500);
+      }
+      throw new Error(`Import did not reach ready within deadline. last progress: ${lastProgress}`);
     };
 
-    // 1. The streaming parser actually decoded rows — would be 0 if Saga's
-    //    prefixed XML wasn't handled (which is what exceljs gave us).
-    expect(payload.totalParsed).toBeGreaterThan(150_000);
-    // 2. They were all new entries (this is a throwaway client) so every
-    //    parsed row should have been written.
-    expect(payload.entriesAdded).toBe(payload.totalParsed);
-    expect(payload.errorsCount).toBe(0);
+    const finalState = await pollUntilReady();
+    expect(finalState.sawMidProgress).toBe(true);
 
-    // 3. After success, the UI redirects/transitions away from the import
-    //    page (back to the client detail or the journal tab). The exact
-    //    landing screen is the success path — we just assert we left the
-    //    upload form.
-    await page.waitForURL((url) => !url.toString().endsWith("/import"), {
+    // 5. After ready the UI redirects to the client detail page. Give it
+    //    extra time: our UI holds at 100% for 600ms before navigating, and
+    //    the next page does its own data load.
+    await page.waitForURL((url) => !url.toString().includes("/import"), {
       timeout: 30_000,
     });
+
+    // 6. DB sanity — the journal lines actually landed.
+    const journalLineCount = await prisma.journalLine.count({
+      where: { clientId: testClientId, deletedAt: null },
+    });
+    expect(journalLineCount).toBeGreaterThan(150_000);
+  });
+
+  test("refresh during processing resumes the same progress (URL is source of truth)", async ({
+    context,
+  }) => {
+    test.setTimeout(180_000);
+    const page = await authedPage(context);
+    await page.goto(`${BASE}/clients/${testClientSlug}/import`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.waitFor({ state: "attached" });
+    await fileInput.setInputFiles(FIXTURE);
+
+    const enqueueResponse = page.waitForResponse(
+      (r) => r.url().includes("/api/import") && r.request().method() === "POST",
+      { timeout: 30_000 }
+    );
+    await page.getByRole("button", { name: /^Import$/ }).click();
+    const res = await enqueueResponse;
+    const body = (await res.json()) as { importEventId: string };
+
+    // Wait until the worker has moved past 'queued' so a refresh is not
+    // racing the bootstrap.
+    await page.waitForTimeout(2_000);
+
+    // Hard refresh the page — the URL still contains ?event=<id>.
+    await page.reload({ waitUntil: "domcontentloaded" });
+
+    // We should land in the polling view, not the empty drop zone.
+    await expect(
+      page.locator("text=/intrari|procesare|citeste|salvez|finalizeaza/i").first()
+    ).toBeVisible({ timeout: 10_000 });
+
+    // The drop zone must NOT be visible.
+    await expect(page.locator("text=Drop your XLSX file here")).toHaveCount(0);
+
+    // Wait until ready.
+    const deadline = Date.now() + 150_000;
+    while (Date.now() < deadline) {
+      const sr = await page.request.get(`${BASE}/api/import/${body.importEventId}`);
+      const data = (await sr.json()) as { status: string };
+      if (data.status === "ready") break;
+      if (data.status === "failed") throw new Error(`Import failed during refresh test`);
+      await page.waitForTimeout(500);
+    }
   });
 });

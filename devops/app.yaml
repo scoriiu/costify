@@ -59,6 +59,26 @@ spec:
                 secretKeyRef:
                   name: costify-secrets
                   key: ANTHROPIC_API_KEY
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: S3_ENDPOINT
+            - name: S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: S3_ACCESS_KEY_ID
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: S3_SECRET_ACCESS_KEY
+            - name: S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: costify-secrets
+                  key: S3_BUCKET
             # XLSX parsing for large Saga exports (>15 MB files like
             # UpperHouse's 19 MB journal) explodes to 200+ MB of live heap
             # during workbook decompression + row parsing. Node's default
