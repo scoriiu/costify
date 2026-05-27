@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Building2, Database, CheckCircle2, AlertTriangle, Layers } from "lucide-react";
+import { useLinkStatus } from "next/link";
+import { Plus, Building2, Database, CheckCircle2, AlertTriangle, Layers, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
@@ -229,70 +230,95 @@ function KpiCard({
 function ClientCard({ client }: { client: ClientItem }) {
   return (
     <li>
-      <Link
-        href={`/clients/${client.slug}`}
-        prefetch={false}
-        className="group block rounded-xl border border-dark-3 bg-dark-2 p-5 transition-all hover:border-primary/40 hover:-translate-y-0.5"
-      >
-        <div className="mb-4 flex items-start gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-            <Building2 size={20} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3
-              className="truncate text-[15px] font-semibold text-white"
-              style={{ letterSpacing: "-0.04em" }}
-              title={client.name}
-            >
-              {client.name}
-            </h3>
-            <div
-              className="font-mono text-[11px] text-gray flex items-center gap-2 mt-0.5"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              {client.cui && <span>CUI {client.cui}</span>}
-              {client.cui && client.caen && (
-                <span className="text-dark-3" aria-hidden>·</span>
-              )}
-              {client.caen && <span>CAEN {client.caen}</span>}
-              {!client.cui && !client.caen && (
-                <span className="italic">Fara CUI/CAEN setate</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="flex items-center gap-2 font-mono text-[11px] text-gray mb-2"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          <Database size={11} />
-          <span className="tabular-nums">
-            {client.entryCount.toLocaleString("ro-RO")} intrari
-          </span>
-          {client.verticalsEnabled && (
-            <>
-              <span className="text-dark-3" aria-hidden>·</span>
-              <Layers size={11} />
-              <span>cu verticale</span>
-            </>
-          )}
-        </div>
-
-        <div className="border-t border-dark-3/60 pt-2 mt-2">
-          {client.latestPublished ? (
-            <PublishedBadge published={client.latestPublished} />
-          ) : (
-            <span
-              className="font-mono text-[10px] uppercase tracking-wider text-gray italic"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              Niciun raport publicat inca
-            </span>
-          )}
-        </div>
+      {/*
+        prefetch on hover (Next default) so the click usually has the
+        route warm. The body of the card uses useLinkStatus to react
+        to a pending navigation the instant the click fires — even if
+        the server-side render still takes 1-3 s, the user sees their
+        click was registered immediately.
+      */}
+      <Link href={`/clients/${client.slug}`} className="block">
+        <ClientCardBody client={client} />
       </Link>
     </li>
+  );
+}
+
+function ClientCardBody({ client }: { client: ClientItem }) {
+  const { pending } = useLinkStatus();
+  return (
+    <div
+      className={`group relative block rounded-xl border bg-dark-2 p-5 transition-all ${
+        pending
+          ? "border-primary/60 shadow-[0_0_0_1px_rgba(13,107,94,0.35),0_0_24px_-4px_rgba(13,107,94,0.45)]"
+          : "border-dark-3 hover:border-primary/40 hover:-translate-y-0.5"
+      }`}
+      aria-busy={pending}
+    >
+      {pending && (
+        <div className="absolute right-3 top-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+          <Loader2 size={11} className="animate-spin" />
+          <span style={{ letterSpacing: "-0.02em" }}>Se deschide</span>
+        </div>
+      )}
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          <Building2 size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3
+            className="truncate text-[15px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+            title={client.name}
+          >
+            {client.name}
+          </h3>
+          <div
+            className="font-mono text-[11px] text-gray flex items-center gap-2 mt-0.5"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            {client.cui && <span>CUI {client.cui}</span>}
+            {client.cui && client.caen && (
+              <span className="text-dark-3" aria-hidden>·</span>
+            )}
+            {client.caen && <span>CAEN {client.caen}</span>}
+            {!client.cui && !client.caen && (
+              <span className="italic">Fara CUI/CAEN setate</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="flex items-center gap-2 font-mono text-[11px] text-gray mb-2"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        <Database size={11} />
+        <span className="tabular-nums">
+          {client.entryCount.toLocaleString("ro-RO")} intrari
+        </span>
+        {client.verticalsEnabled && (
+          <>
+            <span className="text-dark-3" aria-hidden>·</span>
+            <Layers size={11} />
+            <span>cu verticale</span>
+          </>
+        )}
+      </div>
+
+      <div className="border-t border-dark-3/60 pt-2 mt-2">
+        {client.latestPublished ? (
+          <PublishedBadge published={client.latestPublished} />
+        ) : (
+          <span
+            className="font-mono text-[10px] uppercase tracking-wider text-gray italic"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Niciun raport publicat inca
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
