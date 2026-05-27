@@ -41,17 +41,45 @@ interface Props {
   }>;
 }
 
+/**
+ * Stage timing helper for the perf hunt. Logs how long each chunk of the
+ * server-render took so we can see exactly where the cold-load milliseconds
+ * are going. Will be removed once the perf budget (<100 ms TTFB) is locked
+ * in by a regression test.
+ */
+function stageTimer(slug: string) {
+  const t0 = performance.now();
+  let last = t0;
+  const stages: Array<[string, number]> = [];
+  return {
+    mark(label: string) {
+      const now = performance.now();
+      stages.push([label, now - last]);
+      last = now;
+    },
+    end(extra: string = "") {
+      const total = performance.now() - t0;
+      const detail = stages
+        .map(([l, ms]) => `${l}=${ms.toFixed(0)}ms`)
+        .join(" ");
+      console.log(
+        `[page/clients/${slug}] total=${total.toFixed(0)}ms ${detail}${extra ? " " + extra : ""}`,
+      );
+    },
+  };
+}
+
 export default async function ClientDetailPage(props: Props) {
+  const { slug } = await props.params;
+  const t = stageTimer(slug);
+
   const user = await getSessionUser();
+  t.mark("session");
   if (!user) redirect("/login");
 
-  const { slug } = await props.params;
   const searchParams = await props.searchParams;
+  t.mark("searchParams");
 
-  // Parallel: client lookup + periods. Periods is independent of the client
-  // row but needs clientId — we kick the lookup first and run periods after.
-  // (Periods could be parallelized with a subquery; not worth the SQL churn
-  // since the cache layer makes subsequent loads near-free anyway.)
   const client = await prisma.client.findFirst({
     where: { userId: user.id, slug, active: true },
     include: {
@@ -59,10 +87,11 @@ export default async function ClientDetailPage(props: Props) {
       _count: { select: { journalLines: { where: { deletedAt: null } } } },
     },
   });
-
+  t.mark("client");
   if (!client) notFound();
 
   const periods = await getAvailablePeriods(client.id);
+  t.mark("periods");
   const lastPeriod = periods[periods.length - 1];
   const year = searchParams.year ? parseInt(searchParams.year) : lastPeriod?.year;
   const month = searchParams.month ? parseInt(searchParams.month) : lastPeriod?.month;
@@ -71,9 +100,6 @@ export default async function ClientDetailPage(props: Props) {
   // published snapshot) so they can preview new dashboard features before
   // publishing. The owner (/firma) still sees the stored published view.
   if (searchParams.view === "owner") {
-    // Detailed is the default: the contabil-facing preview should show every
-    // L2 surface so the accountant can validate the full owner experience.
-    // The owner-facing /firma route keeps the per-user persisted preference.
     const mode = searchParams.mode === "simple" ? "simple" : "detailed";
     const context = buildOwnerContextForPreview({
       clientId: client.id,
@@ -82,8 +108,6 @@ export default async function ClientDetailPage(props: Props) {
       activePage: "home",
     });
 
-    // Back link for the preview strip — returns the accountant to the work
-    // view, preserving the tab/period they came from when possible.
     const backParams = new URLSearchParams();
     if (searchParams.tab) backParams.set("tab", searchParams.tab);
     if (year) backParams.set("year", String(year));
@@ -95,12 +119,14 @@ export default async function ClientDetailPage(props: Props) {
     };
 
     const publishedList = await listPublishedPeriods(client.id);
+    t.mark("ownerPublishedList");
     const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
 
     const previewYear = year ?? null;
     const previewMonth = month ?? null;
 
     if (!previewYear || !previewMonth) {
+      t.end("(no-period)");
       return (
         <OwnerLayout context={context} previewBack={previewBack}>
           <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
@@ -123,16 +149,18 @@ export default async function ClientDetailPage(props: Props) {
       year: previewYear,
       month: previewMonth,
     });
+    t.mark("ownerSnapshot");
 
-    // Compute marjaOperationala for the hero (used by HeroSummary tooltip).
     const [previewBalanceRows, previewCatalog] = await Promise.all([
       getBalanceRowsCached(client.id, previewYear, previewMonth),
       getCatalogMap(),
     ]);
+    t.mark("ownerKpiInputs");
     const previewKpis = previewBalanceRows.ok
       ? computeKpis(previewBalanceRows.data, previewCatalog)
       : null;
     const previewMarja = previewKpis?.marjaOperationala ?? null;
+    t.end("(owner)");
 
     return (
       <OwnerLayout context={context} previewBack={previewBack}>
@@ -154,10 +182,9 @@ export default async function ClientDetailPage(props: Props) {
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
     listAccountantAuditTrail(client.id, { limit: 50 }),
   ]);
+  t.mark("accountantParallel");
   const tab = searchParams.tab ?? "jurnal";
 
-  // Merge journal-having periods with published rows so the Setari panel shows
-  // both "ready to publish" and "already published" months in a single timeline.
   const publishedMap = new Map(
     publishedPeriods.map((p) => [`${p.year}-${p.month}`, p])
   );
@@ -182,9 +209,6 @@ export default async function ClientDetailPage(props: Props) {
     })
     .sort((a, b) => b.year - a.year || b.month - a.month);
 
-  // Mapari is fetched client-side by ClientDetail on tab activation — keeps
-  // page render fast for users who never visit that tab, and lets tab switches
-  // be purely client-state (no server round-trip).
   const cashflowYearRaw = searchParams["cashflow-year"];
   const cashflowYearParsed = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : NaN;
   const cashflowYear = Number.isFinite(cashflowYearParsed) ? cashflowYearParsed : undefined;
@@ -205,6 +229,8 @@ export default async function ClientDetailPage(props: Props) {
         }}
       />
     ) : null;
+
+  t.end(`(accountant tab=${tab})`);
 
   return (
     <ClientDetail
