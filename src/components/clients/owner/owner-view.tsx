@@ -33,7 +33,7 @@ import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
 import { OutstandingTable } from "./outstanding-table";
 import { InsightsList } from "./insights-list";
-import { CategoryBreakdownCard } from "./category-breakdown-card";
+import { CashflowMap } from "./cashflow-map";
 import { TopExpensesList } from "./top-expenses-list";
 import { YoyComparison } from "./yoy-comparison";
 import { VerticalBreakdownCard } from "./vertical-breakdown-card";
@@ -203,24 +203,16 @@ export function OwnerView({
         <PnlWaterfall summary={summary} expenseBreakdown={expenseBreakdown} />
       </Section>
 
-      {/* §9 — Categories: where money came from + went */}
+      {/* §9 — Cashflow Map (treemap). Replaces the side-by-side donut breakdown:
+            one visualization that answers "where did money go / come from"
+            in one glance, with click-to-expand for sub-categories.
+            Owner version: no conts, no OMFP codes, no codes period. */}
       <Section id="breakdowns" className="mb-8">
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <CategoryBreakdownCard
-            title="Unde s-au dus banii"
-            subtitle={`Cheltuielile lunii ${period}, pe categorii.`}
-            items={expenseBreakdown}
-            tone="expenses"
-            emptyMessage="Nicio cheltuiala inregistrata luna aceasta."
-          />
-          <CategoryBreakdownCard
-            title="De unde au venit banii"
-            subtitle={`Veniturile lunii ${period}, pe categorii.`}
-            items={revenueBreakdown}
-            tone="revenue"
-            emptyMessage="Niciun venit inregistrat luna aceasta."
-          />
-        </div>
+        <CashflowMap
+          expenseBreakdown={expenseBreakdown}
+          revenueBreakdown={revenueBreakdown}
+          periodLabel={period}
+        />
       </Section>
 
       {/* §9 — Top customers + suppliers by ACTIVITY this month */}
