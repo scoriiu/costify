@@ -152,6 +152,33 @@ test.describe("ClientDetail — instant tab switching", () => {
     expect(balanceCalls.length).toBe(1);
   });
 
+  test("/api/client-accounts is hit at most once for repeated Plan visits", async ({
+    context,
+  }) => {
+    const page = await authedPage(context);
+
+    const planCalls: string[] = [];
+    page.on("request", (req) => {
+      if (req.url().includes("/api/client-accounts")) planCalls.push(req.url());
+    });
+
+    await page.goto(`${CLIENT_URL}?tab=jurnal`, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+
+    await clickTab(page, "Plan de Conturi");
+    await page.waitForLoadState("networkidle");
+    await clickTab(page, "Registru Jurnal");
+    await page.waitForTimeout(50);
+    await clickTab(page, "Plan de Conturi");
+    await page.waitForLoadState("networkidle");
+    await clickTab(page, "Setari");
+    await page.waitForTimeout(50);
+    await clickTab(page, "Plan de Conturi");
+    await page.waitForLoadState("networkidle");
+
+    expect(planCalls.length).toBe(1);
+  });
+
   test("/api/mapari-cashflow is hit at most once for repeated Mapari visits", async ({
     context,
   }) => {

@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import type { KpiSnapshot, CppData, CppF20Data } from "@/modules/reporting";
 import type { TaxRegime } from "@/modules/accounts";
+import type { PlanRow } from "@/modules/accounts/plan";
 import type { MapariCashflowData } from "@/modules/categories";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
@@ -116,6 +117,13 @@ function mapariKey(year: number | undefined): string {
   return year === undefined ? "default" : String(year);
 }
 
+function planKey(year: number | undefined, month: number | undefined): string {
+  // The plan tab can render without a period (no "sold curent" column) so we
+  // need a distinct key for the period-less case.
+  if (year === undefined || month === undefined) return "noperiod";
+  return `${year}-${month}`;
+}
+
 export function ClientDetail({
   client,
   dataVersion,
@@ -146,6 +154,9 @@ export function ClientDetail({
   const [mapariCache, setMapariCache] = useState<Map<string, LoadState<MapariCashflowData>>>(
     () => new Map()
   );
+  const [planCache, setPlanCache] = useState<Map<string, LoadState<PlanRow[]>>>(
+    () => new Map()
+  );
 
   // Refs to read the latest cache + in-flight state inside effects without
   // including them as deps. If they were deps, calling `setBalanceCache`
@@ -157,8 +168,11 @@ export function ClientDetail({
   balanceCacheRef.current = balanceCache;
   const mapariCacheRef = useRef(mapariCache);
   mapariCacheRef.current = mapariCache;
+  const planCacheRef = useRef(planCache);
+  planCacheRef.current = planCache;
   const balanceInFlight = useRef<Set<string>>(new Set());
   const mapariInFlight = useRef<Set<string>>(new Set());
+  const planInFlight = useRef<Set<string>>(new Set());
 
   // External mutations (journal upload, override save, …) bump dataVersion.
   // When that changes, drop every cached payload AND clear in-flight markers
@@ -168,8 +182,10 @@ export function ClientDetail({
     lastVersion.current = dataVersion;
     balanceInFlight.current = new Set();
     mapariInFlight.current = new Set();
+    planInFlight.current = new Set();
     if (balanceCache.size > 0) setBalanceCache(new Map());
     if (mapariCache.size > 0) setMapariCache(new Map());
+    if (planCache.size > 0) setPlanCache(new Map());
   }
 
   // Keep local `tab` in sync if the URL changes externally (e.g. server
@@ -247,6 +263,41 @@ export function ClientDetail({
       });
   }, [tab, cashflowYear, client.id]);
 
+  // Lazy-fetch /api/client-accounts (chart of accounts) per (year, month).
+  // Same pattern as balance + mapari. Period-less case (selectedYear/Month
+  // missing) is keyed as "noperiod" so we don't refetch when navigating
+  // without a period.
+  useEffect(() => {
+    if (tab !== "plan") return;
+    const key = planKey(selectedYear, selectedMonth);
+    if (planCacheRef.current.has(key)) return;
+    if (planInFlight.current.has(key)) return;
+
+    planInFlight.current.add(key);
+    setPlanCache((prev) =>
+      prev.has(key) ? prev : new Map(prev).set(key, { kind: "loading" })
+    );
+
+    const params = new URLSearchParams({ clientId: client.id });
+    if (selectedYear && selectedMonth) {
+      params.set("year", String(selectedYear));
+      params.set("month", String(selectedMonth));
+    }
+    fetch(`/api/client-accounts?${params.toString()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { rows?: PlanRow[] }) => {
+        setPlanCache((prev) =>
+          new Map(prev).set(key, { kind: "ready", data: data.rows ?? [] })
+        );
+      })
+      .catch(() => {
+        setPlanCache((prev) => new Map(prev).set(key, { kind: "error" }));
+      })
+      .finally(() => {
+        planInFlight.current.delete(key);
+      });
+  }, [tab, selectedYear, selectedMonth, client.id]);
+
   const needsPeriod = tab === "balanta" || tab === "cpp";
 
   function changeTab(next: Tab) {
@@ -283,6 +334,30 @@ export function ClientDetail({
   const mapariState = mapariCache.get(mapariKey(cashflowYear)) ?? null;
   const mapariData = mapariState?.kind === "ready" ? mapariState.data : null;
   const mapariLoading = mapariState?.kind === "loading";
+
+  const planState = planCache.get(planKey(selectedYear, selectedMonth)) ?? null;
+  const planRows = planState?.kind === "ready" ? planState.data : null;
+  const planLoading = planState === null || planState.kind === "loading";
+
+  /**
+   * Called by PlanConturiTab after a successful mutation (rename a cont,
+   * toggle review). The action also bumps Client.dataVersion server-side
+   * which will eventually trigger a wholesale cache wipe on the next page
+   * render — but we want the user to see fresh rows immediately, so we
+   * surgically drop the active plan cache entry here and let the next
+   * render's useEffect refetch it. AbortController prevents races with
+   * any still-in-flight previous request.
+   */
+  function invalidatePlanForCurrentPeriod() {
+    const key = planKey(selectedYear, selectedMonth);
+    planInFlight.current.delete(key);
+    setPlanCache((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
+  }
 
   return (
     <div className="page-data px-4 py-6 sm:px-8 sm:py-8">
@@ -373,6 +448,9 @@ export function ClientDetail({
             clientSlug={client.slug}
             year={selectedYear}
             month={selectedMonth}
+            rows={planRows}
+            loading={planLoading}
+            onMutated={invalidatePlanForCurrentPeriod}
           />
         )}
 

@@ -17,8 +17,19 @@ import { Tooltip } from "@/components/ui/tooltip";
 interface Props {
   clientId: string;
   clientSlug: string;
+  /** Currently-selected period — used for the CSV filename and the
+   *  "sold curent" column header. Mirrors the URL search params owned
+   *  by ClientDetail. */
   year?: number;
   month?: number;
+  /** Per-(year,month) plan rows. Owned by ClientDetail so tab switching is
+   *  instant and Plan + future surfaces share cache invalidation via
+   *  dataVersion. null while loading. */
+  rows: PlanRow[] | null;
+  loading: boolean;
+  /** Called after a successful edit so the parent can invalidate its cache
+   *  and refetch fresh data. */
+  onMutated: () => void;
 }
 
 type KindFilter = "all" | "standard" | "analytic" | "review";
@@ -41,30 +52,10 @@ const TYPE_LEGEND = (
   </span>
 );
 
-export function PlanConturiTab({ clientId, clientSlug, year, month }: Props) {
-  const [rows, setRows] = useState<PlanRow[] | null>(null);
-  const [loading, setLoading] = useState(true);
+export function PlanConturiTab({ clientId, clientSlug, year, month, rows, loading, onMutated }: Props) {
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [classFilter, setClassFilter] = useState<ClassFilter>("all");
   const [search, setSearch] = useState("");
-
-  function fetchRows() {
-    setLoading(true);
-    const params = new URLSearchParams({ clientId });
-    if (year && month) {
-      params.set("year", String(year));
-      params.set("month", String(month));
-    }
-    fetch(`/api/client-accounts?${params.toString()}`)
-      .then((r) => r.json())
-      .then((data) => setRows(data.rows ?? []))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    fetchRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientId, year, month]);
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -165,7 +156,7 @@ export function PlanConturiTab({ clientId, clientSlug, year, month }: Props) {
                   key={row.cont}
                   clientId={clientId}
                   row={row}
-                  onChanged={fetchRows}
+                  onChanged={onMutated}
                 />
               ))}
               {filtered.length === 0 && (
