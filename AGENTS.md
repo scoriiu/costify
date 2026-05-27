@@ -570,6 +570,32 @@ async function processTransaction(raw: RawTransaction): Promise<JournalEntry> {
 - Use database indexes on: `tenant_id`, `date`, `bank_account_id`, `classification_status`, `category_id`.
 - Connection pooling (pgBouncer or built-in) sized for concurrent tenant load.
 
+### Performance — hard-won lessons
+
+These are real bottlenecks we hit in production. Read them before optimizing anything.
+
+#### Profile first, cache last.
+When a page is slow, the instinct is to add a cache. Don't. Caches hide the real cost and break correctness in subtle ways. Always **measure where the time goes** before fixing anything. Add `performance.now()` timings around each suspect call, deploy to prod, capture real numbers, fix the actual hot spot, then remove the instrumentation. Caching is the last resort for things that genuinely cannot be made faster.
+
+#### Prisma `findMany` is slow on large result sets — use `$queryRaw`.
+We hit this on Plan de Conturi: 16,802 rows took **747-2070 ms** to fetch via `prisma.journalLine.findMany`. The database itself returned the rows in **14 ms** (verified with `EXPLAIN ANALYZE`). The other 99% of the time was Prisma's per-row ORM hydration — wrapping every `Decimal` column in a Prisma `Decimal` class, parsing dates, attaching model metadata.
+
+For any hot path that reads more than a few hundred rows:
+- Use `prisma.$queryRaw<RowShape[]>` with explicit column selection. Returns plain JS objects.
+- Cast `Decimal`/`numeric` columns to text in the SELECT (`suma::text AS suma`) and call `Number()` once at the boundary.
+- The resulting JournalEntry-shaped objects look identical to callers but the trip is **5-10× faster**.
+
+Reference fix: `src/modules/balances/service.ts::getActiveEntries` (commit `7314140`).
+
+#### Cache key correctness — version-in-key, not tag-based revalidation.
+Tag-based `revalidateTag` only works if every write remembers to call it. One forgotten call ships silently stale data across thousands of reads. Instead, key caches on a monotonic `Client.dataVersion` that every write bumps via `bumpClientDataVersion(clientId)` (in `src/modules/clients/data-version.ts`). A stale entry is **unreachable by construction**, not "to be evicted later". When you add a new write path that mutates anything affecting computed downstream surfaces (balance, CPP, mapari, owner snapshot, KPIs), it MUST bump the version. Audit the write paths whenever you add a new mutation route.
+
+#### Lift fetches, never duplicate them.
+If two tabs need the same data, fetch ONCE at the parent (e.g. `ClientDetail`), cache per-key in `useState`, pass down as props. Don't let each tab fetch independently in its own `useEffect` — that's how Balanță and CPP each fired `/api/balance` separately before the refactor, doubling load on the same period.
+
+#### Tab switching must be pure client state.
+Never use `router.push` for an in-page tab toggle — it re-runs the server component (50-500 ms even on cache hit). Use `useState` + `history.replaceState` for the URL. Server fetches only on period change or external mutation.
+
 ---
 
 ## Source Definition System
