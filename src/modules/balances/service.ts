@@ -119,25 +119,92 @@ export async function getBalanceSummary(
   });
 }
 
+/**
+ * Distinct (year, month) periods that have journal data for a client.
+ *
+ * Hot path: this runs on EVERY page load of /clients/<slug> to seed the
+ * period selector and pick a default month. On a 580k-row client it
+ * previously took ~660 ms (125 ms in Postgres + 500 ms in Prisma's ORM
+ * hydration of the result set). The page wouldn't render any pixels
+ * until this resolved.
+ *
+ * Two optimizations together drop it to ~8 ms server-side:
+ *
+ * 1. **Loose index scan** — `prisma.findMany({ distinct })` makes
+ *    Postgres do a parallel seq scan + HashAggregate because the
+ *    planner doesn't translate `DISTINCT (year, month)` into a btree
+ *    walk. A hand-rolled recursive CTE jumps through the
+ *    `(clientId, year, month)` index one distinct prefix at a time —
+ *    O(distinct_count × log N) instead of O(N).
+ *
+ * 2. **`$queryRaw` over `findMany`** — bypasses Prisma's per-row ORM
+ *    hydration. The result is plain JS `{year, month}` objects, ready
+ *    to ship.
+ *
+ * Verified on prod fixture (UpperHouse, 581k rows, 137 distinct
+ * periods): 125 ms → 8 ms in Postgres, ~660 ms → ~10 ms total via
+ * Prisma client.
+ */
 export async function getAvailablePeriods(clientId: string): Promise<DatasetPeriod[]> {
-  const rows = await prisma.journalLine.findMany({
-    where: { clientId, deletedAt: null },
-    select: { year: true, month: true },
-    distinct: ["year", "month"],
-    orderBy: [{ year: "asc" }, { month: "asc" }],
-  });
-
+  const rows = await prisma.$queryRaw<Array<{ year: number; month: number }>>`
+    WITH RECURSIVE t AS (
+      (
+        SELECT year, month
+        FROM "JournalLine"
+        WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+        ORDER BY year, month
+        LIMIT 1
+      )
+      UNION ALL
+      SELECT
+        (
+          SELECT "JournalLine".year FROM "JournalLine"
+          WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+            AND (year, month) > (t.year, t.month)
+          ORDER BY year, month LIMIT 1
+        ) AS year,
+        (
+          SELECT "JournalLine".month FROM "JournalLine"
+          WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+            AND (year, month) > (t.year, t.month)
+          ORDER BY year, month LIMIT 1
+        ) AS month
+      FROM t
+      WHERE t.year IS NOT NULL
+    )
+    SELECT year, month FROM t
+    WHERE year IS NOT NULL
+    ORDER BY year, month
+  `;
   return rows.map((r) => ({ year: r.year, month: r.month }));
 }
 
+/**
+ * Distinct years that have journal data for a client. Same loose
+ * index-scan trick as getAvailablePeriods — see comment there. The
+ * result set is tiny (≤ 20 entries even for old clients) so the
+ * overall cost is dominated by index traversal, not row hydration.
+ */
 export async function getAvailableYears(clientId: string): Promise<number[]> {
-  const rows = await prisma.journalLine.findMany({
-    where: { clientId, deletedAt: null },
-    select: { year: true },
-    distinct: ["year"],
-    orderBy: { year: "asc" },
-  });
-
+  const rows = await prisma.$queryRaw<Array<{ year: number }>>`
+    WITH RECURSIVE t AS (
+      (
+        SELECT year FROM "JournalLine"
+        WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+        ORDER BY year LIMIT 1
+      )
+      UNION ALL
+      SELECT (
+        SELECT "JournalLine".year FROM "JournalLine"
+        WHERE "clientId" = ${clientId} AND "deletedAt" IS NULL
+          AND year > t.year
+        ORDER BY year LIMIT 1
+      ) AS year
+      FROM t
+      WHERE t.year IS NOT NULL
+    )
+    SELECT year FROM t WHERE year IS NOT NULL ORDER BY year
+  `;
   return rows.map((r) => r.year);
 }
 

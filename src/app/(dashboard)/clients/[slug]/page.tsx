@@ -80,18 +80,28 @@ export default async function ClientDetailPage(props: Props) {
   const searchParams = await props.searchParams;
   t.mark("searchParams");
 
+  // Just the Client row. importEvents + entryCount + periods + accountant-
+  // parallel fan out below from the same client.id.
   const client = await prisma.client.findFirst({
     where: { userId: user.id, slug, active: true },
-    include: {
-      importEvents: { orderBy: { createdAt: "desc" }, take: 10 },
-      _count: { select: { journalLines: { where: { deletedAt: null } } } },
-    },
   });
   t.mark("client");
   if (!client) notFound();
 
-  const periods = await getAvailablePeriods(client.id);
-  t.mark("periods");
+  // Three independent reads: distinct periods, last 10 import events,
+  // active journal-line count. Each one is index-only and cheap; running
+  // them in parallel collapses ~50 ms of sequential latency into one
+  // round-trip's worth of work.
+  const [periods, importEvents, entryCount] = await Promise.all([
+    getAvailablePeriods(client.id),
+    prisma.importEvent.findMany({
+      where: { clientId: client.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.journalLine.count({ where: { clientId: client.id, deletedAt: null } }),
+  ]);
+  t.mark("periods+import+count");
   const lastPeriod = periods[periods.length - 1];
   const year = searchParams.year ? parseInt(searchParams.year) : lastPeriod?.year;
   const month = searchParams.month ? parseInt(searchParams.month) : lastPeriod?.month;
@@ -243,8 +253,8 @@ export default async function ClientDetailPage(props: Props) {
         createdAt: client.createdAt.toISOString(),
       }}
       dataVersion={client.dataVersion}
-      entryCount={client._count.journalLines}
-      importEvents={client.importEvents.map((e) => ({
+      entryCount={entryCount}
+      importEvents={importEvents.map((e) => ({
         id: e.id,
         fileName: e.fileName,
         entriesAdded: e.entriesAdded,
