@@ -95,17 +95,27 @@ spec:
             limits:
               memory: 4Gi
               cpu: 3000m
+          # Startup probe warms heavy paths (Prisma init, OMFP catalog)
+          # before traffic arrives. Pod is NOT marked ready until this
+          # 200s — eliminates the cold-pod spike that used to hit the
+          # first user request after deploy. failureThreshold * period
+          # = 30 * 2 = 60s max before k8s gives up.
+          startupProbe:
+            httpGet:
+              path: /api/warmup
+              port: 3000
+            periodSeconds: 2
+            failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /login
+              path: /api/warmup
               port: 3000
-            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /login
               port: 3000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 30
 ---
 apiVersion: v1
