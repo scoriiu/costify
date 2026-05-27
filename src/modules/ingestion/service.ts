@@ -11,7 +11,8 @@ import { bumpClientDataVersion } from "@/modules/clients/data-version";
 import { getBalanceRows } from "@/modules/balances";
 import { precomputePeriods } from "@/modules/balances/computed-period";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
-import { getCatalogMap } from "@/modules/accounts";
+import { getCatalogMap, getClientPlan } from "@/modules/accounts";
+import { precomputePlans } from "@/modules/accounts/computed-plan";
 import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
@@ -202,7 +203,7 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   // version bump so the rows we write are tagged with the new version
   // and are immediately valid for future reads.
   await report({ stage: "finalizing", percent: 97, label: "Precalculez balantele" });
-  const precomputed = await precomputePeriods(
+  const precomputedBalances = await precomputePeriods(
     input.clientId,
     touchedPeriods,
     async (year, month) => {
@@ -219,6 +220,24 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
         cppF20: computeCppF20(balanceResult.data, catalog, { taxRegime }),
         taxRegime,
       };
+    },
+  );
+
+  // Pre-compute Plan de Conturi too: the base (period-independent) shape
+  // plus one fully-populated row per touched period. Each touched period
+  // gets a Plan row with the period-specific currentSold filled in. The
+  // base row drives "tab=plan" without a period selected.
+  await report({ stage: "finalizing", percent: 99, label: "Precalculez planul de conturi" });
+  const planPeriods: Array<{ year: number; month: number } | undefined> = [
+    undefined,
+    ...touchedPeriods,
+  ];
+  const precomputedPlans = await precomputePlans(
+    input.clientId,
+    planPeriods,
+    async (period) => {
+      const rows = await getClientPlan(input.clientId, { period });
+      return { rows };
     },
   );
   const tPrecompute = performance.now();
@@ -240,7 +259,7 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
     `accounts=${(tAccounts - tPartners).toFixed(0)}ms ` +
     `stale=${(tStale - tAccounts).toFixed(0)}ms ` +
     `bump=${(tBump - tStale).toFixed(0)}ms ` +
-    `precompute=${(tPrecompute - tBump).toFixed(0)}ms (${precomputed}/${touchedPeriods.length}) ` +
+    `precompute=${(tPrecompute - tBump).toFixed(0)}ms (bal=${precomputedBalances}/${touchedPeriods.length} plans=${precomputedPlans}/${planPeriods.length}) ` +
     `total=${(tPrecompute - tStart).toFixed(0)}ms`
   );
 

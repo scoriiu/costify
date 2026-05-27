@@ -83,6 +83,7 @@ model Client {
   clientAccounts           ClientAccount[]
   taxRegimePeriods         TaxRegimePeriod[]
   computedPeriods          ComputedPeriod[]
+  computedPlans            ComputedPlan[]
   accesses                 ClientAccess[]
   publishedPeriods         PublishedPeriod[]
   costCategories           CostCategory[]
@@ -475,6 +476,49 @@ model JournalLine {
   @@index([clientId, contCBase])
   @@index([clientId, dedupHash])
   @@index([importEventId])
+}
+
+/// Materialized Plan de Conturi per (client, dataVersion, year, month).
+///
+/// The Plan response is a ~3.5 MB / ~11k-row payload that combines:
+///   - OMFP-1802 catalog (period-stable, global)
+///   - Client account overrides (per-client, version-keyed)
+///   - Partner name mappings (per-client, version-keyed)
+///   - Per-account journal usage stats (count, first/last seen)
+///   - Current sold (finD/finC) for the selected period — only field
+///     that actually varies with (year, month).
+///
+/// Sentinel `year=0, month=0` represents "no period selected" (the
+/// period-independent base plan with currentSold=null). Prisma's
+/// compound @@unique doesn't allow nullable columns, so the sentinel
+/// keeps the unique key clean without an extra discriminator column.
+/// Real journal data never has year=0.
+///
+/// Same correctness model as ComputedPeriod: a row is valid iff its
+/// dataVersion matches Client.dataVersion. Stale rows are never
+/// returned because the WHERE clause filters on version. Mutations bump
+/// dataVersion → all materialized rows become invisible → next read
+/// recomputes and overwrites. Never DELETE on bump (concurrent
+/// recomputes race).
+model ComputedPlan {
+  id          String   @id @default(cuid())
+  clientId    String
+  /// 0 = period-independent base plan. Non-zero = fully populated plan
+  /// for (year, month).
+  year        Int
+  month       Int
+  dataVersion Int
+
+  /// PlanRow[] — exactly what /api/client-accounts returns under `rows`.
+  rows Json
+
+  computedAt DateTime @default(now())
+  computedBy String   @default("lazy")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, year, month])
+  @@index([clientId, dataVersion])
 }
 
 /// Materialized balance + KPI + CPP + CPP-F20 + tax regime per (client, year, month).
