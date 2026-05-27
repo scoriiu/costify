@@ -35,7 +35,7 @@ interface Ctx {
 }
 
 const ViewModeContext = createContext<Ctx>({
-  mode: "simple",
+  mode: "detailed",
   setMode: () => {},
 });
 

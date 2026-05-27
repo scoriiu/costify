@@ -71,7 +71,10 @@ export default async function ClientDetailPage(props: Props) {
   // published snapshot) so they can preview new dashboard features before
   // publishing. The owner (/firma) still sees the stored published view.
   if (searchParams.view === "owner") {
-    const mode = searchParams.mode === "detailed" ? "detailed" : "simple";
+    // Detailed is the default: the contabil-facing preview should show every
+    // L2 surface so the accountant can validate the full owner experience.
+    // The owner-facing /firma route keeps the per-user persisted preference.
+    const mode = searchParams.mode === "simple" ? "simple" : "detailed";
     const context = buildOwnerContextForPreview({
       clientId: client.id,
       clientName: client.name,

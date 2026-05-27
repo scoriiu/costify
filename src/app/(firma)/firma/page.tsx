@@ -67,7 +67,10 @@ export default async function FirmaHomePage(props: Props) {
   }
 
   const { snapshot } = published;
-  const viewMode = mode === "detailed" ? "detailed" : "simple";
+  // Detailed is the default — owners benefit from seeing every section
+  // on first visit; the ViewModeToggle still lets them switch to Simplu
+  // and the choice is persisted in localStorage.
+  const viewMode = mode === "simple" ? "simple" : "detailed";
 
   return (
     <OwnerLayout context={context} user={ownerUser}>

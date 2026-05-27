@@ -45,8 +45,8 @@ import { TopActivityList } from "./top-activity-list";
 import { ObligationsCalendar } from "./obligations-calendar";
 import { RatiosCatalog } from "./ratios-catalog";
 import { PatrimoniuView } from "./patrimoniu-view";
-import { PeriodSelector, type PeriodOption } from "./period-selector";
-import { ViewModeToggle } from "./view-mode-toggle";
+import { type PeriodOption } from "./period-selector";
+import { StickyPeriodBar } from "./sticky-period-bar";
 import {
   ViewModeProvider,
   DetailedOnly,
@@ -60,16 +60,19 @@ interface OwnerViewProps {
   /** Published periods available for the period selector. When empty, the
    *  selector is hidden. */
   availablePeriods?: PeriodOption[];
-  /** Initial mode read from the URL (?mode=detailed). After mount, user
-   *  preference from localStorage wins. Defaults to "simple". */
+  /** Initial mode read from the URL (?mode=simple). After mount, user
+   *  preference from localStorage wins. Defaults to "detailed" — the full
+   *  L2 surface is the more useful starting point for both the contabil
+   *  preview and a first-time owner. */
   mode?: ViewMode;
 }
 
 export function OwnerView({
   snapshot,
+  context,
   marjaOperationala,
   availablePeriods = [],
-  mode = "simple",
+  mode = "detailed",
 }: OwnerViewProps) {
   const {
     meta,
@@ -108,30 +111,33 @@ export function OwnerView({
     hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
   });
 
+  // Sticky period bar sits under different chrome depending on context.
+  // Preview strip (?view=owner) is 44 px tall → top-11. Owner topbar
+  // (/firma) is 56 px tall → top-14. We can't read the parent at runtime
+  // so we infer from context.isPreview.
+  const stickyTopClass = context.isPreview ? "top-11" : "top-14";
+
   return (
     <ViewModeProvider initialMode={mode}>
+      <StickyPeriodBar
+        year={meta.year}
+        month={meta.month}
+        availablePeriods={availablePeriods}
+        topClassName={stickyTopClass}
+      />
+
       <PageHeader
         eyebrow={period}
         title={`Cum sta ${meta.name}`}
         subtitle="O privire rapida peste bani, clienti, datorii si profit. Datele se actualizeaza dupa fiecare upload de jurnal."
         actions={
-          <>
-            <ViewModeToggle />
-            {availablePeriods.length > 0 && (
-              <PeriodSelector
-                currentYear={meta.year}
-                currentMonth={meta.month}
-                options={availablePeriods}
-              />
-            )}
-            {dataQuality && (
-              <TrustBadge
-                coveragePercent={dataQuality.coveragePercent}
-                partnerOverrideCount={dataQuality.partnerOverrideCount}
-                hasAnyReview={dataQuality.hasAnyReview}
-              />
-            )}
-          </>
+          dataQuality && (
+            <TrustBadge
+              coveragePercent={dataQuality.coveragePercent}
+              partnerOverrideCount={dataQuality.partnerOverrideCount}
+              hasAnyReview={dataQuality.hasAnyReview}
+            />
+          )
         }
       />
 
