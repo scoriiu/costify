@@ -14,9 +14,10 @@
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FinancialSummary, CategoryBreakdownItem } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface PnlWaterfallProps {
   summary: FinancialSummary;
@@ -129,7 +130,6 @@ function computeSteps(summary: FinancialSummary, expenseBreakdown: CategoryBreak
 
 export function PnlWaterfall({ summary, expenseBreakdown }: PnlWaterfallProps) {
   const steps = useMemo(() => computeSteps(summary, expenseBreakdown), [summary, expenseBreakdown]);
-  const [hover, setHover] = useState<string | null>(null);
 
   const maxAbs = Math.max(...steps.map((s) => Math.abs(s.value)), 1);
 
@@ -151,15 +151,8 @@ export function PnlWaterfall({ summary, expenseBreakdown }: PnlWaterfallProps) {
       </div>
 
       <div className="space-y-2">
-        {steps.map((step, idx) => (
-          <WaterfallRow
-            key={step.id}
-            step={step}
-            maxAbs={maxAbs}
-            isFirst={idx === 0}
-            isHover={hover === step.id}
-            onHover={(v) => setHover(v ? step.id : null)}
-          />
+        {steps.map((step) => (
+          <WaterfallRow key={step.id} step={step} maxAbs={maxAbs} />
         ))}
       </div>
 
@@ -185,15 +178,9 @@ export function PnlWaterfall({ summary, expenseBreakdown }: PnlWaterfallProps) {
 function WaterfallRow({
   step,
   maxAbs,
-  isFirst: _isFirst,
-  isHover,
-  onHover,
 }: {
   step: Step;
   maxAbs: number;
-  isFirst: boolean;
-  isHover: boolean;
-  onHover: (v: boolean) => void;
 }) {
   const widthPct = (Math.abs(step.value) / maxAbs) * 100;
   const isPositive = step.value >= 0;
@@ -216,55 +203,50 @@ function WaterfallRow({
         ? "text-green"
         : "text-danger";
 
+  // The hint used to be rendered inline below the label on hover. That made
+  // every other row shift downward when the cursor entered — felt like a
+  // layout bug. Now the hint lives in a Tooltip that portals out of the
+  // flow, so hovering only changes the row's background tint, never its
+  // height.
   return (
-    <div
-      className={`grid grid-cols-[180px_1fr_180px] items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isHover ? "bg-dark-3/60" : "bg-dark-3/20"}`}
-      onMouseEnter={() => onHover(true)}
-      onMouseLeave={() => onHover(false)}
-    >
-      <div className="min-w-0">
-        <div
-          className={`text-[13px] font-medium ${step.kind === "total" ? "text-white" : "text-gray-light"}`}
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {step.label}
-        </div>
-        {isHover && (
-          <p
-            className="text-[11px] text-gray mt-0.5 leading-tight"
+    <Tooltip content={step.hint} side="top" display="block">
+      <div className="grid grid-cols-[180px_1fr_180px] items-center gap-3 rounded-lg px-3 py-2 transition-colors bg-dark-3/20 hover:bg-dark-3/60">
+        <div className="min-w-0">
+          <div
+            className={`text-[13px] font-medium ${step.kind === "total" ? "text-white" : "text-gray-light"}`}
             style={{ letterSpacing: "-0.02em" }}
           >
-            {step.hint}
-          </p>
-        )}
-      </div>
-
-      <div className="h-7 flex items-center">
-        <div className="h-full w-full bg-dark-3/40 rounded-md overflow-hidden">
-          <div
-            className={`h-full ${barColor} transition-all duration-500 ${step.kind === "total" ? "" : "opacity-90"}`}
-            style={{ width: `${Math.max(2, widthPct)}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="text-right">
-        <div
-          className={`font-mono text-[15px] font-semibold tabular-nums ${textColor}`}
-          style={{ letterSpacing: "-0.04em" }}
-        >
-          {step.kind === "out" && step.value < 0 ? "−" : isPositive ? "" : "−"}{lei(Math.abs(step.value))}
-        </div>
-        {step.kind !== "total" && (
-          <div
-            className="font-mono text-[10px] text-gray mt-0.5 tabular-nums"
-            style={{ letterSpacing: "0.04em" }}
-          >
-            Rest: {lei(step.runningTotal)}
+            {step.label}
           </div>
-        )}
+        </div>
+
+        <div className="h-7 flex items-center">
+          <div className="h-full w-full bg-dark-3/40 rounded-md overflow-hidden">
+            <div
+              className={`h-full ${barColor} transition-all duration-500 ${step.kind === "total" ? "" : "opacity-90"}`}
+              style={{ width: `${Math.max(2, widthPct)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="text-right">
+          <div
+            className={`font-mono text-[15px] font-semibold tabular-nums ${textColor}`}
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            {step.kind === "out" && step.value < 0 ? "−" : isPositive ? "" : "−"}{lei(Math.abs(step.value))}
+          </div>
+          {step.kind !== "total" && (
+            <div
+              className="font-mono text-[10px] text-gray mt-0.5 tabular-nums"
+              style={{ letterSpacing: "0.04em" }}
+            >
+              Rest: {lei(step.runningTotal)}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Tooltip>
   );
 }
 

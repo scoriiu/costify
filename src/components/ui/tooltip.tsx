@@ -10,7 +10,12 @@ interface TooltipProps {
   side?: "top" | "bottom";
   /** Delay before showing on hover, in ms. Defaults to 100. */
   delay?: number;
+  /** Extra classes on the trigger wrapper. */
   className?: string;
+  /** When the trigger wraps block-level content (e.g. a row, a card), pass
+   *  `block` here so the wrapper expands to fit its child. Default is
+   *  `inline-flex`, which works for icons and short text. */
+  display?: "inline-flex" | "block";
 }
 
 /**
@@ -29,6 +34,7 @@ export function Tooltip({
   side = "top",
   delay = 100,
   className = "",
+  display = "inline-flex",
 }: TooltipProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -95,7 +101,7 @@ export function Tooltip({
     <>
       <span
         ref={triggerRef}
-        className={`inline-flex ${className}`}
+        className={`${display} ${className}`}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
