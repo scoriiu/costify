@@ -29,7 +29,9 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "recharts": "^3.8.1",
+    "sax": "^1.6.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "yauzl": "^3.3.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -40,6 +42,8 @@
     "@types/node": "^25.8.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sax": "^1.2.7",
+    "@types/yauzl": "^2.10.3",
     "eslint": "^10.3.0",
     "eslint-config-next": "16.2.6",
     "openai": "^6.37.0",

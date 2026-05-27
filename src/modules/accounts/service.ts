@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { randomUUID } from "crypto";
 import { getContBase } from "@/lib/accounts";
 import { loadCatalog } from "./catalog-cache";
 import { decideImportUpsert, filterImportableNames } from "./import-upsert";
@@ -190,6 +191,27 @@ export interface BulkUpsertResult {
   skipped: number;
 }
 
+/**
+ * Bulk upsert of chart-of-accounts rows from a journal import.
+ *
+ * Pre-refactor this fired one Prisma round-trip per cont (`create`,
+ * `update`, or `touch last_seen`) in a sequential loop. Saga exports for
+ * mature firms can easily list 1000+ contas; that's 1000 round-trips at
+ * ~0.5 ms each = ~0.5 s of pure latency for what is logically a single
+ * operation.
+ *
+ * The decision logic (decideImportUpsert) is preserved exactly. We just
+ * bucket the rows by decision and dispatch each bucket as a single SQL
+ * statement:
+ *
+ *   - "create"          → INSERT ... (bulk)
+ *   - "update_name"     → UPDATE ... FROM UNNEST(...) (bulk)
+ *   - "touch_last_seen" → UPDATE ... lastSeenAt only (bulk)
+ *   - "skip_sticky_edit"→ UPDATE ... lastSeenAt only (bulk, same SQL)
+ *
+ * The two "touch_last_seen" buckets merge into one UPDATE because they do
+ * the same thing on disk (the difference is only a counter).
+ */
 export async function bulkUpsertFromImport(
   clientId: string,
   names: Map<string, string>
@@ -218,54 +240,88 @@ export async function bulkUpsertFromImport(
     });
   }
 
-  let created = 0;
+  const toCreate: Array<{ code: string; customName: string; source: string; needsReview: boolean }> = [];
+  const toUpdateName: Array<{ code: string; customName: string }> = [];
+  const toTouch: string[] = [];
   let createdNeedingReview = 0;
-  let updated = 0;
   let skipped = 0;
-  const now = new Date();
 
   for (const [code, name] of filtered.entries()) {
     const decision = decideImportUpsert(code, name, existingMap.get(code) ?? null, catalog);
-
     switch (decision.action) {
       case "create":
-        await prisma.clientAccount.create({
-          data: {
-            clientId,
-            code: decision.code,
-            customName: decision.customName!,
-            source: decision.source!,
-            needsReview: decision.needsReview!,
-          },
+        toCreate.push({
+          code: decision.code,
+          customName: decision.customName!,
+          source: decision.source!,
+          needsReview: decision.needsReview!,
         });
-        created++;
         if (decision.needsReview) createdNeedingReview++;
         break;
-
       case "update_name":
-        await prisma.clientAccount.update({
-          where: { clientId_code: { clientId, code: decision.code } },
-          data: { customName: decision.customName!, lastSeenAt: now },
-        });
-        updated++;
+        toUpdateName.push({ code: decision.code, customName: decision.customName! });
         break;
-
       case "touch_last_seen":
-        await prisma.clientAccount.update({
-          where: { clientId_code: { clientId, code: decision.code } },
-          data: { lastSeenAt: now },
-        });
+        toTouch.push(decision.code);
         break;
-
       case "skip_sticky_edit":
-        await prisma.clientAccount.update({
-          where: { clientId_code: { clientId, code: decision.code } },
-          data: { lastSeenAt: now },
-        });
+        toTouch.push(decision.code);
         skipped++;
         break;
     }
   }
 
-  return { created, createdNeedingReview, updated, skipped };
+  const now = new Date();
+
+  if (toCreate.length > 0) {
+    const ids = toCreate.map(() => randomUUID());
+    const clientIds = toCreate.map(() => clientId);
+    const codes = toCreate.map((r) => r.code);
+    const customNames = toCreate.map((r) => r.customName);
+    const sources = toCreate.map((r) => r.source);
+    const needsReviews = toCreate.map((r) => r.needsReview);
+
+    await prisma.$executeRaw`
+      INSERT INTO "ClientAccount" (id, "clientId", code, "customName", source, "needsReview",
+                                   "firstSeenAt", "lastSeenAt", "createdAt", "updatedAt")
+      SELECT id, "clientId", code, "customName", source, "needsReview",
+             ${now}::timestamp, ${now}::timestamp, ${now}::timestamp, ${now}::timestamp
+      FROM UNNEST(
+        ${ids}::text[],
+        ${clientIds}::text[],
+        ${codes}::text[],
+        ${customNames}::text[],
+        ${sources}::text[],
+        ${needsReviews}::boolean[]
+      ) AS t(id, "clientId", code, "customName", source, "needsReview")
+      ON CONFLICT ("clientId", code) DO NOTHING
+    `;
+  }
+
+  if (toUpdateName.length > 0) {
+    const codes = toUpdateName.map((r) => r.code);
+    const customNames = toUpdateName.map((r) => r.customName);
+    await prisma.$executeRaw`
+      UPDATE "ClientAccount" AS ca
+      SET "customName" = u."customName",
+          "lastSeenAt" = ${now}::timestamp
+      FROM UNNEST(${codes}::text[], ${customNames}::text[]) AS u(code, "customName")
+      WHERE ca."clientId" = ${clientId} AND ca.code = u.code
+    `;
+  }
+
+  if (toTouch.length > 0) {
+    await prisma.$executeRaw`
+      UPDATE "ClientAccount"
+      SET "lastSeenAt" = ${now}::timestamp
+      WHERE "clientId" = ${clientId} AND code = ANY(${toTouch}::text[])
+    `;
+  }
+
+  return {
+    created: toCreate.length,
+    createdNeedingReview,
+    updated: toUpdateName.length,
+    skipped,
+  };
 }

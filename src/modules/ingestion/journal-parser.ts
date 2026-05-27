@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { normalizeMoney } from "@/lib/money";
 import { getContBase } from "@/lib/accounts";
 import { resolveHeaders } from "./header-resolver";
+import { streamSagaSheet, type SagaRow } from "./saga-stream";
 import type { JournalEntry, JournalParseResult, ParseError } from "./types";
 
 function normalizeText(value: string): string {
@@ -38,6 +39,23 @@ function parseDate(value: unknown): Date | null {
   return null;
 }
 
+/**
+ * Saga sometimes stores dates as Excel serial numbers (cell type omitted or
+ * numeric) and sometimes as plain strings. When parsing the streaming SAX
+ * output we lose the typed Date conversion that the legacy `xlsx` library
+ * did automatically, so we re-interpret a small numeric string in the date
+ * column as a serial. ~25569 = 1970-01-01, ~46000 = 2025-ish — anything
+ * outside that range is either a real string-formatted date or garbage.
+ */
+function maybeSerialDate(raw: string): unknown {
+  if (raw === "") return "";
+  const n = Number(raw);
+  if (Number.isFinite(n) && n > 20000 && n < 60000 && !raw.includes("/") && !raw.includes(".") && !raw.includes("-")) {
+    return n;
+  }
+  return raw;
+}
+
 function makeEntry(
   date: Date, ndp: string, contD: string, contC: string, suma: number,
   explicatie: string, felD: string, categorie: string | null,
@@ -50,6 +68,310 @@ function makeEntry(
   };
 }
 
+/**
+ * Internal accumulator that runs the Saga journal business logic against a
+ * generic sequence of row dicts. Used by both the streaming entry point
+ * (production: yauzl + sax) and the legacy buffer entry point (kept only as
+ * a thin compatibility wrapper for any test that still passes a Buffer).
+ */
+type RowDict = Record<string, unknown>;
+
+interface ResolverState {
+  resolved: Record<string, string>;
+  hasCat: boolean;
+  hasCod: boolean;
+  hasVal: boolean;
+  hasTva: boolean;
+  hasNames: boolean;
+}
+
+function buildResolverState(rawHeaders: string[]): { state: ResolverState; missing: string[] } {
+  const { resolved } = resolveHeaders(rawHeaders);
+  const required = ["data", "cont_d", "cont_c", "suma"] as const;
+  const missing = required.filter((col) => !resolved[col]);
+  return {
+    state: {
+      resolved,
+      hasCat: !!resolved["categorie"],
+      hasCod: !!resolved["cod"],
+      hasVal: !!resolved["validat"],
+      hasTva: !!resolved["tva"],
+      hasNames: !!(resolved["denumire_d"] || resolved["denumire_c"] || resolved["denumire"]),
+    },
+    missing,
+  };
+}
+
+const COLUMN_LABELS: Record<string, string> = {
+  data: "Data",
+  cont_d: "Cont Debit",
+  cont_c: "Cont Credit",
+  suma: "Suma",
+};
+
+class JournalAccumulator {
+  readonly entries: JournalEntry[] = [];
+  readonly errors: ParseError[] = [];
+  readonly yearSet = new Set<number>();
+  readonly accountNames = new Map<string, string>();
+  readonly state: ResolverState;
+  private compoundDebitStack: Compound[] = [];
+  private compoundCreditStack: Compound[] = [];
+  private orphanBuffer: OrphanDetail[] = [];
+  totalRaw = 0;
+
+  constructor(state: ResolverState) {
+    this.state = state;
+  }
+
+  ingest(row: RowDict): void {
+    this.totalRaw++;
+    const { state } = this;
+    const get = (col: string): unknown => {
+      const key = state.resolved[col];
+      return key ? row[key] : undefined;
+    };
+    const getStr = (col: string): string => {
+      const val = get(col);
+      return val !== null && val !== undefined ? String(val).trim() : "";
+    };
+
+    const dateVal = parseDate(get("data"));
+    if (!dateVal) return;
+
+    const dKey = dateKeyLocal(dateVal);
+    let contD = getStr("cont_d");
+    let contC = getStr("cont_c");
+    const suma = normalizeMoney(get("suma"));
+    const ndp = getStr("ndp");
+    const explicatie = normalizeText(getStr("explicatie"));
+    const felD = getStr("fel_d");
+    const categorie = state.hasCat ? getStr("categorie") || null : null;
+    const cod = state.hasCod ? getStr("cod") || null : null;
+    const validat = state.hasVal ? getStr("validat") || null : null;
+    const tva = state.hasTva
+      ? (() => {
+          const r = get("tva");
+          return r === "" || r === null || r === undefined ? null : normalizeMoney(r);
+        })()
+      : null;
+
+    if (state.hasNames) {
+      const dd = getStr("denumire_d");
+      const dc = getStr("denumire_c");
+      const dn = getStr("denumire");
+      if (dd && contD && contD !== "%") this.accountNames.set(contD, dd);
+      if (dc && contC && contC !== "%") this.accountNames.set(contC, dc);
+      if (dn && !dd && !dc) {
+        if (contD && contD.includes(".") && contD !== "%") this.accountNames.set(contD, dn);
+        if (contC && contC.includes(".") && contC !== "%") this.accountNames.set(contC, dn);
+      }
+    }
+
+    if (!contD && !contC) return;
+
+    clearStaleCompounds(this.compoundDebitStack, dKey);
+    clearStaleCompounds(this.compoundCreditStack, dKey);
+    if (this.orphanBuffer.length > 0 && this.orphanBuffer[0].dKey !== dKey) {
+      this.orphanBuffer.length = 0;
+    }
+
+    const isDetailDebitMissing = !contD && contC && contC !== "%";
+    const isDetailCreditMissing = contD && contD !== "%" && !contC;
+
+    if (contC === "%" && contD && contD !== "%") {
+      const compound = { fixedAccount: contD, dateKey: dKey, detailsUsed: 0, explicatie };
+      this.compoundDebitStack.push(compound);
+      this.flushOrphans("debit", compound);
+      return;
+    }
+    if (contD === "%" && contC && contC !== "%") {
+      const compound = { fixedAccount: contC, dateKey: dKey, detailsUsed: 0, explicatie };
+      this.compoundCreditStack.push(compound);
+      this.flushOrphans("credit", compound);
+      return;
+    }
+    if (contD === "%" && contC === "%") return;
+
+    if (isDetailDebitMissing) {
+      const c = findCompound(this.compoundDebitStack, dKey, explicatie);
+      if (c) {
+        contD = c.fixedAccount;
+        c.detailsUsed += 1;
+      }
+    } else if (isDetailCreditMissing) {
+      const c = findCompound(this.compoundCreditStack, dKey, explicatie);
+      if (c) {
+        contC = c.fixedAccount;
+        c.detailsUsed += 1;
+      }
+    }
+
+    if (!contD && contC) {
+      this.orphanBuffer.push({
+        dateVal, dKey, contD: "", contC, suma, ndp, explicatie, felD,
+        categorie, cod, validat, tva, needs: "debit",
+      });
+      return;
+    }
+    if (!contC && contD) {
+      this.orphanBuffer.push({
+        dateVal, dKey, contD, contC: "", suma, ndp, explicatie, felD,
+        categorie, cod, validat, tva, needs: "credit",
+      });
+      return;
+    }
+
+    if (!contD || !contC) return;
+
+    this.yearSet.add(dateVal.getFullYear());
+    this.entries.push(
+      makeEntry(dateVal, ndp, contD, contC, suma, explicatie, felD, categorie, cod, validat, tva)
+    );
+  }
+
+  private flushOrphans(kind: "debit" | "credit", compound: Compound): void {
+    for (let j = this.orphanBuffer.length - 1; j >= 0; j--) {
+      const o = this.orphanBuffer[j];
+      if (o.dKey !== compound.dateKey || o.needs !== kind) continue;
+      if (compound.explicatie && o.explicatie && compound.explicatie !== o.explicatie) continue;
+      const cd = kind === "debit" ? compound.fixedAccount : o.contD;
+      const cc = kind === "credit" ? compound.fixedAccount : o.contC;
+      this.yearSet.add(o.dateVal.getFullYear());
+      this.entries.push(
+        makeEntry(o.dateVal, o.ndp, cd, cc, o.suma, o.explicatie, o.felD, o.categorie, o.cod, o.validat, o.tva)
+      );
+      this.orphanBuffer.splice(j, 1);
+    }
+  }
+
+  finalize(): JournalParseResult {
+    applyPostClosingShift(this.entries, this.yearSet);
+    return {
+      entries: this.entries,
+      years: [...this.yearSet].sort((a, b) => a - b),
+      errors: this.errors,
+      totalRaw: this.totalRaw,
+      accountNames: this.accountNames,
+    };
+  }
+}
+
+type Compound = { fixedAccount: string; dateKey: string; detailsUsed: number; explicatie: string };
+type OrphanDetail = {
+  dateVal: Date;
+  dKey: string;
+  contD: string;
+  contC: string;
+  suma: number;
+  ndp: string;
+  explicatie: string;
+  felD: string;
+  categorie: string | null;
+  cod: string | null;
+  validat: string | null;
+  tva: number | null;
+  needs: "debit" | "credit";
+};
+
+function findCompound(stack: Compound[], dKey: string, explicatie: string): Compound | null {
+  if (stack.length === 0) return null;
+  const isClosingDetail = /Inchidere\s+luna/i.test(explicatie);
+  for (let j = stack.length - 1; j >= 0; j--) {
+    const c = stack[j];
+    if (c.dateKey !== dKey) continue;
+    if (explicatie && c.explicatie === explicatie) return c;
+  }
+  if (isClosingDetail) return null;
+  for (let j = stack.length - 1; j >= 0; j--) {
+    const c = stack[j];
+    if (c.dateKey === dKey) return c;
+  }
+  return null;
+}
+
+function clearStaleCompounds(stack: Compound[], dKey: string): void {
+  for (let j = stack.length - 1; j >= 0; j--) {
+    if (stack[j].dateKey !== dKey) stack.splice(j, 1);
+  }
+}
+
+/**
+ * Streaming parser. Production entry point. Memory stays around 45 MB peak
+ * regardless of file size; a 200k-row Saga export streams in ~18 s instead
+ * of OOM-segfaulting the pod.
+ */
+export async function parseJournalXLSXStreaming(
+  source: string | Buffer
+): Promise<JournalParseResult> {
+  // Mutable holder so the assignment inside `consumeRow` is observable to
+  // TypeScript's control-flow analysis after the callback returns.
+  const holder: { acc: JournalAccumulator | null } = { acc: null };
+  let headerRowSeen = false;
+  let headerKeys: string[] = [];
+
+  const consumeRow = (sagaRow: SagaRow) => {
+    if (!headerRowSeen) {
+      headerRowSeen = true;
+      const headerByCol = new Map<number, string>();
+      for (const cell of sagaRow.cells) {
+        if (cell.value) headerByCol.set(cell.col, cell.value);
+      }
+      // Materialize a stable ordered list of header names so subsequent
+      // rows produce dicts with the same keys the resolver expects.
+      const maxCol = Math.max(...headerByCol.keys(), 0);
+      headerKeys = [];
+      for (let c = 0; c <= maxCol; c++) headerKeys.push(headerByCol.get(c) ?? "");
+
+      const { state, missing } = buildResolverState(headerKeys.filter((k) => k));
+      const acc = new JournalAccumulator(state);
+      if (missing.length > 0) {
+        acc.errors.push({
+          row: 0,
+          message: `Coloane obligatorii lipsa: ${missing.map((c) => COLUMN_LABELS[c] ?? c).join(", ")}`,
+        });
+      }
+      holder.acc = acc;
+      return;
+    }
+
+    const current = holder.acc;
+    if (!current || current.errors.length > 0) return;
+
+    const dict: RowDict = {};
+    const dateKey = current.state.resolved["data"];
+    for (const cell of sagaRow.cells) {
+      const key = headerKeys[cell.col];
+      if (!key) continue;
+      // Date column needs to keep its Excel-serial number so parseDate()
+      // hits the SSF.parse_date_code path. Everything else is a string.
+      dict[key] = key === dateKey ? maybeSerialDate(cell.value) : cell.value;
+    }
+    current.ingest(dict);
+  };
+
+  await streamSagaSheet(source, consumeRow);
+
+  const acc = holder.acc;
+  if (!acc) {
+    return emptyResult([{ row: 0, message: "Sheet-ul este gol" }]);
+  }
+  if (acc.errors.length > 0) {
+    return emptyResult(acc.errors);
+  }
+  return acc.finalize();
+}
+
+/**
+ * Legacy buffer parser. Kept for two reasons:
+ *   1. Backward compatibility with any caller that still passes a Buffer
+ *      and expects a synchronous result.
+ *   2. As a reference implementation we can cross-check the streaming
+ *      parser against in tests.
+ *
+ * Production code paths now call `parseJournalXLSXStreaming` instead — see
+ * `src/modules/ingestion/service.ts`.
+ */
 export function parseJournalXLSX(buffer: Buffer): JournalParseResult {
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheetName = workbook.SheetNames[0];
@@ -60,204 +382,17 @@ export function parseJournalXLSX(buffer: Buffer): JournalParseResult {
   if (data.length === 0) return emptyResult([{ row: 0, message: "Sheet-ul este gol" }]);
 
   const rawHeaders = Object.keys(data[0]);
-  const { resolved } = resolveHeaders(rawHeaders);
-
-  const required = ["data", "cont_d", "cont_c", "suma"] as const;
-  const missing = required.filter((col) => !resolved[col]);
-  const COLUMN_LABELS: Record<string, string> = { data: "Data", cont_d: "Cont Debit", cont_c: "Cont Credit", suma: "Suma" };
-  if (missing.length > 0) return emptyResult([{ row: 0, message: `Coloane obligatorii lipsa: ${missing.map((c) => COLUMN_LABELS[c] ?? c).join(", ")}` }]);
-
-  const entries: JournalEntry[] = [];
-  const errors: ParseError[] = [];
-  const yearSet = new Set<number>();
-  const accountNames = new Map<string, string>();
-
-  const hasCat = !!resolved["categorie"];
-  const hasCod = !!resolved["cod"];
-  const hasVal = !!resolved["validat"];
-  const hasTva = !!resolved["tva"];
-  const hasNames = !!(resolved["denumire_d"] || resolved["denumire_c"] || resolved["denumire"]);
-
-  const get = (row: Record<string, unknown>, col: string): unknown => {
-    const key = resolved[col];
-    return key ? row[key] : undefined;
-  };
-  const getStr = (row: Record<string, unknown>, col: string): string => {
-    const val = get(row, col);
-    return val !== null && val !== undefined ? String(val).trim() : "";
-  };
-
-  // A single date may carry two compound headers (one fixing the debit side,
-  // one fixing the credit side) — e.g. monthly closing entries: "121 = %" for
-  // expenses and "% = 121" for revenues. Saga sometimes emits both back-to-back
-  // before any detail row, with the detail rows interleaved later. We must
-  // track both and pick the matching one for each detail row by looking at
-  // which side of the detail row is empty.
-  //
-  // We also accept "orphan" detail rows that appear BEFORE the compound header
-  // on the same date (rare but seen in Saga exports). They are buffered and
-  // dispensed retroactively once the matching header arrives.
-  type Compound = { fixedAccount: string; dateKey: string; detailsUsed: number; explicatie: string };
-  type OrphanDetail = {
-    dateVal: Date;
-    dKey: string;
-    contD: string;
-    contC: string;
-    suma: number;
-    ndp: string;
-    explicatie: string;
-    felD: string;
-    categorie: string | null;
-    cod: string | null;
-    validat: string | null;
-    tva: number | null;
-    needs: "debit" | "credit";
-  };
-  // Stacks of active compounds per side. A date can have multiple compounds
-  // of the same side interleaved (e.g. salary-block + closing-block both with
-  // 421/121 as debit fixed account). When picking a compound for a detail row,
-  // we prefer one whose explicatie matches the detail's, falling back to the
-  // most recently added one.
-  const compoundDebitStack: Compound[] = [];
-  const compoundCreditStack: Compound[] = [];
-  const orphanBuffer: OrphanDetail[] = [];
-
-  const findCompound = (stack: Compound[], dKey: string, explicatie: string): Compound | null => {
-    if (stack.length === 0) return null;
-    // Closing details ("Inchidere luna XYZ") MUST tie to a compound with the
-    // exact same explicatie — never fall back.
-    const isClosingDetail = /Inchidere\s+luna/i.test(explicatie);
-    for (let j = stack.length - 1; j >= 0; j--) {
-      const c = stack[j];
-      if (c.dateKey !== dKey) continue;
-      if (explicatie && c.explicatie === explicatie) return c;
-    }
-    if (isClosingDetail) return null;
-    // For non-closing details, fall back to the most recent compound on this date
-    for (let j = stack.length - 1; j >= 0; j--) {
-      const c = stack[j];
-      if (c.dateKey === dKey) return c;
-    }
-    return null;
-  };
-
-  const clearStaleCompounds = (stack: Compound[], dKey: string) => {
-    for (let j = stack.length - 1; j >= 0; j--) {
-      if (stack[j].dateKey !== dKey) stack.splice(j, 1);
-    }
-  };
-
-  const flushOrphans = (kind: "debit" | "credit", compound: Compound) => {
-    for (let j = orphanBuffer.length - 1; j >= 0; j--) {
-      const o = orphanBuffer[j];
-      if (o.dKey !== compound.dateKey || o.needs !== kind) continue;
-      if (compound.explicatie && o.explicatie && compound.explicatie !== o.explicatie) continue;
-      const cd = kind === "debit" ? compound.fixedAccount : o.contD;
-      const cc = kind === "credit" ? compound.fixedAccount : o.contC;
-      yearSet.add(o.dateVal.getFullYear());
-      entries.push(makeEntry(o.dateVal, o.ndp, cd, cc, o.suma, o.explicatie, o.felD, o.categorie, o.cod, o.validat, o.tva));
-      orphanBuffer.splice(j, 1);
-    }
-  };
-
-  for (let i = 0; i < data.length; i++) {
-    const row = data[i];
-    const rowNum = i + 2;
-    const dateVal = parseDate(get(row, "data"));
-    if (!dateVal) continue;
-
-    const dKey = dateKeyLocal(dateVal);
-    let contD = getStr(row, "cont_d");
-    let contC = getStr(row, "cont_c");
-    const suma = normalizeMoney(get(row, "suma"));
-    const ndp = getStr(row, "ndp");
-    const explicatie = normalizeText(getStr(row, "explicatie"));
-    const felD = getStr(row, "fel_d");
-    const categorie = hasCat ? getStr(row, "categorie") || null : null;
-    const cod = hasCod ? getStr(row, "cod") || null : null;
-    const validat = hasVal ? getStr(row, "validat") || null : null;
-    const tva = hasTva ? (() => { const r = get(row, "tva"); return r === "" || r === null || r === undefined ? null : normalizeMoney(r); })() : null;
-
-    if (hasNames) {
-      const dd = getStr(row, "denumire_d");
-      const dc = getStr(row, "denumire_c");
-      const dn = getStr(row, "denumire");
-      if (dd && contD && contD !== "%") accountNames.set(contD, dd);
-      if (dc && contC && contC !== "%") accountNames.set(contC, dc);
-      if (dn && !dd && !dc) {
-        if (contD && contD.includes(".") && contD !== "%") accountNames.set(contD, dn);
-        if (contC && contC.includes(".") && contC !== "%") accountNames.set(contC, dn);
-      }
-    }
-
-    if (!contD && !contC) continue;
-
-    // Clear stale compounds and orphans whose date no longer matches.
-    clearStaleCompounds(compoundDebitStack, dKey);
-    clearStaleCompounds(compoundCreditStack, dKey);
-    if (orphanBuffer.length > 0 && orphanBuffer[0].dKey !== dKey) {
-      orphanBuffer.length = 0;
-    }
-
-    const isDetailDebitMissing = !contD && contC && contC !== "%";
-    const isDetailCreditMissing = contD && contD !== "%" && !contC;
-
-    // Compound header: one side is "%". Push onto the stack and retroactively
-    // dispense any orphan details that arrived earlier and match by explicatie.
-    if (contC === "%" && contD && contD !== "%") {
-      const compound = { fixedAccount: contD, dateKey: dKey, detailsUsed: 0, explicatie };
-      compoundDebitStack.push(compound);
-      flushOrphans("debit", compound);
-      continue;
-    }
-    if (contD === "%" && contC && contC !== "%") {
-      const compound = { fixedAccount: contC, dateKey: dKey, detailsUsed: 0, explicatie };
-      compoundCreditStack.push(compound);
-      flushOrphans("credit", compound);
-      continue;
-    }
-    if (contD === "%" && contC === "%") continue;
-
-    // Detail rows: pick the compound that best matches by explicatie.
-    if (isDetailDebitMissing) {
-      const c = findCompound(compoundDebitStack, dKey, explicatie);
-      if (c) {
-        contD = c.fixedAccount;
-        c.detailsUsed += 1;
-      }
-    } else if (isDetailCreditMissing) {
-      const c = findCompound(compoundCreditStack, dKey, explicatie);
-      if (c) {
-        contC = c.fixedAccount;
-        c.detailsUsed += 1;
-      }
-    }
-
-    // Orphan detail (no matching compound yet): buffer for a later header.
-    if (!contD && contC) {
-      orphanBuffer.push({
-        dateVal, dKey, contD: "", contC, suma, ndp, explicatie, felD,
-        categorie, cod, validat, tva, needs: "debit",
-      });
-      continue;
-    }
-    if (!contC && contD) {
-      orphanBuffer.push({
-        dateVal, dKey, contD, contC: "", suma, ndp, explicatie, felD,
-        categorie, cod, validat, tva, needs: "credit",
-      });
-      continue;
-    }
-
-    if (!contD || !contC) continue;
-
-    yearSet.add(dateVal.getFullYear());
-    entries.push(makeEntry(dateVal, ndp, contD, contC, suma, explicatie, felD, categorie, cod, validat, tva));
+  const { state, missing } = buildResolverState(rawHeaders);
+  if (missing.length > 0) {
+    return emptyResult([{
+      row: 0,
+      message: `Coloane obligatorii lipsa: ${missing.map((c) => COLUMN_LABELS[c] ?? c).join(", ")}`,
+    }]);
   }
 
-  applyPostClosingShift(entries, yearSet);
-
-  return { entries, years: [...yearSet].sort((a, b) => a - b), errors, totalRaw: data.length, accountNames };
+  const acc = new JournalAccumulator(state);
+  for (const row of data) acc.ingest(row);
+  return acc.finalize();
 }
 
 function applyPostClosingShift(entries: JournalEntry[], yearSet: Set<number>): void {

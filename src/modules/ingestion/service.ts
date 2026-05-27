@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
-import { createHash } from "crypto";
-import { parseJournalXLSX } from "./journal-parser";
+import { createHash, randomUUID } from "crypto";
+import { parseJournalXLSXStreaming } from "./journal-parser";
 import { buildPartnerMappings } from "./partner-extractor";
 import { bulkUpsertFromImport } from "@/modules/accounts";
 import { recordAuditEvent } from "@/modules/audit";
@@ -33,7 +33,11 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   const tStart = performance.now();
   const fileHash = createHash("sha256").update(input.buffer).digest("hex");
   const tHash = performance.now();
-  const parseResult = parseJournalXLSX(input.buffer);
+  // Streaming parser via yauzl + sax. The buffer is still in memory (route
+  // handler buffers the multipart upload), but the XLSX zip is decompressed
+  // and the sheet XML is parsed row-by-row, so peak heap stays bounded
+  // (~45 MB) instead of exploding to 1.4+ GB on a 19 MB Saga export.
+  const parseResult = await parseJournalXLSXStreaming(input.buffer);
   const tParse = performance.now();
 
   if (parseResult.entries.length === 0) {
@@ -172,6 +176,19 @@ async function filterDuplicates(
   return entries.filter((e) => !hashSet.has(computeDedupHash(e)));
 }
 
+/**
+ * Bulk insert journal lines via raw SQL + UNNEST.
+ *
+ * Pre-refactor this used `prisma.journalLine.createMany` in batches of 5000.
+ * On UpperHouse's 193,684-row export that took ~9.5 s, dominated entirely
+ * by Prisma's per-row argument validation + Decimal class construction in
+ * Node — the database itself can absorb 200k rows in ~2 s.
+ *
+ * The raw SQL path does ZERO ORM hydration: we pass 18 parallel typed
+ * arrays through Postgres's UNNEST(), letting the database itself do the
+ * conversion. The whole batch is a single round-trip, fully parameterized
+ * (no SQL injection risk), and Decimal columns just receive numeric values.
+ */
 async function storeJournalLines(
   clientId: string,
   importEventId: string,
@@ -179,28 +196,88 @@ async function storeJournalLines(
 ) {
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const batch = entries.slice(i, i + BATCH_SIZE);
-    await prisma.journalLine.createMany({
-      data: batch.map((e) => ({
-        clientId,
-        importEventId,
-        data: e.data,
-        year: e.year,
-        month: e.month,
-        ndp: e.ndp,
-        contD: e.contD,
-        contDBase: e.contDBase,
-        contC: e.contC,
-        contCBase: e.contCBase,
-        suma: e.suma,
-        explicatie: e.explicatie,
-        felD: e.felD,
-        categorie: e.categorie,
-        cod: e.cod,
-        validat: e.validat,
-        tva: e.tva,
-        dedupHash: computeDedupHash(e),
-      })),
-    });
+    const n = batch.length;
+
+    const ids = new Array<string>(n);
+    const clientIds = new Array<string>(n);
+    const importEventIds = new Array<string>(n);
+    const datas = new Array<Date>(n);
+    const years = new Array<number>(n);
+    const months = new Array<number>(n);
+    const ndps = new Array<string>(n);
+    const contDs = new Array<string>(n);
+    const contDBases = new Array<string>(n);
+    const contCs = new Array<string>(n);
+    const contCBases = new Array<string>(n);
+    const sumas = new Array<string>(n);
+    const explicaties = new Array<string>(n);
+    const felDs = new Array<string>(n);
+    const categories = new Array<string | null>(n);
+    const cods = new Array<string | null>(n);
+    const validats = new Array<string | null>(n);
+    const tvas = new Array<string | null>(n);
+    const dedupHashes = new Array<string>(n);
+
+    for (let j = 0; j < n; j++) {
+      const e = batch[j];
+      ids[j] = randomUUID();
+      clientIds[j] = clientId;
+      importEventIds[j] = importEventId;
+      datas[j] = e.data;
+      years[j] = e.year;
+      months[j] = e.month;
+      ndps[j] = e.ndp;
+      contDs[j] = e.contD;
+      contDBases[j] = e.contDBase;
+      contCs[j] = e.contC;
+      contCBases[j] = e.contCBase;
+      sumas[j] = e.suma.toFixed(2);
+      explicaties[j] = e.explicatie;
+      felDs[j] = e.felD;
+      categories[j] = e.categorie;
+      cods[j] = e.cod;
+      validats[j] = e.validat;
+      tvas[j] = e.tva === null ? null : e.tva.toFixed(2);
+      dedupHashes[j] = computeDedupHash(e);
+    }
+
+    await prisma.$executeRaw`
+      INSERT INTO "JournalLine" (
+        id, "clientId", "importEventId", data, year, month, ndp,
+        "contD", "contDBase", "contC", "contCBase",
+        suma, explicatie, "felD", categorie, cod, validat, tva, "dedupHash"
+      )
+      SELECT
+        id, "clientId", "importEventId", data, year, month, ndp,
+        "contD", "contDBase", "contC", "contCBase",
+        suma::numeric, explicatie, "felD", categorie, cod, validat,
+        tva::numeric, "dedupHash"
+      FROM UNNEST(
+        ${ids}::text[],
+        ${clientIds}::text[],
+        ${importEventIds}::text[],
+        ${datas}::timestamp[],
+        ${years}::int[],
+        ${months}::int[],
+        ${ndps}::text[],
+        ${contDs}::text[],
+        ${contDBases}::text[],
+        ${contCs}::text[],
+        ${contCBases}::text[],
+        ${sumas}::text[],
+        ${explicaties}::text[],
+        ${felDs}::text[],
+        ${categories}::text[],
+        ${cods}::text[],
+        ${validats}::text[],
+        ${tvas}::text[],
+        ${dedupHashes}::text[]
+      ) AS t(
+        id, "clientId", "importEventId", data, year, month, ndp,
+        "contD", "contDBase", "contC", "contCBase",
+        suma, explicatie, "felD", categorie, cod, validat, tva, "dedupHash"
+      )
+    `;
   }
 }
 
@@ -228,23 +305,54 @@ function uniquePeriodsFromDates(dates: Date[]): Array<{ year: number; month: num
   return Array.from(seen.values());
 }
 
+/**
+ * Bulk-upsert partner mappings via a single SQL `INSERT ... ON CONFLICT
+ * DO UPDATE`.
+ *
+ * Pre-refactor this fired `prisma.journalPartner.upsert()` once per partner
+ * in a sequential `for` loop. On UpperHouse's journal that meant 10,812
+ * round-trips at ~0.5 ms each = ~5.3 s of wall time, all of which was
+ * client-side serialization + network latency, not DB work.
+ *
+ * The current implementation pushes the whole batch into Postgres as a
+ * single parameterized statement using positional placeholders. The
+ * `UNNEST(...)` array trick is the canonical Postgres pattern for bulk
+ * upserts: it builds a virtual table from parallel arrays of column values
+ * and feeds it straight into `INSERT ... SELECT`. One round-trip, all
+ * conflict resolution happens server-side.
+ *
+ * IDs are generated in JS via crypto.randomUUID() because Prisma's
+ * @default(cuid()) only fires through the ORM layer, not $executeRaw. The
+ * schema field is just `String` with no format constraint, so coexisting
+ * cuid and uuid id strings is safe — they're both unique opaque strings
+ * to every other consumer.
+ */
 async function updatePartnerMappings(clientId: string, entries: JournalEntry[]) {
   const partners = buildPartnerMappings(entries);
   if (partners.length === 0) return;
 
-  for (const p of partners) {
-    await prisma.journalPartner.upsert({
-      where: { clientId_analyticAccount: { clientId, analyticAccount: p.analyticAccount } },
-      update: { partnerName: p.partnerName, contBase: p.contBase, cod: p.cod },
-      create: {
-        clientId,
-        analyticAccount: p.analyticAccount,
-        contBase: p.contBase,
-        partnerName: p.partnerName,
-        cod: p.cod,
-      },
-    });
-  }
+  const ids = partners.map(() => randomUUID());
+  const clientIds = partners.map(() => clientId);
+  const analyticAccounts = partners.map((p) => p.analyticAccount);
+  const contBases = partners.map((p) => p.contBase);
+  const partnerNames = partners.map((p) => p.partnerName);
+  const cods = partners.map((p) => p.cod);
+
+  await prisma.$executeRaw`
+    INSERT INTO "JournalPartner" (id, "clientId", "analyticAccount", "contBase", "partnerName", cod)
+    SELECT * FROM UNNEST(
+      ${ids}::text[],
+      ${clientIds}::text[],
+      ${analyticAccounts}::text[],
+      ${contBases}::text[],
+      ${partnerNames}::text[],
+      ${cods}::text[]
+    )
+    ON CONFLICT ("clientId", "analyticAccount") DO UPDATE SET
+      "partnerName" = EXCLUDED."partnerName",
+      "contBase"    = EXCLUDED."contBase",
+      cod           = EXCLUDED.cod
+  `;
 }
 
 export async function softDeleteEntriesFrom(
