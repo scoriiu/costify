@@ -42,10 +42,11 @@ interface Props {
 }
 
 /**
- * Stage timing helper for the perf hunt. Logs how long each chunk of the
- * server-render took so we can see exactly where the cold-load milliseconds
- * are going. Will be removed once the perf budget (<100 ms TTFB) is locked
- * in by a regression test.
+ * Stage timing helper. Logs each chunk of the server-render so a
+ * regression shows up immediately in pod logs. Cheap: 4-5 performance.now()
+ * calls per request, no async work. The Playwright perf-budget spec
+ * (tests/ui/page-perf-budget.spec.ts) is the build-time guard; this is
+ * the prod observability companion to it.
  */
 function stageTimer(slug: string) {
   const t0 = performance.now();
@@ -59,11 +60,14 @@ function stageTimer(slug: string) {
     },
     end(extra: string = "") {
       const total = performance.now() - t0;
+      // Only log when something looks off (> 200 ms) — keeps prod logs clean
+      // while still catching regressions. Budget is 250 ms p95.
+      if (total < 200) return;
       const detail = stages
         .map(([l, ms]) => `${l}=${ms.toFixed(0)}ms`)
         .join(" ");
-      console.log(
-        `[page/clients/${slug}] total=${total.toFixed(0)}ms ${detail}${extra ? " " + extra : ""}`,
+      console.warn(
+        `[page/clients/${slug}] SLOW total=${total.toFixed(0)}ms ${detail}${extra ? " " + extra : ""}`,
       );
     },
   };
