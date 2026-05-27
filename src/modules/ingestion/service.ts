@@ -30,8 +30,11 @@ export interface ImportInput {
 }
 
 export async function importJournal(input: ImportInput): Promise<Result<ImportResult>> {
+  const tStart = performance.now();
   const fileHash = createHash("sha256").update(input.buffer).digest("hex");
+  const tHash = performance.now();
   const parseResult = parseJournalXLSX(input.buffer);
+  const tParse = performance.now();
 
   if (parseResult.entries.length === 0) {
     const detail = parseResult.errors.length > 0
@@ -44,8 +47,15 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   }
 
   const newEntries = await filterDuplicates(input.clientId, parseResult.entries);
+  const tDedup = performance.now();
 
   if (newEntries.length === 0) {
+    console.log(
+      `[importJournal] client=${input.clientId.slice(0, 8)} ALL_DUPLICATES ` +
+      `fileBytes=${input.buffer.length} parsed=${parseResult.entries.length} ` +
+      `hash=${(tHash - tStart).toFixed(0)}ms parse=${(tParse - tHash).toFixed(0)}ms ` +
+      `dedup=${(tDedup - tParse).toFixed(0)}ms total=${(tDedup - tStart).toFixed(0)}ms`
+    );
     return ok({
       importEventId: "",
       entriesAdded: 0,
@@ -73,18 +83,42 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
       status: "ready",
     },
   });
+  const tEvent = performance.now();
 
   await storeJournalLines(input.clientId, importEvent.id, newEntries);
+  const tStore = performance.now();
   await updatePartnerMappings(input.clientId, parseResult.entries);
+  const tPartners = performance.now();
   await bulkUpsertFromImport(input.clientId, parseResult.accountNames);
+  const tAccounts = performance.now();
 
   const touchedPeriods = uniquePeriods(newEntries);
   if (touchedPeriods.length > 0) {
     await markPeriodsAsStale(input.clientId, touchedPeriods);
   }
+  const tStale = performance.now();
 
   // Invalidate every cached derivative (balance, CPP, mapari, owner snapshot, KPIs).
   await bumpClientDataVersion(input.clientId);
+  const tBump = performance.now();
+
+  const partnerCount = uniquePartnerCount(parseResult.entries);
+  console.log(
+    `[importJournal] client=${input.clientId.slice(0, 8)} ` +
+    `fileBytes=${input.buffer.length} parsed=${parseResult.entries.length} ` +
+    `new=${newEntries.length} partners=${partnerCount} ` +
+    `accounts=${parseResult.accountNames.size} periods=${touchedPeriods.length} | ` +
+    `hash=${(tHash - tStart).toFixed(0)}ms ` +
+    `parse=${(tParse - tHash).toFixed(0)}ms ` +
+    `dedup=${(tDedup - tParse).toFixed(0)}ms ` +
+    `event=${(tEvent - tDedup).toFixed(0)}ms ` +
+    `store=${(tStore - tEvent).toFixed(0)}ms ` +
+    `partners=${(tPartners - tStore).toFixed(0)}ms ` +
+    `accounts=${(tAccounts - tPartners).toFixed(0)}ms ` +
+    `stale=${(tStale - tAccounts).toFixed(0)}ms ` +
+    `bump=${(tBump - tStale).toFixed(0)}ms ` +
+    `total=${(tBump - tStart).toFixed(0)}ms`
+  );
 
   await recordAuditEvent({
     tenantId: input.clientId,
@@ -168,6 +202,10 @@ async function storeJournalLines(
       })),
     });
   }
+}
+
+function uniquePartnerCount(entries: JournalEntry[]): number {
+  return buildPartnerMappings(entries).length;
 }
 
 function uniquePeriods(entries: JournalEntry[]): Array<{ year: number; month: number }> {

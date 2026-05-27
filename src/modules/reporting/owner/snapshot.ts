@@ -155,12 +155,10 @@ export async function loadOwnerSnapshot(
   // Pre-refactor this function fired getBalanceRows 13 times (~3-5s on hot
   // paths) because each call re-loaded the full journal + account metadata.
   // Now we load once and slice in pure JS — see prepareBalanceContext.
-  const t0 = performance.now();
   const [balanceContext, catalog] = await Promise.all([
     prepareBalanceContext(clientId),
     getCatalogMap(),
   ]);
-  const t1 = performance.now();
 
   if (!balanceContext) {
     throw new Error(
@@ -169,9 +167,6 @@ export async function loadOwnerSnapshot(
   }
 
   const rows = computeBalanceFromContext(balanceContext, year, month);
-  console.log(
-    `[loadOwnerSnapshot] prepareContext=${(t1 - t0).toFixed(0)}ms entries=${balanceContext.entries.length}`
-  );
   const kpis = computeKpis(rows, catalog);
   const summary = computeFinancialSummary(rows, catalog);
   const cashPosition = computeCashPosition(rows);
@@ -185,11 +180,7 @@ export async function loadOwnerSnapshot(
   );
   // Trends are needed both for the chart and for the YoY + runway computations
   // below — compute once and reuse. Pure-JS slice over the in-memory journal.
-  const tTrends0 = performance.now();
   const trends = computeMonthlyTrends(balanceContext, year, month, catalog, 12);
-  console.log(
-    `[loadOwnerSnapshot] computeMonthlyTrends=${(performance.now() - tTrends0).toFixed(0)}ms`
-  );
 
   // Try the category-aware breakdown first. When the client has at least one
   // CostCategory mapping, use the firm's own labels ("Salarii echipa tech",
