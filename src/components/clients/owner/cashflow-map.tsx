@@ -85,6 +85,21 @@ export function CashflowMap({
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedId]);
 
+  // Click anywhere outside a cell or the detail panel deselects. We listen
+  // on `mousedown` so this fires BEFORE a cell's own click handler — clicks
+  // landing inside `[data-cashflow-interactive]` (cells + detail) skip
+  // the document-level deselect and let the local handlers run normally.
+  useEffect(() => {
+    if (!selectedId) return;
+    function onMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-cashflow-interactive]")) return;
+      setSelectedId(null);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [selectedId]);
+
   return (
     <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
       <header className="flex items-start justify-between gap-3">
@@ -405,6 +420,7 @@ function MapCell({
   return (
     <button
       type="button"
+      data-cashflow-interactive
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onClick={onClick}
@@ -595,7 +611,10 @@ function CategoryDetail({
   const total = Math.abs(group.value);
 
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/[0.03] p-4">
+    <div
+      data-cashflow-interactive
+      className="rounded-lg border border-primary/30 bg-primary/[0.03] p-4"
+    >
       <header className="flex items-baseline justify-between gap-3 mb-3">
         <div className="min-w-0">
           <div
