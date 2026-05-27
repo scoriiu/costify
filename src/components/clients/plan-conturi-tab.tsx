@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlertTriangle, Check, CheckCircle, Download, HelpCircle, Pencil, X } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle,
+  Download,
+  HelpCircle,
+  Pencil,
+  X,
+} from "lucide-react";
 import type { PlanRow } from "@/modules/accounts/plan";
 import { planCsvFilename, planRowsToCsv } from "@/modules/accounts/plan-csv";
 import {
@@ -18,22 +33,24 @@ interface Props {
   clientId: string;
   clientSlug: string;
   /** Currently-selected period — used for the CSV filename and the
-   *  "sold curent" column header. Mirrors the URL search params owned
-   *  by ClientDetail. */
+   *  "sold curent" column header. */
   year?: number;
   month?: number;
-  /** Per-(year,month) plan rows. Owned by ClientDetail so tab switching is
-   *  instant and Plan + future surfaces share cache invalidation via
-   *  dataVersion. null while loading. */
-  rows: PlanRow[] | null;
-  loading: boolean;
-  /** Called after a successful edit so the parent can invalidate its cache
-   *  and refetch fresh data. */
+  /** Bumped whenever a journal upload / override / partner-rename changes
+   *  the client. Used to invalidate the local list and refetch from the
+   *  server (whose cache is also keyed on this version). */
+  dataVersion: number;
+  /** Called after a successful inline mutation so the parent can bump
+   *  dataVersion and any sibling tabs that depend on the same data. */
   onMutated: () => void;
 }
 
 type KindFilter = "all" | "standard" | "analytic" | "review";
 type ClassFilter = "all" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
+
+const PAGE_SIZE = 200;
+const ROW_HEIGHT = 36;
+const TABLE_HEIGHT_VH = 70;
 
 const TYPE_LEGEND = (
   <span className="block space-y-1 text-left normal-case">
@@ -52,131 +69,6 @@ const TYPE_LEGEND = (
   </span>
 );
 
-export function PlanConturiTab({ clientId, clientSlug, year, month, rows, loading, onMutated }: Props) {
-  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
-  const [classFilter, setClassFilter] = useState<ClassFilter>("all");
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!rows) return [];
-    const q = search.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (kindFilter === "review" && !row.needsReview) return false;
-      if (kindFilter === "standard" && row.kind !== "standard") return false;
-      if (kindFilter === "analytic" && row.kind !== "analytic") return false;
-      if (classFilter !== "all" && String(row.classDigit) !== classFilter) return false;
-      if (q) {
-        const hay = `${row.cont} ${row.name}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [rows, kindFilter, classFilter, search]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16 text-sm text-gray">
-        Se incarca planul de conturi...
-      </div>
-    );
-  }
-
-  if (!rows || rows.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16 text-sm text-gray">
-        Nu exista conturi. Uploadeaza un registru jurnal sau editeaza manual.
-      </div>
-    );
-  }
-
-  const reviewCount = rows.filter((r) => r.needsReview).length;
-
-  function handleExport() {
-    const csv = planRowsToCsv(filtered);
-    const filename = planCsvFilename(
-      clientSlug,
-      year && month ? { year, month } : undefined
-    );
-    downloadCsv(csv, filename);
-  }
-
-  function downloadCsv(content: string, filename: string) {
-    // UTF-8 BOM so Excel opens Romanian diacritics correctly
-    const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-
-  return (
-    <div className="space-y-4">
-      <FilterBar
-        kindFilter={kindFilter}
-        onKindFilter={setKindFilter}
-        classFilter={classFilter}
-        onClassFilter={setClassFilter}
-        search={search}
-        onSearch={setSearch}
-        total={rows.length}
-        filtered={filtered.length}
-        reviewCount={reviewCount}
-        onExport={handleExport}
-      />
-
-      <div className="overflow-hidden rounded-xl border border-dark-3">
-        <div className="overflow-x-auto">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr className="bg-dark-2 border-b border-dark-3">
-                <Th align="left" first>Cont</Th>
-                <Th align="left">Denumire</Th>
-                <Th align="center">
-                  <Tooltip content={TYPE_LEGEND}>
-                    <span className="inline-flex items-center gap-1">
-                      Tip
-                      <HelpCircle size={10} className="text-gray/60" />
-                    </span>
-                  </Tooltip>
-                </Th>
-                <Th align="right">Sold Final D</Th>
-                <Th align="right">Sold Final C</Th>
-                <Th align="right">Intrari</Th>
-                <Th align="left">Ultima utilizare</Th>
-                <Th align="right" last>Actiuni</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <AccountRow
-                  key={row.cont}
-                  clientId={clientId}
-                  row={row}
-                  onChanged={onMutated}
-                />
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="py-8 text-center text-sm text-gray"
-                  >
-                    Niciun cont nu corespunde filtrelor.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const CLASS_OPTIONS: { value: ClassFilter; label: string }[] = [
   { value: "all", label: "Toate clasele" },
   { value: "1", label: "Clasa 1 — Capitaluri" },
@@ -190,6 +82,230 @@ const CLASS_OPTIONS: { value: ClassFilter; label: string }[] = [
   { value: "9", label: "Clasa 9 — Gestiune" },
 ];
 
+interface PageResponse {
+  items: PlanRow[];
+  total: number;
+  grandTotal: number;
+  reviewCount: number;
+  offset: number;
+  limit: number;
+}
+
+export function PlanConturiTab({
+  clientId,
+  clientSlug,
+  year,
+  month,
+  dataVersion,
+  onMutated,
+}: Props) {
+  const [rows, setRows] = useState<PlanRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [grandTotal, setGrandTotal] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refetching, setRefetching] = useState(false);
+
+  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
+  const [classFilter, setClassFilter] = useState<ClassFilter>("all");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const loadedRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 200);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  const fetchPage = useCallback(
+    async (offset: number, requestId: number) => {
+      const params = new URLSearchParams({
+        clientId,
+        offset: String(offset),
+        limit: String(PAGE_SIZE),
+      });
+      if (year && month) {
+        params.set("year", String(year));
+        params.set("month", String(month));
+      }
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      if (kindFilter !== "all") params.set("kind", kindFilter);
+      if (classFilter !== "all") params.set("class", classFilter);
+
+      const res = await fetch(`/api/client-accounts?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data: PageResponse = await res.json();
+      if (requestId !== requestIdRef.current) return;
+
+      setTotal(data.total);
+      setGrandTotal(data.grandTotal);
+      setReviewCount(data.reviewCount);
+
+      if (offset === 0) {
+        setRows(data.items);
+      } else {
+        setRows((prev) => {
+          const seen = new Set(prev.map((r) => r.cont));
+          const fresh = data.items.filter((r) => !seen.has(r.cont));
+          return [...prev, ...fresh];
+        });
+      }
+
+      loadedRef.current = offset + data.items.length;
+    },
+    [clientId, year, month, debouncedSearch, kindFilter, classFilter],
+  );
+
+  // Initial + on-filter-change fetch. `dataVersion` in the dep array
+  // forces a refetch when an upload or inline edit invalidates the
+  // server cache too.
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    loadedRef.current = 0;
+    setRefetching(true);
+    fetchPage(0, requestId).finally(() => {
+      if (requestId !== requestIdRef.current) return;
+      setRefetching(false);
+      setInitialLoading(false);
+    });
+  }, [fetchPage, dataVersion]);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 20,
+  });
+
+  // Load-on-scroll: when we're within 50 rows of the bottom of what we
+  // have loaded AND the server still has more, fetch the next page.
+  useEffect(() => {
+    const items = virtualizer.getVirtualItems();
+    const lastItem = items[items.length - 1];
+    if (!lastItem) return;
+    const needsMore = lastItem.index >= rows.length - 50;
+    if (needsMore && loadedRef.current < total && !loadingMoreRef.current) {
+      loadingMoreRef.current = true;
+      const requestId = requestIdRef.current;
+      fetchPage(loadedRef.current, requestId).finally(() => {
+        loadingMoreRef.current = false;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [virtualizer.getVirtualItems(), rows.length, total, fetchPage]);
+
+  function exportCsvFromVisible() {
+    const csv = planRowsToCsv(rows);
+    const filename = planCsvFilename(
+      clientSlug,
+      year && month ? { year, month } : undefined,
+    );
+    downloadCsv(csv, filename);
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray">
+        Se incarca planul de conturi...
+      </div>
+    );
+  }
+
+  if (grandTotal === 0) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray">
+        Nu exista conturi. Uploadeaza un registru jurnal sau editeaza manual.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <FilterBar
+        kindFilter={kindFilter}
+        onKindFilter={setKindFilter}
+        classFilter={classFilter}
+        onClassFilter={setClassFilter}
+        search={search}
+        onSearch={setSearch}
+        total={total}
+        grandTotal={grandTotal}
+        reviewCount={reviewCount}
+        refetching={refetching}
+        onExport={exportCsvFromVisible}
+      />
+
+      <div className="overflow-hidden rounded-xl border border-dark-3">
+        <HeaderRow />
+        {total === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="font-mono text-xs text-gray">
+              Niciun cont nu corespunde filtrelor.
+            </p>
+          </div>
+        ) : (
+          <div
+            ref={parentRef}
+            className="overflow-auto"
+            style={{
+              height: `min(${Math.max(total, 1) * ROW_HEIGHT}px, ${TABLE_HEIGHT_VH}vh)`,
+            }}
+          >
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const row = rows[virtualRow.index];
+                if (!row) return null;
+                return (
+                  <div
+                    key={row.cont}
+                    className="absolute left-0 right-0 flex items-stretch border-b border-dark-3/50 hover:bg-dark-2/40"
+                    style={{
+                      height: ROW_HEIGHT,
+                      top: 0,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    <AccountRow
+                      clientId={clientId}
+                      row={row}
+                      onChanged={onMutated}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob(["\uFEFF", content], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 function FilterBar({
   kindFilter,
   onKindFilter,
@@ -198,8 +314,9 @@ function FilterBar({
   search,
   onSearch,
   total,
-  filtered,
+  grandTotal,
   reviewCount,
+  refetching,
   onExport,
 }: {
   kindFilter: KindFilter;
@@ -209,8 +326,9 @@ function FilterBar({
   search: string;
   onSearch: (s: string) => void;
   total: number;
-  filtered: number;
+  grandTotal: number;
   reviewCount: number;
+  refetching: boolean;
   onExport: () => void;
 }) {
   return (
@@ -237,15 +355,84 @@ function FilterBar({
         className="flex-1 min-w-[240px] max-w-md"
       />
       <span className="font-mono text-xs text-gray">
-        {filtered} / {total} conturi
+        {refetching ? (
+          <span className="text-gray/70">Cauta...</span>
+        ) : (
+          <>
+            {total.toLocaleString("ro-RO")} / {grandTotal.toLocaleString("ro-RO")} conturi
+          </>
+        )}
       </span>
       <Button
         variant="ghost"
         onClick={onExport}
-        title="Exporta randurile filtrate ca CSV"
+        title="Exporta randurile incarcate ca CSV"
       >
         <Download size={14} /> Exporta CSV
       </Button>
+    </div>
+  );
+}
+
+// Column layout — keeps the header + body cells aligned. We use fixed
+// widths (not flex) so virtualization can position rows absolutely while
+// columns stay vertically continuous.
+const COLS = {
+  cont: 160,
+  denumire: 360,
+  tip: 60,
+  soldD: 130,
+  soldC: 130,
+  intrari: 90,
+  ultimaUtilizare: 130,
+  actiuni: 90,
+} as const;
+
+function HeaderRow() {
+  return (
+    <div className="flex bg-dark-2 border-b border-dark-3">
+      <ColHeader width={COLS.cont} align="left">Cont</ColHeader>
+      <ColHeader flex align="left">Denumire</ColHeader>
+      <ColHeader width={COLS.tip} align="center">
+        <Tooltip content={TYPE_LEGEND}>
+          <span className="inline-flex items-center gap-1">
+            Tip
+            <HelpCircle size={10} className="text-gray/60" />
+          </span>
+        </Tooltip>
+      </ColHeader>
+      <ColHeader width={COLS.soldD} align="right">Sold Final D</ColHeader>
+      <ColHeader width={COLS.soldC} align="right">Sold Final C</ColHeader>
+      <ColHeader width={COLS.intrari} align="right">Intrari</ColHeader>
+      <ColHeader width={COLS.ultimaUtilizare} align="left">Ultima utilizare</ColHeader>
+      <ColHeader width={COLS.actiuni} align="right" last>Actiuni</ColHeader>
+    </div>
+  );
+}
+
+function ColHeader({
+  children,
+  width,
+  flex,
+  align,
+  last,
+}: {
+  children?: React.ReactNode;
+  width?: number;
+  flex?: boolean;
+  align: "left" | "right" | "center";
+  last?: boolean;
+}) {
+  const alignClass =
+    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+  return (
+    <div
+      className={`flex shrink-0 items-center px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${alignClass} ${
+        !last ? "border-r border-white/[0.04]" : ""
+      } ${align === "right" ? "justify-end" : align === "center" ? "justify-center" : ""}`}
+      style={{ width: flex ? undefined : width, flex: flex ? "1" : "none" }}
+    >
+      {children}
     </div>
   );
 }
@@ -263,8 +450,8 @@ function AccountRow({
   const isAnalytic = row.cont.includes(".");
 
   return (
-    <tr className="border-b border-dark-3/50 hover:bg-dark-2/40">
-      <Td align="left" first>
+    <>
+      <BodyCell width={COLS.cont} align="left">
         <div className={`flex items-center gap-1.5 ${isAnalytic ? "pl-6" : ""}`}>
           {row.needsReview && (
             <AlertTriangle
@@ -273,10 +460,16 @@ function AccountRow({
               aria-label="Necesita revizie"
             />
           )}
-          <span className={`font-mono text-xs ${isAnalytic ? "text-gray" : "text-gray-light"}`}>{row.cont}</span>
+          <span
+            className={`font-mono text-xs ${
+              isAnalytic ? "text-gray" : "text-gray-light"
+            }`}
+          >
+            {row.cont}
+          </span>
         </div>
-      </Td>
-      <Td align="left">
+      </BodyCell>
+      <BodyCell flex align="left">
         {editing ? (
           <InlineNameEditor
             clientId={clientId}
@@ -292,7 +485,11 @@ function AccountRow({
           <div className="flex items-center gap-2">
             <span
               className={`text-xs ${
-                row.needsReview ? "text-warn" : isAnalytic ? "text-gray" : "text-gray-light"
+                row.needsReview
+                  ? "text-warn"
+                  : isAnalytic
+                    ? "text-gray"
+                    : "text-gray-light"
               }`}
             >
               {row.name}
@@ -300,29 +497,31 @@ function AccountRow({
             <NameSourceBadge source={row.nameSource} />
           </div>
         )}
-      </Td>
-      <Td align="center">
+      </BodyCell>
+      <BodyCell width={COLS.tip} align="center">
         <span className="font-mono text-[0.6rem] uppercase tracking-widest text-gray">
           {row.type ?? "—"}
         </span>
-      </Td>
-      <Td align="right">
+      </BodyCell>
+      <BodyCell width={COLS.soldD} align="right">
         <NumCell value={row.currentSold?.finD} />
-      </Td>
-      <Td align="right">
+      </BodyCell>
+      <BodyCell width={COLS.soldC} align="right">
         <NumCell value={row.currentSold?.finC} />
-      </Td>
-      <Td align="right">
+      </BodyCell>
+      <BodyCell width={COLS.intrari} align="right">
         <span className="font-mono text-xs text-gray-light">
-          {row.usage.entriesCount > 0 ? row.usage.entriesCount.toLocaleString("ro-RO") : "—"}
+          {row.usage.entriesCount > 0
+            ? row.usage.entriesCount.toLocaleString("ro-RO")
+            : "—"}
         </span>
-      </Td>
-      <Td align="left">
+      </BodyCell>
+      <BodyCell width={COLS.ultimaUtilizare} align="left">
         <span className="font-mono text-xs text-gray-light">
           {row.usage.lastSeen ? formatDate(row.usage.lastSeen) : "—"}
         </span>
-      </Td>
-      <Td align="right" last>
+      </BodyCell>
+      <BodyCell width={COLS.actiuni} align="right" last>
         <div className="flex items-center justify-end gap-1.5">
           {!editing && row.kind === "analytic" && (
             <button
@@ -343,8 +542,39 @@ function AccountRow({
             />
           )}
         </div>
-      </Td>
-    </tr>
+      </BodyCell>
+    </>
+  );
+}
+
+function BodyCell({
+  children,
+  width,
+  flex,
+  align,
+  last,
+}: {
+  children?: React.ReactNode;
+  width?: number;
+  flex?: boolean;
+  align: "left" | "right" | "center";
+  last?: boolean;
+}) {
+  const alignClass =
+    align === "right"
+      ? "justify-end text-right"
+      : align === "center"
+        ? "justify-center text-center"
+        : "text-left";
+  return (
+    <div
+      className={`flex shrink-0 items-center px-3 ${alignClass} ${
+        !last ? "border-r border-white/[0.04]" : ""
+      }`}
+      style={{ width: flex ? undefined : width, flex: flex ? "1" : "none" }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -369,7 +599,6 @@ function InlineNameEditor({
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
-
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onCancel();
     }
@@ -399,7 +628,7 @@ function InlineNameEditor({
   }
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-1 items-center gap-1.5">
       <input
         ref={inputRef}
         value={value}
@@ -412,7 +641,7 @@ function InlineNameEditor({
           if (e.key === "Escape") onCancel();
         }}
         disabled={pending}
-        className={`h-8 flex-1 min-w-0 rounded-[10px] border bg-dark-2 px-3 text-xs text-white transition-colors focus:outline-none ${
+        className={`h-7 flex-1 min-w-0 rounded-[8px] border bg-dark-2 px-2 text-xs text-white transition-colors focus:outline-none ${
           error
             ? "border-danger/50 bg-danger/5"
             : "border-primary/40 focus:border-primary"
@@ -453,14 +682,12 @@ function ReviewToggle({
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-
   function toggle() {
     startTransition(async () => {
       await toggleClientAccountReviewAction(clientId, code, !needsReview);
       onDone();
     });
   }
-
   return (
     <button
       onClick={toggle}
@@ -516,57 +743,10 @@ function NumCell({ value }: { value: number | undefined }) {
   );
 }
 
-function Th({
-  children,
-  align = "right",
-  first,
-  last,
-}: {
-  children?: React.ReactNode;
-  align?: "left" | "right" | "center";
-  first?: boolean;
-  last?: boolean;
-}) {
-  const alignClass =
-    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
-  return (
-    <th
-      className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${alignClass} ${
-        !last ? "border-r border-white/[0.04]" : ""
-      } ${first ? "min-w-[120px]" : ""}`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({
-  children,
-  align = "right",
-  first,
-  last,
-}: {
-  children?: React.ReactNode;
-  align?: "left" | "right" | "center";
-  first?: boolean;
-  last?: boolean;
-}) {
-  const alignClass =
-    align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
-  return (
-    <td
-      className={`px-3 py-1.5 ${alignClass} ${
-        !last ? "border-r border-white/[0.04]" : ""
-      } ${first ? "min-w-[120px]" : ""}`}
-    >
-      {children}
-    </td>
-  );
-}
-
 function formatDate(raw: Date | string): string {
   const d = typeof raw === "string" ? new Date(raw) : raw;
   const day = String(d.getDate()).padStart(2, "0");
   const month = String(d.getMonth() + 1).padStart(2, "0");
   return `${day}.${month}.${d.getFullYear()}`;
 }
+

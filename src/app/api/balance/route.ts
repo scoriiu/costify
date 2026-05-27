@@ -99,15 +99,19 @@ export async function GET(request: Request) {
     taxRegime,
   };
 
-  // Materialize for future reads. Don't block the response on the write —
-  // failure here is a perf regression, not a correctness bug, because the
-  // next read will just go through this same path again.
-  writeComputedPeriod(clientId, year, month, payload, "lazy").catch((e) => {
+  // Materialize for future reads. We await the write so the next
+  // request hits tier 1. Fire-and-forget caused a window where pod B
+  // served a request while pod A's lazy write was still in flight —
+  // both pods then live-computed the same payload. The ~50 ms cost is
+  // worth the cache-hit guarantee.
+  try {
+    await writeComputedPeriod(clientId, year, month, payload, "lazy");
+  } catch (e) {
     console.warn(
       `[api/balance] failed to materialize client=${clientId.slice(0, 8)} y=${year} m=${month}:`,
       e instanceof Error ? e.message : e,
     );
-  });
+  }
 
   console.log(
     `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${balanceResult.data.length} | source=live cache=${tCache}ms load=${tLoad}ms kpi=${tKpi}ms cpp=${tCpp}ms f20=${tF20}ms`,
