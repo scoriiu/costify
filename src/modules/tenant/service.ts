@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { uniqueSlug } from "@/lib/slug";
 import type { Result } from "@/shared/errors";
@@ -69,16 +70,21 @@ export async function listTenants(userId: string): Promise<TenantWithStats[]> {
   }));
 }
 
-export async function verifyTenantAccess(
-  userId: string,
-  tenantId: string
-): Promise<boolean> {
-  const client = await prisma.client.findFirst({
-    where: { id: tenantId, userId, active: true },
-    select: { id: true },
-  });
-  return !!client;
-}
+/**
+ * Verify a user has access to a tenant. Wrapped in React `cache()` so it
+ * dedupes within a single request — a page that calls verifyTenantAccess
+ * + an API route that does the same in the same render pays just one
+ * Postgres roundtrip.
+ */
+export const verifyTenantAccess = cache(
+  async (userId: string, tenantId: string): Promise<boolean> => {
+    const client = await prisma.client.findFirst({
+      where: { id: tenantId, userId, active: true },
+      select: { id: true },
+    });
+    return !!client;
+  },
+);
 
 function toTenant(client: {
   id: string;

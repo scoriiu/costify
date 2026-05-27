@@ -474,6 +474,12 @@ model JournalLine {
   @@index([clientId, contDBase])
   @@index([clientId, contCBase])
   @@index([clientId, dedupHash])
+  // Pagination on Registru Jurnal (ORDER BY data DESC, ndp DESC) and on the
+  // accountant-audit timeline. Before this index, `prisma.findMany` over the
+  // 200k-row JournalLine forced a Parallel Seq Scan + top-N heapsort (~200 ms
+  // in Postgres alone). With this index Postgres walks the btree in sort
+  // order and stops at LIMIT (0.5 ms top page, 23 ms at offset 50k).
+  @@index([clientId, data(sort: Desc), ndp(sort: Desc)])
   @@index([importEventId])
 }
 

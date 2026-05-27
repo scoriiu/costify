@@ -14,8 +14,8 @@
  */
 
 import { prisma } from "@/lib/db";
-import { queryAuditTrail } from "./service";
 import type { AuditRecord } from "./types";
+import type { PipelineStage, ActorType } from "@/shared/types";
 
 export interface AccountantAuditRow {
   id: string;
@@ -47,43 +47,110 @@ export interface AuditTrailOptions {
   entityType?: string;
 }
 
-async function enrichActors(records: AuditRecord[]) {
-  const actorIds = Array.from(new Set(records.map((r) => r.actorId)));
-  if (actorIds.length === 0) return new Map<string, { name: string; email: string }>();
-  const users = await prisma.user.findMany({
-    where: { id: { in: actorIds } },
-    select: { id: true, name: true, email: true },
-  });
-  return new Map(users.map((u) => [u.id, { name: u.name, email: u.email }]));
+interface RawAuditWithActor {
+  id: string;
+  tenantId: string;
+  actorId: string;
+  actorType: string;
+  pipelineStage: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+  metadata: unknown;
+  checksum: string;
+  createdAt: Date;
+  actorName: string | null;
+  actorEmail: string | null;
+}
+
+/**
+ * Single-roundtrip audit fetch with actor enrichment. Replaces the old
+ * queryAuditTrail() + enrichActors() pair that did two sequential SELECTs
+ * (one for events, one IN-query for users). The LEFT JOIN keeps system /
+ * deleted actors visible — they just come back with actorName = null,
+ * matching the previous behaviour of "Sistem" fallback in the caller.
+ *
+ * Note: we keep queryAuditTrail() exported for the other consumers that
+ * don't need actor enrichment. This raw variant is local to the UI loader
+ * because the projection is UI-shaped (we eagerly include name/email).
+ */
+async function queryAuditTrailWithActors(
+  clientId: string,
+  opts: AuditTrailOptions
+): Promise<RawAuditWithActor[]> {
+  const limit = Math.min(opts.limit ?? 50, 100);
+  const offset = opts.offset ?? 0;
+  const entityType = opts.entityType ?? null;
+  const startDate = opts.startDate ?? null;
+  const endDate = opts.endDate ?? null;
+
+  return prisma.$queryRaw<RawAuditWithActor[]>`
+    SELECT
+      ae.id,
+      ae."tenantId",
+      ae."actorId",
+      ae."actorType",
+      ae."pipelineStage",
+      ae.action,
+      ae."entityType",
+      ae."entityId",
+      ae.before,
+      ae.after,
+      ae.metadata,
+      ae.checksum,
+      ae."createdAt",
+      u.name  AS "actorName",
+      u.email AS "actorEmail"
+    FROM "AuditEvent" ae
+    LEFT JOIN "User" u ON u.id = ae."actorId"
+    WHERE ae."tenantId" = ${clientId}
+      AND (${entityType}::text IS NULL OR ae."entityType" = ${entityType}::text)
+      AND (${startDate}::timestamp IS NULL OR ae."createdAt" >= ${startDate}::timestamp)
+      AND (${endDate}::timestamp   IS NULL OR ae."createdAt" <= ${endDate}::timestamp)
+    ORDER BY ae."createdAt" DESC
+    OFFSET ${offset} LIMIT ${limit}
+  `;
+}
+
+function toAuditRecord(raw: RawAuditWithActor): AuditRecord {
+  return {
+    id: raw.id,
+    tenantId: raw.tenantId,
+    actorId: raw.actorId,
+    actorType: raw.actorType as ActorType,
+    pipelineStage: raw.pipelineStage as PipelineStage,
+    action: raw.action as AuditRecord["action"],
+    entityType: raw.entityType,
+    entityId: raw.entityId,
+    before: (raw.before as Record<string, unknown>) ?? null,
+    after: (raw.after as Record<string, unknown>) ?? null,
+    metadata: (raw.metadata as Record<string, unknown>) ?? {},
+    checksum: raw.checksum,
+    createdAt: raw.createdAt,
+  };
 }
 
 export async function listAccountantAuditTrail(
   clientId: string,
   opts: AuditTrailOptions = {}
 ): Promise<AccountantAuditRow[]> {
-  const records = await queryAuditTrail({
-    tenantId: clientId,
-    limit: opts.limit ?? 50,
-    offset: opts.offset ?? 0,
-    startDate: opts.startDate,
-    endDate: opts.endDate,
-    entityType: opts.entityType,
-  });
-  const actors = await enrichActors(records);
+  const rows = await queryAuditTrailWithActors(clientId, opts);
 
-  return records.map((r) => {
-    const actor = actors.get(r.actorId);
+  return rows.map((raw) => {
+    const record = toAuditRecord(raw);
     return {
-      id: r.id,
-      createdAt: r.createdAt,
-      actorName: actor?.name ?? "Sistem",
-      actorEmail: actor?.email ?? null,
-      description: describeForAccountant(r),
-      entityType: r.entityType,
-      action: r.action,
-      before: r.before,
-      after: r.after,
-      metadata: r.metadata,
+      id: record.id,
+      createdAt: record.createdAt,
+      actorName: raw.actorName ?? "Sistem",
+      actorEmail: raw.actorEmail,
+      description: describeForAccountant(record),
+      entityType: record.entityType,
+      action: record.action,
+      before: record.before,
+      after: record.after,
+      metadata: record.metadata,
     };
   });
 }
@@ -92,22 +159,15 @@ export async function listOwnerAuditTrail(
   clientId: string,
   opts: AuditTrailOptions = {}
 ): Promise<OwnerAuditRow[]> {
-  const records = await queryAuditTrail({
-    tenantId: clientId,
-    limit: opts.limit ?? 50,
-    offset: opts.offset ?? 0,
-    startDate: opts.startDate,
-    endDate: opts.endDate,
-  });
-  const actors = await enrichActors(records);
+  const rows = await queryAuditTrailWithActors(clientId, opts);
 
-  return records
-    .map((r) => ({ raw: r, actor: actors.get(r.actorId) }))
-    .filter(({ raw }) => isVisibleToOwner(raw))
-    .map(({ raw, actor }) => ({
-      id: raw.id,
-      createdAt: raw.createdAt,
-      description: describeForOwner(raw, actor?.name ?? "Contabilul tau"),
+  return rows
+    .map((raw) => ({ record: toAuditRecord(raw), actorName: raw.actorName }))
+    .filter(({ record }) => isVisibleToOwner(record))
+    .map(({ record, actorName }) => ({
+      id: record.id,
+      createdAt: record.createdAt,
+      description: describeForOwner(record, actorName ?? "Contabilul tau"),
     }));
 }
 

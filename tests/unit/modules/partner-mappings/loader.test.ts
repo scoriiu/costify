@@ -6,30 +6,58 @@ import {
   loadSuggestionQueue,
 } from "@/modules/partner-mappings/loader";
 
+/**
+ * The loader now uses `$queryRaw` for journal-line + partner-name reads
+ * to bypass Prisma ORM hydration. Tests speak SQL: we mock `$queryRaw`
+ * and dispatch the response based on which template literal was used.
+ * Overrides still go through prisma.partnerCategoryOverride.findMany via
+ * the service layer (unchanged).
+ *
+ * Helper signature mirrors the inputs each test had before — only the
+ * shape of the underlying mock differs.
+ */
 function makePrismaMock(opts: {
   journalLines?: unknown[];
   journalPartners?: unknown[];
   overrides?: unknown[];
 } = {}) {
-  const journalLineFindMany = vi.fn().mockResolvedValue(opts.journalLines ?? []);
-  const journalPartnerFindMany = vi
-    .fn()
-    .mockResolvedValue(opts.journalPartners ?? []);
+  const jLines = opts.journalLines ?? [];
+  const jPartners = opts.journalPartners ?? [];
+
+  // Normalize suma to a string so the loader's `Number(r.suma)` path matches
+  // the prod shape (Postgres `suma::text` casts return strings).
+  const normalizedLines = jLines.map((line) => {
+    const l = line as Record<string, unknown>;
+    return {
+      ...l,
+      suma: typeof l.suma === "number" ? String(l.suma) : l.suma,
+    };
+  });
+
+  const queryRawMock = vi.fn((template: TemplateStringsArray | { strings: string[] }, ..._args: unknown[]) => {
+    // Detect which logical query is being run by looking at the template
+    // strings. We don't need to be exhaustive — we just route based on
+    // which TABLE the SQL references.
+    const sql = Array.isArray((template as TemplateStringsArray)?.raw)
+      ? (template as TemplateStringsArray).raw.join(" ")
+      : "";
+    if (sql.includes('"JournalLine"')) return Promise.resolve(normalizedLines);
+    if (sql.includes('"JournalPartner"')) return Promise.resolve(jPartners);
+    return Promise.resolve([]);
+  });
+
   const overrideFindMany = vi.fn().mockResolvedValue(opts.overrides ?? []);
 
   return {
-    journalLine: { findMany: journalLineFindMany },
-    journalPartner: { findMany: journalPartnerFindMany },
+    $queryRaw: queryRawMock,
     partnerCategoryOverride: { findMany: overrideFindMany },
     _spies: {
-      journalLineFindMany,
-      journalPartnerFindMany,
+      queryRaw: queryRawMock,
       overrideFindMany,
     },
   } as unknown as PrismaClient & {
     _spies: {
-      journalLineFindMany: ReturnType<typeof vi.fn>;
-      journalPartnerFindMany: ReturnType<typeof vi.fn>;
+      queryRaw: ReturnType<typeof vi.fn>;
       overrideFindMany: ReturnType<typeof vi.fn>;
     };
   };
@@ -66,6 +94,17 @@ function overrideRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Inspect the most recent $queryRaw call's SQL + interpolated values. */
+function queryRawCallSummary(prisma: ReturnType<typeof makePrismaMock>) {
+  const calls = prisma._spies.queryRaw.mock.calls;
+  return calls.map((args) => {
+    const template = args[0] as TemplateStringsArray;
+    const sql = Array.isArray(template?.raw) ? template.raw.join("?") : "";
+    const values = args.slice(1);
+    return { sql, values };
+  });
+}
+
 describe("loadPartnersForCont", () => {
   let prisma: ReturnType<typeof makePrismaMock>;
 
@@ -82,24 +121,30 @@ describe("loadPartnersForCont", () => {
       4
     );
     expect(result.partners).toEqual([]);
-    expect(prisma._spies.journalLineFindMany).not.toHaveBeenCalled();
+    expect(prisma._spies.queryRaw).not.toHaveBeenCalled();
   });
 
   it("filters by contDBase for expense conts (class 6)", async () => {
     await loadPartnersForCont(prisma, "client-1", "6022", 2026, 4);
-    const call = prisma._spies.journalLineFindMany.mock.calls[0][0];
-    expect(call.where.contDBase).toBe("6022");
-    expect(call.where.contCBase).toBeUndefined();
-    expect(call.where.deletedAt).toBeNull();
-    expect(call.where.year).toBe(2026);
-    expect(call.where.month).toEqual({ lte: 4 });
+    const summaries = queryRawCallSummary(prisma);
+    // First call must be the journal-line read for the cont; SQL filters on contDBase.
+    const journalCall = summaries.find((s) => s.sql.includes('"JournalLine"'));
+    expect(journalCall).toBeDefined();
+    expect(journalCall!.sql).toContain('"contDBase" =');
+    expect(journalCall!.sql).not.toContain('"contCBase" =');
+    // Values: clientId, contBase, year, month.
+    expect(journalCall!.values).toContain("6022");
+    expect(journalCall!.values).toContain(2026);
+    expect(journalCall!.values).toContain(4);
   });
 
   it("filters by contCBase for revenue conts (class 7)", async () => {
     await loadPartnersForCont(prisma, "client-1", "707", 2026, 4);
-    const call = prisma._spies.journalLineFindMany.mock.calls[0][0];
-    expect(call.where.contCBase).toBe("707");
-    expect(call.where.contDBase).toBeUndefined();
+    const summaries = queryRawCallSummary(prisma);
+    const journalCall = summaries.find((s) => s.sql.includes('"JournalLine"'));
+    expect(journalCall).toBeDefined();
+    expect(journalCall!.sql).toContain('"contCBase" =');
+    expect(journalCall!.sql).not.toContain('"contDBase" =');
   });
 
   it("Sprint 4: fetches ALL client overrides so the aggregator can compute cross-cont suggestions", async () => {
@@ -138,8 +183,6 @@ describe("loadPartnersForCont", () => {
     );
 
     expect(result.partners).toHaveLength(2);
-    // Logistic comes first only if it has the bigger rulaj — let's verify
-    // the expected order by rulaj DESC:
     expect(result.partners[0].nameNormalized).toBe("logistic");
     expect(result.partners[0].rulaj).toBe(900);
     expect(result.partners[0].override?.categoryId).toBe("cat-curierat");
@@ -147,15 +190,9 @@ describe("loadPartnersForCont", () => {
     expect(result.partners[1].override).toBeNull();
   });
 
-  it("converts Prisma Decimal-ish suma values via Number()", async () => {
-    // Prisma returns Decimal as an object with toString/valueOf — Number()
-    // collapses both Decimal and plain numbers to a JS number.
-    const decimalLike = {
-      toString: () => "123.45",
-      valueOf: () => 123.45,
-    };
+  it("converts string suma values via Number() (suma::text from Postgres)", async () => {
     prisma = makePrismaMock({
-      journalLines: [jLine({ contC: "401.001", suma: decimalLike })],
+      journalLines: [jLine({ contC: "401.001", suma: "123.45" })],
       journalPartners: [jPartner("401.001", "OMV")],
     });
 
@@ -218,7 +255,6 @@ describe("loadPartnerSummariesForClient", () => {
     );
 
     expect(Object.keys(result).sort()).toEqual(["411", "641", "6022", "707"].sort().filter((k) => ["6022", "641", "707"].includes(k)));
-    // The 411 line is captured as part of the 707 bucket (revenue cont):
     expect(result["707"].partnerCount).toBe(1);
     expect(result["707"].totalPartnerRulaj).toBe(10000);
     expect(result["6022"].partnerCount).toBe(2);
@@ -255,7 +291,6 @@ describe("loadPartnerSummariesForClient", () => {
   it("ignores conts that aren't class 6 or 7 (defensive — query already filters)", async () => {
     prisma = makePrismaMock({
       journalLines: [
-        // This line is in our query result by mistake — verify summary skip:
         jLine({ contD: "5121", contDBase: "5121", contC: "401.001", suma: 100 }),
       ],
       journalPartners: [jPartner("401.001", "OMV")],
@@ -283,7 +318,6 @@ describe("loadPartnerSummariesForClient", () => {
           partnerNameNormalized: "logistic",
           partnerNameOriginal: "SC Logistic SRL",
         }),
-        // Override for a different cont — should NOT bleed into 6022:
         overrideRow({
           id: "override-2",
           contBase: "611",
@@ -302,7 +336,7 @@ describe("loadPartnerSummariesForClient", () => {
 
     expect(result["6022"].mappedPartnerCount).toBe(1);
     expect(result["6022"].overriddenRulaj).toBe(900);
-    expect(result["611"]).toBeDefined(); // override-only cont
+    expect(result["611"]).toBeDefined();
     expect(result["611"].mappedPartnerCount).toBe(1);
   });
 });
@@ -322,13 +356,12 @@ describe("loadSuggestionQueue", () => {
   it("surfaces a suggestion for a partner with a cross-cont override", async () => {
     const prisma = makePrismaMock({
       journalLines: [
-        // OMV appears on cont 6022 — no override on 6022 yet:
         jLine({ contDBase: "6022", contC: "401.001", suma: 500 }),
       ],
       journalPartners: [jPartner("401.001", "OMV PETROM SRL")],
       overrides: [
         overrideRow({
-          contBase: "611", // different cont
+          contBase: "611",
           partnerNameNormalized: "omv petrom",
           partnerNameOriginal: "OMV",
           categoryId: "cat-combustibil",

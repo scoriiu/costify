@@ -155,9 +155,18 @@ export async function loadOwnerSnapshot(
   // Pre-refactor this function fired getBalanceRows 13 times (~3-5s on hot
   // paths) because each call re-loaded the full journal + account metadata.
   // Now we load once and slice in pure JS — see prepareBalanceContext.
-  const [balanceContext, catalog] = await Promise.all([
+  //
+  // verticalsEnabled is hoisted into this same wave (instead of being
+  // fetched mid-flow) so we don't pay an extra sequential RTT in the
+  // verticals branch below. One extra column in the parallel set, zero
+  // extra wall-clock cost.
+  const [balanceContext, catalog, clientFlag] = await Promise.all([
     prepareBalanceContext(clientId),
     getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { verticalsEnabled: true },
+    }),
   ]);
 
   if (!balanceContext) {
@@ -237,12 +246,8 @@ export async function loadOwnerSnapshot(
 
   // Verticals (axa B, PR-2c). Empty array when the flag is off or when no
   // verticals exist — owner UI hides the card in that case.
-  const clientRow = await prisma.client.findUnique({
-    where: { id: clientId },
-    select: { verticalsEnabled: true },
-  });
   let verticalBreakdown: ReturnType<typeof computeVerticalBreakdown> = [];
-  if (clientRow?.verticalsEnabled) {
+  if (clientFlag?.verticalsEnabled) {
     const [verticals, allocations, categoryAllocations] = await Promise.all([
       listVerticals(prisma, clientId),
       listAllocations(prisma, clientId),

@@ -44,7 +44,20 @@ function kindForContBase(contBase: string): ContKind | null {
  * Pull every journal line that touches a given contBase in the YTD window
  * (months 1..month inside year). For an expense cont we look at contDBase;
  * for revenue, contCBase. Deleted lines are excluded.
+ *
+ * Uses $queryRaw to bypass Prisma's per-row ORM hydration — `suma` is cast
+ * to text in SQL and parsed once with Number() at the boundary. Same pattern
+ * as balances/service.ts::getActiveEntries; measured 5-10x speedup over
+ * findMany on hot reads.
  */
+interface RawCostRevenueRow {
+  contD: string;
+  contDBase: string;
+  contC: string;
+  contCBase: string;
+  suma: string;
+}
+
 async function fetchLinesForCont(
   prisma: PrismaClient,
   clientId: string,
@@ -53,33 +66,26 @@ async function fetchLinesForCont(
   year: number,
   month: number
 ): Promise<JournalLineForAggregation[]> {
-  const where =
+  const rows =
     kind === "expense"
-      ? {
-          clientId,
-          contDBase: contBase,
-          year,
-          month: { lte: month },
-          deletedAt: null,
-        }
-      : {
-          clientId,
-          contCBase: contBase,
-          year,
-          month: { lte: month },
-          deletedAt: null,
-        };
-
-  const rows = await prisma.journalLine.findMany({
-    where,
-    select: {
-      contD: true,
-      contDBase: true,
-      contC: true,
-      contCBase: true,
-      suma: true,
-    },
-  });
+      ? await prisma.$queryRaw<RawCostRevenueRow[]>`
+          SELECT "contD", "contDBase", "contC", "contCBase", suma::text AS suma
+          FROM "JournalLine"
+          WHERE "clientId" = ${clientId}
+            AND "contDBase" = ${contBase}
+            AND year = ${year}
+            AND month <= ${month}
+            AND "deletedAt" IS NULL
+        `
+      : await prisma.$queryRaw<RawCostRevenueRow[]>`
+          SELECT "contD", "contDBase", "contC", "contCBase", suma::text AS suma
+          FROM "JournalLine"
+          WHERE "clientId" = ${clientId}
+            AND "contCBase" = ${contBase}
+            AND year = ${year}
+            AND month <= ${month}
+            AND "deletedAt" IS NULL
+        `;
 
   return rows.map((r) => ({
     contD: r.contD,
@@ -94,6 +100,10 @@ async function fetchLinesForCont(
  * Same shape as fetchLinesForCont but returns ALL class-6 and class-7 lines
  * for the client in the YTD window. Used by loadPartnerSummariesForClient
  * to compute all per-cont summaries in a single query rather than N+1.
+ *
+ * On a 200k-row client this can pull 30-80k rows; ORM hydration was the
+ * dominant cost (~600-900 ms). $queryRaw collapses to plain JS objects
+ * and stays in the index-scan path for `(clientId, year, month)`.
  */
 async function fetchAllCostAndRevenueLines(
   prisma: PrismaClient,
@@ -101,25 +111,15 @@ async function fetchAllCostAndRevenueLines(
   year: number,
   month: number
 ): Promise<JournalLineForAggregation[]> {
-  const rows = await prisma.journalLine.findMany({
-    where: {
-      clientId,
-      year,
-      month: { lte: month },
-      deletedAt: null,
-      OR: [
-        { contDBase: { startsWith: "6" } },
-        { contCBase: { startsWith: "7" } },
-      ],
-    },
-    select: {
-      contD: true,
-      contDBase: true,
-      contC: true,
-      contCBase: true,
-      suma: true,
-    },
-  });
+  const rows = await prisma.$queryRaw<RawCostRevenueRow[]>`
+    SELECT "contD", "contDBase", "contC", "contCBase", suma::text AS suma
+    FROM "JournalLine"
+    WHERE "clientId" = ${clientId}
+      AND year = ${year}
+      AND month <= ${month}
+      AND "deletedAt" IS NULL
+      AND ("contDBase" LIKE '6%' OR "contCBase" LIKE '7%')
+  `;
 
   return rows.map((r) => ({
     contD: r.contD,
@@ -134,10 +134,16 @@ async function fetchPartnerNames(
   prisma: PrismaClient,
   clientId: string
 ): Promise<Map<string, string>> {
-  const rows = await prisma.journalPartner.findMany({
-    where: { clientId },
-    select: { analyticAccount: true, partnerName: true },
-  });
+  // Called by four loaders per Mapari render — switch to $queryRaw so we
+  // pay zero ORM cost. JournalPartner is small (~hundreds of rows) but
+  // every ms counts when the same data is fetched repeatedly.
+  const rows = await prisma.$queryRaw<
+    Array<{ analyticAccount: string; partnerName: string | null }>
+  >`
+    SELECT "analyticAccount", "partnerName"
+    FROM "JournalPartner"
+    WHERE "clientId" = ${clientId}
+  `;
   const map = new Map<string, string>();
   for (const r of rows) {
     if (r.partnerName && r.partnerName.trim() !== "") {
