@@ -12,7 +12,11 @@
  *   - The owner-summary API endpoint (PR-A)
  */
 
-import { getBalanceRows } from "@/modules/balances";
+import {
+  prepareBalanceContext,
+  computeBalanceFromContext,
+  type BalanceContext,
+} from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
 import { computeKpis } from "@/modules/reporting";
 import {
@@ -80,13 +84,27 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-async function computeMonthlyTrends(
-  clientId: string,
+/**
+ * Computes the 12-month trend series for the chart.
+ *
+ * Originally this called `getBalanceRows` 13 separate times (one per month
+ * plus the current period above) — meaning 13 full journal reads from the
+ * DB for the same dataset. With a 16,802-row journal that's 13× the hot-path
+ * Prisma cost; ~3-5 s on first hit even after the raw-SQL fix.
+ *
+ * Now: we accept the pre-built BalanceContext (entries + name maps loaded
+ * once at the top of loadOwnerSnapshot) and compute each month's balance as
+ * a pure function of that in-memory data. Each derivation is ~50-80 ms of
+ * JS compute — no IO. The whole trends array runs in well under 1 s
+ * sequentially, microseconds in parallel.
+ */
+function computeMonthlyTrends(
+  ctx: BalanceContext,
   endYear: number,
   endMonth: number,
   catalog: Map<string, CatalogAccount>,
   months = 12
-): Promise<MonthlyTrendPoint[]> {
+): MonthlyTrendPoint[] {
   const periods: Array<{ year: number; month: number }> = [];
   let y = endYear;
   let m = endMonth;
@@ -99,30 +117,24 @@ async function computeMonthlyTrends(
     }
   }
 
-  const results = await Promise.all(
-    periods.map(async ({ year, month }) => {
-      const r = await getBalanceRows(clientId, year, month);
-      if (!r.ok) return null;
-      const rows = r.data;
-      const summary = computeFinancialSummary(rows, catalog);
-      const cashEnd = summary.soldRegistruCasa + summary.soldConturiBancare;
-      const revenue = summary.cifraAfaceriLuna;
-      const expenses = summary.cheltuieliLuna;
-      return {
-        year,
-        month,
-        monthLabel: MONTH_NAMES_SHORT[month - 1],
-        revenue: round2(revenue),
-        expenses: round2(expenses),
-        profit: round2(revenue - expenses),
-        cashEnd: round2(cashEnd),
-        receivables: round2(summary.clientiNeincasati),
-        payables: round2(summary.furnizoriNeachitati),
-      };
-    })
-  );
-
-  return results.filter((p): p is MonthlyTrendPoint => p !== null);
+  return periods.map(({ year, month }) => {
+    const rows = computeBalanceFromContext(ctx, year, month);
+    const summary = computeFinancialSummary(rows, catalog);
+    const cashEnd = summary.soldRegistruCasa + summary.soldConturiBancare;
+    const revenue = summary.cifraAfaceriLuna;
+    const expenses = summary.cheltuieliLuna;
+    return {
+      year,
+      month,
+      monthLabel: MONTH_NAMES_SHORT[month - 1],
+      revenue: round2(revenue),
+      expenses: round2(expenses),
+      profit: round2(revenue - expenses),
+      cashEnd: round2(cashEnd),
+      receivables: round2(summary.clientiNeincasati),
+      payables: round2(summary.furnizoriNeachitati),
+    };
+  });
 }
 
 export interface LoadOwnerSnapshotInput {
@@ -139,18 +151,27 @@ export async function loadOwnerSnapshot(
 ): Promise<OwnerSnapshot> {
   const { clientId, clientName, clientCui, clientSlug, year, month } = input;
 
-  const [balanceResult, catalog] = await Promise.all([
-    getBalanceRows(clientId, year, month),
+  // Single journal read drives the current period AND all 12 trend months.
+  // Pre-refactor this function fired getBalanceRows 13 times (~3-5s on hot
+  // paths) because each call re-loaded the full journal + account metadata.
+  // Now we load once and slice in pure JS — see prepareBalanceContext.
+  const t0 = performance.now();
+  const [balanceContext, catalog] = await Promise.all([
+    prepareBalanceContext(clientId),
     getCatalogMap(),
   ]);
+  const t1 = performance.now();
 
-  if (!balanceResult.ok) {
+  if (!balanceContext) {
     throw new Error(
       `Nu pot incarca date pentru ${clientName} la ${periodLabel(year, month)}.`
     );
   }
 
-  const rows = balanceResult.data;
+  const rows = computeBalanceFromContext(balanceContext, year, month);
+  console.log(
+    `[loadOwnerSnapshot] prepareContext=${(t1 - t0).toFixed(0)}ms entries=${balanceContext.entries.length}`
+  );
   const kpis = computeKpis(rows, catalog);
   const summary = computeFinancialSummary(rows, catalog);
   const cashPosition = computeCashPosition(rows);
@@ -163,8 +184,12 @@ export async function loadOwnerSnapshot(
     kpis.marjaOperationala
   );
   // Trends are needed both for the chart and for the YoY + runway computations
-  // below — compute once and reuse.
-  const trends = await computeMonthlyTrends(clientId, year, month, catalog, 12);
+  // below — compute once and reuse. Pure-JS slice over the in-memory journal.
+  const tTrends0 = performance.now();
+  const trends = computeMonthlyTrends(balanceContext, year, month, catalog, 12);
+  console.log(
+    `[loadOwnerSnapshot] computeMonthlyTrends=${(performance.now() - tTrends0).toFixed(0)}ms`
+  );
 
   // Try the category-aware breakdown first. When the client has at least one
   // CostCategory mapping, use the firm's own labels ("Salarii echipa tech",
