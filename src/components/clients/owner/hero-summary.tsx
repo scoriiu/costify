@@ -302,33 +302,38 @@ function BigSparkline({
           {lei(activeValue)}
         </span>
       </div>
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        className="w-full h-14 sm:h-16 cursor-crosshair"
-        preserveAspectRatio="none"
-        onMouseMove={onMove}
-        onMouseLeave={() => setHoverIdx(null)}
-        role="img"
-        aria-label={`Cash la finalul ultimelor ${values.length} luni`}
-      >
-        <defs>
-          <linearGradient id="hero-cash-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill="url(#hero-cash-area)" />
-        <path
-          d={linePath}
-          fill="none"
-          stroke="var(--color-primary)"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {/* Crosshair on hover */}
-        {hoverIdx !== null && (
-          <>
+      {/* The SVG stretches with preserveAspectRatio="none" so the line
+          fills the full container width, but that flattens any <circle>
+          inside it (the X and Y scales decouple → ovals). We render the
+          dots as absolutely-positioned <div>s on top instead, so they
+          stay perfectly round regardless of container width. */}
+      <div className="relative w-full h-14 sm:h-16">
+        <svg
+          viewBox={`0 0 ${w} ${h}`}
+          className="absolute inset-0 w-full h-full cursor-crosshair"
+          preserveAspectRatio="none"
+          onMouseMove={onMove}
+          onMouseLeave={() => setHoverIdx(null)}
+          role="img"
+          aria-label={`Cash la finalul ultimelor ${values.length} luni`}
+        >
+          <defs>
+            <linearGradient id="hero-cash-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill="url(#hero-cash-area)" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          {hoverIdx !== null && (
             <line
               x1={xs[hoverIdx]}
               x2={xs[hoverIdx]}
@@ -338,29 +343,36 @@ function BigSparkline({
               strokeOpacity={0.4}
               strokeDasharray="2 3"
               strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
             />
-            <circle
-              cx={xs[hoverIdx]}
-              cy={ys[hoverIdx]}
-              r={5}
-              fill="var(--color-primary)"
-              stroke="var(--color-dark-2)"
-              strokeWidth={2}
+          )}
+        </svg>
+        {/* Round endpoint / hover dot — positioned in % so it sits on the
+            line wherever the SVG is rendered, but the dot itself is a
+            real DOM circle so it never deforms. */}
+        {(() => {
+          const idx = hoverIdx ?? xs.length - 1;
+          const xPct = (xs[idx] / w) * 100;
+          const yPct = (ys[idx] / h) * 100;
+          const size = hoverIdx !== null ? 10 : 8;
+          return (
+            <div
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                left: `${xPct}%`,
+                top: `${yPct}%`,
+                width: size,
+                height: size,
+                marginLeft: -size / 2,
+                marginTop: -size / 2,
+                background: "var(--color-primary)",
+                border: "2px solid var(--color-dark-2)",
+              }}
+              aria-hidden
             />
-          </>
-        )}
-        {/* Default endpoint dot (when not hovering) */}
-        {hoverIdx === null && (
-          <circle
-            cx={xs[xs.length - 1]}
-            cy={ys[ys.length - 1]}
-            r={4}
-            fill="var(--color-primary)"
-            stroke="var(--color-dark-2)"
-            strokeWidth={2}
-          />
-        )}
-      </svg>
+          );
+        })()}
+      </div>
     </div>
   );
 }
