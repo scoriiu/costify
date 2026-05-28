@@ -353,7 +353,6 @@ export async function loadMapariCashflow(
       Math.abs(b.rulajD) + Math.abs(b.rulajC) -
       (Math.abs(a.rulajD) + Math.abs(a.rulajC))
   );
-
   return {
     clientId,
     tree,

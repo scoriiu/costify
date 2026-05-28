@@ -26,7 +26,7 @@
  * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,10 +69,16 @@ import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
   clientId: string;
-  cashflowYear?: number;
-  /** Monotonic version of the client's data. When the parent re-renders
-   *  with a higher value (any mutation that bumped Client.dataVersion),
-   *  we refetch. Same idea as the Plan tab. */
+  /** Server-rendered MapariCashflowData for the initial (or URL-specified)
+   *  year. Paints instantly on first render — no client fetch. */
+  initialData: MapariCashflowData;
+  /** The year that `initialData` corresponds to. Optional (undefined ==
+   *  newest year). Used to seed the year cache. */
+  initialYear?: number;
+  /** Bumped by any client-data mutation. When the parent re-renders with
+   *  a higher value, we discard the per-year cache so the next view of
+   *  any year refetches fresh. The currently-displayed year refetches
+   *  immediately to pick up the change. */
   dataVersion: number;
 }
 
@@ -89,44 +95,125 @@ type ResidueSourceDetail = {
 type CashflowTab = "categorii" | "verticale";
 
 /**
- * Public entry point: owns the /api/mapari-cashflow fetch.
+ * Public entry point — owns the per-year data cache and the current-year
+ * state. Initial render is instant: `initialData` was fetched on the
+ * server and arrives as a prop. Year changes are client-side: a per-year
+ * `useState<Map>` cache means switching back to a previously-loaded year
+ * is also instant. New years fetch once via /api/mapari-cashflow.
  *
- * Why fetched here and not by the parent (ClientDetail):
- *   Mapari is edit-heavy — every save triggers router.refresh() to bump
- *   Client.dataVersion. When the parent cached the payload, the
- *   dataVersion bump wiped the cache then required an effect to refetch.
- *   A bug there left the UI stuck on "Se incarca maparile..." after every
- *   save. Owning the fetch here keeps the refetch contract trivial:
- *   `useEffect` on (clientId, cashflowYear, dataVersion).
+ * After a server-side mutation, the parent re-renders with a higher
+ * `dataVersion`. We drop the per-year cache (the entire client's data
+ * picture may have shifted) and refetch the active year so the user
+ * sees their change. The currently-rendered tab keeps its previous
+ * payload on screen during the refetch — no spinner blink.
  */
 export function MapariCashflowTab({
   clientId,
-  cashflowYear,
+  initialData,
+  initialYear,
   dataVersion,
 }: Props) {
-  const [data, setData] = useState<MapariCashflowData | null>(null);
+  // Resolved year for the payload we currently show. Starts at whatever
+  // the server picked (initialData.period.year, falling back to
+  // initialYear when the client has no journal yet).
+  const initialResolvedYear = initialData.period?.year ?? initialYear ?? 0;
+  const [currentYear, setCurrentYear] = useState<number>(initialResolvedYear);
+  const [yearCache, setYearCache] = useState<Map<number, MapariCashflowData>>(
+    () => {
+      const m = new Map<number, MapariCashflowData>();
+      m.set(initialResolvedYear, initialData);
+      return m;
+    },
+  );
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  // Cancels any prior in-flight refetch when a new save happens. Without
+  // this, a fast user (save, save, save) would race three responses and
+  // the last to land wins — usually fine, but a stale early response
+  // could overwrite a fresh later one. AbortController makes the contract
+  // explicit: at most one in-flight refetch per (clientId, year).
+  const inFlight = useRef<AbortController | null>(null);
+
+  function refetchYear(year: number, onSuccess?: () => void) {
+    inFlight.current?.abort();
+    const ctrl = new AbortController();
+    inFlight.current = ctrl;
     setError(false);
-    const url = cashflowYear
-      ? `/api/mapari-cashflow?clientId=${clientId}&year=${cashflowYear}`
-      : `/api/mapari-cashflow?clientId=${clientId}`;
-    let cancelled = false;
-    fetch(url, { cache: "no-store" })
+    const url =
+      year > 0
+        ? `/api/mapari-cashflow?clientId=${clientId}&year=${year}`
+        : `/api/mapari-cashflow?clientId=${clientId}`;
+    fetch(url, { cache: "no-store", signal: ctrl.signal })
       .then((r) => r.json())
       .then((payload: MapariCashflowData) => {
-        if (!cancelled) setData(payload);
+        if (ctrl.signal.aborted) return;
+        const resolved = payload.period?.year ?? year;
+        setYearCache((prev) => {
+          const next = new Map(prev);
+          next.set(resolved, payload);
+          return next;
+        });
+        if (resolved !== currentYear) setCurrentYear(resolved);
+        onSuccess?.();
       })
-      .catch(() => {
-        if (!cancelled) setError(true);
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        setError(true);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [clientId, cashflowYear, dataVersion]);
+  }
 
-  if (error) {
+  // External bumps (journal upload, vertical alloc edit, anything that
+  // called router.refresh) push a higher dataVersion AND a fresh
+  // initialData prop. When initialData covers the active year, just
+  // adopt it — no extra network call. Otherwise (e.g. user is looking at
+  // year N and a journal upload re-rendered the page for year N+1) fall
+  // back to a year-targeted refetch.
+  const seenVersion = useRef(dataVersion);
+  useEffect(() => {
+    if (seenVersion.current === dataVersion) return;
+    seenVersion.current = dataVersion;
+    const initYear = initialData.period?.year ?? 0;
+    if (initYear === currentYear) {
+      setYearCache((prev) => {
+        const next = new Map(prev);
+        next.set(currentYear, initialData);
+        return next;
+      });
+      return;
+    }
+    refetchYear(currentYear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataVersion]);
+
+  // Called by child save flows after the server action succeeds. Refetches
+  // the year the user is currently looking at, with previous in-flight
+  // requests cancelled so rapid saves don't stack up.
+  function refreshAfterMutation() {
+    refetchYear(currentYear);
+  }
+
+  const data = yearCache.get(currentYear) ?? initialData;
+
+  function selectYear(year: number) {
+    if (year === currentYear) return;
+
+    // Mirror to URL so refresh + deep-link both work. No router.replace —
+    // we don't want to re-run the server component (that's the slow path
+    // we are deliberately avoiding for the year switch).
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("cashflow-year", String(year));
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    setCurrentYear(year);
+
+    // Cache hit — render is already correct (data derives from cache).
+    if (yearCache.has(year)) return;
+    refetchYear(year);
+  }
+
+  if (error && !data) {
     return (
       <div className="flex items-center justify-center py-16 text-sm text-gray">
         Nu am putut incarca maparile.
@@ -134,18 +221,29 @@ export function MapariCashflowTab({
     );
   }
 
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center py-16 text-sm text-gray">
-        Se incarca maparile...
-      </div>
-    );
-  }
-
-  return <MapariCashflowContent data={data} />;
+  return (
+    <MapariCashflowContent
+      data={data}
+      onYearChange={selectYear}
+      onMutated={refreshAfterMutation}
+    />
+  );
 }
 
-function MapariCashflowContent({ data }: { data: MapariCashflowData }) {
+function MapariCashflowContent({
+  data,
+  onYearChange,
+  onMutated,
+}: {
+  data: MapariCashflowData;
+  onYearChange: (year: number) => void;
+  /** Called by child mutation flows after a successful server-side save.
+   *  Triggers a refetch of the current year's payload in the parent so
+   *  outer-page badges, coverage, and lists stay in sync — without a
+   *  Next router.refresh() (which would re-stream the entire page tree,
+   *  ~2-4s on big clients). */
+  onMutated: () => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -191,7 +289,7 @@ function MapariCashflowContent({ data }: { data: MapariCashflowData }) {
     setActiveTab("categorii");
     setPendingPanelContBase(contBase);
   }
-  const onMutate = () => router.refresh();
+  const onMutate = onMutated;
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
   // so the contabil can deep-link straight to "Linii de business" and refresh
@@ -281,6 +379,7 @@ function MapariCashflowContent({ data }: { data: MapariCashflowData }) {
         coverage={data.coverage}
         partnerSummariesByCont={data.partnerSummariesByCont}
         freshlySeeded={data.freshlySeeded}
+        onYearChange={onYearChange}
         onJumpToUnmapped={() => {
           // KPI "X nemapate" → categorii tab + Nemapate filter applied. The
           // user clicked a number; they expect to see exactly that subset.
@@ -2129,6 +2228,7 @@ function PageHeader({
   onJumpToUnmapped,
   onOpenReviewQueue,
   onOpenAllExceptions,
+  onYearChange,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
@@ -2138,6 +2238,7 @@ function PageHeader({
   onJumpToUnmapped: () => void;
   onOpenReviewQueue: () => void;
   onOpenAllExceptions: () => void;
+  onYearChange: (year: number) => void;
 }) {
   // Sprint 4: roll up suggested partner count across all conts. Anything > 0
   // surfaces as a yellow callout that nudges the contabil toward the panels
@@ -2175,6 +2276,7 @@ function PageHeader({
               <YearSelector
                 availableYears={availableYears}
                 selectedYear={period.year}
+                onChange={onYearChange}
               />
             )}
             <div className="flex items-center gap-3 text-[12px]">
@@ -2431,30 +2533,24 @@ function CoverageBar({ percent }: { percent: number }) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Switches the working year used to compute the rulaj cumulat shown next to
- * every account / category in Mapari Cashflow. Year is persisted in the URL
- * as ?cashflow-year=YYYY so the contabil can deep-link and refresh without
- * losing context. Default (URL empty) = the newest year with journal data,
- * resolved on the server.
+ * Switches the working year. Calls the parent's `onChange(year)` instead of
+ * `router.replace` so the year switch is a pure client-side state update —
+ * no server re-render, no full page round-trip. The parent mirrors the
+ * selection to `?cashflow-year=YYYY` via `history.replaceState` so deep-
+ * links and reloads still land on the chosen year.
  */
 function YearSelector({
   availableYears,
   selectedYear,
+  onChange,
 }: {
   availableYears: number[];
   selectedYear: number;
+  onChange: (year: number) => void;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function onYearChange(value: string) {
-    const params = new URLSearchParams(searchParams.toString());
+  function handleChange(value: string) {
     const yearNum = parseInt(value, 10);
-    // Always write the param explicitly (no auto-default removal) so users
-    // see exactly which year they picked in the URL. Refresh-safe.
-    params.set("cashflow-year", String(yearNum));
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    if (Number.isFinite(yearNum)) onChange(yearNum);
   }
 
   return (
@@ -2467,7 +2563,7 @@ function YearSelector({
       </span>
       <Select
         value={String(selectedYear)}
-        onChange={onYearChange}
+        onChange={handleChange}
         options={availableYears.map((y) => ({
           value: String(y),
           label: String(y),

@@ -5,6 +5,7 @@ import { getAvailablePeriods } from "@/modules/balances";
 import { computeKpis } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import { listAccessesForClient } from "@/modules/roles";
+import { loadMapariCashflow, type MapariCashflowData } from "@/modules/categories";
 import {
   listPublishedPeriods,
   getPublishedView,
@@ -189,15 +190,29 @@ export default async function ClientDetailPage(props: Props) {
     );
   }
 
-  // Default: accountant view with tabs
-  const [accesses, publishedPeriods, currentStatus, auditRows] = await Promise.all([
+  // Default: accountant view with tabs.
+  const cashflowYearRaw = searchParams["cashflow-year"];
+  const cashflowYearParsed = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : NaN;
+  const cashflowYear = Number.isFinite(cashflowYearParsed) ? cashflowYearParsed : undefined;
+  const tab = searchParams.tab ?? "jurnal";
+  // Only server-load Mapari when the user is actually on that tab. Other
+  // tabs (Jurnal, Balanta, …) shouldn't pay the cost of 16k+ journal-line
+  // aggregation just because Mapari ships in the same component tree.
+  // When the user clicks the Mapari tab the page navigates and we run
+  // loadMapariCashflow on that hop — making the FIRST paint of Mapari
+  // server-rendered and instant.
+  const shouldLoadMapari = tab === "mapari-cashflow";
+
+  const [accesses, publishedPeriods, currentStatus, auditRows, mapariData] = await Promise.all([
     listAccessesForClient(client.id),
     listPublishedPeriods(client.id),
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
     listAccountantAuditTrail(client.id, { limit: 50 }),
+    shouldLoadMapari
+      ? loadMapariCashflow(client.id, { year: cashflowYear })
+      : Promise.resolve(null),
   ]);
   t.mark("accountantParallel");
-  const tab = searchParams.tab ?? "jurnal";
 
   const publishedMap = new Map(
     publishedPeriods.map((p) => [`${p.year}-${p.month}`, p])
@@ -222,10 +237,6 @@ export default async function ClientDetailPage(props: Props) {
       };
     })
     .sort((a, b) => b.year - a.year || b.month - a.month);
-
-  const cashflowYearRaw = searchParams["cashflow-year"];
-  const cashflowYearParsed = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : NaN;
-  const cashflowYear = Number.isFinite(cashflowYearParsed) ? cashflowYearParsed : undefined;
 
   const publishBar =
     year && month ? (
@@ -272,6 +283,7 @@ export default async function ClientDetailPage(props: Props) {
       selectedYear={year}
       selectedMonth={month}
       cashflowYear={cashflowYear}
+      mapariData={mapariData}
       accessSection={
         <AccessSection
           clientId={client.id}

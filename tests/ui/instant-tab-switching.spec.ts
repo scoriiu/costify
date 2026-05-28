@@ -179,21 +179,26 @@ test.describe("ClientDetail — instant tab switching", () => {
     expect(planCalls.length).toBe(1);
   });
 
-  test("/api/mapari-cashflow is hit at most once for repeated Mapari visits", async ({
+  test("/api/mapari-cashflow is NOT hit on tab visits — payload is server-rendered", async ({
     context,
   }) => {
     const page = await authedPage(context);
 
+    // Mapari Cashflow data is loaded server-side on the initial page render
+    // (when ?tab=mapari-cashflow is in the URL) and passed down as a prop.
+    // Switching tabs back and forth in-page never re-runs the server fetch
+    // because tab toggles are pure client state, and never calls the API
+    // because the prop is already populated. The only times this endpoint
+    // fires are: year change inside the tab, or a post-save refetch when
+    // dataVersion bumps.
     const mapariCalls: string[] = [];
     page.on("request", (req) => {
       if (req.url().includes("/api/mapari-cashflow")) mapariCalls.push(req.url());
     });
 
-    await page.goto(`${CLIENT_URL}?tab=jurnal`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${CLIENT_URL}?tab=mapari-cashflow`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle");
 
-    await clickTab(page, "Mapari Cashflow");
-    await page.waitForLoadState("networkidle");
     await clickTab(page, "Registru Jurnal");
     await page.waitForTimeout(50);
     await clickTab(page, "Mapari Cashflow");
@@ -203,6 +208,6 @@ test.describe("ClientDetail — instant tab switching", () => {
     await clickTab(page, "Mapari Cashflow");
     await page.waitForLoadState("networkidle");
 
-    expect(mapariCalls.length).toBe(1);
+    expect(mapariCalls.length).toBe(0);
   });
 });

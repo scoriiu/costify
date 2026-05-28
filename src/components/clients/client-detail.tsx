@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import type { KpiSnapshot, CppData, CppF20Data } from "@/modules/reporting";
 import type { TaxRegime } from "@/modules/accounts";
+import type { MapariCashflowData } from "@/modules/categories";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
@@ -94,6 +95,10 @@ interface Props {
   /** Optional cashflow year search param (?cashflow-year=YYYY). Driven by
    *  the year selector inside MapariCashflowTab. */
   cashflowYear?: number;
+  /** Server-loaded Mapari Cashflow data — present only when the active
+   *  tab is `mapari-cashflow`. Other tabs skip this load so they don't
+   *  pay the 16k-line aggregation cost. */
+  mapariData: MapariCashflowData | null;
 }
 
 const TABS: { key: Tab; label: string }[] = [
@@ -125,6 +130,7 @@ export function ClientDetail({
   publishBar,
   auditSection,
   cashflowYear,
+  mapariData,
 }: Props) {
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -347,13 +353,20 @@ export function ClientDetail({
           />
         )}
 
-        {tab === "mapari-cashflow" && (
+        {/* Mapari mounts only when its tab is active AND the server
+            preloaded its data on this render. That keeps Jurnal / Balanta
+            / Plan paints light (no aggregation cost). The tab carries its
+            own per-year cache so switching years inside Mapari is purely
+            client-side after the first paint. */}
+        {tab === "mapari-cashflow" && mapariData && (
           <MapariCashflowTab
             clientId={client.id}
-            cashflowYear={cashflowYear}
+            initialData={mapariData}
+            initialYear={cashflowYear}
             dataVersion={dataVersion}
           />
         )}
+        
 
         {tab === "setari" && (
           <SetariTab
