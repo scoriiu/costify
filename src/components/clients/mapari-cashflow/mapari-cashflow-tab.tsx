@@ -26,7 +26,7 @@
  * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,12 @@ import { AllExceptionsDialog } from "./all-exceptions-dialog";
 import type { VerticalView } from "@/modules/verticals";
 
 interface Props {
-  data: MapariCashflowData;
+  clientId: string;
+  cashflowYear?: number;
+  /** Monotonic version of the client's data. When the parent re-renders
+   *  with a higher value (any mutation that bumped Client.dataVersion),
+   *  we refetch. Same idea as the Plan tab. */
+  dataVersion: number;
 }
 
 type Filter = "all" | "unmapped" | "expense" | "revenue" | "unallocated" | "split";
@@ -83,7 +88,64 @@ type ResidueSourceDetail = {
 
 type CashflowTab = "categorii" | "verticale";
 
-export function MapariCashflowTab({ data }: Props) {
+/**
+ * Public entry point: owns the /api/mapari-cashflow fetch.
+ *
+ * Why fetched here and not by the parent (ClientDetail):
+ *   Mapari is edit-heavy — every save triggers router.refresh() to bump
+ *   Client.dataVersion. When the parent cached the payload, the
+ *   dataVersion bump wiped the cache then required an effect to refetch.
+ *   A bug there left the UI stuck on "Se incarca maparile..." after every
+ *   save. Owning the fetch here keeps the refetch contract trivial:
+ *   `useEffect` on (clientId, cashflowYear, dataVersion).
+ */
+export function MapariCashflowTab({
+  clientId,
+  cashflowYear,
+  dataVersion,
+}: Props) {
+  const [data, setData] = useState<MapariCashflowData | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+    const url = cashflowYear
+      ? `/api/mapari-cashflow?clientId=${clientId}&year=${cashflowYear}`
+      : `/api/mapari-cashflow?clientId=${clientId}`;
+    let cancelled = false;
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((payload: MapariCashflowData) => {
+        if (!cancelled) setData(payload);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, cashflowYear, dataVersion]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray">
+        Nu am putut incarca maparile.
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray">
+        Se incarca maparile...
+      </div>
+    );
+  }
+
+  return <MapariCashflowContent data={data} />;
+}
+
+function MapariCashflowContent({ data }: { data: MapariCashflowData }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();

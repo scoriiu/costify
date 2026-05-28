@@ -10,16 +10,16 @@
  *     for sharability without triggering Next router navigation.
  *
  *  2. **One fetch per tab data, cached in component state.** Balanta and CPP
- *     share a single `/api/balance` payload per (year, month). Mapari fetches
- *     `/api/mapari-cashflow` once per (cashflowYear ?? "default"). Re-visiting
- *     a tab is instant — no spinner, no network round-trip.
+ *     share a single `/api/balance` payload per (year, month). Mapari
+ *     Cashflow owns its own fetch in MapariCashflowTab — it's edit-heavy and
+ *     wipe-on-mutation here caused a "Se incarca maparile..." flicker on
+ *     every save.
  *
  *  3. **Correctness via dataVersion.** The server-rendered page passes
  *     `Client.dataVersion` down as a prop. When an external mutation (journal
- *     upload, mapari override save, vertical edit, …) bumps that version, the
- *     page re-renders, ClientDetail sees the new version, and wipes its local
- *     caches so the next tab activation refetches fresh data. No tags to
- *     forget, no race conditions.
+ *     upload, vertical edit, …) bumps that version, ClientDetail wipes its
+ *     balance cache so the next tab activation refetches. Mapari is a
+ *     dataVersion-keyed fetch inside its tab. No tags to forget.
  *
  *  4. **Period change still navigates.** Year/month selectors trigger
  *     `router.push` so server-side props (publish bar, current period status,
@@ -35,7 +35,6 @@ import { Button } from "@/components/ui/button";
 import type { DatasetPeriod, BalanceRowView } from "@/modules/balances";
 import type { KpiSnapshot, CppData, CppF20Data } from "@/modules/reporting";
 import type { TaxRegime } from "@/modules/accounts";
-import type { MapariCashflowData } from "@/modules/categories";
 import { PeriodSelector } from "@/components/datasets/period-selector";
 import { JournalGrid } from "@/components/journal/journal-grid";
 import { BalantaTab } from "@/components/clients/balanta-tab";
@@ -112,10 +111,6 @@ function balanceKey(year: number, month: number): string {
   return `${year}-${month}`;
 }
 
-function mapariKey(year: number | undefined): string {
-  return year === undefined ? "default" : String(year);
-}
-
 export function ClientDetail({
   client,
   dataVersion,
@@ -140,25 +135,17 @@ export function ClientDetail({
   // Per-(year, month) cache for the /api/balance payload. Keys are stable
   // strings; values track loading vs. ready vs. error so the UI can render
   // the correct state without a separate boolean.
+  // Mapari Cashflow owns its own fetch (see MapariCashflowTab). The parent
+  // only caches Balanta because that path is read-mostly with infrequent
+  // mutations, where the cache wipe-on-dataVersion pattern works cleanly.
+  // Mapari is edit-heavy and the wipe-then-refetch pattern caused the
+  // "Se incarca maparile..." flicker on every save.
   const [balanceCache, setBalanceCache] = useState<Map<string, LoadState<BalancePayload>>>(
     () => new Map()
   );
-  const [mapariCache, setMapariCache] = useState<Map<string, LoadState<MapariCashflowData>>>(
-    () => new Map()
-  );
-
-  // Refs to read the latest cache + in-flight state inside effects without
-  // including them as deps. If they were deps, calling `setBalanceCache`
-  // inside the effect would re-trigger it, fire the previous cleanup, and
-  // abort the in-flight fetch — leaving the UI stuck on "Se calculeaza…".
-  // The ref pattern is the standard React fix for "read latest state without
-  // re-subscribing".
   const balanceCacheRef = useRef(balanceCache);
   balanceCacheRef.current = balanceCache;
-  const mapariCacheRef = useRef(mapariCache);
-  mapariCacheRef.current = mapariCache;
   const balanceInFlight = useRef<Set<string>>(new Set());
-  const mapariInFlight = useRef<Set<string>>(new Set());
 
   // External mutations (journal upload, override save, …) bump dataVersion.
   // When that changes, drop every cached payload AND clear in-flight markers
@@ -169,9 +156,7 @@ export function ClientDetail({
   if (lastVersion.current !== dataVersion) {
     lastVersion.current = dataVersion;
     balanceInFlight.current = new Set();
-    mapariInFlight.current = new Set();
     if (balanceCache.size > 0) setBalanceCache(new Map());
-    if (mapariCache.size > 0) setMapariCache(new Map());
   }
 
   // Keep local `tab` in sync if the URL changes externally (e.g. server
@@ -221,34 +206,6 @@ export function ClientDetail({
       });
   }, [tab, selectedYear, selectedMonth, client.id]);
 
-  // Lazy-fetch /api/mapari-cashflow per cashflowYear. Same pattern.
-  useEffect(() => {
-    if (tab !== "mapari-cashflow") return;
-    const key = mapariKey(cashflowYear);
-    if (mapariCacheRef.current.has(key)) return;
-    if (mapariInFlight.current.has(key)) return;
-
-    mapariInFlight.current.add(key);
-    setMapariCache((prev) =>
-      prev.has(key) ? prev : new Map(prev).set(key, { kind: "loading" })
-    );
-
-    const url = cashflowYear
-      ? `/api/mapari-cashflow?clientId=${client.id}&year=${cashflowYear}`
-      : `/api/mapari-cashflow?clientId=${client.id}`;
-    fetch(url, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data: MapariCashflowData) => {
-        setMapariCache((prev) => new Map(prev).set(key, { kind: "ready", data }));
-      })
-      .catch(() => {
-        setMapariCache((prev) => new Map(prev).set(key, { kind: "error" }));
-      })
-      .finally(() => {
-        mapariInFlight.current.delete(key);
-      });
-  }, [tab, cashflowYear, client.id]);
-
   const needsPeriod = tab === "balanta" || tab === "cpp";
 
   function changeTab(next: Tab) {
@@ -281,10 +238,6 @@ export function ClientDetail({
   const balanceData =
     balanceState?.kind === "ready" ? balanceState.data : null;
   const balanceLoading = balanceState?.kind === "loading";
-
-  const mapariState = mapariCache.get(mapariKey(cashflowYear)) ?? null;
-  const mapariData = mapariState?.kind === "ready" ? mapariState.data : null;
-  const mapariLoading = mapariState?.kind === "loading";
 
   /**
    * Called by PlanConturiTab after a successful inline mutation (rename a
@@ -395,15 +348,11 @@ export function ClientDetail({
         )}
 
         {tab === "mapari-cashflow" && (
-          mapariData ? (
-            <MapariCashflowTab data={mapariData} />
-          ) : (
-            <div className="flex items-center justify-center py-16 text-sm text-gray">
-              {mapariState?.kind === "error"
-                ? "Nu am putut incarca maparile."
-                : "Se incarca maparile..."}
-            </div>
-          )
+          <MapariCashflowTab
+            clientId={client.id}
+            cashflowYear={cashflowYear}
+            dataVersion={dataVersion}
+          />
         )}
 
         {tab === "setari" && (
