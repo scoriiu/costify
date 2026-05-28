@@ -95,9 +95,11 @@ interface Props {
   /** Optional cashflow year search param (?cashflow-year=YYYY). Driven by
    *  the year selector inside MapariCashflowTab. */
   cashflowYear?: number;
-  /** Server-loaded Mapari Cashflow data — present only when the active
-   *  tab is `mapari-cashflow`. Other tabs skip this load so they don't
-   *  pay the 16k-line aggregation cost. */
+  /** Server-loaded Mapari Cashflow data — populated only when the page
+   *  was loaded with `?tab=mapari-cashflow`, so other entry points
+   *  (Jurnal, Balanta, …) don't pay the 16k-line aggregation cost on
+   *  first paint. When the user reaches Mapari via an in-page tab
+   *  switch this is null and MapariCashflowTab fetches client-side. */
   mapariData: MapariCashflowData | null;
 }
 
@@ -353,12 +355,12 @@ export function ClientDetail({
           />
         )}
 
-        {/* Mapari mounts only when its tab is active AND the server
-            preloaded its data on this render. That keeps Jurnal / Balanta
-            / Plan paints light (no aggregation cost). The tab carries its
-            own per-year cache so switching years inside Mapari is purely
-            client-side after the first paint. */}
-        {tab === "mapari-cashflow" && mapariData && (
+        {/* Mapari mounts when the tab is active. If the page server-loaded
+            the payload (direct link with ?tab=mapari-cashflow), it paints
+            instantly via initialData. Otherwise the tab fetches on mount
+            (~450ms, one spinner) and caches the result so subsequent
+            re-entries are 0ms. */}
+        {tab === "mapari-cashflow" && (
           <MapariCashflowTab
             clientId={client.id}
             initialData={mapariData}

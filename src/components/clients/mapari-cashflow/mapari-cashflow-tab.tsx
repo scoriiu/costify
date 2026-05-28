@@ -70,15 +70,16 @@ import type { VerticalView } from "@/modules/verticals";
 interface Props {
   clientId: string;
   /** Server-rendered MapariCashflowData for the initial (or URL-specified)
-   *  year. Paints instantly on first render — no client fetch. */
-  initialData: MapariCashflowData;
-  /** The year that `initialData` corresponds to. Optional (undefined ==
-   *  newest year). Used to seed the year cache. */
+   *  year. When the page was loaded directly with ?tab=mapari-cashflow,
+   *  this is populated and the tab paints instantly with no client
+   *  fetch. When the user reached Mapari via an in-page tab switch
+   *  (e.g. from Jurnal), this is null and we fetch on mount. */
+  initialData: MapariCashflowData | null;
+  /** The year that `initialData` corresponds to, or the URL-specified
+   *  year when initialData is null. Optional (undefined == newest). */
   initialYear?: number;
   /** Bumped by any client-data mutation. When the parent re-renders with
-   *  a higher value, we discard the per-year cache so the next view of
-   *  any year refetches fresh. The currently-displayed year refetches
-   *  immediately to pick up the change. */
+   *  a higher value, we refetch the active year. */
   dataVersion: number;
 }
 
@@ -113,15 +114,16 @@ export function MapariCashflowTab({
   initialYear,
   dataVersion,
 }: Props) {
-  // Resolved year for the payload we currently show. Starts at whatever
-  // the server picked (initialData.period.year, falling back to
-  // initialYear when the client has no journal yet).
-  const initialResolvedYear = initialData.period?.year ?? initialYear ?? 0;
+  // Resolved year for the payload we currently show. When initialData is
+  // present we trust the server's choice; otherwise we keep the URL year
+  // (or 0 — the empty placeholder meaning "ask the server for the newest").
+  const initialResolvedYear =
+    initialData?.period?.year ?? initialYear ?? 0;
   const [currentYear, setCurrentYear] = useState<number>(initialResolvedYear);
   const [yearCache, setYearCache] = useState<Map<number, MapariCashflowData>>(
     () => {
       const m = new Map<number, MapariCashflowData>();
-      m.set(initialResolvedYear, initialData);
+      if (initialData) m.set(initialResolvedYear, initialData);
       return m;
     },
   );
@@ -162,18 +164,30 @@ export function MapariCashflowTab({
       });
   }
 
+  // Initial-mount fetch when the server didn't preload Mapari (user
+  // arrived via in-page tab switch from Jurnal / Balanta / …). Fires
+  // exactly once per mount; the year cache is empty so refetchYear's
+  // success handler populates it and stops the spinner.
+  const didMountFetch = useRef(false);
+  useEffect(() => {
+    if (initialData) return;
+    if (didMountFetch.current) return;
+    didMountFetch.current = true;
+    refetchYear(currentYear);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // External bumps (journal upload, vertical alloc edit, anything that
   // called router.refresh) push a higher dataVersion AND a fresh
   // initialData prop. When initialData covers the active year, just
-  // adopt it — no extra network call. Otherwise (e.g. user is looking at
-  // year N and a journal upload re-rendered the page for year N+1) fall
-  // back to a year-targeted refetch.
+  // adopt it — no extra network call. Otherwise fall back to a
+  // year-targeted refetch.
   const seenVersion = useRef(dataVersion);
   useEffect(() => {
     if (seenVersion.current === dataVersion) return;
     seenVersion.current = dataVersion;
-    const initYear = initialData.period?.year ?? 0;
-    if (initYear === currentYear) {
+    const initYear = initialData?.period?.year ?? 0;
+    if (initialData && initYear === currentYear) {
       setYearCache((prev) => {
         const next = new Map(prev);
         next.set(currentYear, initialData);
@@ -192,7 +206,7 @@ export function MapariCashflowTab({
     refetchYear(currentYear);
   }
 
-  const data = yearCache.get(currentYear) ?? initialData;
+  const data = yearCache.get(currentYear) ?? initialData ?? null;
 
   function selectYear(year: number) {
     if (year === currentYear) return;
@@ -217,6 +231,14 @@ export function MapariCashflowTab({
     return (
       <div className="flex items-center justify-center py-16 text-sm text-gray">
         Nu am putut incarca maparile.
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray">
+        Se incarca maparile...
       </div>
     );
   }
