@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useEscapeKey } from "@/lib/use-escape-key";
 import {
   loadPartnerPanelAction,
   upsertPartnerOverrideAction,
@@ -125,6 +126,8 @@ export function PartnerPanel({
     walkLeaves(tree, account.kind, "", out);
     return out;
   }, [tree, account]);
+
+  useEscapeKey(handleClose, account !== null);
 
   if (!account) return null;
 
@@ -700,6 +703,7 @@ function BulkPreviewModal({
   pending: boolean;
 }) {
   const [overwriteMode, setOverwriteMode] = useState(false);
+  useEscapeKey(onCancel);
   const overwriteDisabled = selectedCategoryId === contCategoryId;
   // If the toggle is disabled, force the mode off so confirm never lies
   // about what it will do.

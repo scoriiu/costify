@@ -5,6 +5,7 @@ import {
   applySplit,
   type AllocationView,
   type AllocationScope,
+  type CategoryAllocationView,
 } from "@/modules/verticals";
 
 const DEFAULT_V = "v-default";
@@ -72,6 +73,112 @@ describe("resolveAllocationForCont", () => {
       DEFAULT_V
     );
     expect(resolveAllocationForCont("605", state).splits).toEqual(splits);
+  });
+});
+
+function catAlloc(
+  categoryId: string,
+  splits: Array<{ verticalId: string; percent: number }>
+): CategoryAllocationView {
+  return { id: `ca-${categoryId}`, clientId: "c1", categoryId, splits };
+}
+
+describe("resolveAllocationForCont — cascade (category → firm → default)", () => {
+  const FIRM_SPLIT = [
+    { verticalId: "v-out", percent: 40 },
+    { verticalId: "v-rec", percent: 60 },
+  ];
+  const CAT_SPLIT = [
+    { verticalId: "v-out", percent: 40 },
+    { verticalId: "v-rec", percent: 60 },
+  ];
+
+  it("a cont with no own rule inherits its category split", () => {
+    const state = buildVerticalResolver(
+      [],
+      DEFAULT_V,
+      [catAlloc("cat-marfa", CAT_SPLIT)]
+    );
+    const result = resolveAllocationForCont("371", state, ["cat-marfa"]);
+    expect(result.matchedScope).toBe("category");
+    expect(result.splits).toEqual(CAT_SPLIT);
+  });
+
+  it("a split set on a parent category cascades to children (most-specific wins)", () => {
+    const state = buildVerticalResolver(
+      [],
+      DEFAULT_V,
+      [catAlloc("cat-top", CAT_SPLIT)]
+    );
+    // path is leaf -> ... -> top; only the top has a split
+    const result = resolveAllocationForCont("371", state, ["cat-leaf", "cat-top"]);
+    expect(result.matchedScope).toBe("category");
+    expect(result.splits).toEqual(CAT_SPLIT);
+  });
+
+  it("a leaf split beats an ancestor split", () => {
+    const leaf = [{ verticalId: "v-rec", percent: 100 }];
+    const state = buildVerticalResolver(
+      [],
+      DEFAULT_V,
+      [catAlloc("cat-leaf", leaf), catAlloc("cat-top", CAT_SPLIT)]
+    );
+    const result = resolveAllocationForCont("371", state, ["cat-leaf", "cat-top"]);
+    expect(result.splits).toEqual(leaf);
+  });
+
+  it("a cont rule beats the category split", () => {
+    const state = buildVerticalResolver(
+      [alloc("371", "contBase", [{ verticalId: "v-out", percent: 100 }])],
+      DEFAULT_V,
+      [catAlloc("cat-marfa", CAT_SPLIT)]
+    );
+    const result = resolveAllocationForCont("371", state, ["cat-marfa"]);
+    expect(result.matchedScope).toBe("contBase");
+    expect(result.splits[0].verticalId).toBe("v-out");
+  });
+
+  it("falls through to firm-top default when no cont/category rule", () => {
+    const state = buildVerticalResolver([], DEFAULT_V, [], FIRM_SPLIT);
+    const result = resolveAllocationForCont("371", state, ["cat-unset"]);
+    expect(result.matchedScope).toBe("firm");
+    expect(result.splits).toEqual(FIRM_SPLIT);
+  });
+
+  it("category beats firm-top default", () => {
+    const state = buildVerticalResolver(
+      [],
+      DEFAULT_V,
+      [catAlloc("cat-marfa", CAT_SPLIT)],
+      FIRM_SPLIT
+    );
+    const result = resolveAllocationForCont("371", state, ["cat-marfa"]);
+    expect(result.matchedScope).toBe("category");
+  });
+
+  it("falls to legacy default when nothing is configured", () => {
+    const state = buildVerticalResolver([], DEFAULT_V, [], null);
+    const result = resolveAllocationForCont("371", state, ["cat-x"]);
+    expect(result.matchedScope).toBe("default");
+    expect(result.splits).toEqual([{ verticalId: DEFAULT_V, percent: 100 }]);
+  });
+
+  it("resolves the category split even when there is NO default vertical", () => {
+    const state = buildVerticalResolver(
+      [],
+      null,
+      [catAlloc("cat-marfa", CAT_SPLIT)]
+    );
+    const result = resolveAllocationForCont("603", state, ["cat-marfa"]);
+    expect(result.matchedScope).toBe("category");
+    expect(result.splits).toEqual(CAT_SPLIT);
+  });
+
+  it("returns an empty split (unallocated) when no default vertical and nothing matches", () => {
+    const state = buildVerticalResolver([], null, [], null);
+    const result = resolveAllocationForCont("371", state, ["cat-x"]);
+    expect(result.matchedScope).toBe("default");
+    expect(result.splits).toEqual([]);
   });
 });
 

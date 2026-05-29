@@ -141,6 +141,12 @@ export async function createCategory(
     if (parent.kind !== input.kind) {
       throw new Error("Subcategoria trebuie sa aiba acelasi tip ca parintele");
     }
+    // Max two levels: a subgroup cannot itself have subgroups.
+    if (parent.parentId !== null) {
+      throw new Error(
+        "Un sub-grup nu poate avea sub-grupuri. Foloseste maximum doua niveluri."
+      );
+    }
   }
 
   const position =
@@ -182,6 +188,13 @@ export async function renameCategory(
   });
 }
 
+/**
+ * Delete a category. Its mapped conturi are never silently orphaned:
+ *   - Subgroup (has a parent): conturi move UP to the parent group.
+ *   - Top-level group (no parent): conturi become "fara grupare" (unmapped),
+ *     since there is no parent to receive them.
+ * The destination is auto-decided here, so callers don't pass a strategy.
+ */
 export async function deleteCategory(
   prisma: PrismaClient,
   clientId: string,
@@ -198,13 +211,23 @@ export async function deleteCategory(
       "Aceasta categorie are subcategorii. Sterge intai subcategoriile."
     );
   }
-  if (existing._count.mappings > 0) {
-    throw new Error(
-      "Aceasta categorie are conturi mapate. Muta-le sau dezmaparea-le intai."
-    );
-  }
 
-  await prisma.costCategory.delete({ where: { id: categoryId } });
+  await prisma.$transaction(async (tx) => {
+    if (existing._count.mappings > 0) {
+      if (existing.parentId) {
+        await tx.accountCategoryMapping.updateMany({
+          where: { clientId, categoryId },
+          data: { categoryId: existing.parentId },
+        });
+      } else {
+        await tx.accountCategoryMapping.deleteMany({
+          where: { clientId, categoryId },
+        });
+      }
+    }
+    await tx.costCategory.delete({ where: { id: categoryId } });
+  });
+
   return existing;
 }
 

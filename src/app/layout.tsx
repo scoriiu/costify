@@ -105,13 +105,13 @@ export default function RootLayout({
       className={`${altform.variable} ${geistMono.variable} h-full antialiased light`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <Script
+      <head>
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
-        >
-          {themeInitScript}
-        </Script>
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
         {process.env.NODE_ENV === "production" && (
           <Script

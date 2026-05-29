@@ -12,10 +12,12 @@ function account(overrides: Partial<AccountListItem> = {}): AccountListItem {
     currentMapping: null,
     hasAnalyticOverride: false,
     currentAllocation: null,
+    effectiveAllocation: { splits: [], source: "default" },
     hasAnalyticVerticalOverride: false,
     partnerCount: 0,
     partnerOverrideCount: 0,
     partnerOverriddenRulaj: 0,
+    partnerLobOverrideCount: 0,
     ...overrides,
   };
 }

@@ -4,13 +4,21 @@
  * Pure functions — caller pre-loads the allocations + the default vertical
  * once per request and reuses across many cont lookups in a hot path.
  *
- * Algorithm (deterministic):
- *   1. Look up `scope=analytic` allocation for the exact cont.
- *   2. Look up `scope=contBase` for getContBase(cont).
- *   3. Walk shorter prefixes ("628" -> "62" -> "6") for a contBase hit.
- *   4. Fall through to the default vertical at 100%.
+ * Cascade (most-specific wins) — see docs/internal/mapari-unified-cascade-plan.md:
+ *   1. Cont rule: `scope=analytic` for the exact cont.
+ *   2. Cont rule: `scope=contBase` for getContBase(cont), then shorter
+ *      prefixes ("628" -> "62" -> "6").
+ *   3. CATEGORY rule: the split set on the cont's CostCategory. This is the
+ *      primary unit the accountant edits — "Marfa → 40% Outsourcing /
+ *      60% Recruiting" cascades to every cont (and partner) in that category.
+ *   4. FIRM-TOP default: the firm-wide split that fills everything not set
+ *      more specifically.
+ *   5. Legacy fallback: the default vertical at 100%.
  *
  * The result is always non-empty (at minimum, the default at 100%).
+ *
+ * Partner-level overrides (the most specific level) are resolved upstream
+ * before this function is consulted — they don't live in this resolver.
  */
 
 import { getContBase } from "@/lib/accounts";
@@ -25,32 +33,46 @@ import type {
 export interface VerticalResolverState {
   /** Cont-level allocations indexed by cont for O(1) lookup. */
   byCont: Map<string, AllocationView>;
-  /** Category-level allocations indexed by categoryId. Used by the
-   *  partner-override residue pathway: when an override redirects rulaj to
-   *  a target category, we consult this map to decide which lines of business
-   *  receive that money before falling back to the default vertical. */
+  /** Category-level allocations indexed by categoryId. Drives BOTH the
+   *  partner-override residue pathway AND direct cont resolution: a cont
+   *  with no own rule inherits its category's split. */
   byCategoryId: Map<string, CategoryAllocationView>;
-  /** Vertical id used as fallback when nothing else matches. Must always be set
-   *  when verticalsEnabled = true. */
-  defaultVerticalId: string;
+  /** Firm-wide default split — the top of the cascade. null = not configured,
+   *  in which case resolution falls through to `defaultVerticalId` at 100%. */
+  firmDefaultSplits: AllocationSplit[] | null;
+  /** Vertical id used as the last-resort fallback when nothing else matches.
+   *  `null` when the firm has no default vertical — in that case unmatched
+   *  conts resolve to an EMPTY split (unallocated) rather than being forced
+   *  onto a phantom default. Cont/category/firm rules still resolve normally. */
+  defaultVerticalId: string | null;
 }
 
 export function buildVerticalResolver(
   allocations: AllocationView[],
-  defaultVerticalId: string,
-  categoryAllocations: CategoryAllocationView[] = []
+  defaultVerticalId: string | null,
+  categoryAllocations: CategoryAllocationView[] = [],
+  firmDefaultSplits: AllocationSplit[] | null = null
 ): VerticalResolverState {
   const byCont = new Map<string, AllocationView>();
   for (const a of allocations) byCont.set(a.cont, a);
   const byCategoryId = new Map<string, CategoryAllocationView>();
   for (const c of categoryAllocations) byCategoryId.set(c.categoryId, c);
-  return { byCont, byCategoryId, defaultVerticalId };
+  return { byCont, byCategoryId, firmDefaultSplits, defaultVerticalId };
 }
 
+/**
+ * Resolve a cont to its split. `categoryPath` is the cont's resolved
+ * CostCategory chain ordered most-specific → root (i.e. [leaf, ..., top]).
+ * A split set on ANY category in the chain applies, with the most specific
+ * winning — so "Marfa" set on a parent cascades to every child category, cont
+ * and partner under it. Pass [] when the cont has no category mapping.
+ */
 export function resolveAllocationForCont(
   cont: string,
-  state: VerticalResolverState
+  state: VerticalResolverState,
+  categoryPath: string[] = []
 ): ResolvedAllocation {
+  // 1. Cont-level: analytic wins over base wins over shorter prefixes.
   const analytic = state.byCont.get(cont);
   if (analytic && analytic.scope === "analytic") {
     return { splits: analytic.splits, matchedScope: "analytic" };
@@ -70,10 +92,27 @@ export function resolveAllocationForCont(
     }
   }
 
-  return {
-    splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
-    matchedScope: "default",
-  };
+  // 2. Category-level: the cont inherits the most-specific category in its
+  //    chain that has a split (leaf first, then ancestors).
+  for (const categoryId of categoryPath) {
+    const catHit = state.byCategoryId.get(categoryId);
+    if (catHit) return { splits: catHit.splits, matchedScope: "category" };
+  }
+
+  // 3. Firm-top default.
+  if (state.firmDefaultSplits && state.firmDefaultSplits.length > 0) {
+    return { splits: state.firmDefaultSplits, matchedScope: "firm" };
+  }
+
+  // 4. Legacy fallback — only when a default vertical exists. Otherwise the
+  //    cont is genuinely unallocated (empty split).
+  if (state.defaultVerticalId) {
+    return {
+      splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
+      matchedScope: "default",
+    };
+  }
+  return { splits: [], matchedScope: "default" };
 }
 
 /**
@@ -88,10 +127,16 @@ export function resolveAllocationForCategory(
 ): ResolvedAllocation {
   const hit = state.byCategoryId.get(categoryId);
   if (hit) return { splits: hit.splits, matchedScope: "category" };
-  return {
-    splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
-    matchedScope: "default",
-  };
+  if (state.firmDefaultSplits && state.firmDefaultSplits.length > 0) {
+    return { splits: state.firmDefaultSplits, matchedScope: "firm" };
+  }
+  if (state.defaultVerticalId) {
+    return {
+      splits: [{ verticalId: state.defaultVerticalId, percent: 100 }],
+      matchedScope: "default",
+    };
+  }
+  return { splits: [], matchedScope: "default" };
 }
 
 /**

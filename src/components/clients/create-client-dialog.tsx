@@ -5,6 +5,7 @@ import { createClientAction } from "@/modules/clients/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 interface CreateClientDialogProps {
   onClose: () => void;
@@ -12,6 +13,8 @@ interface CreateClientDialogProps {
 
 export function CreateClientDialog({ onClose }: CreateClientDialogProps) {
   const [state, action, pending] = useActionState(createClientAction, {});
+
+  useEscapeKey(onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

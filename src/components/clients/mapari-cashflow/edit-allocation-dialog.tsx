@@ -33,6 +33,7 @@ import { useState, useTransition } from "react";
 import { X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { useEscapeKey } from "@/lib/use-escape-key";
 import type { VerticalView, AllocationSplit } from "@/modules/verticals/types";
 import type { AccountListItem } from "@/modules/categories";
 import {
@@ -40,6 +41,11 @@ import {
   clearAllocationAction,
   setCategoryAllocationAction,
   clearCategoryAllocationAction,
+  setFirmDefaultAction,
+  clearFirmDefaultAction,
+  setPartnerAllocationAction,
+  clearPartnerAllocationAction,
+  bulkSetPartnerAllocationsAction,
 } from "@/modules/verticals/actions";
 
 const VERTICAL_COLORS = [
@@ -57,7 +63,7 @@ const DEFAULT_COLOR = "bg-gray/40";
 
 export interface AllocationDialogEntity {
   /** Visual mode + caller behaviour. */
-  kind: "account" | "category";
+  kind: "account" | "category" | "firm" | "partner";
   /** Short code shown left of the name. For accounts: cont code. null
    *  for categories (no code, only a name). */
   code: string | null;
@@ -70,6 +76,11 @@ export interface AllocationDialogEntity {
   financialKind: "expense" | "revenue";
   /** Current allocation. null = no explicit allocation, inherits firm default. */
   currentAllocation: { splits: AllocationSplit[] } | null;
+  /** The split this entity would inherit when it has NO own rule — i.e. the
+   *  parent level in the cascade (for a partener: the cont's resolved split).
+   *  Used to show + pre-fill the editor from the parent instead of a blank
+   *  100% on the first vertical. */
+  inheritedSplits?: AllocationSplit[];
   /** Bound save callback. Caller wires to the right server action. */
   save: (splits: AllocationSplit[]) => Promise<{ error?: string }>;
   /** Bound clear callback. Caller wires to the right server action. */
@@ -79,6 +90,24 @@ export interface AllocationDialogEntity {
 /* -------------------------------------------------------------------------- */
 /*               BACKWARD-COMPAT WRAPPERS (account & category)                */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * When a cont has no own allocation it inherits a split from the cascade
+ * (category → firm). The editor must seed from that resolved split so it shows
+ * what's actually in effect — matching the inline badge — instead of falling
+ * back to a meaningless "first vertical 100%". Returns undefined when the cont
+ * has its own rule or only the legacy default applies.
+ */
+export function inheritedSplitsForAccount(
+  account: AccountListItem
+): AllocationSplit[] | undefined {
+  const { splits, source } = account.effectiveAllocation;
+  return account.currentAllocation === null &&
+    source !== "default" &&
+    splits.length > 0
+    ? splits
+    : undefined;
+}
 
 /**
  * Original entry point. Kept for the verticals accordion — every existing
@@ -99,6 +128,8 @@ export function EditAllocationDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const inheritedSplits = inheritedSplitsForAccount(account);
+
   const entity: AllocationDialogEntity = {
     kind: "account",
     code: account.cont,
@@ -106,6 +137,7 @@ export function EditAllocationDialog({
     rulaj: account.kind === "expense" ? account.rulajD : account.rulajC,
     financialKind: account.kind,
     currentAllocation: account.currentAllocation,
+    inheritedSplits,
     save: (splits) =>
       setAllocationAction({
         clientId,
@@ -179,6 +211,166 @@ export function EditCategoryAllocationDialog({
   );
 }
 
+/**
+ * Top of the cascade: the firm-wide default split. Everything that has no
+ * more-specific rule (category / cont / partner) inherits this live. Same UI
+ * as the cont/category dialog — one concept, three places.
+ */
+export function EditFirmDefaultAllocationDialog({
+  open,
+  currentSplits,
+  verticals,
+  clientId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  /** Current firm-default splits, [] when not configured. */
+  currentSplits: AllocationSplit[];
+  verticals: VerticalView[];
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const entity: AllocationDialogEntity = {
+    kind: "firm",
+    code: null,
+    name: "Toata firma",
+    rulaj: 0,
+    financialKind: "expense",
+    currentAllocation:
+      currentSplits.length > 0 ? { splits: currentSplits } : null,
+    save: (splits) => setFirmDefaultAction({ clientId, splits }),
+    clear: () => clearFirmDefaultAction({ clientId }),
+  };
+  return (
+    <AllocationDialogCore
+      open={open}
+      entity={entity}
+      verticals={verticals}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
+/**
+ * Partner-level split — the most specific level of the LOB cascade. Pin a
+ * partener's line of business when it differs from the cont. Same editor.
+ */
+export function EditPartnerAllocationDialog({
+  open,
+  contBase,
+  partnerNameNormalized,
+  partnerNameOriginal,
+  rulaj,
+  financialKind,
+  currentSplits,
+  inheritedSplits,
+  verticals,
+  clientId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  contBase: string;
+  partnerNameNormalized: string;
+  partnerNameOriginal: string;
+  rulaj: number;
+  financialKind: "expense" | "revenue";
+  currentSplits: AllocationSplit[];
+  /** The cont's resolved split — what this partener lands on with no own
+   *  rule. Pre-fills + visualises the editor from the parent. */
+  inheritedSplits?: AllocationSplit[];
+  verticals: VerticalView[];
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const entity: AllocationDialogEntity = {
+    kind: "partner",
+    code: null,
+    name: partnerNameOriginal,
+    rulaj,
+    financialKind,
+    currentAllocation:
+      currentSplits.length > 0 ? { splits: currentSplits } : null,
+    inheritedSplits,
+    save: (splits) =>
+      setPartnerAllocationAction({
+        clientId,
+        contBase,
+        partnerNameNormalized,
+        partnerNameOriginal,
+        splits,
+      }),
+    clear: () =>
+      clearPartnerAllocationAction({
+        clientId,
+        contBase,
+        partnerNameNormalized,
+      }),
+  };
+  return (
+    <AllocationDialogCore
+      open={open}
+      entity={entity}
+      verticals={verticals}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
+/**
+ * Bulk: apply ONE line-of-business split to many partners on a cont at once —
+ * the materiality workflow (set the big movers in a single action). Reuses
+ * the exact same split editor as the single-partner dialog.
+ */
+export function EditPartnerBulkAllocationDialog({
+  open,
+  contBase,
+  partners,
+  inheritedSplits,
+  verticals,
+  clientId,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  contBase: string;
+  /** The partners the split will be applied to (the current filtered set). */
+  partners: { partnerNameNormalized: string; partnerNameOriginal: string }[];
+  /** The cont's resolved split — seeds the editor for the bulk apply. */
+  inheritedSplits?: AllocationSplit[];
+  verticals: VerticalView[];
+  clientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const entity: AllocationDialogEntity = {
+    kind: "partner",
+    code: null,
+    name: `${partners.length} ${partners.length === 1 ? "partener" : "parteneri"}`,
+    rulaj: 0,
+    financialKind: "expense",
+    currentAllocation: null,
+    inheritedSplits,
+    save: (splits) =>
+      bulkSetPartnerAllocationsAction({ clientId, contBase, partners, splits }),
+    clear: async () => ({}),
+  };
+  return (
+    <AllocationDialogCore
+      open={open}
+      entity={entity}
+      verticals={verticals}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*                              CORE DIALOG                                   */
 /* -------------------------------------------------------------------------- */
@@ -189,6 +381,9 @@ interface CoreProps {
   verticals: VerticalView[];
   onClose: () => void;
   onSaved: () => void;
+  /** Open in read-only view first (rarely needed). Default: open directly in
+   *  the inline editor so the contabil sees + changes the split in one step. */
+  startInView?: boolean;
 }
 
 function AllocationDialogCore({
@@ -197,15 +392,20 @@ function AllocationDialogCore({
   verticals,
   onClose,
   onSaved,
+  startInView = false,
 }: CoreProps) {
-  const [mode, setMode] = useState<"view" | "edit">("view");
-
-  if (!open) return null;
+  const [mode, setMode] = useState<"view" | "edit">(
+    startInView ? "view" : "edit"
+  );
 
   function handleClose() {
-    setMode("view");
+    setMode(startInView ? "view" : "edit");
     onClose();
   }
+
+  useEscapeKey(handleClose, open);
+
+  if (!open) return null;
 
   return (
     <div
@@ -213,6 +413,9 @@ function AllocationDialogCore({
       onClick={handleClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Editeaza liniile · ${entity.name}`}
         className="w-full max-w-xl rounded-xl border border-dark-3 bg-dark-2"
         onClick={(e) => e.stopPropagation()}
       >
@@ -231,7 +434,7 @@ function AllocationDialogCore({
           <EditMode
             entity={entity}
             verticals={verticals}
-            onCancel={() => setMode("view")}
+            onCancel={startInView ? () => setMode("view") : handleClose}
             onSaved={() => {
               onSaved();
               handleClose();
@@ -251,7 +454,13 @@ function DialogHeader({
   onClose: () => void;
 }) {
   const contextLabel =
-    entity.kind === "account"
+    entity.kind === "firm"
+      ? "impartirea implicita pe linii de business · mostenita de tot ce nu are regula proprie"
+      : entity.kind === "partner"
+      ? `partener · ${formatRon(entity.rulaj)} lei pe acest cont · ${
+          entity.financialKind === "expense" ? "cheltuiala" : "venit"
+        }`
+      : entity.kind === "account"
       ? `rulaj total ${formatRon(entity.rulaj)} lei · ${
           entity.financialKind === "expense" ? "cheltuiala" : "venit"
         }`
@@ -316,12 +525,13 @@ function ViewMode({
   function backToDefault() {
     const targetLabel =
       entity.kind === "account" ? entity.code ?? entity.name : entity.name;
-    if (
-      !confirm(
-        `Sterg alocarea pentru "${targetLabel}"? Va merge la "Toata firma".`
-      )
-    )
-      return;
+    const confirmMsg =
+      entity.kind === "firm"
+        ? "Sterg impartirea implicita a firmei? Tot ce o mostenea va merge la \"Toata firma\" (100%)."
+        : entity.kind === "partner"
+        ? `Sterg impartirea pentru "${targetLabel}"? Va urma din nou linia de business a contului.`
+        : `Sterg alocarea pentru "${targetLabel}"? Va merge la "Toata firma".`;
+    if (!confirm(confirmMsg)) return;
     startTransition(async () => {
       await entity.clear();
       onSaved();
@@ -332,10 +542,25 @@ function ViewMode({
     entity.currentAllocation !== null &&
     entity.currentAllocation.splits.length > 0;
 
+  const showsInherited =
+    !hasExplicitAllocation &&
+    !!entity.inheritedSplits &&
+    entity.inheritedSplits.length > 0;
+
+  const currentLabel = hasExplicitAllocation
+    ? "Alocare curenta"
+    : showsInherited
+    ? "Acum · de la cont"
+    : "Alocare curenta";
+
   const emptyStateMessage =
-    entity.kind === "account"
-      ? "Acest cont nu are alocare explicita — mosteneste verticala implicita a firmei (Toata firma)."
-      : "Aceasta categorie nu are alocare explicita. Banii redirectati aici prin exceptii de partener merg la verticala implicita (Toata firma). Seteaza o orizontala daca vrei sa controlezi unde merg.";
+    entity.kind === "firm"
+      ? "Firma nu are inca o impartire implicita pe linii de business. Pana o setezi, tot ce nu are regula proprie merge integral pe \"Toata firma\". Seteaza una si toate categoriile, conturile si partenerii o mostenesc automat."
+      : entity.kind === "partner"
+      ? "Acest partener urmeaza linia de business a contului. Pune-i o impartire proprie doar daca activitatea lui difera de a contului."
+      : entity.kind === "account"
+      ? "Acest cont nu are alocare explicita — mosteneste linia de business din categoria lui, sau impartirea firmei."
+      : "Aceasta categorie nu are o impartire proprie pe linii de business — mosteneste impartirea firmei. Seteaz-o si toate conturile din categorie o vor urma automat.";
 
   return (
     <div className="p-5 space-y-5">
@@ -344,7 +569,7 @@ function ViewMode({
           className="font-mono text-[10px] uppercase tracking-wider text-gray mb-2"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Alocare curenta
+          {currentLabel}
         </h4>
 
         <AllocationBar segments={segments} />
@@ -423,11 +648,14 @@ function EditMode({
 }) {
   const splittable = verticals.filter((v) => !v.isDefault);
 
-  // Pre-fill with current splits, or with the first real vertical at 100% to
-  // give the contabil a sane starting point.
+  // Pre-fill with the entity's own splits; failing that, the inherited
+  // (parent) split so the contabil starts from what's already in effect;
+  // failing that, the first real vertical at 100% as a sane default.
   const initial: AllocationSplit[] =
     entity.currentAllocation && entity.currentAllocation.splits.length > 0
       ? entity.currentAllocation.splits
+      : entity.inheritedSplits && entity.inheritedSplits.length > 0
+      ? entity.inheritedSplits
       : splittable.length > 0
       ? [{ verticalId: splittable[0].id, percent: 100 }]
       : [];
@@ -448,13 +676,18 @@ function EditMode({
     total === 100 && rows.every((r) => r.verticalId && r.percent > 0);
 
   function updatePercent(idx: number, percent: number) {
-    setRows((prev) =>
-      prev.map((r, i) =>
-        i === idx
-          ? { ...r, percent: Math.max(0, Math.min(100, Math.round(percent))) }
-          : r
-      )
-    );
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    setRows((prev) => {
+      // With exactly two lines the split is zero-sum: the other line is
+      // always the complement, so editing one auto-balances the other and
+      // the total stays at 100 without the contabil touching both.
+      if (prev.length === 2) {
+        return prev.map((r, i) =>
+          i === idx ? { ...r, percent: clamped } : { ...r, percent: 100 - clamped }
+        );
+      }
+      return prev.map((r, i) => (i === idx ? { ...r, percent: clamped } : r));
+    });
   }
 
   function updateVertical(idx: number, verticalId: string) {
@@ -518,8 +751,37 @@ function EditMode({
 
   const canSave = stagedClear || valid;
 
+  const previewSegments = buildSegmentsFromRows(rows, verticals);
+
   return (
     <div className="p-5 space-y-4">
+      {!stagedClear && (
+        <div>
+          <AllocationBar segments={previewSegments} />
+          {entity.rulaj > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {previewSegments.map((seg) => (
+                <li
+                  key={seg.verticalId}
+                  className="inline-flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-gray-light"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  <span
+                    className={`inline-block h-2.5 w-2.5 rounded-sm shrink-0 ${seg.color}`}
+                    aria-hidden
+                  />
+                  <span className="text-white">{seg.percent}%</span>
+                  <span className="truncate max-w-[120px]">{seg.name}</span>
+                  <span className="text-gray">
+                    · {formatRon((entity.rulaj * seg.percent) / 100)} lei
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {stagedClear ? (
         <StagedClearNotice
           defaultName={defaultVertical?.name ?? "Toata firma"}
@@ -752,6 +1014,29 @@ function buildVerticalOptions(
   return options;
 }
 
+/** Live preview segments from the editor's working rows (not persisted). */
+function buildSegmentsFromRows(
+  rows: AllocationSplit[],
+  verticals: VerticalView[]
+): Segment[] {
+  const realVerticals = verticals.filter((v) => !v.isDefault);
+  return rows
+    .filter((r) => r.verticalId)
+    .map((r) => {
+      const idx = realVerticals.findIndex((x) => x.id === r.verticalId);
+      const v = realVerticals[idx] ?? verticals.find((x) => x.id === r.verticalId);
+      return {
+        verticalId: r.verticalId,
+        name: v?.name ?? "?",
+        percent: r.percent,
+        color:
+          idx >= 0
+            ? VERTICAL_COLORS[idx % VERTICAL_COLORS.length] ?? DEFAULT_COLOR
+            : DEFAULT_COLOR,
+      };
+    });
+}
+
 function buildSegments(
   entity: AllocationDialogEntity,
   verticals: VerticalView[]
@@ -777,6 +1062,23 @@ function buildSegments(
               realVerticals.findIndex((x) => x.id === s.verticalId) %
                 VERTICAL_COLORS.length
             ] ?? DEFAULT_COLOR,
+      };
+    });
+  }
+
+  // No own rule: fall back to the inherited (parent) split so the bar shows
+  // exactly where this entity's money lands today.
+  if (entity.inheritedSplits && entity.inheritedSplits.length > 0) {
+    return entity.inheritedSplits.map((s) => {
+      const idx = realVerticals.findIndex((x) => x.id === s.verticalId);
+      const v = realVerticals[idx] ?? verticals.find((x) => x.id === s.verticalId);
+      return {
+        verticalId: s.verticalId,
+        name: v?.name ?? "?",
+        percent: s.percent,
+        color: v?.isDefault
+          ? DEFAULT_COLOR
+          : VERTICAL_COLORS[idx % VERTICAL_COLORS.length] ?? DEFAULT_COLOR,
       };
     });
   }

@@ -19,6 +19,7 @@ import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEscapeKey } from "@/lib/use-escape-key";
 import type {
   AllocationScope,
   AllocationSplit,
@@ -265,13 +266,24 @@ function SplitPopover({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  useEscapeKey(onClose);
+
   const total = rows.reduce((s, r) => s + (Number.isFinite(r.percent) ? r.percent : 0), 0);
   const valid = total === 100 && rows.every((r) => r.verticalId && r.percent > 0);
 
   function updatePercent(idx: number, percent: number) {
-    setRows((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, percent: Math.max(0, Math.min(100, Math.round(percent))) } : r))
-    );
+    const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+    setRows((prev) => {
+      // With exactly two lines the split is zero-sum: the other line is
+      // always the complement, so editing one auto-balances the other and
+      // the total stays at 100 without the contabil touching both.
+      if (prev.length === 2) {
+        return prev.map((r, i) =>
+          i === idx ? { ...r, percent: clamped } : { ...r, percent: 100 - clamped }
+        );
+      }
+      return prev.map((r, i) => (i === idx ? { ...r, percent: clamped } : r));
+    });
   }
 
   function updateVertical(idx: number, verticalId: string) {

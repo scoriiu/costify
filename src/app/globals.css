@@ -266,6 +266,15 @@ input:-webkit-autofill:focus {
   60% { transform: scale(1); }
 }
 
+/* "Just moved" flash on a cont row after a drag-drop, so the move is never
+   silent. Soft primary glow that fades over ~2s. */
+@keyframes cont-moved {
+  0%   { background-color: rgba(108, 92, 231, 0.22); }
+  60%  { background-color: rgba(108, 92, 231, 0.12); }
+  100% { background-color: transparent; }
+}
+.animate-cont-moved { animation: cont-moved 2s ease-out 1; }
+
 .costi-state-greeting    { animation: costi-idle-look 9s ease-in-out infinite; }
 .costi-state-thinking    { animation: costi-think-sway 3.2s ease-in-out infinite; }
 .costi-state-success     { animation: costi-success-nod 1.4s ease-in-out 1; }

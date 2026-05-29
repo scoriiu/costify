@@ -57,6 +57,7 @@ import {
   listVerticals,
   listAllocations,
   listCategoryAllocations,
+  getFirmDefaultSplits,
   buildVerticalResolver,
 } from "@/modules/verticals";
 import {
@@ -248,24 +249,28 @@ export async function loadOwnerSnapshot(
   // verticals exist — owner UI hides the card in that case.
   let verticalBreakdown: ReturnType<typeof computeVerticalBreakdown> = [];
   if (clientFlag?.verticalsEnabled) {
-    const [verticals, allocations, categoryAllocations] = await Promise.all([
-      listVerticals(prisma, clientId),
-      listAllocations(prisma, clientId),
-      listCategoryAllocations(prisma, clientId),
-    ]);
-    const defaultV = verticals.find((v) => v.isDefault);
-    if (defaultV) {
+    const [verticals, allocations, categoryAllocations, firmDefaultSplits] =
+      await Promise.all([
+        listVerticals(prisma, clientId),
+        listAllocations(prisma, clientId),
+        listCategoryAllocations(prisma, clientId),
+        getFirmDefaultSplits(prisma, clientId),
+      ]);
+    if (verticals.length > 0) {
+      const defaultV = verticals.find((v) => v.isDefault);
       const vResolver = buildVerticalResolver(
         allocations,
-        defaultV.id,
-        categoryAllocations
+        defaultV?.id ?? null,
+        categoryAllocations,
+        firmDefaultSplits
       );
       verticalBreakdown = computeVerticalBreakdown(
         rows,
         catalog,
         vResolver,
         verticals.map((v) => ({ id: v.id, name: v.name, isDefault: v.isDefault })),
-        partnerAdjustments
+        partnerAdjustments,
+        resolverState
       );
     }
   }

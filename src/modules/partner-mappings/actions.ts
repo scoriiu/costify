@@ -21,6 +21,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import * as service from "./service";
 import * as loader from "./loader";
+import * as verticalsService from "@/modules/verticals/service";
+import type { PartnerAllocationView } from "@/modules/verticals/types";
 import type { PartnerCategoryOverrideRow, PartnerEntry } from "./types";
 import { normalizePartnerName } from "@/lib/partner-normalize";
 import { bumpClientDataVersion } from "@/modules/clients/data-version";
@@ -116,13 +118,18 @@ export interface PartnerPanelData {
   partners: PartnerEntry[];
   partnerRulaj: number;
   unresolvedRulaj: number;
+  /** Per-partener LOB allocations for this cont. Folded into this single
+   *  action so the panel makes ONE server-action round-trip instead of two
+   *  (previously a separate listPartnerAllocationsAction call). */
+  allocations: PartnerAllocationView[];
 }
 
 /**
  * On-demand fetch when the slide-panel opens. Auth-checked wrapper around
- * loader.loadPartnersForCont. We keep this as a server action (not just a
- * server function call from a page) so the panel can re-fetch after a save
- * to show updated state without reloading the entire Mapari Cashflow page.
+ * loader.loadPartnersForCont + the cont's partner allocations, fetched in
+ * parallel. We keep this as a server action (not just a server function call
+ * from a page) so the panel can re-fetch after a save to show updated state
+ * without reloading the entire Mapari Cashflow page.
  */
 export async function loadPartnerPanelAction(
   input: z.infer<typeof loadPanelSchema>
@@ -132,13 +139,20 @@ export async function loadPartnerPanelAction(
   const auth = await authorize(parsed.data.clientId);
   if (!auth) return { error: "Firma nu exista sau nu ai acces" };
 
-  const result = await loader.loadPartnersForCont(
-    prisma,
-    parsed.data.clientId,
-    parsed.data.contBase,
-    parsed.data.year,
-    parsed.data.month
-  );
+  const [result, allocations] = await Promise.all([
+    loader.loadPartnersForCont(
+      prisma,
+      parsed.data.clientId,
+      parsed.data.contBase,
+      parsed.data.year,
+      parsed.data.month
+    ),
+    verticalsService.listPartnerAllocations(
+      prisma,
+      parsed.data.clientId,
+      parsed.data.contBase
+    ),
+  ]);
 
   return {
     data: {
@@ -146,6 +160,7 @@ export async function loadPartnerPanelAction(
       partners: result.partners,
       partnerRulaj: result.partnerRulaj,
       unresolvedRulaj: result.unresolvedRulaj,
+      allocations,
     },
   };
 }

@@ -16,16 +16,28 @@
 import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import crypto from "node:crypto";
+import { readFileSync } from "node:fs";
 
 const BASE = "http://localhost:3041";
 const CLIENT_SLUG = "qhm21-network-srl";
 const OWNER_URL = `${BASE}/clients/${CLIENT_SLUG}?view=owner`;
 
+// Playwright does not load .env.local; the dev server does. Read the same
+// DATABASE_URL the server uses so test sessions land in the server's DB.
+function serverDatabaseUrl(): string {
+  const raw = readFileSync(".env.local", "utf8");
+  const line = raw.split("\n").find((l) => l.startsWith("DATABASE_URL="));
+  if (!line) throw new Error("DATABASE_URL not found in .env.local");
+  return line.slice("DATABASE_URL=".length).trim().replace(/^["']|["']$/g, "");
+}
+
 let prisma: PrismaClient;
 let sessionToken: string;
 
 test.beforeAll(async () => {
-  prisma = new PrismaClient();
+  prisma = new PrismaClient({
+    datasources: { db: { url: serverDatabaseUrl() } },
+  });
   const user = await prisma.user.findFirst({
     where: { email: "solomon.coriiu@costify.ro" },
     select: { id: true },

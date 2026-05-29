@@ -20,9 +20,10 @@
  * a Cheltuieli category.
  */
 
-import { useState, useTransition, useMemo, useEffect, createContext, useContext } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft } from "lucide-react";
+import { useState, useTransition, useMemo, useEffect, useCallback, useRef, createContext, useContext } from "react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft, FolderPlus, FolderTree, Check, List, LayoutGrid, Columns3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEscapeKey } from "@/lib/use-escape-key";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
@@ -33,7 +34,11 @@ import type {
   AccountListItem,
   CategoryInflow,
 } from "@/modules/categories";
-import type { VerticalView, CategoryAllocationView } from "@/modules/verticals";
+import type {
+  VerticalView,
+  CategoryAllocationView,
+  AllocationSplit,
+} from "@/modules/verticals";
 import {
   createCategoryAction,
   renameCategoryAction,
@@ -42,8 +47,12 @@ import {
   unmapAccountAction,
 } from "@/modules/categories/actions";
 import { CategoryTreemap } from "./category-treemap";
-import { PartnerPanel } from "./partner-panel";
-import { EditCategoryAllocationDialog } from "./edit-allocation-dialog";
+import { LinesView } from "./lines-view";
+import { PartnerLobPanel } from "./partner-lob-panel";
+import {
+  EditCategoryAllocationDialog,
+  EditAllocationDialog,
+} from "./edit-allocation-dialog";
 
 type Filter = "all" | "unmapped" | "expense" | "revenue";
 
@@ -53,12 +62,19 @@ interface Props {
   clientId: string;
   period: { year: number; month: number } | null;
   onMutate: () => void;
+  /** Whether the firm has activated the lines-of-business dimension. Drives
+   *  the Linii view's activate CTA vs. the full workspace. */
+  verticalsEnabled?: boolean;
   /** Verticals for this firm — drives the category-allocation dialog. Empty
    *  array when verticalsEnabled = false; in that case markers/CTAs hide. */
   verticals?: VerticalView[];
   /** Per-categoryId vertical allocations. Drives the marker tooltip's
    *  "100% Outsourcing" line and pre-populates the dialog. */
   categoryAllocations?: CategoryAllocationView[];
+  /** The firm-top default split — top of the cascade. null = not configured.
+   *  Drives the firm-split band and the "mosteneste firma" inherited state on
+   *  each category. */
+  firmDefaultSplits?: AllocationSplit[] | null;
   /** Per-categoryId inflow from partner-override residue. Missing key = no
    *  inflow this period. Drives the inflow marker on the category row. */
   categoryInflows?: Record<string, CategoryInflow>;
@@ -83,20 +99,6 @@ interface Props {
 }
 
 /**
- * Context for the partner-panel open trigger. Avoids drilling
- * `onOpenPartnerPanel` through CategoryGroup → CategoryRow → nested
- * CategoryRow → AccountRow. Any AccountRow inside CategoryWorkspace can
- * open the panel for its own cont without the intermediaries knowing.
- */
-const PartnerPanelContext = createContext<{
-  open: (account: AccountListItem) => void;
-} | null>(null);
-
-function usePartnerPanel() {
-  return useContext(PartnerPanelContext);
-}
-
-/**
  * Context for the residue indicators (cont marker, category marker, allocation
  * dialog trigger). Lives at the workspace root so any nested AccountRow or
  * CategoryNode can opt in without prop drilling.
@@ -109,6 +111,15 @@ interface ResidueContextValue {
    *  Roll-up so a parent category shows the sum of its children's inflows. */
   inflowByCategoryId: Map<string, CategoryInflow>;
   openCategoryAllocation: (category: CostCategoryNode) => void;
+  /** Firm-top default split — what categories/conts inherit when they have no
+   *  own rule. null = not configured (falls to "Toata firma"). */
+  firmDefaultSplits: AllocationSplit[] | null;
+  /** clientId — needed by per-cont override dialogs opened from AccountRow. */
+  clientId: string;
+  onMutate: () => void;
+  /** Instant category delete (optimistic). Hides the node now, persists in
+   *  the background, reparents/unmaps its conturi locally. */
+  deleteCategory: (node: CostCategoryNode) => void;
 }
 
 const ResidueContext = createContext<ResidueContextValue | null>(null);
@@ -116,7 +127,71 @@ function useResidue() {
   return useContext(ResidueContext);
 }
 
-type ViewMode = "list" | "treemap";
+/** Lets any nested AccountRow open the partner LOB panel for its cont without
+ *  prop-drilling through the category tree. */
+const PartnerPanelContext = createContext<{
+  open: (account: AccountListItem) => void;
+} | null>(null);
+function usePartnerPanel() {
+  return useContext(PartnerPanelContext);
+}
+
+/** Drag-and-drop a cont into a group/subgroup. AccountRow registers the
+ *  dragged cont; CategoryNode headers are drop targets that remap it. Kept in
+ *  context so we avoid prop-drilling the handler through the whole tree. */
+interface ContDragContextValue {
+  draggingCont: string | null;
+  setDraggingCont: (cont: string | null) => void;
+  dropOnCategory: (cont: string, categoryId: string) => void;
+  /** The cont that was just moved — flashes a highlight for ~2s so the move
+   *  is never silent. null when nothing was recently moved. */
+  recentlyMovedCont: string | null;
+}
+const ContDragContext = createContext<ContDragContextValue | null>(null);
+function useContDrag() {
+  return useContext(ContDragContext);
+}
+
+const CONT_DND_MIME = "application/x-costify-cont";
+
+type ViewMode = "list" | "treemap" | "verticals";
+
+// Single source of truth for the primary view switcher — order, labels and
+// icons. Ordered by increasing aggregation: raw list -> visual map -> rolled
+// up into business lines. Both render sites share this so they never drift.
+const VIEW_OPTIONS: { value: ViewMode; label: string; icon: typeof List }[] = [
+  { value: "list", label: "Lista", icon: List },
+  { value: "treemap", label: "Harta", icon: LayoutGrid },
+  { value: "verticals", label: "Linii", icon: Columns3 },
+];
+
+// URL slugs for the view toggle, kept friendly/stable so deep links read well
+// (?cashflow-view=harta). The internal ViewMode names stay as-is.
+const VIEW_PARAM = "cashflow-view";
+const VIEW_TO_SLUG: Record<ViewMode, string> = {
+  list: "list",
+  treemap: "harta",
+  verticals: "linii",
+};
+const SLUG_TO_VIEW: Record<string, ViewMode> = {
+  list: "list",
+  harta: "treemap",
+  linii: "verticals",
+};
+
+function readViewFromUrl(): ViewMode {
+  if (typeof window === "undefined") return "list";
+  const slug = new URLSearchParams(window.location.search).get(VIEW_PARAM);
+  return (slug && SLUG_TO_VIEW[slug]) || "list";
+}
+
+function writeViewToUrl(view: ViewMode) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (view === "list") url.searchParams.delete(VIEW_PARAM);
+  else url.searchParams.set(VIEW_PARAM, VIEW_TO_SLUG[view]);
+  window.history.replaceState(window.history.state, "", url.toString());
+}
 
 export function CategoryWorkspace({
   tree,
@@ -124,8 +199,10 @@ export function CategoryWorkspace({
   clientId,
   period,
   onMutate,
+  verticalsEnabled = false,
   verticals = [],
   categoryAllocations = [],
+  firmDefaultSplits = null,
   categoryInflows = {},
   initialFilter,
   initialPanelContBase,
@@ -141,25 +218,156 @@ export function CategoryWorkspace({
   }, [initialFilter]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("list");
-  const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
+  // Adopt the view from the URL after mount (avoids SSR/hydration mismatch),
+  // then keep the URL in sync on every change via history.replaceState — no
+  // navigation, no server re-render, so the toggle stays instant.
+  useEffect(() => {
+    const fromUrl = readViewFromUrl();
+    if (fromUrl !== "list") setView(fromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const changeView = useCallback((next: ViewMode) => {
+    setView(next);
+    writeViewToUrl(next);
+  }, []);
   const [editingCategoryAlloc, setEditingCategoryAlloc] =
     useState<CostCategoryNode | null>(null);
+  const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
+  const [draggingCont, setDraggingCont] = useState<string | null>(null);
+  const [recentlyMovedCont, setRecentlyMovedCont] = useState<string | null>(
+    null
+  );
+  const movedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Optimistic cont→category overrides applied INSTANTLY on drop. We do NOT
+  // refetch on success (that round-trip is what felt sluggish); the local
+  // override stays until fresh server data arrives, then it's pruned. On
+  // failure we drop the override so the UI snaps back to the truth.
+  const [optimisticMappings, setOptimisticMappings] = useState<
+    Map<string, string>
+  >(new Map());
+  // Categories hidden instantly on delete (persisted in the background).
+  const [optimisticDeleted, setOptimisticDeleted] = useState<Set<string>>(
+    new Set()
+  );
 
-  // External drill-in: when the parent passes `initialPanelContBase`, find
-  // the matching AccountListItem and open the panel for it. We pick the
-  // first account whose contBase matches — analytics under the same base
-  // share the partner list so any one of them is a valid anchor. After
-  // opening we notify the parent so it can reset the prop (next click on
-  // the same contBase re-fires this).
+  // When fresh `accounts` arrive from the server, prune any optimistic entry
+  // the server already reflects (so we don't keep stale overrides forever).
   useEffect(() => {
-    if (!initialPanelContBase) return;
-    const match = accounts.find((a) => a.contBase === initialPanelContBase);
-    if (match) setPanelAccount(match);
-    onInitialPanelOpened?.();
-    // We intentionally re-run only on contBase changes — opening the panel
-    // is a one-shot side-effect, not a render-tied invariant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPanelContBase]);
+    setOptimisticMappings((prev) => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Map(prev);
+      for (const [cont, catId] of prev) {
+        const a = accounts.find((x) => x.cont === cont);
+        if (a && a.currentMapping?.categoryId === catId) {
+          next.delete(cont);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [accounts]);
+
+  // Prune optimistic deletions the server tree no longer contains.
+  useEffect(() => {
+    setOptimisticDeleted((prev) => {
+      if (prev.size === 0) return prev;
+      const present = new Set<string>();
+      const walk = (nodes: CostCategoryNode[]) => {
+        for (const n of nodes) {
+          present.add(n.id);
+          walk(n.children);
+        }
+      };
+      walk(tree);
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of prev) {
+        if (!present.has(id)) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [tree]);
+
+  const dropOnCategory = useCallback(
+    (cont: string, categoryId: string) => {
+      // Clear the drag state NOW. On a successful drop the dragged row is
+      // re-rendered into its new home before the browser fires `dragend`, so
+      // relying on onDragEnd alone would leave the row greyed until refresh.
+      setDraggingCont(null);
+      const account = accounts.find((a) => a.cont === cont);
+      if (!account) return;
+      if (account.currentMapping?.categoryId === categoryId) return;
+      // Instant: move the cont locally now, persist in the background.
+      setOptimisticMappings((prev) => new Map(prev).set(cont, categoryId));
+      // Flash a "just moved" highlight for ~2s so the move is never silent.
+      setRecentlyMovedCont(cont);
+      if (movedTimer.current) clearTimeout(movedTimer.current);
+      movedTimer.current = setTimeout(() => setRecentlyMovedCont(null), 2200);
+      void mapAccountAction({
+        clientId,
+        cont: account.cont,
+        scope: account.cont !== account.contBase ? "analytic" : "contBase",
+        categoryId,
+      }).then((r) => {
+        if (r.error) {
+          alert(r.error);
+          setOptimisticMappings((prev) => {
+            const next = new Map(prev);
+            next.delete(cont);
+            return next;
+          });
+        }
+      });
+    },
+    [accounts, clientId]
+  );
+
+  useEffect(
+    () => () => {
+      if (movedTimer.current) clearTimeout(movedTimer.current);
+    },
+    []
+  );
+
+  const dragValue: ContDragContextValue = useMemo(
+    () => ({ draggingCont, setDraggingCont, dropOnCategory, recentlyMovedCont }),
+    [draggingCont, dropOnCategory, recentlyMovedCont]
+  );
+
+  // Instant category delete: hide the node + locally reparent/unmap its conturi
+  // now, persist in the background. On failure, snap back.
+  const deleteCategoryOptimistic = useCallback(
+    (node: CostCategoryNode) => {
+      setOptimisticDeleted((prev) => new Set(prev).add(node.id));
+      if (node.mappingCount > 0) {
+        const targetCat = node.parentId; // null => unmap
+        setOptimisticMappings((prev) => {
+          const next = new Map(prev);
+          for (const a of accounts) {
+            if (a.currentMapping?.categoryId === node.id && targetCat) {
+              next.set(a.cont, targetCat);
+            }
+          }
+          return next;
+        });
+      }
+      void deleteCategoryAction({ clientId, categoryId: node.id }).then((r) => {
+        if (r.error) {
+          alert(r.error);
+          setOptimisticDeleted((prev) => {
+            const next = new Set(prev);
+            next.delete(node.id);
+            return next;
+          });
+        }
+      });
+    },
+    [accounts, clientId]
+  );
 
   // Pre-index category allocations for O(1) lookup in the tree walk.
   const categoryAllocationsById = useMemo(() => {
@@ -181,69 +389,121 @@ export function CategoryWorkspace({
       categoryAllocations: categoryAllocationsById,
       inflowByCategoryId,
       openCategoryAllocation: setEditingCategoryAlloc,
+      firmDefaultSplits,
+      clientId,
+      onMutate,
+      deleteCategory: deleteCategoryOptimistic,
     }),
-    [verticals, categoryAllocationsById, inflowByCategoryId]
+    [
+      verticals,
+      categoryAllocationsById,
+      inflowByCategoryId,
+      firmDefaultSplits,
+      clientId,
+      onMutate,
+      deleteCategoryOptimistic,
+    ]
   );
 
-  // Lookup map: categoryId -> human display name. Used to label the panel's
-  // "Default contului (X)" option so the contabil sees exactly which category
-  // a partner's default would map to.
-  const categoryNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    function walk(nodes: CostCategoryNode[]) {
-      for (const n of nodes) {
-        map.set(n.id, n.name);
-        walk(n.children);
-      }
-    }
-    walk(tree);
-    return map;
-  }, [tree]);
-  const panelContCategoryName = panelAccount?.currentMapping
-    ? categoryNameById.get(panelAccount.currentMapping.categoryId) ?? null
-    : null;
+  // Apply optimistic drag-drop overrides so the tree reflects an in-flight
+  // move instantly, before the server confirms.
+  const effectiveAccounts = useMemo(() => {
+    if (optimisticMappings.size === 0) return accounts;
+    return accounts.map((a) => {
+      const catId = optimisticMappings.get(a.cont);
+      if (!catId || a.currentMapping?.categoryId === catId) return a;
+      return {
+        ...a,
+        currentMapping: {
+          categoryId: catId,
+          scope: a.cont !== a.contBase ? "analytic" : "contBase",
+        } as AccountListItem["currentMapping"],
+      };
+    });
+  }, [accounts, optimisticMappings]);
 
   // Build per-category mapping index so each row knows which accounts it owns
   // and roots can compute their aggregated rulaj including descendants.
   const accountsByCategory = useMemo(
-    () => buildAccountsByCategory(accounts),
-    [accounts]
+    () => buildAccountsByCategory(effectiveAccounts),
+    [effectiveAccounts]
   );
   const aggregatedRulaj = useMemo(
     () => buildAggregatedRulaj(tree, accountsByCategory),
     [tree, accountsByCategory]
   );
 
-  const unmappedAccounts = accounts.filter((a) => a.currentMapping === null);
-  const expenseRoots = tree.filter((n) => n.kind === "expense");
-  const revenueRoots = tree.filter((n) => n.kind === "revenue");
+  const unmappedAccounts = effectiveAccounts.filter(
+    (a) => a.currentMapping === null
+  );
+
+  // Hide optimistically-deleted categories (and any of their children) from
+  // the rendered tree until the server confirms.
+  const visibleTree = useMemo(() => {
+    if (optimisticDeleted.size === 0) return tree;
+    const prune = (nodes: CostCategoryNode[]): CostCategoryNode[] =>
+      nodes
+        .filter((n) => !optimisticDeleted.has(n.id))
+        .map((n) => ({ ...n, children: prune(n.children) }));
+    return prune(tree);
+  }, [tree, optimisticDeleted]);
+
+  const expenseRoots = visibleTree.filter((n) => n.kind === "expense");
+  const revenueRoots = visibleTree.filter((n) => n.kind === "revenue");
 
   if (view === "treemap") {
     return (
-      <div className="space-y-5">
-        <ViewToggle view={view} onChange={setView} />
+      <WorkspaceShell view={view} onViewChange={changeView}>
         <CategoryTreemap
           tree={tree}
           accountsByCategory={accountsByCategory}
           aggregatedRulaj={aggregatedRulaj}
         />
-      </div>
+      </WorkspaceShell>
+    );
+  }
+
+  if (view === "verticals") {
+    return (
+      <>
+        <WorkspaceShell view={view} onViewChange={changeView}>
+          <LinesView
+            accounts={accounts}
+            verticals={verticals}
+            tree={tree}
+            clientId={clientId}
+            enabled={verticalsEnabled}
+            firmDefaultSplits={firmDefaultSplits}
+            categoryAllocationsById={categoryAllocationsById}
+            inflowByCategoryId={inflowByCategoryId}
+            onMutate={onMutate}
+            onOpenPartners={setPanelAccount}
+          />
+        </WorkspaceShell>
+        <PartnerLobPanel
+          account={panelAccount}
+          clientId={clientId}
+          period={period}
+          verticals={verticals}
+          onClose={() => setPanelAccount(null)}
+          onMutate={onMutate}
+        />
+      </>
     );
   }
 
   return (
     <PartnerPanelContext.Provider value={{ open: setPanelAccount }}>
+     <ContDragContext.Provider value={dragValue}>
      <ResidueContext.Provider value={residueValue}>
-      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
-        <WorkspaceHeader
-          totalAccounts={accounts.length}
+      <WorkspaceShell view={view} onViewChange={changeView}>
+       <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
+        <WorkspaceFilters
           unmappedCount={unmappedAccounts.length}
           query={query}
           onQueryChange={setQuery}
           filter={filter}
           onFilterChange={setFilter}
-          view={view}
-          onViewChange={setView}
         />
 
         {filter === "unmapped" || unmappedAccounts.length > 0 ? (
@@ -286,16 +546,6 @@ export function CategoryWorkspace({
           />
         )}
 
-        <PartnerPanel
-          account={panelAccount}
-          clientId={clientId}
-          period={period}
-          tree={tree}
-          contCategoryName={panelContCategoryName}
-          onClose={() => setPanelAccount(null)}
-          onMutate={onMutate}
-        />
-
         {editingCategoryAlloc && (
           <EditCategoryAllocationDialog
             open
@@ -313,97 +563,119 @@ export function CategoryWorkspace({
               setEditingCategoryAlloc(null);
               onMutate();
             }}
-          />
-        )}
-      </div>
+           />
+         )}
+       </div>
+      </WorkspaceShell>
+       <PartnerLobPanel
+         account={panelAccount}
+         clientId={clientId}
+         period={period}
+         verticals={verticals}
+         onClose={() => setPanelAccount(null)}
+         onMutate={onMutate}
+       />
      </ResidueContext.Provider>
+     </ContDragContext.Provider>
     </PartnerPanelContext.Provider>
   );
 }
 
-function ViewToggle({
-  view,
-  onChange,
-}: {
-  view: ViewMode;
-  onChange: (v: ViewMode) => void;
-}) {
-  return (
-    <div className="flex justify-end">
-      <ToggleGroup<ViewMode>
-        value={view}
-        onChange={onChange}
-        options={[
-          { value: "list", label: "Lista" },
-          { value: "treemap", label: "Harta" },
-        ]}
-      />
-    </div>
-  );
-}
+// Title + one-line intro per view. The header LAYOUT stays identical across
+// views (title left, switcher right, inside the same card) — only the copy
+// changes — so the switcher never appears to "move" between views.
+const VIEW_INTRO: Record<ViewMode, { title: string; desc: string }> = {
+  list: {
+    title: "Conturile firmei pe grupuri patron",
+    desc: "Fiecare grup arata cum apare pe pagina patronului (/firma). Conturile sunt indentate sub grupul lor. Adauga, redenumeste sau muta direct de aici.",
+  },
+  treemap: {
+    title: "Harta grupurilor",
+    desc: "Aceleasi grupuri, dimensionate dupa cat cantaresc. Vezi dintr-o privire unde se duc banii firmei.",
+  },
+  verticals: {
+    title: "Liniile de business",
+    desc: "Imparte firma pe activitati si vezi cat aduce si cat costa fiecare linie. Mapezi categorii, conturi sau parteneri pe fiecare linie.",
+  },
+};
 
-/* -------------------------------------------------------------------------- */
-/*                                 HEADER                                     */
-/* -------------------------------------------------------------------------- */
-
-function WorkspaceHeader({
-  totalAccounts,
-  unmappedCount,
-  query,
-  onQueryChange,
-  filter,
-  onFilterChange,
+/**
+ * The one consistent frame for all three views. Renders the card, the title
+ * on the left and the primary view switcher on the right — in the SAME place
+ * and SAME size regardless of which view is active. Each view supplies its
+ * own body (and the list view its own filters) as children.
+ */
+function WorkspaceShell({
   view,
   onViewChange,
+  children,
 }: {
-  totalAccounts: number;
-  unmappedCount: number;
-  query: string;
-  onQueryChange: (v: string) => void;
-  filter: Filter;
-  onFilterChange: (v: Filter) => void;
   view: ViewMode;
   onViewChange: (v: ViewMode) => void;
+  children: React.ReactNode;
 }) {
+  const intro = VIEW_INTRO[view];
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* The header bar is identical across all three views: title left,
+          primary switcher right, same size, same position. Only the copy
+          changes — the switcher never appears to move or resize. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3
             className="text-[15px] font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
-            Conturile firmei pe grupuri patron
+            {intro.title}
           </h3>
           <p
             className="text-[11px] text-gray mt-0.5 max-w-2xl"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Fiecare grup arata cum apare pe pagina patronului ({"/firma"}).
-            Conturile sunt indentate sub grupul lor. Adauga, redenumeste sau
-            muta direct de aici.
-            {unmappedCount > 0 && (
-              <>
-                {" "}
-                <span className="text-neg">
-                  {unmappedCount === 1
-                    ? "1 cont nu e inca asezat in niciun grup."
-                    : `${unmappedCount} conturi nu sunt inca asezate in niciun grup.`}
-                </span>
-              </>
-            )}
+            {intro.desc}
           </p>
         </div>
         <ToggleGroup<ViewMode>
           value={view}
           onChange={onViewChange}
-          options={[
-            { value: "list", label: "Lista" },
-            { value: "treemap", label: "Harta" },
-          ]}
+          options={VIEW_OPTIONS}
+          size="lg"
+          ariaLabel="Schimba vizualizarea"
         />
       </div>
+      {children}
+    </div>
+  );
+}
 
+/* -------------------------------------------------------------------------- */
+/*                          LIST-VIEW FILTERS                                 */
+/* -------------------------------------------------------------------------- */
+
+// Search + kind/unmapped filters. List-view only — the map and lines views
+// have no per-row filtering, so this lives outside the shared shell header.
+function WorkspaceFilters({
+  unmappedCount,
+  query,
+  onQueryChange,
+  filter,
+  onFilterChange,
+}: {
+  unmappedCount: number;
+  query: string;
+  onQueryChange: (v: string) => void;
+  filter: Filter;
+  onFilterChange: (v: Filter) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {unmappedCount > 0 && (
+        <p className="text-[11px] text-neg" style={{ letterSpacing: "-0.02em" }}>
+          {unmappedCount === 1
+            ? "1 cont nu e inca asezat in niciun grup."
+            : `${unmappedCount} conturi nu sunt inca asezate in niciun grup.`}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           value={query}
@@ -638,22 +910,84 @@ function CategoryNode({
   const [renaming, setRenaming] = useState(false);
   const [addingSubcategory, setAddingSubcategory] = useState(false);
   const [addingAccount, setAddingAccount] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
+  const contDrag = useContDrag();
 
   const directAccounts = accountsByCategory.get(node.id) ?? [];
   const totalRulaj = aggregatedRulaj.get(node.id) ?? 0;
   const hasContent = node.children.length > 0 || directAccounts.length > 0;
   const containerStyle = depth === 0
     ? "rounded-lg border border-dark-3 bg-dark-3/20 p-3"
-    : "border-l-2 border-dark-3 pl-3 ml-1 py-1";
+    : "rounded-lg border border-dark-3/60 border-l-2 border-l-primary/50 bg-dark-3/10 pl-3 pr-2 py-2 ml-4";
 
   // When a query is active, force-expand any category that has a match
   // somewhere in its sub-tree so the contabil sees what matched.
   const forceExpanded = query.length > 0 && matchesQuery(node, accountsByCategory, query);
   const isExpanded = expanded || forceExpanded;
 
+  // A cont can be dropped here unless it is already mapped to THIS category.
+  const dragActive = contDrag?.draggingCont != null;
+  const contIsHere = accountsByCategory
+    .get(node.id)
+    ?.some((a) => a.cont === contDrag?.draggingCont) === true;
+  const canAcceptDrop = dragActive && !contIsHere;
+  // The subgroup the dragged cont currently lives in is explicitly excluded as
+  // a target — dim it so the only live target reads as the rest of the surface.
+  const isExcludedTarget = dragActive && contIsHere && depth > 0;
+
   return (
-    <li className={containerStyle}>
-      <div className="flex items-center gap-2 group">
+    <li
+      className={`${containerStyle} transition-colors ${
+        dropActive && canAcceptDrop ? "ring-2 ring-primary bg-primary/10" : ""
+      } ${
+        isExcludedTarget
+          ? "opacity-60 outline-dashed outline-1 outline-dark-3 !bg-dark-2 cursor-not-allowed"
+          : ""
+      }`}
+      onDragOver={(e) => {
+        if (!dragActive) return;
+        // The cont's own category consumes the gesture as a no-op (so a drop
+        // back on itself does NOT bubble up and accidentally move it out), but
+        // shows a "no-drop" cursor and never the green target highlight.
+        if (isExcludedTarget || contIsHere) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = "none";
+          return;
+        }
+        if (!canAcceptDrop) return;
+        e.preventDefault();
+        e.stopPropagation(); // innermost category wins over ancestors
+        e.dataTransfer.dropEffect = "move";
+        if (!dropActive) setDropActive(true);
+      }}
+      onDragLeave={(e) => {
+        // Ignore moves between descendants; only clear when leaving the card.
+        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+        setDropActive(false);
+      }}
+      onDrop={(e) => {
+        if (!dragActive) return;
+        // Dropping on the cont's own category is a no-op: consume it so it
+        // never bubbles to an ancestor and silently moves the cont.
+        if (isExcludedTarget || contIsHere) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDropActive(false);
+          return;
+        }
+        if (!canAcceptDrop) return;
+        const cont = e.dataTransfer.getData(CONT_DND_MIME);
+        if (cont && contDrag) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDropActive(false);
+          setExpanded(true); // reveal the cont in its new home immediately
+          contDrag.dropOnCategory(cont, node.id);
+        }
+      }}
+    >
+      <div className="flex items-center gap-2 group rounded-md">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
@@ -680,13 +1014,40 @@ function CategoryNode({
           />
         ) : (
           <>
-            <span
-              className={`flex-1 truncate ${depth === 0 ? "text-[13px] font-semibold text-white" : "text-[12px] text-gray-light"}`}
-              style={{ letterSpacing: "-0.04em" }}
-              title={node.name}
+            <button
+              type="button"
+              onClick={() => hasContent && setExpanded((v) => !v)}
+              disabled={!hasContent}
+              className={`flex flex-1 items-center gap-2 min-w-0 text-left ${
+                hasContent ? "cursor-pointer" : "cursor-default"
+              }`}
+              aria-label={
+                hasContent
+                  ? isExpanded
+                    ? `Pliaza ${node.name}`
+                    : `Desfasoara ${node.name}`
+                  : node.name
+              }
             >
-              {node.name}
-            </span>
+              {depth > 0 && (
+                <FolderTree size={13} className="text-primary/70 shrink-0" aria-hidden />
+              )}
+              <span
+                className={`truncate ${depth === 0 ? "text-[13px] font-semibold text-white" : "text-[12px] font-medium text-gray-light"}`}
+                style={{ letterSpacing: "-0.04em" }}
+                title={node.name}
+              >
+                {node.name}
+              </span>
+            </button>
+            {depth > 0 && (
+              <span
+                className="font-mono text-[9px] uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1 py-0.5 shrink-0"
+                style={{ letterSpacing: "0.04em" }}
+              >
+                sub-grup
+              </span>
+            )}
             {node.isOmfpDefault && (
               <Tooltip content="Categorie generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
                 <span className="font-mono text-[9px] uppercase tracking-wider text-gray shrink-0 cursor-help">
@@ -699,24 +1060,29 @@ function CategoryNode({
               {directAccounts.length > 0 && totalRulaj !== 0 && " · "}
               {totalRulaj !== 0 && `${formatRon(totalRulaj)} lei`}
             </span>
+            <CategorySplitControl node={node} />
             <CategoryResidueMarker node={node} />
             <div className="flex items-center gap-0.5 shrink-0">
-              <Tooltip content="Adauga sub-grup. Apare indentat sub acesta pe /firma.">
-                <button
-                  type="button"
-                  onClick={() => setAddingSubcategory(true)}
-                  className="p-1.5 text-gray hover:text-primary"
-                >
-                  <Plus size={14} />
-                </button>
-              </Tooltip>
+              {depth === 0 && (
+                <Tooltip content="Adauga sub-grup. Apare indentat sub acesta pe /firma.">
+                  <button
+                    type="button"
+                    onClick={() => setAddingSubcategory(true)}
+                    className="p-1.5 text-gray hover:text-primary"
+                    aria-label="Adauga sub-grup"
+                  >
+                    <FolderPlus size={14} />
+                  </button>
+                </Tooltip>
+              )}
               <Tooltip content="Adauga un cont la acest grup.">
                 <button
                   type="button"
                   onClick={() => setAddingAccount(true)}
                   className="p-1.5 text-gray hover:text-primary"
+                  aria-label="Adauga cont"
                 >
-                  <ArrowRightLeft size={14} />
+                  <Plus size={14} />
                 </button>
               </Tooltip>
               <Tooltip content="Redenumeste grupul.">
@@ -803,6 +1169,194 @@ function CategoryNode({
         </div>
       )}
     </li>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       LINII DE BUSINESS — CASCADA                          */
+/* -------------------------------------------------------------------------- */
+
+/** Stable color per vertical, keyed by its position among the real (non-
+ *  default) verticals. Matches the palette used in the allocation dialog so a
+ *  vertical looks the same everywhere it appears. */
+const SPLIT_DOT_COLORS = [
+  "bg-primary",
+  "bg-amber-400",
+  "bg-sky-400",
+  "bg-emerald-400",
+  "bg-rose-400",
+] as const;
+
+function buildVerticalColorMap(verticals: VerticalView[]): Map<string, string> {
+  const map = new Map<string, string>();
+  let i = 0;
+  for (const v of verticals) {
+    if (v.isDefault) continue;
+    map.set(v.id, SPLIT_DOT_COLORS[i % SPLIT_DOT_COLORS.length]);
+    i += 1;
+  }
+  return map;
+}
+
+/** Inline colored chips for a split: "● 40% Outsourcing  ● 60% Recruitment".
+ *  Pure presentational — used on the firm band, category headers and conts. */
+function SplitChips({
+  splits,
+  verticals,
+  size = "sm",
+}: {
+  splits: AllocationSplit[];
+  verticals: VerticalView[];
+  size?: "sm" | "xs";
+}) {
+  const colors = buildVerticalColorMap(verticals);
+  const text = size === "xs" ? "text-[10px]" : "text-[11px]";
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {splits.map((s) => {
+        const v = verticals.find((x) => x.id === s.verticalId);
+        return (
+          <span
+            key={s.verticalId}
+            className={`inline-flex items-center gap-1.5 font-mono ${text} tabular-nums text-gray-light`}
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span
+              className={`inline-block h-2 w-2 rounded-sm shrink-0 ${
+                colors.get(s.verticalId) ?? "bg-gray/40"
+              }`}
+              aria-hidden
+            />
+            <span className="text-white">{s.percent}%</span>
+            <span className="truncate max-w-[140px]">{v?.name ?? "?"}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/**
+ * Top of the cascade. A calm band above the categories showing how the whole
+ * firm splits across lines of business by default — what every category, cont
+ * and partener inherits unless it has its own rule. Click to edit.
+ */
+function FirmSplitBand({
+  firmDefaultSplits,
+  verticals,
+  onEdit,
+}: {
+  firmDefaultSplits: AllocationSplit[] | null;
+  verticals: VerticalView[];
+  onEdit: () => void;
+}) {
+  const hasSplit = firmDefaultSplits !== null && firmDefaultSplits.length > 0;
+  return (
+    <div
+      data-testid="firm-split-band"
+      className="rounded-lg border border-dark-3 bg-dark-3/20 px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2"
+    >
+      <div className="flex items-center gap-2 shrink-0">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Impartirea firmei
+        </span>
+        <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (categorie, cont sau partener) o mosteneste automat. O singura regula, aplicata live in fiecare luna.">
+          <span className="font-mono text-[9px] text-gray cursor-help">?</span>
+        </Tooltip>
+      </div>
+
+      <div className="flex-1 min-w-[180px]">
+        {hasSplit ? (
+          <SplitChips splits={firmDefaultSplits} verticals={verticals} />
+        ) : (
+          <span
+            className="text-[11px] text-gray italic"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Neimpartita. Totul merge pe &quot;Toata firma&quot; pana setezi o
+            impartire.
+          </span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={onEdit}
+        className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-dark-3 px-3 py-1.5 text-[12px] font-medium text-gray-light hover:text-white hover:border-gray transition-colors"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {hasSplit ? (
+          <>
+            <Pencil size={12} /> Editeaza
+          </>
+        ) : (
+          <>
+            <Plus size={12} /> Imparte firma pe linii
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Per-category line-of-business control on the category header. The PRIMARY
+ * editing unit of the cascade: set "Marfa → 40/60" here and every cont +
+ * partener under the category inherits it. Shows three states:
+ *   - own split        → colored chips (click to edit)
+ *   - inherits firm    → subtle "↳ firma X/Y" (click to override)
+ *   - inherits default → subtle "↳ Toata firma" (click to set a split)
+ */
+function CategorySplitControl({ node }: { node: CostCategoryNode }) {
+  const residue = useResidue();
+  if (!residue || residue.verticals.length === 0) return null;
+
+  const allocation = residue.categoryAllocations.get(node.id);
+  const own = allocation && allocation.splits.length > 0 ? allocation.splits : null;
+  const firm = residue.firmDefaultSplits;
+
+  const open = () => residue.openCategoryAllocation(node);
+
+  if (own) {
+    return (
+      <Tooltip content="Impartirea pe linii de business a acestei categorii. Se aplica tuturor conturilor si partenerilor din ea. Click pentru a edita.">
+        <button
+          type="button"
+          data-testid={`category-split-${node.id}`}
+          onClick={open}
+          className="shrink-0 inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-2 py-0.5 hover:bg-primary/20 transition-colors"
+        >
+          <SplitChips splits={own} verticals={residue.verticals} size="xs" />
+          <Pencil size={10} className="text-primary-light shrink-0" />
+        </button>
+      </Tooltip>
+    );
+  }
+
+  // Inherited — subtle, invites an override.
+  const inheritsLabel = firm && firm.length > 0 ? "mosteneste firma" : "Toata firma";
+  return (
+    <Tooltip
+      content={
+        firm && firm.length > 0
+          ? "Aceasta categorie mosteneste impartirea firmei. Click ca sa-i dai o impartire proprie."
+          : "Aceasta categorie merge integral pe \"Toata firma\". Click ca sa o imparti pe linii de business."
+      }
+    >
+      <button
+        type="button"
+        data-testid={`category-split-${node.id}`}
+        onClick={open}
+        className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dashed border-dark-3 px-2 py-0.5 font-mono text-[10px] text-gray hover:text-gray-light hover:border-gray transition-colors"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        <CornerDownLeft size={10} aria-hidden />
+        {inheritsLabel}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -941,6 +1495,99 @@ function CategoryResidueMarker({
   );
 }
 
+/**
+ * Per-cont line-of-business indicator. Shows the split the cont ACTUALLY
+ * resolves to through the cascade and where it came from:
+ *   - own rule          → primary pill with percents (most specific)
+ *   - inherited (cat/firm) with a real split → muted dashed pill "↳ 60/40"
+ *   - default (Toata firma) → a quiet "+ linii" affordance on row hover
+ * Click always opens the cont-level override dialog.
+ */
+function ContSplitBadge({
+  account,
+  onEdit,
+}: {
+  account: AccountListItem;
+  onEdit: () => void;
+}) {
+  const residue = useResidue();
+  if (!residue || residue.verticals.length === 0) return null;
+
+  const { splits, source } = account.effectiveAllocation;
+  const colors = buildVerticalColorMap(residue.verticals);
+
+  // No meaningful split → quiet hover affordance to create an override.
+  if (source === "default" || splits.length === 0) {
+    return (
+      <Tooltip content="Acest cont merge pe &quot;Toata firma&quot;. Click ca sa-l imparti pe linii de business doar pentru el.">
+        <button
+          type="button"
+          data-testid={`cont-split-${account.cont}`}
+          onClick={onEdit}
+          className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dashed border-dark-3 px-1.5 py-0.5 font-mono text-[10px] text-gray opacity-0 group-hover:opacity-100 hover:text-gray-light hover:border-gray transition-all"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          <Plus size={10} /> linii
+        </button>
+      </Tooltip>
+    );
+  }
+
+  const isOwn = source === "own";
+  const percents = splits.map((s) => s.percent).join("/");
+  const fullNames = splits
+    .map((s) => {
+      const v = residue.verticals.find((x) => x.id === s.verticalId);
+      return `${s.percent}% ${v?.name ?? "?"}`;
+    })
+    .join(" · ");
+  const sourceLabel = isOwn
+    ? "Regula proprie a contului."
+    : source === "category"
+    ? "Mosteneste impartirea categoriei."
+    : "Mosteneste impartirea firmei.";
+
+  return (
+    <Tooltip
+      content={
+        <>
+          <div>{fullNames}</div>
+          <div className="mt-1 opacity-80">
+            {sourceLabel} Click pentru o regula proprie.
+          </div>
+        </>
+      }
+    >
+      <button
+        type="button"
+        data-testid={`cont-split-${account.cont}`}
+        data-source={source}
+        onClick={onEdit}
+        className={`shrink-0 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[10px] tabular-nums transition-colors ${
+          isOwn
+            ? "border border-primary/40 bg-primary/10 text-primary-light hover:bg-primary/20"
+            : "border border-dashed border-dark-3 text-gray hover:text-gray-light hover:border-gray"
+        }`}
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {!isOwn && <CornerDownLeft size={10} aria-hidden />}
+        <span className="inline-flex items-center gap-0.5">
+          {splits.map((s) => (
+            <span
+              key={s.verticalId}
+              className={`inline-block h-2 w-2 rounded-sm ${
+                colors.get(s.verticalId) ?? "bg-gray/40"
+              }`}
+              aria-hidden
+            />
+          ))}
+        </span>
+        {percents}
+      </button>
+    </Tooltip>
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*                              ACCOUNT ROW                                   */
 /* -------------------------------------------------------------------------- */
@@ -959,8 +1606,16 @@ function AccountRow({
   compact?: boolean;
 }) {
   const [moving, setMoving] = useState(false);
+  const [editingAlloc, setEditingAlloc] = useState(false);
   const [pending, startTransition] = useTransition();
+  const residue = useResidue();
+  const partnerPanel = usePartnerPanel();
+  const contDrag = useContDrag();
   const rulaj = account.kind === "expense" ? account.rulajD : account.rulajC;
+  const showPartnersBadge =
+    partnerPanel !== null &&
+    (residue?.verticals.length ?? 0) > 0 &&
+    account.partnerCount >= MIN_PARTNERS_FOR_BADGE;
 
   function unmap() {
     if (
@@ -995,30 +1650,32 @@ function AccountRow({
     );
   }
 
-  const partnerPanel = usePartnerPanel();
-  // Show the partner badge when there are at least 2 partners on the cont.
-  // A single-partener cont (chirie, abonament unic) has no exception story
-  // to tell — the decision is at the cont level. Two or more partners means
-  // at least one might belong somewhere else, and that's exactly the
-  // scenario the panel exists for. Validated against real data (Nov 2026):
-  // ~43% of conts in the database have >=2 partners; ~14% have exactly 2
-  // and that's the bucket where mis-classifications hide most often.
-  const showPartnersBadge =
-    partnerPanel !== null && account.partnerCount >= MIN_PARTNERS_FOR_BADGE;
-  const hasPartnerOverrides = account.partnerOverrideCount > 0;
-
   return (
     <li
-      className={`group flex items-center gap-2 ${
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(CONT_DND_MIME, account.cont);
+        e.dataTransfer.effectAllowed = "move";
+        contDrag?.setDraggingCont(account.cont);
+      }}
+      onDragEnd={() => contDrag?.setDraggingCont(null)}
+      data-just-moved={contDrag?.recentlyMovedCont === account.cont ? "true" : undefined}
+      className={`group flex items-center gap-2 cursor-grab active:cursor-grabbing ${
         compact ? "py-0.5" : "px-2 py-1 rounded hover:bg-dark-3/30"
-      } ${
-        // Visual cue at row level for conts with partner overrides: a thin
-        // primary-tinted left border on the whole row. Scanning the list
-        // top-to-bottom, conts with manual exceptions stand out without
-        // requiring the contabil to read the badge.
-        hasPartnerOverrides ? "border-l-2 border-primary/40 -ml-0.5 pl-1.5" : ""
+      } ${contDrag?.draggingCont === account.cont ? "opacity-40" : ""} ${
+        contDrag?.recentlyMovedCont === account.cont
+          ? "animate-cont-moved ring-1 ring-primary/50"
+          : ""
       }`}
     >
+      {contDrag?.recentlyMovedCont === account.cont && (
+        <span
+          className="shrink-0 inline-flex items-center gap-0.5 rounded bg-primary/15 px-1 font-mono text-[9px] uppercase tracking-wider text-primary"
+          style={{ letterSpacing: "0.04em" }}
+        >
+          <Check size={9} /> mutat
+        </span>
+      )}
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[60px]">
         {account.cont}
       </span>
@@ -1032,29 +1689,33 @@ function AccountRow({
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0">
         {formatRon(rulaj)} lei
       </span>
-      <ContResidueMarker account={account} grossRulaj={rulaj} />
-      {showPartnersBadge && (
+      {!compact && <ContSplitBadge account={account} onEdit={() => setEditingAlloc(true)} />}
+      {!compact && showPartnersBadge && (
         <Tooltip
           content={
-            hasPartnerOverrides
-              ? `${account.partnerCount} parteneri · ${account.partnerOverrideCount} cu exceptie individuala. Click pentru a edita.`
-              : `${account.partnerCount} parteneri pe acest cont. Click pentru a vedea sau a pune exceptii individuale.`
+            account.partnerLobOverrideCount > 0
+              ? `${account.partnerCount} parteneri pe acest cont. ${account.partnerLobOverrideCount} ${
+                  account.partnerLobOverrideCount === 1 ? "are exceptie" : "au exceptie"
+                }, se imparte diferit de cont. Click ca sa vezi.`
+              : `${account.partnerCount} parteneri pe acest cont. Click ca sa le dai linia de business individual sau in bloc.`
           }
         >
           <button
             type="button"
-            onClick={() => partnerPanel.open(account)}
+            onClick={() => partnerPanel!.open(account)}
             disabled={pending}
-            className={`shrink-0 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-              hasPartnerOverrides
-                ? "border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 font-semibold"
-                : "border-dark-3 text-gray hover:text-gray-light hover:border-gray"
-            }`}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md border border-dark-3 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gray hover:text-gray-light hover:border-gray transition-colors"
             style={{ letterSpacing: "-0.02em" }}
           >
             <Users size={10} />
             {account.partnerCount}
-            {hasPartnerOverrides && ` · ${account.partnerOverrideCount}`}
+            {account.partnerLobOverrideCount > 0 && (
+              <span
+                className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-gray-light"
+                aria-hidden
+                title="Are parteneri cu exceptie"
+              />
+            )}
           </button>
         </Tooltip>
       )}
@@ -1070,7 +1731,7 @@ function AccountRow({
           </button>
         </Tooltip>
         {account.currentMapping && (
-          <Tooltip content="Sterge gruparea — contul revine la 'fara grupare'.">
+          <Tooltip content="Sterge gruparea. Contul revine la 'fara grupare'.">
             <button
               type="button"
               onClick={unmap}
@@ -1082,6 +1743,20 @@ function AccountRow({
           </Tooltip>
         )}
       </div>
+
+      {editingAlloc && residue && (
+        <EditAllocationDialog
+          open
+          account={account}
+          verticals={residue.verticals}
+          clientId={residue.clientId}
+          onClose={() => setEditingAlloc(false)}
+          onSaved={() => {
+            setEditingAlloc(false);
+            residue.onMutate();
+          }}
+        />
+      )}
     </li>
   );
 }
@@ -1225,36 +1900,142 @@ function DeleteCategoryButton({
   clientId: string;
   onDone: () => void;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const isSubgroup = node.parentId !== null;
 
-  function confirmDelete() {
-    const hasMappings = node.mappingCount > 0;
-    const hasChildren = node.children.length > 0;
-    let msg = `Sterg grupul "${node.name}"?`;
-    if (hasMappings || hasChildren) {
-      msg += "\n\n";
-      if (hasMappings) msg += `Conturile mapate (${node.mappingCount}) vor reveni la "fara grupare".\n`;
-      if (hasChildren) msg += `Sub-grupurile (${node.children.length}) vor fi sterse impreuna cu el.`;
-    }
-    if (!confirm(msg)) return;
-    startTransition(async () => {
-      const r = await deleteCategoryAction({ clientId, categoryId: node.id });
-      if (r.error) alert(r.error);
-      else onDone();
-    });
+  return (
+    <>
+      <Tooltip
+        content={
+          isSubgroup
+            ? "Sterge sub-grupul. Conturile lui se muta in grupul parinte."
+            : "Sterge grupul. Conturile lui raman fara grupare."
+        }
+      >
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="p-1.5 text-gray hover:text-neg"
+          aria-label="Sterge grupul"
+        >
+          <Trash2 size={14} />
+        </button>
+      </Tooltip>
+      <DeleteCategoryModal
+        open={open}
+        node={node}
+        clientId={clientId}
+        onClose={() => setOpen(false)}
+        onDeleted={() => {
+          setOpen(false);
+          onDone();
+        }}
+      />
+    </>
+  );
+}
+
+function DeleteCategoryModal({
+  open,
+  node,
+  clientId,
+  onClose,
+  onDeleted,
+}: {
+  open: boolean;
+  node: CostCategoryNode;
+  clientId: string;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const residue = useResidue();
+
+  useEscapeKey(onClose, open);
+
+  if (!open) return null;
+
+  const isSubgroup = node.parentId !== null;
+  const hasChildren = node.children.length > 0;
+  const contCount = node.mappingCount;
+
+  function handleDelete() {
+    // Instant: hide + reparent locally, persist in the background.
+    residue?.deleteCategory(node);
+    onDeleted();
   }
 
   return (
-    <Tooltip content="Sterge grupul. Conturile mapate revin la 'fara grupare'.">
-      <button
-        type="button"
-        onClick={confirmDelete}
-        disabled={pending}
-        className="p-1.5 text-gray hover:text-neg"
-      >
-        <Trash2 size={14} />
-      </button>
-    </Tooltip>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-xl border border-dark-3 bg-dark-2 p-6 shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 text-gray hover:text-white transition-colors"
+          aria-label="Inchide"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/10">
+            <Trash2 size={18} className="text-danger" />
+          </div>
+          <h2
+            className="text-lg font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            {isSubgroup ? "Sterge sub-grupul" : "Sterge grupul"}
+          </h2>
+        </div>
+
+        <p className="mb-4 text-sm text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+          Stergi {isSubgroup ? "sub-grupul" : "grupul"}{" "}
+          <strong className="text-white">{node.name}</strong>?
+        </p>
+
+        {contCount > 0 && (
+          <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="text-sm text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+              {isSubgroup ? (
+                <>
+                  Cele{" "}
+                  <strong className="text-white">
+                    {contCount} {contCount === 1 ? "cont" : "conturi"}
+                  </strong>{" "}
+                  din el se vor muta automat in grupul parinte. Nu se pierde
+                  nimic.
+                </>
+              ) : (
+                <>
+                  Cele{" "}
+                  <strong className="text-white">
+                    {contCount} {contCount === 1 ? "cont" : "conturi"}
+                  </strong>{" "}
+                  din el vor ramane fara grupare (le poti reasigna oricand).
+                </>
+              )}
+            </p>
+          </div>
+        )}
+
+        {hasChildren && (
+          <div className="mb-4 rounded-lg border border-danger/20 bg-danger/5 p-3">
+            <p className="text-sm text-danger" style={{ letterSpacing: "-0.02em" }}>
+              Acest grup are sub-grupuri. Sterge-le intai.
+            </p>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            Renunta
+          </Button>
+          <Button variant="danger" onClick={handleDelete} disabled={hasChildren}>
+            Sterge
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1364,9 +2145,14 @@ function MoveAccountInline({
     function walk(nodes: CostCategoryNode[], prefix: string) {
       for (const n of nodes) {
         if (n.kind !== account.kind) continue;
-        if (n.id === account.currentMapping?.categoryId) continue;
         const label = prefix ? `${prefix} › ${n.name}` : n.name;
-        result.push({ value: n.id, label });
+        // The cont's current category is not a valid move target, but its
+        // children still are — so we omit only this option and keep walking
+        // into the subtree (otherwise moving a cont from a parent down into
+        // one of its own subgroups would be impossible).
+        if (n.id !== account.currentMapping?.categoryId) {
+          result.push({ value: n.id, label });
+        }
         if (n.children.length > 0) walk(n.children, label);
       }
     }

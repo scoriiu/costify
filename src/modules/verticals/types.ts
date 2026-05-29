@@ -57,11 +57,26 @@ export interface CategoryAllocationView {
   splits: AllocationSplit[];
 }
 
+export interface PartnerAllocationView {
+  id: string;
+  clientId: string;
+  contBase: string;
+  partnerNameNormalized: string;
+  partnerNameOriginal: string;
+  splits: AllocationSplit[];
+}
+
 /** The resolved verticals for one cont or category. Always non-empty: if no
- *  rule matches, the resolver returns the default vertical at 100%. */
+ *  rule matches, the resolver returns the default vertical at 100%.
+ *
+ *  `matchedScope` tells the UI WHERE the split came from in the cascade so it
+ *  can label the row honestly:
+ *    - "analytic" / "contBase" — the cont has its own pinned rule
+ *    - "category"              — inherited from the cont's CostCategory split
+ *    - "firm"                  — inherited from the firm-wide default split
+ *    - "default"               — legacy fallback: default vertical at 100%
+ */
 export interface ResolvedAllocation {
   splits: AllocationSplit[];
-  /** Which rule matched. "category" means the resolution came from a
-   *  CategoryVerticalAllocation row (partner-override pathway). */
-  matchedScope: AllocationScope | "default" | "category";
+  matchedScope: AllocationScope | "default" | "category" | "firm";
 }

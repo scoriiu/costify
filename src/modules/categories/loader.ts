@@ -22,6 +22,10 @@ import {
   listVerticals,
   listAllocations,
   listCategoryAllocations,
+  listPartnerAllocations,
+  getFirmDefaultSplits,
+  buildVerticalResolver,
+  resolveAllocationForCont,
   type VerticalView,
   type AllocationView,
   type CategoryAllocationView,
@@ -61,6 +65,18 @@ export interface AccountListItem {
     scope: AllocationScope;
     splits: AllocationSplit[];
   } | null;
+  /** The split this cont ACTUALLY resolves to through the full cascade
+   *  (own rule → category → firm-top → legacy default), plus where it came
+   *  from. Lets the UI label each row honestly: "Regula proprie" vs "Urmeaza
+   *  categoria" vs "Urmeaza firma". `source`:
+   *    - "own"      — the cont has its own VerticalAllocation row
+   *    - "category" — inherited from the cont's CostCategory split
+   *    - "firm"     — inherited from the firm-top default
+   *    - "default"  — legacy fallback (default vertical 100%) */
+  effectiveAllocation: {
+    splits: AllocationSplit[];
+    source: "own" | "category" | "firm" | "default";
+  };
   /** True when this analytic cont has its own allocation row (overrides base). */
   hasAnalyticVerticalOverride: boolean;
   /** Number of distinct partners that touched this cont in the period
@@ -74,6 +90,10 @@ export interface AccountListItem {
   /** Sum of rulaj that flows through partners with an active override.
    *  Sprint 6 will use this in residual computation. */
   partnerOverriddenRulaj: number;
+  /** Number of partners on this cont that have their OWN line-of-business
+   *  split (PartnerVerticalAllocation), differing from the cont's split.
+   *  > 0 → show the "some partners split differently" marker on the row. */
+  partnerLobOverrideCount: number;
 }
 
 /**
@@ -162,6 +182,10 @@ export interface MapariCashflowData {
    *  marker tooltip to phrase "se duc 100% pe Outsourcing" vs "se duc pe
    *  Toata firma". */
   categoryAllocations: CategoryAllocationView[];
+  /** The firm-top default split — the top of the cascade. null = not
+   *  configured (everything falls through to the legacy "Toata firma"
+   *  vertical). Drives the firm-level split setter on the top band. */
+  firmDefaultSplits: AllocationSplit[] | null;
   /** Per-categoryId map of incoming residue from partner overrides in the
    *  period. Missing key = the category receives no residue. Drives the
    *  inflow marker on the category row + tooltip detail. */
@@ -194,7 +218,9 @@ export async function loadMapariCashflow(
     verticals,
     allocations,
     categoryAllocations,
+    firmDefaultSplits,
     periods,
+    partnerAllocations,
   ] = await Promise.all([
     listMappings(prisma, clientId),
     prisma.client.findUnique({
@@ -204,7 +230,9 @@ export async function loadMapariCashflow(
     listVerticals(prisma, clientId),
     listAllocations(prisma, clientId),
     listCategoryAllocations(prisma, clientId),
+    getFirmDefaultSplits(prisma, clientId),
     getAvailablePeriods(clientId),
+    listPartnerAllocations(prisma, clientId),
   ]);
 
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
@@ -220,8 +248,33 @@ export async function loadMapariCashflow(
   // sub-category mapping on "641" before falling back to "64".
   const resolverState = buildResolverState(tree, mappings);
 
+  // Vertical resolver mirrors the snapshot cascade so the per-cont "effective
+  // split" shown in the UI matches what the owner report computes. Needs the
+  // default vertical id; if verticals aren't enabled there is none and we skip
+  // effective-split resolution (UI hides that column anyway).
+  const defaultVerticalId = verticals.find((v) => v.isDefault)?.id ?? null;
+  const verticalResolver = verticalsEnabled
+    ? buildVerticalResolver(
+        allocations,
+        defaultVerticalId,
+        categoryAllocations,
+        firmDefaultSplits
+      )
+    : null;
+
   const allocByCont = new Map<string, AllocationView>();
   for (const a of allocations) allocByCont.set(a.cont, a);
+
+  // How many partners on each cont carry their OWN line-of-business split
+  // (a PartnerVerticalAllocation), overriding the cont's split. Drives the
+  // "some partners split differently" marker on the cont row.
+  const partnerLobOverridesByContBase = new Map<string, number>();
+  for (const a of partnerAllocations) {
+    partnerLobOverridesByContBase.set(
+      a.contBase,
+      (partnerLobOverridesByContBase.get(a.contBase) ?? 0) + 1
+    );
+  }
   const availableYears = Array.from(new Set(periods.map((p) => p.year))).sort(
     (a, b) => b - a
   );
@@ -238,6 +291,7 @@ export async function loadMapariCashflow(
       verticals,
       partnerSummariesByCont: emptyPartnerSummaries,
       categoryAllocations,
+      firmDefaultSplits,
       categoryInflows: emptyCategoryInflows,
       defaultVerticalResidueAbsorbed: 0,
     };
@@ -281,6 +335,7 @@ export async function loadMapariCashflow(
       verticals,
       partnerSummariesByCont,
       categoryAllocations,
+      firmDefaultSplits,
       categoryInflows,
       defaultVerticalResidueAbsorbed,
     };
@@ -327,6 +382,29 @@ export async function loadMapariCashflow(
     // activity / overrides for this cont this period.
     const partnerSummary = partnerSummariesByCont[row.contBase];
 
+    // Effective split through the full cascade (own → category → firm →
+    // legacy). categoryPath is leaf→root so the resolver picks the most
+    // specific category that has a split. When verticals are off there is no
+    // resolver and the UI hides this; we still emit a stable shape.
+    const categoryPath = resolved ? resolved.path.map((n) => n.id).reverse() : [];
+    const effective = verticalResolver
+      ? resolveAllocationForCont(row.cont, verticalResolver, categoryPath)
+      : null;
+    const effectiveAllocation: AccountListItem["effectiveAllocation"] = effective
+      ? {
+          splits: effective.splits,
+          source:
+            effective.matchedScope === "analytic" ||
+            effective.matchedScope === "contBase"
+              ? "own"
+              : effective.matchedScope === "category"
+              ? "category"
+              : effective.matchedScope === "firm"
+              ? "firm"
+              : "default",
+        }
+      : { splits: [], source: "default" };
+
     accounts.push({
       cont: row.cont,
       contBase: row.contBase,
@@ -339,10 +417,13 @@ export async function loadMapariCashflow(
       currentAllocation: allocation
         ? { scope: allocation.scope, splits: allocation.splits }
         : null,
+      effectiveAllocation,
       hasAnalyticVerticalOverride: analyticAlloc !== undefined,
       partnerCount: partnerSummary?.partnerCount ?? 0,
       partnerOverrideCount: partnerSummary?.mappedPartnerCount ?? 0,
       partnerOverriddenRulaj: partnerSummary?.overriddenRulaj ?? 0,
+      partnerLobOverrideCount:
+        partnerLobOverridesByContBase.get(row.contBase) ?? 0,
     });
   }
 
@@ -365,6 +446,7 @@ export async function loadMapariCashflow(
     verticals,
     partnerSummariesByCont,
     categoryAllocations,
+    firmDefaultSplits,
     categoryInflows,
     defaultVerticalResidueAbsorbed,
   };

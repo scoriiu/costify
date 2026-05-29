@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEscapeKey } from "@/lib/use-escape-key";
 
 type Step = "date" | "confirm" | "done";
 
@@ -79,6 +80,8 @@ export function DeleteJournalModal({ clientId, clientName, open, onClose, onComp
   function handlePaste(e: React.ClipboardEvent) {
     e.preventDefault();
   }
+
+  useEscapeKey(onClose, open);
 
   if (!open) return null;
 

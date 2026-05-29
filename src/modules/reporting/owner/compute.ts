@@ -958,7 +958,8 @@ export function computeVerticalBreakdown(
   catalog: Map<string, CatalogAccount>,
   resolver: VerticalResolverState,
   verticals: Array<{ id: string; name: string; isDefault: boolean }>,
-  partnerAdjustments: PartnerCategoryAdjustment[] = []
+  partnerAdjustments: PartnerCategoryAdjustment[] = [],
+  categoryResolver: ResolverState | null = null
 ): VerticalBreakdownItem[] {
   const totals = new Map<string, { revenue: number; expenses: number }>();
   for (const v of verticals) totals.set(v.id, { revenue: 0, expenses: 0 });
@@ -1009,7 +1010,13 @@ export function computeVerticalBreakdown(
 
     if (Math.abs(residual) < 0.01) continue;
 
-    const allocation = resolveAllocationForCont(row.cont, resolver);
+    const resolvedCat = categoryResolver
+      ? resolveCategoryForCont(row.cont, categoryResolver)
+      : null;
+    const categoryPath = resolvedCat
+      ? resolvedCat.path.map((n) => n.id).reverse()
+      : [];
+    const allocation = resolveAllocationForCont(row.cont, resolver, categoryPath);
     const slices = applySplit(residual, allocation.splits);
     for (const slice of slices) {
       const entry = totals.get(slice.verticalId);

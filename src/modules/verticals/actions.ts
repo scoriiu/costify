@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/modules/auth/session";
 import { recordClientMutation } from "@/modules/audit";
 import { bumpClientDataVersion } from "@/modules/clients/data-version";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import * as service from "./service";
@@ -25,12 +24,19 @@ async function authorize(clientId: string): Promise<{ userId: string } | null> {
 /**
  * Post-mutation invalidation. Vertical config changes redistribute the
  * cashflow categories that already-mapped accounts and partners fall into,
- * so we MUST bump the data version (invalidates balance/CPP/mapari/owner
- * snapshot caches) in addition to revalidating Next's path cache.
+ * so we bump the data version, which invalidates the balance/CPP/mapari/owner
+ * snapshot caches by construction (the version is part of every cache key).
+ *
+ * We deliberately do NOT call `revalidatePath` here: it forces Next to
+ * re-render and re-stream the whole `/clients` route tree (recomputing the
+ * 16k-row journal) as part of the server-action response, adding ~1s+ of
+ * blocking latency before the action resolves. The UI never reads from that
+ * server render after a vertical mutation, it refetches `/api/mapari-cashflow`
+ * client-side, which already sees the bumped version. Skipping the path
+ * revalidation makes every line add/rename/delete resolve instantly.
  */
 async function bumpAndRevalidate(clientId: string): Promise<void> {
   await bumpClientDataVersion(clientId);
-  revalidatePath("/clients");
 }
 
 const enableSchema = z.object({ clientId: z.string().min(1) });
@@ -97,16 +103,18 @@ export async function createVerticalAction(
       clientId: parsed.data.clientId,
       name: parsed.data.name,
     });
-    await recordClientMutation({
-      clientId: parsed.data.clientId,
-      actorId: auth.userId,
-      action: "create",
-      entityType: "vertical",
-      entityId: created.id,
-      before: null,
-      after: { name: created.name },
-    });
-    await bumpAndRevalidate(parsed.data.clientId);
+    await Promise.all([
+      recordClientMutation({
+        clientId: parsed.data.clientId,
+        actorId: auth.userId,
+        action: "create",
+        entityType: "vertical",
+        entityId: created.id,
+        before: null,
+        after: { name: created.name },
+      }),
+      bumpAndRevalidate(parsed.data.clientId),
+    ]);
     return { data: { id: created.id } };
   } catch (err) {
     return { error: (err as Error).message };
@@ -313,6 +321,236 @@ export async function setCategoryAllocationAction(
     });
     await bumpAndRevalidate(parsed.data.clientId);
     return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+const setFirmDefaultSchema = z.object({
+  clientId: z.string().min(1),
+  splits: z
+    .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
+    .min(1)
+    .max(5),
+});
+
+export async function setFirmDefaultAction(
+  input: z.infer<typeof setFirmDefaultSchema>
+): Promise<ActionResult> {
+  const parsed = setFirmDefaultSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const before = await prisma.firmVerticalDefault.findUnique({
+      where: { clientId: parsed.data.clientId },
+      select: { id: true, splits: true },
+    });
+    const result = await service.setFirmDefaultSplits(
+      prisma,
+      parsed.data.clientId,
+      parsed.data.splits
+    );
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: before ? "update" : "create",
+      entityType: "firm_vertical_default",
+      entityId: result.id,
+      before: before ? { splits: before.splits } : null,
+      after: { splits: parsed.data.splits },
+    });
+    await bumpAndRevalidate(parsed.data.clientId);
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+const clearFirmDefaultSchema = z.object({ clientId: z.string().min(1) });
+
+export async function clearFirmDefaultAction(
+  input: z.infer<typeof clearFirmDefaultSchema>
+): Promise<ActionResult> {
+  const parsed = clearFirmDefaultSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const deleted = await service.clearFirmDefaultSplits(
+      prisma,
+      parsed.data.clientId
+    );
+    if (!deleted) return {};
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: "delete",
+      entityType: "firm_vertical_default",
+      entityId: deleted.id,
+      before: { splits: deleted.splits },
+      after: null,
+    });
+    await bumpAndRevalidate(parsed.data.clientId);
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+const splitsSchema = z
+  .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
+  .min(1)
+  .max(5);
+
+const setPartnerAllocationSchema = z.object({
+  clientId: z.string().min(1),
+  contBase: z.string().min(1).max(20),
+  partnerNameNormalized: z.string().min(1),
+  partnerNameOriginal: z.string().min(1),
+  splits: splitsSchema,
+});
+
+export async function setPartnerAllocationAction(
+  input: z.infer<typeof setPartnerAllocationSchema>
+): Promise<ActionResult> {
+  const parsed = setPartnerAllocationSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const result = await service.setPartnerAllocation(prisma, parsed.data);
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: "update",
+      entityType: "partner_vertical_allocation",
+      entityId: result.id,
+      before: null,
+      after: {
+        contBase: parsed.data.contBase,
+        partner: parsed.data.partnerNameOriginal,
+        splits: parsed.data.splits,
+      },
+    });
+    await bumpAndRevalidate(parsed.data.clientId);
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+const listPartnerAllocationsSchema = z.object({
+  clientId: z.string().min(1),
+  contBase: z.string().min(1).max(20),
+});
+
+export async function listPartnerAllocationsAction(
+  input: z.infer<typeof listPartnerAllocationsSchema>
+): Promise<ActionResult<{ allocations: import("./types").PartnerAllocationView[] }>> {
+  const parsed = listPartnerAllocationsSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+  const allocations = await service.listPartnerAllocations(
+    prisma,
+    parsed.data.clientId,
+    parsed.data.contBase
+  );
+  return { data: { allocations } };
+}
+
+const clearPartnerAllocationSchema = z.object({
+  clientId: z.string().min(1),
+  contBase: z.string().min(1).max(20),
+  partnerNameNormalized: z.string().min(1),
+});
+
+export async function clearPartnerAllocationAction(
+  input: z.infer<typeof clearPartnerAllocationSchema>
+): Promise<ActionResult> {
+  const parsed = clearPartnerAllocationSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    const deleted = await service.clearPartnerAllocation(
+      prisma,
+      parsed.data.clientId,
+      parsed.data.contBase,
+      parsed.data.partnerNameNormalized
+    );
+    if (!deleted) return {};
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: "delete",
+      entityType: "partner_vertical_allocation",
+      entityId: deleted.id,
+      before: { contBase: deleted.contBase, partner: deleted.partnerNameOriginal },
+      after: null,
+    });
+    await bumpAndRevalidate(parsed.data.clientId);
+    return {};
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+/** Bulk apply ONE split to many partners on a cont at once — the materiality
+ *  workflow the contabil relies on (set the big movers in one action). */
+const bulkSetPartnerAllocationsSchema = z.object({
+  clientId: z.string().min(1),
+  contBase: z.string().min(1).max(20),
+  partners: z
+    .array(
+      z.object({
+        partnerNameNormalized: z.string().min(1),
+        partnerNameOriginal: z.string().min(1),
+      })
+    )
+    .min(1)
+    .max(2000),
+  splits: splitsSchema,
+});
+
+export async function bulkSetPartnerAllocationsAction(
+  input: z.infer<typeof bulkSetPartnerAllocationsSchema>
+): Promise<ActionResult<{ count: number }>> {
+  const parsed = bulkSetPartnerAllocationsSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const auth = await authorize(parsed.data.clientId);
+  if (!auth) return { error: "Firma nu exista sau nu ai acces" };
+
+  try {
+    for (const p of parsed.data.partners) {
+      await service.setPartnerAllocation(prisma, {
+        clientId: parsed.data.clientId,
+        contBase: parsed.data.contBase,
+        partnerNameNormalized: p.partnerNameNormalized,
+        partnerNameOriginal: p.partnerNameOriginal,
+        splits: parsed.data.splits,
+      });
+    }
+    await recordClientMutation({
+      clientId: parsed.data.clientId,
+      actorId: auth.userId,
+      action: "update",
+      entityType: "partner_vertical_allocation",
+      entityId: parsed.data.contBase,
+      before: null,
+      after: {
+        contBase: parsed.data.contBase,
+        count: parsed.data.partners.length,
+        splits: parsed.data.splits,
+      },
+    });
+    await bumpAndRevalidate(parsed.data.clientId);
+    return { data: { count: parsed.data.partners.length } };
   } catch (err) {
     return { error: (err as Error).message };
   }

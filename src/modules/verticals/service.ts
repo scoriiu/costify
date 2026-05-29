@@ -11,6 +11,7 @@ import type {
   AllocationSplit,
   AllocationView,
   CategoryAllocationView,
+  PartnerAllocationView,
   VerticalView,
 } from "./types";
 
@@ -233,6 +234,52 @@ export async function deleteVertical(
     });
   }
 
+  // Partner-level allocations referencing this vertical: same drop +
+  // renormalize treatment as cont/category allocations.
+  const partnerAllocs = await prisma.partnerVerticalAllocation.findMany({
+    where: { clientId },
+  });
+  for (const allocation of partnerAllocs) {
+    const splits = parseSplits(allocation.splits);
+    const filtered = splits.filter((s) => s.verticalId !== verticalId);
+    if (filtered.length === splits.length) continue;
+    if (filtered.length === 0) {
+      await prisma.partnerVerticalAllocation.delete({ where: { id: allocation.id } });
+      continue;
+    }
+    const total = filtered.reduce((s, x) => s + x.percent, 0);
+    const renormalized = renormalizeSplits(filtered, total);
+    await prisma.partnerVerticalAllocation.update({
+      where: { id: allocation.id },
+      data: {
+        splits: renormalized as unknown as Prisma.InputJsonValue,
+        primaryVerticalId: renormalized[0]?.verticalId ?? null,
+      },
+    });
+  }
+
+  // Firm-top default split: same drop-and-renormalize treatment.
+  const firmDefault = await prisma.firmVerticalDefault.findUnique({
+    where: { clientId },
+  });
+  if (firmDefault) {
+    const splits = parseSplits(firmDefault.splits);
+    const filtered = splits.filter((s) => s.verticalId !== verticalId);
+    if (filtered.length !== splits.length) {
+      if (filtered.length === 0) {
+        await prisma.firmVerticalDefault.delete({ where: { clientId } });
+      } else {
+        const total = filtered.reduce((s, x) => s + x.percent, 0);
+        await prisma.firmVerticalDefault.update({
+          where: { clientId },
+          data: {
+            splits: renormalizeSplits(filtered, total) as unknown as Prisma.InputJsonValue,
+          },
+        });
+      }
+    }
+  }
+
   await prisma.vertical.delete({ where: { id: verticalId } });
   return existing;
 }
@@ -403,6 +450,156 @@ export async function clearCategoryAllocation(
   if (!existing) return null;
 
   await prisma.categoryVerticalAllocation.delete({ where: { id: existing.id } });
+  return existing;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        PARTNER-LEVEL ALLOCATIONS                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Partner-level line-of-business split — the most specific level of the LOB
+ * cascade (partener > cont > categorie > firma). Keyed by
+ * (clientId, contBase, partnerNameNormalized). Absent = the partener inherits
+ * the cont's resolved split. Shares split validation with every other level.
+ */
+export async function listPartnerAllocations(
+  prisma: PrismaClient,
+  clientId: string,
+  contBase?: string
+): Promise<PartnerAllocationView[]> {
+  const rows = await prisma.partnerVerticalAllocation.findMany({
+    where: contBase ? { clientId, contBase } : { clientId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    clientId: r.clientId,
+    contBase: r.contBase,
+    partnerNameNormalized: r.partnerNameNormalized,
+    partnerNameOriginal: r.partnerNameOriginal,
+    splits: parseSplits(r.splits),
+  }));
+}
+
+export interface SetPartnerAllocationInput {
+  clientId: string;
+  contBase: string;
+  partnerNameNormalized: string;
+  partnerNameOriginal: string;
+  splits: AllocationSplit[];
+}
+
+export async function setPartnerAllocation(
+  prisma: PrismaClient,
+  input: SetPartnerAllocationInput
+) {
+  validateSplits(input.splits);
+  const vIds = Array.from(new Set(input.splits.map((s) => s.verticalId)));
+  const verticals = await prisma.vertical.findMany({
+    where: { clientId: input.clientId, id: { in: vIds } },
+    select: { id: true },
+  });
+  if (verticals.length !== vIds.length) {
+    throw new Error("Una sau mai multe linii de business nu apartin acestei firme");
+  }
+
+  return prisma.partnerVerticalAllocation.upsert({
+    where: {
+      clientId_contBase_partnerNameNormalized: {
+        clientId: input.clientId,
+        contBase: input.contBase,
+        partnerNameNormalized: input.partnerNameNormalized,
+      },
+    },
+    create: {
+      clientId: input.clientId,
+      contBase: input.contBase,
+      partnerNameNormalized: input.partnerNameNormalized,
+      partnerNameOriginal: input.partnerNameOriginal,
+      splits: input.splits as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: input.splits[0].verticalId,
+    },
+    update: {
+      partnerNameOriginal: input.partnerNameOriginal,
+      splits: input.splits as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: input.splits[0].verticalId,
+    },
+  });
+}
+
+export async function clearPartnerAllocation(
+  prisma: PrismaClient,
+  clientId: string,
+  contBase: string,
+  partnerNameNormalized: string
+) {
+  const existing = await prisma.partnerVerticalAllocation.findFirst({
+    where: { clientId, contBase, partnerNameNormalized },
+  });
+  if (!existing) return null;
+  await prisma.partnerVerticalAllocation.delete({ where: { id: existing.id } });
+  return existing;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          FIRM-TOP DEFAULT SPLIT                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The firm-wide default split — the top of the cascade. Every cont and
+ * category that has no more-specific rule inherits this live. There is at most
+ * one row per client (clientId is unique). null = not configured, in which
+ * case resolution falls through to the legacy default vertical at 100%.
+ */
+export async function getFirmDefaultSplits(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<AllocationSplit[] | null> {
+  const row = await prisma.firmVerticalDefault.findUnique({
+    where: { clientId },
+  });
+  if (!row) return null;
+  const splits = parseSplits(row.splits);
+  return splits.length > 0 ? splits : null;
+}
+
+export async function setFirmDefaultSplits(
+  prisma: PrismaClient,
+  clientId: string,
+  splits: AllocationSplit[]
+) {
+  validateSplits(splits);
+
+  const vIds = Array.from(new Set(splits.map((s) => s.verticalId)));
+  const verticals = await prisma.vertical.findMany({
+    where: { clientId, id: { in: vIds } },
+    select: { id: true },
+  });
+  if (verticals.length !== vIds.length) {
+    throw new Error("Una sau mai multe linii de business nu apartin acestei firme");
+  }
+
+  return prisma.firmVerticalDefault.upsert({
+    where: { clientId },
+    create: {
+      clientId,
+      splits: splits as unknown as Prisma.InputJsonValue,
+    },
+    update: {
+      splits: splits as unknown as Prisma.InputJsonValue,
+    },
+  });
+}
+
+export async function clearFirmDefaultSplits(
+  prisma: PrismaClient,
+  clientId: string
+) {
+  const existing = await prisma.firmVerticalDefault.findUnique({
+    where: { clientId },
+  });
+  if (!existing) return null;
+  await prisma.firmVerticalDefault.delete({ where: { clientId } });
   return existing;
 }
 

@@ -91,6 +91,8 @@ model Client {
   verticals                Vertical[]
   verticalAllocations      VerticalAllocation[]
   categoryVerticalAllocs   CategoryVerticalAllocation[]
+  firmVerticalDefault      FirmVerticalDefault?
+  partnerVerticalAllocs    PartnerVerticalAllocation[]
 
   @@unique([userId, slug])
   @@index([userId])
@@ -297,6 +299,56 @@ model CategoryVerticalAllocation {
 
   @@index([clientId])
   @@index([primaryVerticalId])
+}
+
+/// The firm-wide default split across business lines (linii de business).
+/// This is the TOP of the allocation cascade: any cont/partner that doesn't
+/// have its own rule inherits this split ("Urmeaza linia de business").
+///
+/// One row per client (unique). Absence means "no firm split configured yet"
+/// — the resolver then falls back to the default Vertical at 100% (legacy
+/// behaviour, so nothing breaks for clients who never set a firm split).
+///
+/// Changing this row re-resolves every inheriting cont/partner LIVE — there
+/// is no re-stamping of downstream rows. Only conts/partners with their own
+/// VerticalAllocation / PartnerVerticalAllocation are pinned and unaffected.
+///
+/// Same `splits` shape + invariants as VerticalAllocation:
+///   1..5 entries, integer percent 1..100, sum(percent) === 100, all
+///   verticalIds belong to the same client.
+model FirmVerticalDefault {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  splits    Json // [{ verticalId, percent }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+/// Partner-level line-of-business split — the most specific level of the LOB
+/// cascade (partener > cont > categorie > firma). When a partener on a cont
+/// serves one activity (e.g. a supplier used only by Outsourcing), pin its
+/// split here. Absent = the partener inherits the cont's resolved split.
+/// Keyed like PartnerCategoryOverride: (clientId, contBase, normalized name).
+model PartnerVerticalAllocation {
+  id                    String   @id @default(cuid())
+  clientId              String
+  contBase              String
+  partnerNameNormalized String
+  partnerNameOriginal   String
+  splits                Json // [{ verticalId, percent }]
+  primaryVerticalId     String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, contBase, partnerNameNormalized])
+  @@index([clientId])
+  @@index([clientId, contBase])
 }
 
 /// Maps a Romanian chart-of-accounts entry to a CostCategory leaf, scoped to

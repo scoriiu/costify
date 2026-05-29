@@ -37,6 +37,7 @@ import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
 import { DocsLink } from "@/components/ui/docs-link";
 import { DocsLinks } from "@/modules/docs/links";
+import { useEscapeKey } from "@/lib/use-escape-key";
 import type {
   CostCategoryNode,
   MappingScope,
@@ -61,11 +62,14 @@ import {
 } from "@/modules/verticals/actions";
 import { flattenTreeForPicker, pickerLabel, type FlatNode } from "./tree-utils";
 import { VerticalPicker } from "./vertical-picker";
-import { EditAllocationDialog } from "./edit-allocation-dialog";
+import {
+  EditAllocationDialog,
+  EditFirmDefaultAllocationDialog,
+} from "./edit-allocation-dialog";
 import { CategoryWorkspace } from "./category-workspace";
 import { ReviewQueueDialog } from "./review-queue";
 import { AllExceptionsDialog } from "./all-exceptions-dialog";
-import type { VerticalView } from "@/modules/verticals";
+import type { VerticalView, AllocationSplit } from "@/modules/verticals";
 
 interface Props {
   clientId: string;
@@ -399,80 +403,20 @@ function MapariCashflowContent({
         period={data.period}
         availableYears={data.availableYears}
         coverage={data.coverage}
-        partnerSummariesByCont={data.partnerSummariesByCont}
         freshlySeeded={data.freshlySeeded}
         onYearChange={onYearChange}
         onJumpToUnmapped={() => {
-          // KPI "X nemapate" → categorii tab + Nemapate filter applied. The
-          // user clicked a number; they expect to see exactly that subset.
-          // Using a fresh object reference would force re-apply each click;
-          // the useEffect inside CategoryWorkspace handles it.
           setCategoryInitialFilter("unmapped");
-          setActiveTab("categorii");
         }}
-        onOpenReviewQueue={() => setReviewQueueOpen(true)}
-        onOpenAllExceptions={() => setAllExceptionsOpen(true)}
       />
 
-      <CashflowTabBar
-        active={activeTab}
-        onChange={setActiveTab}
-        verticalsEnabled={data.verticalsEnabled}
-        unmappedCount={unmappedCount}
+      <CategoryAxisContent
+        data={data}
+        initialFilter={categoryInitialFilter}
+        initialPanelContBase={pendingPanelContBase}
+        onInitialPanelOpened={() => setPendingPanelContBase(undefined)}
+        onMutate={onMutate}
       />
-
-      {activeTab === "categorii" ? (
-        <CategoryAxisContent
-          data={data}
-          initialFilter={categoryInitialFilter}
-          initialPanelContBase={pendingPanelContBase}
-          onInitialPanelOpened={() => setPendingPanelContBase(undefined)}
-          onMutate={onMutate}
-        />
-      ) : (
-        <VerticalAxisContent
-          data={data}
-          filteredAccounts={filteredAccounts}
-          unmappedCount={unmappedCount}
-          unallocatedCount={unallocatedCount}
-          splitCount={splitCount}
-          filter={filter}
-          setFilter={setFilter}
-          query={query}
-          setQuery={setQuery}
-          verticalFilter={verticalFilter}
-          setVerticalFilter={setVerticalFilter}
-          residueFilterActive={residueFilterActive}
-          setResidueFilterActive={setResidueFilterActive}
-          residueSourceContCount={defaultVerticalResidueSourceConts.size}
-          residueSourceConts={defaultVerticalResidueSourceConts}
-          residueSourceDetails={defaultVerticalResidueSourceDetails}
-          onMutate={onMutate}
-        />
-      )}
-
-      {reviewQueueOpen && data.period && (
-        <ReviewQueueDialog
-          clientId={data.clientId}
-          period={data.period}
-          tree={data.tree}
-          onClose={() => setReviewQueueOpen(false)}
-          onMutate={onMutate}
-          onOpenContPanel={openContPanelFromDialog}
-        />
-      )}
-
-      {allExceptionsOpen && data.period && (
-        <AllExceptionsDialog
-          clientId={data.clientId}
-          period={data.period}
-          tree={data.tree}
-          accounts={data.accounts}
-          onClose={() => setAllExceptionsOpen(false)}
-          onMutate={onMutate}
-          onOpenContPanel={openContPanelFromDialog}
-        />
-      )}
     </div>
   );
 }
@@ -609,20 +553,497 @@ function CategoryAxisContent({
   onMutate: () => void;
 }) {
   return (
-    <CategoryWorkspace
-      tree={data.tree}
-      accounts={data.accounts}
-      clientId={data.clientId}
-      period={data.period}
-      onMutate={onMutate}
-      verticals={data.verticals}
-      categoryAllocations={data.categoryAllocations}
-      categoryInflows={data.categoryInflows}
-      initialFilter={initialFilter}
-      initialPanelContBase={initialPanelContBase}
-      onInitialPanelOpened={onInitialPanelOpened}
-    />
+    <div className="space-y-5">
+      <CategoryWorkspace
+        tree={data.tree}
+        accounts={data.accounts}
+        clientId={data.clientId}
+        period={data.period}
+        onMutate={onMutate}
+        verticalsEnabled={data.verticalsEnabled}
+        verticals={data.verticals}
+        categoryAllocations={data.categoryAllocations}
+        firmDefaultSplits={data.firmDefaultSplits}
+        categoryInflows={data.categoryInflows}
+        initialFilter={initialFilter}
+        initialPanelContBase={initialPanelContBase}
+        onInitialPanelOpened={onInitialPanelOpened}
+      />
+    </div>
   );
+}
+
+/**
+ * Unified top-of-page band: defines the firm's lines of business (the 3
+ * verticals) once, plus the firm-wide default split everything inherits.
+ * This is the entire "Linii de business" concept, collapsed into a header —
+ * all the per-category / per-cont / per-partener work happens below in the
+ * category workspace.
+ */
+function LinesOfBusinessBand({
+  clientId,
+  enabled,
+  verticals,
+  firmDefaultSplits,
+  onMutate,
+}: {
+  clientId: string;
+  enabled: boolean;
+  verticals: VerticalView[];
+  firmDefaultSplits: AllocationSplit[] | null;
+  onMutate: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [editingFirm, setEditingFirm] = useState(false);
+  const realVerticals = verticals.filter((v) => !v.isDefault);
+
+  if (!enabled || realVerticals.length === 0) {
+    return (
+      <div className="rounded-xl border border-dark-3 bg-dark-2 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h3
+              className="text-[16px] font-semibold text-white"
+              style={{ letterSpacing: "-0.04em" }}
+            >
+              Linii de business
+            </h3>
+            <p
+              className="mt-1 text-[12px] text-gray"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Imparte firma pe activitati (ex: Outsourcing, Recrutare,
+              Coworking) ca sa vezi cat aduce si cat costa fiecare. Optional.
+            </p>
+          </div>
+          <Button onClick={() => setActivating(true)}>
+            <Plus size={14} className="mr-1" />
+            Activeaza liniile de business
+          </Button>
+        </div>
+        {activating && (
+          <ActivateVerticalsModal
+            clientId={clientId}
+            onClose={() => setActivating(false)}
+            onDone={() => {
+              setActivating(false);
+              onMutate();
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const hasFirmSplit = firmDefaultSplits !== null && firmDefaultSplits.length > 0;
+
+  return (
+    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h3
+            className="text-[16px] font-semibold text-white"
+            style={{ letterSpacing: "-0.04em" }}
+          >
+            Linii de business
+          </h3>
+          <Tooltip content="Activitatile firmei. Fiecare categorie, cont sau partener se imparte intre ele. Defineste-le o data aici.">
+            <span className="font-mono text-[10px] text-gray cursor-help">?</span>
+          </Tooltip>
+        </div>
+        <span className="font-mono text-[11px] text-gray tabular-nums">
+          {realVerticals.length} linii
+        </span>
+      </div>
+
+      {/* The lines themselves */}
+      <div className="flex flex-wrap items-center gap-2">
+        {realVerticals.map((v, i) => (
+          <VerticalPill
+            key={v.id}
+            vertical={v}
+            colorClass={PILL_COLORS[i % PILL_COLORS.length]}
+            clientId={clientId}
+            onMutate={onMutate}
+          />
+        ))}
+        {adding ? (
+          <AddVerticalInline
+            clientId={clientId}
+            onDone={() => {
+              setAdding(false);
+              onMutate();
+            }}
+            onCancel={() => setAdding(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-dark-3 px-3 py-1 text-[12px] text-gray hover:text-white hover:border-gray transition-colors"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <Plus size={12} /> Adauga linie
+          </button>
+        )}
+      </div>
+
+      {/* Firm-wide default split */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3 border-t border-dark-3">
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            className="font-mono text-[10px] uppercase tracking-wider text-gray"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            Impartirea firmei (implicita)
+          </span>
+          <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (categorie, cont sau partener) o mosteneste automat.">
+            <span className="font-mono text-[9px] text-gray cursor-help">?</span>
+          </Tooltip>
+        </div>
+        <div className="flex-1 min-w-[180px]">
+          {hasFirmSplit ? (
+            <BandSplitChips splits={firmDefaultSplits} verticals={verticals} />
+          ) : (
+            <span
+              className="text-[11px] text-gray italic"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              Neimpartita — totul merge pe &quot;Toata firma&quot; pana setezi o
+              impartire.
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditingFirm(true)}
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-dark-3 px-3 py-1.5 text-[12px] font-medium text-gray-light hover:text-white hover:border-gray transition-colors"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {hasFirmSplit ? (
+            <>
+              <Pencil size={12} /> Editeaza
+            </>
+          ) : (
+            <>
+              <Plus size={12} /> Imparte firma pe linii
+            </>
+          )}
+        </button>
+      </div>
+
+      {editingFirm && (
+        <EditFirmDefaultAllocationDialog
+          open
+          currentSplits={firmDefaultSplits ?? []}
+          verticals={verticals}
+          clientId={clientId}
+          onClose={() => setEditingFirm(false)}
+          onSaved={() => {
+            setEditingFirm(false);
+            onMutate();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+const PILL_COLORS = [
+  "bg-primary/15 text-primary border-primary/30",
+  "bg-amber-400/15 text-amber-300 border-amber-400/30",
+  "bg-sky-400/15 text-sky-300 border-sky-400/30",
+  "bg-emerald-400/15 text-emerald-300 border-emerald-400/30",
+  "bg-rose-400/15 text-rose-300 border-rose-400/30",
+] as const;
+
+function VerticalPill({
+  vertical,
+  colorClass,
+  clientId,
+  onMutate,
+}: {
+  vertical: VerticalView;
+  colorClass: string;
+  clientId: string;
+  onMutate: () => void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function remove() {
+    if (
+      !confirm(
+        `Sterg linia "${vertical.name}"? Conturile alocate aici trec automat la "Toata firma".`
+      )
+    )
+      return;
+    startTransition(async () => {
+      const r = await deleteVerticalAction({ clientId, verticalId: vertical.id });
+      if (r.error) alert(r.error);
+      else onMutate();
+    });
+  }
+
+  if (renaming) {
+    return (
+      <RenameVerticalInline
+        vertical={vertical}
+        clientId={clientId}
+        onDone={() => {
+          setRenaming(false);
+          onMutate();
+        }}
+        onCancel={() => setRenaming(false)}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1 ${colorClass}`}
+    >
+      <span
+        className="text-[12px] font-medium"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        {vertical.name}
+      </span>
+      <span className="font-mono text-[10px] opacity-70 tabular-nums">
+        {vertical.allocationCount}
+      </span>
+      <span className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 transition-opacity">
+        <button
+          type="button"
+          onClick={() => setRenaming(true)}
+          className="p-0.5 hover:text-white"
+          aria-label="Redenumeste"
+        >
+          <Pencil size={10} />
+        </button>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={pending}
+          className="p-0.5 hover:text-neg"
+          aria-label="Sterge"
+        >
+          <Trash2 size={10} />
+        </button>
+      </span>
+    </span>
+  );
+}
+
+function BandSplitChips({
+  splits,
+  verticals,
+}: {
+  splits: AllocationSplit[];
+  verticals: VerticalView[];
+}) {
+  const realVerticals = verticals.filter((v) => !v.isDefault);
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+      {splits.map((s) => {
+        const idx = realVerticals.findIndex((x) => x.id === s.verticalId);
+        const v = realVerticals[idx] ?? verticals.find((x) => x.id === s.verticalId);
+        return (
+          <span
+            key={s.verticalId}
+            className="inline-flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-sm shrink-0 ${
+                PILL_DOT[(idx >= 0 ? idx : 0) % PILL_DOT.length]
+              }`}
+              aria-hidden
+            />
+            <span className="text-white">{s.percent}%</span>
+            <span className="truncate max-w-[140px]">{v?.name ?? "?"}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+const PILL_DOT = [
+  "bg-primary",
+  "bg-amber-400",
+  "bg-sky-400",
+  "bg-emerald-400",
+  "bg-rose-400",
+] as const;
+
+type VerticalTotals = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  expenses: number;
+  revenues: number;
+};
+
+/** Distribute each cont's rulaj across its RESOLVED lines of business (the
+ *  full cascade), so the bar shows where the money actually lands today. */
+function computeVerticalTotals(
+  accounts: AccountListItem[],
+  verticals: VerticalView[]
+): VerticalTotals[] {
+  const totals = new Map<string, { expenses: number; revenues: number }>();
+  for (const v of verticals) totals.set(v.id, { expenses: 0, revenues: 0 });
+  const defaultId = verticals.find((v) => v.isDefault)?.id ?? null;
+
+  for (const a of accounts) {
+    const rulaj = a.kind === "expense" ? a.rulajD : a.rulajC;
+    if (!rulaj) continue;
+    const splits =
+      a.effectiveAllocation.splits.length > 0
+        ? a.effectiveAllocation.splits
+        : defaultId
+        ? [{ verticalId: defaultId, percent: 100 }]
+        : [];
+    for (const s of splits) {
+      const bucket = totals.get(s.verticalId);
+      if (!bucket) continue;
+      const part = (rulaj * s.percent) / 100;
+      if (a.kind === "expense") bucket.expenses += part;
+      else bucket.revenues += part;
+    }
+  }
+
+  return verticals.map((v) => ({
+    id: v.id,
+    name: v.name,
+    isDefault: v.isDefault,
+    expenses: totals.get(v.id)?.expenses ?? 0,
+    revenues: totals.get(v.id)?.revenues ?? 0,
+  }));
+}
+
+/**
+ * The headline visual: how the firm's real money divides across lines of
+ * business right now. Two stacked bars (cheltuieli, venituri) + a legend with
+ * lei + share per line. Computed live from the resolved cascade — this is the
+ * "split" the contabil wants to see at a glance.
+ */
+function VerticalSplitVisual({
+  accounts,
+  verticals,
+}: {
+  accounts: AccountListItem[];
+  verticals: VerticalView[];
+}) {
+  const totals = useMemo(
+    () => computeVerticalTotals(accounts, verticals),
+    [accounts, verticals]
+  );
+  const realVerticals = verticals.filter((v) => !v.isDefault);
+  const colorFor = (id: string) => {
+    const idx = realVerticals.findIndex((v) => v.id === id);
+    return idx >= 0 ? PILL_DOT[idx % PILL_DOT.length] : DEFAULT_ACCENT;
+  };
+
+  const totalExpenses = totals.reduce((s, t) => s + t.expenses, 0);
+  const totalRevenues = totals.reduce((s, t) => s + t.revenues, 0);
+
+  // Only lines that carry money, biggest first.
+  const expenseRows = totals
+    .filter((t) => t.expenses > 0)
+    .sort((a, b) => b.expenses - a.expenses);
+  const revenueRows = totals
+    .filter((t) => t.revenues > 0)
+    .sort((a, b) => b.revenues - a.revenues);
+
+  if (totalExpenses === 0 && totalRevenues === 0) return null;
+
+  return (
+    <div className="space-y-3 pt-1">
+      <SplitStack
+        label="Cheltuieli pe linii"
+        rows={expenseRows.map((t) => ({
+          id: t.id,
+          name: t.name,
+          amount: t.expenses,
+          color: colorFor(t.id),
+        }))}
+        total={totalExpenses}
+      />
+      {totalRevenues > 0 && (
+        <SplitStack
+          label="Venituri pe linii"
+          rows={revenueRows.map((t) => ({
+            id: t.id,
+            name: t.name,
+            amount: t.revenues,
+            color: colorFor(t.id),
+          }))}
+          total={totalRevenues}
+        />
+      )}
+    </div>
+  );
+}
+
+function SplitStack({
+  label,
+  rows,
+  total,
+}: {
+  label: string;
+  rows: { id: string; name: string; amount: number; color: string }[];
+  total: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {label}
+        </span>
+        <span className="font-mono text-[11px] text-gray-light tabular-nums">
+          {formatLei(total)} lei
+        </span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-dark-3">
+        {rows.map((r) => (
+          <div
+            key={r.id}
+            className={`h-full ${r.color}`}
+            style={{ width: `${(r.amount / total) * 100}%` }}
+            title={`${r.name}: ${formatLei(r.amount)} lei`}
+          />
+        ))}
+      </div>
+      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {rows.map((r) => (
+          <li
+            key={r.id}
+            className="inline-flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-gray-light"
+            style={{ letterSpacing: "-0.02em" }}
+          >
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-sm shrink-0 ${r.color}`}
+              aria-hidden
+            />
+            <span className="truncate max-w-[140px]">{r.name}</span>
+            <span className="text-white">{formatLei(r.amount)}</span>
+            <span className="text-gray">
+              · {Math.round((r.amount / total) * 100)}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function formatLei(n: number): string {
+  return new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 0 }).format(n);
 }
 
 function VerticalAxisContent({
@@ -2127,6 +2548,8 @@ function ActivateVerticalsModal({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  useEscapeKey(onClose);
+
   function updateName(idx: number, value: string) {
     setNames((prev) => prev.map((n, i) => (i === idx ? value : n)));
   }
@@ -2245,38 +2668,17 @@ function PageHeader({
   period,
   availableYears,
   coverage,
-  partnerSummariesByCont,
   freshlySeeded,
   onJumpToUnmapped,
-  onOpenReviewQueue,
-  onOpenAllExceptions,
   onYearChange,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
   coverage: CoverageStats;
-  partnerSummariesByCont: MapariCashflowData["partnerSummariesByCont"];
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
-  onOpenReviewQueue: () => void;
-  onOpenAllExceptions: () => void;
   onYearChange: (year: number) => void;
 }) {
-  // Sprint 4: roll up suggested partner count across all conts. Anything > 0
-  // surfaces as a yellow callout that nudges the contabil toward the panels
-  // that have suggestions waiting.
-  const suggestedCount = Object.values(partnerSummariesByCont).reduce(
-    (sum, s) => sum + s.suggestedPartnerCount,
-    0
-  );
-  // Post-Sprint-7 polish: roll up explicit overrides across all conts. When
-  // > 0, surface an entry point to the centralised "Toate exceptiile" view
-  // so the contabil can audit/edit overrides without having to remember
-  // which cont they live on.
-  const overrideCount = Object.values(partnerSummariesByCont).reduce(
-    (sum, s) => sum + s.mappedPartnerCount,
-    0
-  );
   const periodDescription = period
     ? period.month === 12
       ? `anul ${period.year} complet`
@@ -2314,20 +2716,13 @@ function PageHeader({
           antreprenor. Acestea apar pe /firma sub &quot;Unde s-au dus banii&quot;
           si &quot;De unde au venit banii&quot;. Sumele de mai jos sunt
           rulajul cumulat
-          {periodDescription ? ` (${periodDescription})` : ""}{" "}
-          — un reper pentru ce conturi conteaza pe anul selectat.
+          {periodDescription ? ` (${periodDescription})` : ""}. Un reper pentru
+          ce conturi conteaza pe anul selectat.
         </p>
       </div>
 
       {coverage.totalAccountCount > 0 && (
-        <CoveragePanel
-          coverage={coverage}
-          suggestedCount={suggestedCount}
-          overrideCount={overrideCount}
-          onJumpToUnmapped={onJumpToUnmapped}
-          onOpenReviewQueue={onOpenReviewQueue}
-          onOpenAllExceptions={onOpenAllExceptions}
-        />
+        <CoveragePanel coverage={coverage} onJumpToUnmapped={onJumpToUnmapped} />
       )}
 
       {freshlySeeded && (
@@ -2347,183 +2742,42 @@ function PageHeader({
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              COVERAGE PANEL                                */
+/*                              COVERAGE STRIP                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Top-of-page status panel that tells the contabil at a glance how much of
- * the firm is mapped and what needs attention.
- *
- * Sprint 1 of the Mapari Cashflow rewrite — only the cont-level dimension
- * exists. From Sprint 4 we'll also surface "X parteneri noi de revizuit"
- * as a second callout, fed by the partner-overrides review queue.
+ * A single quiet line under the title: how many conturi are mapped + a
+ * clickable pill when some are not. The stars of the page are the mappings
+ * and the lines — coverage is just a reassuring footnote, not a panel.
  */
 function CoveragePanel({
   coverage,
-  suggestedCount,
-  overrideCount,
   onJumpToUnmapped,
-  onOpenReviewQueue,
-  onOpenAllExceptions,
 }: {
   coverage: CoverageStats;
-  suggestedCount: number;
-  overrideCount: number;
   onJumpToUnmapped: () => void;
-  onOpenReviewQueue: () => void;
-  onOpenAllExceptions: () => void;
 }) {
-  const allMapped = coverage.unmappedCount === 0;
-
+  const mappedCount = coverage.totalAccountCount - coverage.unmappedCount;
   return (
-    <div className="rounded-xl border border-dark-3 bg-dark-2 p-4 space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <span
-          className="font-mono text-[10px] uppercase tracking-wider text-gray"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          Acoperire generala
-        </span>
-        <span
-          className="font-mono text-[12px] text-gray-light tabular-nums"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {coverage.percent}% atinse explicit ·{" "}
-          {Math.max(0, 100 - coverage.percent)}% pe default
-        </span>
-      </div>
-
-      <CoverageBar percent={coverage.percent} />
-
-      <div
-        className="font-mono text-[11px] text-gray tabular-nums"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        {formatRon(coverage.mappedRulaj)} lei in{" "}
-        {coverage.totalAccountCount - coverage.unmappedCount} conturi mapate
-        {coverage.unmappedCount > 0 && (
-          <>
-            {" · "}
-            {formatRon(coverage.unmappedRulaj)} lei in {coverage.unmappedCount}{" "}
-            {coverage.unmappedCount === 1 ? "cont nemapat" : "conturi nemapate"}
-          </>
-        )}
-      </div>
-
-      {allMapped ? (
-        <div
-          className="flex items-center gap-2 rounded-lg border border-pos-border bg-pos-bg px-3 py-2"
-          role="status"
-        >
-          <Check size={14} className="text-pos shrink-0" />
-          <p
-            className="text-[12px] text-gray-light"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            Toate conturile au o categorie. Niciun cont nemapat in aceasta
-            perioada.
-          </p>
-        </div>
-      ) : (
-        // Whole row clickable — the contabil sees a number on a red card,
-        // they want to drill into it. Click → jump to categorii tab with
-        // "Nemapate" filter pre-applied. Small "Mapeaza →" caret kept as
-        // the visual affordance hint.
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 font-mono text-[11px] text-gray tabular-nums"
+      style={{ letterSpacing: "-0.02em" }}
+    >
+      <span>
+        <span className="text-gray-light">{mappedCount}</span> conturi mapate ·{" "}
+        <span className="text-gray-light">{formatRon(coverage.mappedRulaj)}</span>{" "}
+        lei
+      </span>
+      {coverage.unmappedCount > 0 && (
         <button
           type="button"
           data-testid="coverage-card-unmapped"
           onClick={onJumpToUnmapped}
-          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-neg-border bg-neg-bg px-3 py-2 hover:bg-neg-bg/80 hover:border-neg-border/80 transition-colors"
-          role="alert"
+          className="inline-flex items-center gap-1.5 rounded-full border border-neg-border bg-neg-bg px-2.5 py-0.5 text-neg hover:bg-neg-bg/80 transition-colors"
         >
-          <AlertTriangle size={14} className="text-neg shrink-0" />
-          <p
-            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            <span className="font-semibold text-neg">
-              {coverage.unmappedCount}{" "}
-              {coverage.unmappedCount === 1
-                ? "cont nemapat"
-                : "conturi nemapate"}
-            </span>{" "}
-            ({formatRon(coverage.unmappedRulaj)} lei) — sunt aratate pe
-            antreprenor in &quot;Alte cheltuieli&quot; / &quot;Alte venituri&quot;.
-          </p>
-          <span
-            className="font-mono text-[11px] uppercase tracking-wider text-neg shrink-0 group-hover:underline"
-            style={{ letterSpacing: "-0.02em" }}
-            aria-hidden
-          >
-            Mapeaza →
-          </span>
-        </button>
-      )}
-
-      {suggestedCount > 0 && (
-        <button
-          type="button"
-          data-testid="coverage-card-suggestions"
-          onClick={onOpenReviewQueue}
-          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-tone-warn/30 bg-tone-warn/[0.07] px-3 py-2 hover:bg-tone-warn/[0.12] hover:border-tone-warn/50 transition-colors"
-          role="status"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-tone-warn shrink-0" aria-hidden />
-          <p
-            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            <span className="font-semibold text-tone-warn">
-              {suggestedCount}{" "}
-              {suggestedCount === 1
-                ? "partener sugerat"
-                : "parteneri sugerati"}
-            </span>{" "}
-            din memoria altor conturi.
-          </p>
-          <span
-            className="font-mono text-[11px] uppercase tracking-wider text-tone-warn shrink-0"
-            style={{ letterSpacing: "-0.02em" }}
-            aria-hidden
-          >
-            Revizuieste →
-          </span>
-        </button>
-      )}
-
-      {/* Centralised exceptions entry point. Only when the contabil has
-          set at least one override — otherwise there's nothing to look at
-          and the callout would be confusing. The button uses primary tone
-          (not warn/danger) because exceptions aren't a problem, they're
-          contabil work surfaced. */}
-      {overrideCount > 0 && (
-        <button
-          type="button"
-          data-testid="coverage-card-exceptions"
-          onClick={onOpenAllExceptions}
-          className="w-full text-left flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.05] px-3 py-2 hover:bg-primary/[0.09] hover:border-primary/40 transition-colors"
-          role="status"
-        >
-          <Users size={12} className="text-primary shrink-0" aria-hidden />
-          <p
-            className="flex-1 min-w-[200px] text-[12px] text-gray-light"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            <span className="font-semibold text-primary">
-              {overrideCount}{" "}
-              {overrideCount === 1
-                ? "exceptie individuala"
-                : "exceptii individuale"}
-            </span>{" "}
-            pe parteneri specifici, redistribuite catre alte categorii.
-          </p>
-          <span
-            className="font-mono text-[11px] uppercase tracking-wider text-primary shrink-0"
-            style={{ letterSpacing: "-0.02em" }}
-            aria-hidden
-          >
-            Vezi toate →
-          </span>
+          <AlertTriangle size={11} />
+          {coverage.unmappedCount}{" "}
+          {coverage.unmappedCount === 1 ? "cont nemapat" : "conturi nemapate"} →
         </button>
       )}
     </div>

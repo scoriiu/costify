@@ -10,6 +10,8 @@
 // buttons". This applies to ANY child of a primary-colored surface,
 // including count badges, icons rendered via `currentColor`, etc.
 
+import type { LucideIcon } from "lucide-react";
+
 interface ToggleOption<T extends string> {
   value: T;
   label: string;
@@ -17,20 +19,48 @@ interface ToggleOption<T extends string> {
   count?: number;
   /** Tone for the count badge. Defaults to 'neutral'. */
   countTone?: "neutral" | "danger";
+  /** Optional leading icon. Used by the large "view switcher" variant to
+   *  give each primary view a glanceable glyph. */
+  icon?: LucideIcon;
 }
+
+/** Visual weight. `default` is the small filter pill (32px). `lg` is the
+ *  primary view-switcher (40px, larger text, more padding) so a top-level
+ *  mode switch outranks the secondary filters sharing the same toolbar. */
+type ToggleSize = "default" | "lg";
 
 interface ToggleGroupProps<T extends string> {
   value: T;
   options: ToggleOption<T>[];
   onChange: (value: T) => void;
+  size?: ToggleSize;
+  /** Accessible name for the group (e.g. "Schimba vizualizarea"). */
+  ariaLabel?: string;
 }
 
-export function ToggleGroup<T extends string>({ value, options, onChange }: ToggleGroupProps<T>) {
+const SIZE: Record<ToggleSize, { track: string; button: string; icon: number }> = {
+  default: { track: "p-1", button: "h-8 px-4 text-sm gap-2", icon: 14 },
+  lg: { track: "p-1.5", button: "h-10 px-5 text-[15px] gap-2.5", icon: 16 },
+};
+
+export function ToggleGroup<T extends string>({
+  value,
+  options,
+  onChange,
+  size = "default",
+  ariaLabel,
+}: ToggleGroupProps<T>) {
+  const s = SIZE[size];
   return (
-    <div className="flex gap-1 rounded-[10px] bg-dark-2 p-1">
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className={`flex gap-1 rounded-[10px] bg-dark-2 ${s.track}`}
+    >
       {options.map((opt) => {
         const active = value === opt.value;
         const countTone = opt.countTone ?? "neutral";
+        const Icon = opt.icon;
         // On the active pill the badge sits on top of `bg-primary`, so it
         // MUST use the warm off-white literal (`text-[#E9E8E3]`) — never
         // the `text-white` token (becomes black in light theme).
@@ -44,10 +74,13 @@ export function ToggleGroup<T extends string>({ value, options, onChange }: Togg
           <button
             key={opt.value}
             onClick={() => onChange(opt.value)}
-            className={`flex h-8 items-center gap-2 rounded-lg px-4 font-mono text-sm font-medium transition-colors ${
+            data-state={active ? "active" : "inactive"}
+            aria-pressed={active}
+            className={`flex items-center justify-center rounded-lg font-mono font-medium transition-colors ${s.button} ${
               active ? "bg-primary text-[#E9E8E3]" : "text-gray hover:text-white"
             }`}
           >
+            {Icon && <Icon size={s.icon} aria-hidden className="shrink-0" />}
             <span>{opt.label}</span>
             {opt.count !== undefined && opt.count > 0 && (
               <span

@@ -64,6 +64,7 @@ If you find yourself reaching for `text-white` while building anything that land
 - **Monospace for all data** — labels, values, numbers always in Geist Mono.
 - **No emojis** — unless user explicitly requests.
 - **All user-facing text in Romanian** — error messages, labels, tooltips, placeholders, confirmations. Code comments and variable names stay in English. Never mix languages in the same string.
+- **Never use the em dash (`—`) anywhere in user-facing text.** Rewrite the sentence with a period, comma, or parentheses instead. Example: not `1 partener are exceptie — se imparte diferit de cont.` but `1 partener are exceptie. Se imparte diferit de cont.` This applies to every label, tooltip, message, empty state, and copy string the user can read. (Em dashes in code comments and this guide are fine.)
 - **Pointer cursor on every clickable element** — `cursor: pointer` is set globally in `globals.css` on `button`, `a`, `[role="button"]`, `select`, `summary`, checkbox/radio inputs, and `label[for]`. Never ship a clickable element that shows the default arrow cursor. If you create a custom clickable `div` or `span`, either add `role="button"` (which gets the cursor automatically) or add `cursor-pointer` explicitly. This is enforced at the CSS level, not per-component.
 
 ### Component Rules

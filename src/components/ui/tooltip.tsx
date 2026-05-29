@@ -50,12 +50,18 @@ export function Tooltip({
   function computeCoords() {
     const el = triggerRef.current;
     if (!el) return;
+    // The tooltip is `position: fixed`, so coordinates are viewport-relative.
+    // getBoundingClientRect() is ALSO viewport-relative — adding window.scrollY
+    // would double-count the scroll offset and push the tooltip to the bottom
+    // of the page on any scrolled view.
     const rect = el.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
+    // Keep a comfortable gap so the bubble never sits stuck to the trigger.
+    const GAP = 8;
     if (side === "top") {
-      setCoords({ top: rect.top + window.scrollY - 2, left: centerX + window.scrollX });
+      setCoords({ top: rect.top - GAP, left: centerX });
     } else {
-      setCoords({ top: rect.bottom + window.scrollY + 2, left: centerX + window.scrollX });
+      setCoords({ top: rect.bottom + GAP, left: centerX });
     }
   }
 

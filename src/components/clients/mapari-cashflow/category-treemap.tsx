@@ -47,35 +47,20 @@ export function CategoryTreemap({
   }, [selectedId]);
 
   return (
-    <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3
-            className="text-[15px] font-semibold text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            Harta rulajului
-          </h3>
-          <p
-            className="text-[11px] text-gray mt-0.5 max-w-2xl"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            Fiecare dreptunghi reprezinta un grup, marimea lui = rulajul.
-            Apasa pe un grup ca sa vezi conturile lui jos.
-          </p>
-        </div>
-        {selectedId && (
+    <div className="space-y-5">
+      {selectedId && (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={() => setSelectedId(null)}
-            className="text-[11px] text-primary hover:text-primary-light underline underline-offset-2 shrink-0 mt-1"
+            className="text-[11px] text-primary hover:text-primary-light underline underline-offset-2"
             style={{ letterSpacing: "-0.02em" }}
             title="Sau apasa Esc"
           >
             Reseteaza selectia
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <TreemapPanel
