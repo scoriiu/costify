@@ -69,11 +69,11 @@ export function CashflowMap({
   // selection and vice versa. One thing-at-a-time keeps the page calm.
   const selected = useMemo(() => {
     if (!selectedId) return null;
-    return (
-      expenseGroups.find((g) => g.id === selectedId) ??
-      revenueGroups.find((g) => g.id === selectedId) ??
-      null
-    );
+    const exp = expenseGroups.find((g) => g.id === selectedId);
+    if (exp) return { group: exp, kind: "expense" as Kind };
+    const rev = revenueGroups.find((g) => g.id === selectedId);
+    if (rev) return { group: rev, kind: "revenue" as Kind };
+    return null;
   }, [selectedId, expenseGroups, revenueGroups]);
 
   useEffect(() => {
@@ -153,7 +153,11 @@ export function CashflowMap({
       </div>
 
       {selected && (
-        <CategoryDetail group={selected} onClose={() => setSelectedId(null)} />
+        <CategoryDetail
+          group={selected.group}
+          kind={selected.kind}
+          onClose={() => setSelectedId(null)}
+        />
       )}
     </div>
   );
@@ -603,25 +607,35 @@ function CellContent({
 
 function CategoryDetail({
   group,
+  kind,
   onClose,
 }: {
   group: CategoryGroup;
+  kind: Kind;
   onClose: () => void;
 }) {
   const total = Math.abs(group.value);
 
+  // Semantic framing: red for cheltuieli, green for venituri (same calm,
+  // low-opacity treatment as the Linii view).
+  const isExpense = kind === "expense";
+  const frameClass = isExpense
+    ? "border-neg/30 bg-neg/[0.04]"
+    : "border-pos/30 bg-pos/[0.04]";
+  const toneClass = isExpense ? "text-neg" : "text-pos";
+
   return (
     <div
       data-cashflow-interactive
-      className="rounded-lg border border-primary/30 bg-primary/[0.03] p-4"
+      className={`rounded-lg border ${frameClass} p-4`}
     >
       <header className="flex items-baseline justify-between gap-3 mb-3">
         <div className="min-w-0">
           <div
-            className="font-mono text-[10px] uppercase tracking-wider text-primary"
+            className={`font-mono text-[10px] uppercase tracking-wider ${toneClass}`}
             style={{ letterSpacing: "-0.02em" }}
           >
-            Detaliu
+            {isExpense ? "Cheltuieli" : "Venituri"}
           </div>
           <h4
             className="text-[16px] font-semibold text-white truncate"
@@ -631,7 +645,7 @@ function CategoryDetail({
             {group.label}
           </h4>
           <p
-            className="font-mono text-[12px] text-gray-light tabular-nums"
+            className={`font-mono text-[12px] tabular-nums ${toneClass}`}
             style={{ letterSpacing: "-0.02em" }}
           >
             {formatRon(total)} lei

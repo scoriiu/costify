@@ -269,7 +269,13 @@ function SplitPopover({
   useEscapeKey(onClose);
 
   const total = rows.reduce((s, r) => s + (Number.isFinite(r.percent) ? r.percent : 0), 0);
-  const valid = total === 100 && rows.every((r) => r.verticalId && r.percent > 0);
+  // 0% lines are no-ops (same as not allocating to that vertical), so we drop
+  // them rather than block the save. Only the non-zero lines must sum to 100.
+  const effectiveRows = rows.filter((r) => r.percent > 0);
+  const valid =
+    total === 100 &&
+    effectiveRows.length > 0 &&
+    effectiveRows.every((r) => r.verticalId);
 
   function updatePercent(idx: number, percent: number) {
     const clamped = Math.max(0, Math.min(100, Math.round(percent)));
@@ -321,7 +327,7 @@ function SplitPopover({
         clientId,
         scope,
         cont: scope === "analytic" ? cont : contBase,
-        splits: rows,
+        splits: effectiveRows,
       });
       if (r.error) setError(r.error);
       else onSaved();

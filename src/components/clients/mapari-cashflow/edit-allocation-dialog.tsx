@@ -672,8 +672,14 @@ function EditMode({
     (s, r) => s + (Number.isFinite(r.percent) ? r.percent : 0),
     0
   );
+  // A 0% line is a no-op: it's the same as not allocating to that vertical, so
+  // we ignore it instead of blocking the save (e.g. 100% / 0% is just 100% on
+  // the first vertical). Only the non-zero lines must be valid and sum to 100.
+  const effectiveRows = rows.filter((r) => r.percent > 0);
   const valid =
-    total === 100 && rows.every((r) => r.verticalId && r.percent > 0);
+    total === 100 &&
+    effectiveRows.length > 0 &&
+    effectiveRows.every((r) => r.verticalId);
 
   function updatePercent(idx: number, percent: number) {
     const clamped = Math.max(0, Math.min(100, Math.round(percent)));
@@ -730,7 +736,7 @@ function EditMode({
       return;
     }
     startTransition(async () => {
-      const r = await entity.save(rows);
+      const r = await entity.save(effectiveRows);
       if (r.error) setError(r.error);
       else onSaved();
     });

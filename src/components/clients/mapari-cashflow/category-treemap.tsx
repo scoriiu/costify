@@ -448,16 +448,24 @@ function CategoryDetail({
   ]);
   const totalRulaj = aggregatedRulaj.get(node.id) ?? 0;
 
+  // Semantic framing matching the Linii view: red for cheltuieli, green for
+  // venituri (low-opacity border + faint tint, calm not loud).
+  const isExpense = node.kind === "expense";
+  const frameClass = isExpense
+    ? "border-neg/30 bg-neg/[0.04]"
+    : "border-pos/30 bg-pos/[0.04]";
+  const toneClass = isExpense ? "text-neg" : "text-pos";
+
   return (
-    <div className="rounded-lg border border-primary/30 bg-primary/[0.03] p-4">
+    <div className={`rounded-lg border ${frameClass} p-4`}>
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <div className="min-w-0">
           <div
-            className="font-mono text-[10px] uppercase tracking-wider text-primary"
+            className={`font-mono text-[10px] uppercase tracking-wider ${toneClass}`}
             style={{ letterSpacing: "-0.02em" }}
           >
             Grup selectat ·{" "}
-            {node.kind === "expense" ? "cheltuieli" : "venituri"}
+            {isExpense ? "cheltuieli" : "venituri"}
           </div>
           <h4
             className="text-[16px] font-semibold text-white truncate"
@@ -467,7 +475,7 @@ function CategoryDetail({
             {node.name}
           </h4>
           <p
-            className="font-mono text-[12px] text-gray-light tabular-nums"
+            className={`font-mono text-[12px] tabular-nums ${toneClass}`}
             style={{ letterSpacing: "-0.02em" }}
           >
             {formatRon(totalRulaj)} lei
