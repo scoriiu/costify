@@ -6,7 +6,9 @@ export {
   getPublishedView,
   listPublishedPeriods,
   markPeriodsAsStale,
+  checkPublishedSync,
 } from "./service";
+export type { PeriodSyncStatus } from "./service";
 export { computeSnapshotHash, digestSnapshot } from "./snapshot-hash";
 export type { SnapshotDigest } from "./snapshot-hash";
 export { SNAPSHOT_VERSION } from "./types";

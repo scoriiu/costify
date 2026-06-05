@@ -248,6 +248,74 @@ export async function listPublishedPeriods(
 }
 
 /**
+ * Result of checking whether a published month still matches the current data.
+ *
+ *   "in_sync"     — the patron sees the same numbers the journal produces now.
+ *   "out_of_sync" — data changed since publish; the patron view is outdated.
+ *
+ * `inSync` is only meaningful when the period is published. We only spend a
+ * recompute on periods the coarse `staleSince` flag already marked as touched;
+ * untouched periods are in sync by construction (no recompute).
+ */
+export type PeriodSyncStatus = "in_sync" | "out_of_sync";
+
+/**
+ * Determine, per published period, whether what the patron sees still matches
+ * the live data. Returns a map keyed by "year-month".
+ *
+ * Cost model: O(number of STALE published periods). A published period whose
+ * `staleSince` is null was never touched since publish, so it's in sync with
+ * zero compute. For each stale period we recompute the current owner snapshot
+ * (cached per dataVersion, so repeated page loads are cheap) and compare its
+ * hash to the frozen `snapshotHash`. Equal hashes mean a re-import produced
+ * byte-identical patron output, so we downgrade the coarse "touched" flag to
+ * "in_sync" — no false "out of sync" after a no-op re-import.
+ */
+export async function checkPublishedSync(
+  clientId: string
+): Promise<Map<string, PeriodSyncStatus>> {
+  const rows = await prisma.publishedPeriod.findMany({
+    where: { clientId },
+    select: { year: true, month: true, snapshotHash: true, staleSince: true },
+  });
+
+  const out = new Map<string, PeriodSyncStatus>();
+  const staleRows = rows.filter((r) => r.staleSince !== null);
+
+  // Non-stale rows are in sync without any compute.
+  for (const r of rows) {
+    if (r.staleSince === null) out.set(`${r.year}-${r.month}`, "in_sync");
+  }
+  if (staleRows.length === 0) return out;
+
+  const client = await loadClientForSnapshot(clientId);
+
+  await Promise.all(
+    staleRows.map(async (r) => {
+      const key = `${r.year}-${r.month}`;
+      try {
+        const live = await loadOwnerSnapshot({
+          clientId: client.id,
+          clientName: client.name,
+          clientCui: client.cui,
+          clientSlug: client.slug,
+          year: r.year,
+          month: r.month,
+        });
+        const currentHash = computeSnapshotHash(live);
+        out.set(key, currentHash === r.snapshotHash ? "in_sync" : "out_of_sync");
+      } catch {
+        // If the live snapshot can't be computed, fall back to the coarse
+        // signal: treat a touched period as out of sync rather than hiding it.
+        out.set(key, "out_of_sync");
+      }
+    })
+  );
+
+  return out;
+}
+
+/**
  * Called by ingestion + journal services whenever data for (clientId, year, month)
  * is added, restored, or soft-deleted. Sets staleSince only if it is currently
  * null (so we don't overwrite an existing stale timestamp).

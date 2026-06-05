@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getAvailablePeriods } from "@/modules/balances";
+import { getAvailablePeriods, getPeriodResultFigures } from "@/modules/balances";
 import { computeKpis } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import { listAccessesForClient } from "@/modules/roles";
@@ -10,6 +10,7 @@ import {
   listPublishedPeriods,
   getPublishedView,
   getLatestPublishedView,
+  checkPublishedSync,
 } from "@/modules/publishing";
 import { listAccountantAuditTrail } from "@/modules/audit";
 import {
@@ -203,7 +204,15 @@ export default async function ClientDetailPage(props: Props) {
   // server-rendered and instant.
   const shouldLoadMapari = tab === "mapari-cashflow";
 
-  const [accesses, publishedPeriods, currentStatus, auditRows, mapariData] = await Promise.all([
+  const [
+    accesses,
+    publishedPeriods,
+    currentStatus,
+    auditRows,
+    mapariData,
+    periodResults,
+    syncStatus,
+  ] = await Promise.all([
     listAccessesForClient(client.id),
     listPublishedPeriods(client.id),
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
@@ -211,6 +220,8 @@ export default async function ClientDetailPage(props: Props) {
     shouldLoadMapari
       ? loadMapariCashflow(client.id, { year: cashflowYear })
       : Promise.resolve(null),
+    getPeriodResultFigures(client.id),
+    checkPublishedSync(client.id),
   ]);
   t.mark("accountantParallel");
 
@@ -225,6 +236,7 @@ export default async function ClientDetailPage(props: Props) {
       const py = parseInt(yStr, 10);
       const pm = parseInt(mStr, 10);
       const pub = publishedMap.get(k);
+      const res = periodResults.get(k);
       return {
         year: py,
         month: pm,
@@ -233,7 +245,16 @@ export default async function ClientDetailPage(props: Props) {
         publisherName: pub?.publisherName ?? null,
         noteForOwner: pub?.noteForOwner ?? null,
         stale: pub?.stale ?? false,
+        outOfSync: syncStatus.get(k) === "out_of_sync",
         hasJournalData: journalKeys.has(k),
+        results: res
+          ? {
+              rezultatExploatare: res.rezultatExploatare,
+              rezultatFinanciar: res.rezultatFinanciar,
+              rezultatBrut: res.rezultatBrut,
+              rezultatNet: res.rezultatNet,
+            }
+          : null,
       };
     })
     .sort((a, b) => b.year - a.year || b.month - a.month);

@@ -10,4 +10,6 @@ export {
   computeBalanceFromContext,
 } from "./service";
 export type { BalanceContext, SlimEntry } from "./service";
+export { getPeriodResultFigures } from "./computed-period";
+export type { PeriodResultFigures } from "./computed-period";
 export type { BalanceFilter, BalanceRowView, BalanceSummary, DatasetPeriod } from "./types";

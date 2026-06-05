@@ -50,7 +50,7 @@ export function SetariTab({
   auditSection,
 }: Props) {
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
       <GeneralInfoSection client={client} />
       {accessSection}
       {publishSection}

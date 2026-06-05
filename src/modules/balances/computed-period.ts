@@ -84,6 +84,46 @@ export async function readComputedPeriod(
   };
 }
 
+export interface PeriodResultFigures {
+  year: number;
+  month: number;
+  rezultatExploatare: number;
+  rezultatFinanciar: number;
+  rezultatBrut: number;
+  rezultatNet: number;
+}
+
+/**
+ * Batch-read the four CPP result figures (exploatare/financiar/brut/net) for
+ * every materialized, non-stale period of a client. Reads only the `cpp` JSON
+ * column, so it's cheap. Periods without a fresh ComputedPeriod row are simply
+ * absent from the result (caller treats them as "not yet computed").
+ */
+export async function getPeriodResultFigures(
+  clientId: string,
+): Promise<Map<string, PeriodResultFigures>> {
+  const currentVersion = await getClientDataVersion(clientId);
+  const rows = await prisma.computedPeriod.findMany({
+    where: { clientId, dataVersion: currentVersion },
+    select: { year: true, month: true, cpp: true },
+  });
+
+  const out = new Map<string, PeriodResultFigures>();
+  for (const r of rows) {
+    const cpp = r.cpp as unknown as CppData | null;
+    if (!cpp) continue;
+    out.set(`${r.year}-${r.month}`, {
+      year: r.year,
+      month: r.month,
+      rezultatExploatare: cpp.rezultatExploatare,
+      rezultatFinanciar: cpp.rezultatFinanciar,
+      rezultatBrut: cpp.rezultatBrut,
+      rezultatNet: cpp.rezultatNet,
+    });
+  }
+  return out;
+}
+
 export type ComputedBy = "lazy" | "eager";
 
 /**
