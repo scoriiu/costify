@@ -13,7 +13,7 @@
  * as it parses, stores, and finalizes. No fake curve, no time-based
  * animation — the bar moves when there is genuine work to report.
  */
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
@@ -23,6 +23,7 @@ interface ImportWizardProps {
   clientId: string;
   clientSlug: string;
   clientName: string;
+  existingEntries: number;
 }
 
 interface ImportStatus {
@@ -33,11 +34,13 @@ interface ImportStatus {
   totalEntries: number | null;
   processedEntries: number | null;
   entriesAdded: number;
+  dateStart: string | null;
+  dateEnd: string | null;
   errorMessage: string | null;
   fileName: string;
 }
 
-export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardProps) {
+export function ImportWizard({ clientId, clientSlug, clientName, existingEntries }: ImportWizardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const eventId = searchParams.get("event");
@@ -128,7 +131,7 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
         <ArrowLeft size={14} /> {clientName}
       </Link>
 
-      <div className="text-center mb-8">
+      <div className="mx-auto max-w-3xl text-center mb-8">
         <h1 className="text-[28px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
           Import Jurnal Contabil
         </h1>
@@ -137,7 +140,8 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
         </p>
       </div>
 
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-3xl">
+        {!eventId && <ReplaceWarning existingEntries={existingEntries} />}
         {eventId ? (
           <ImportPolling
             eventId={eventId}
@@ -170,10 +174,54 @@ export function ImportWizard({ clientId, clientSlug, clientName }: ImportWizardP
       </div>
 
       {!eventId && (
-        <div className="mt-8">
+        <div className="mx-auto mt-8 max-w-3xl">
           <FormatGuide />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Full-replace notice. Every upload wipes the client's existing journal and
+ * re-imports the whole file. Partial/append imports are not supported for
+ * now, so this banner makes the destructive behaviour explicit before the
+ * accountant picks a file.
+ */
+function ReplaceWarning({ existingEntries }: { existingEntries: number }) {
+  return (
+    <div className="mb-4 rounded-xl border border-warn/30 bg-warn/5 p-4">
+      <div className="flex items-start gap-3">
+        <AlertCircle size={18} className="mt-0.5 shrink-0 text-warn" />
+        <div className="min-w-0 text-xs leading-relaxed text-gray-light">
+          <div className="text-sm font-medium text-white" style={{ letterSpacing: "-0.04em" }}>
+            Importul inlocuieste tot jurnalul
+          </div>
+          <p className="mt-1">
+            {existingEntries > 0 ? (
+              <>
+                Acest client are deja{" "}
+                <span className="font-mono text-white">
+                  {existingEntries.toLocaleString("ro-RO")}
+                </span>{" "}
+                de intrari. La import, toate vor fi sterse si inlocuite cu
+                continutul fisierului nou. Incarca un export complet al
+                jurnalului, nu doar lunile noi.
+              </>
+            ) : (
+              <>
+                La fiecare import, jurnalul existent este sters complet si
+                inlocuit cu continutul fisierului. Incarca intotdeauna un
+                export complet al jurnalului, nu doar lunile noi.
+              </>
+            )}
+          </p>
+          <p className="mt-2 text-gray">
+            Maparile pe categorii raman neschimbate si se aplica automat
+            intrarilor noi.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -187,13 +235,12 @@ function ImportPolling({
   clientSlug: string;
   onCancel: () => void;
 }) {
-  const router = useRouter();
   const [state, setState] = useState<ImportStatus | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
-  const redirectingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
+    let handle: number | undefined;
 
     const poll = async () => {
       try {
@@ -211,13 +258,11 @@ function ImportPolling({
         setState(data);
         setPollError(null);
 
-        if (data.status === "ready" && !redirectingRef.current) {
-          redirectingRef.current = true;
-          // Brief hold so the 100% state registers visually.
-          setTimeout(() => {
-            router.push(`/clients/${clientSlug}`);
-            router.refresh();
-          }, 600);
+        // Stop polling once the job reaches a terminal state. The user
+        // stays on a persistent success screen and chooses where to go
+        // next — no involuntary redirect that flashes the result away.
+        if (data.status === "ready" || data.status === "failed") {
+          if (handle !== undefined) window.clearInterval(handle);
         }
       } catch {
         if (!cancelled) setPollError("Conexiune intrerupta. Se reincearca...");
@@ -225,12 +270,12 @@ function ImportPolling({
     };
 
     poll();
-    const handle = window.setInterval(poll, 500);
+    handle = window.setInterval(poll, 500);
     return () => {
       cancelled = true;
-      window.clearInterval(handle);
+      if (handle !== undefined) window.clearInterval(handle);
     };
-  }, [eventId, clientSlug, router]);
+  }, [eventId]);
 
   if (!state) {
     return (
@@ -264,21 +309,7 @@ function ImportPolling({
   }
 
   if (state.status === "ready") {
-    return (
-      <div className="rounded-xl border border-accent/30 bg-accent/5 p-5">
-        <div className="flex items-center gap-3">
-          <CheckCircle2 size={18} className="shrink-0 text-accent" />
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-white">
-              Import finalizat — {state.entriesAdded.toLocaleString("ro-RO")} intrari adaugate
-            </div>
-            <div className="mt-0.5 text-xs text-gray">
-              Te redirectez catre client...
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <ImportSuccess state={state} clientSlug={clientSlug} onImportAnother={onCancel} />;
   }
 
   return (
@@ -302,11 +333,107 @@ function ImportPolling({
       )}
 
       <p className="text-xs text-gray">
-        Poti inchide aceasta pagina — importul continua in fundal. Reincarcand pagina o sa vezi
+        Poti inchide aceasta pagina, importul continua in fundal. Reincarcand pagina o sa vezi
         progresul actualizat.
       </p>
     </div>
   );
+}
+
+/**
+ * Persistent post-import success screen. We deliberately do NOT auto-redirect:
+ * a full-replace import is a consequential action, so the accountant gets a
+ * clear confirmation of what landed (count + period covered) and chooses the
+ * next step instead of having the result flashed away after 600 ms.
+ */
+function ImportSuccess({
+  state,
+  clientSlug,
+  onImportAnother,
+}: {
+  state: ImportStatus;
+  clientSlug: string;
+  onImportAnother: () => void;
+}) {
+  const router = useRouter();
+  // Invalidate the client-side router cache once, so navigating to the
+  // client page via the CTAs below lands on freshly recomputed server data
+  // (the import bumped the client's dataVersion).
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
+
+  const period = formatPeriodRange(state.dateStart, state.dateEnd);
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-accent/30 bg-accent/5 p-5">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-accent" />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+              Import finalizat
+            </div>
+            <p className="mt-1 text-xs text-gray-light">
+              Jurnalul a fost inlocuit complet cu fisierul incarcat. Balanta si Contul de
+              profit si pierdere s-au recalculat.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <SummaryStat
+            label="Intrari in jurnal"
+            value={state.entriesAdded.toLocaleString("ro-RO")}
+          />
+          <SummaryStat label="Perioada acoperita" value={period ?? "Nedeterminata"} />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <Link href={`/clients/${clientSlug}`} className="sm:flex-1">
+          <Button variant="primary" className="w-full">
+            Vezi jurnalul
+          </Button>
+        </Link>
+        <Link href={`/clients/${clientSlug}?tab=balanta`} className="sm:flex-1">
+          <Button variant="ghost" className="w-full">
+            Vezi balanta
+          </Button>
+        </Link>
+      </div>
+
+      <button
+        onClick={onImportAnother}
+        className="w-full text-center text-xs text-gray hover:text-white transition-colors cursor-pointer"
+      >
+        Importa alt fisier
+      </button>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-dark-3 bg-dark-2 px-4 py-3">
+      <div className="font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray">
+        {label}
+      </div>
+      <div className="mt-1 font-mono text-sm font-medium text-white">{value}</div>
+    </div>
+  );
+}
+
+function formatPeriodRange(start: string | null, end: string | null): string | null {
+  if (!start || !end) return null;
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("ro-RO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  const s = fmt(start);
+  const e = fmt(end);
+  return s === e ? s : `${s} - ${e}`;
 }
 
 function translateStatus(s: ImportStatus["status"]): string {
@@ -314,11 +441,11 @@ function translateStatus(s: ImportStatus["status"]): string {
     case "queued":
       return "In coada de procesare";
     case "parsing":
-      return "In procesare — citire";
+      return "In procesare, citire";
     case "storing":
-      return "In procesare — salvare";
+      return "In procesare, salvare";
     case "finalizing":
-      return "In procesare — finalizare";
+      return "In procesare, finalizare";
     case "ready":
       return "Finalizat";
     case "failed":
@@ -364,13 +491,17 @@ function DropZone({ dragging, onDragOver, onDragLeave, onDrop, onFileSelect, err
     <div className="space-y-3">
       <label
         className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed py-16 transition-colors ${
-          error ? "border-danger/40" : dragging ? "border-primary bg-primary/5" : "border-dark-3 hover:border-dark-4"
+          error
+            ? "border-danger/40"
+            : dragging
+              ? "border-primary bg-primary/[0.1]"
+              : "border-primary/40 bg-primary/[0.05] hover:border-primary/60 hover:bg-primary/[0.08]"
         }`}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
-        <Upload size={40} className="mb-3 text-gray/40" />
+        <Upload size={40} className="mb-3 text-primary/60" />
         <span className="mb-1 text-sm font-medium text-white">Drop your XLSX file here</span>
         <span className="text-xs text-gray">or click to browse</span>
         <input type="file" accept=".xlsx,.xls" onChange={onFileSelect} className="hidden" />
@@ -467,11 +598,11 @@ function formatBytes(n: number): string {
 }
 
 const EXAMPLE_ROWS = [
-  { data: "15.01.2026", ndp: "FV-0042", felD: "Intrari", contD: "4111.00015", contC: "7015", suma: "12.500,00", explicatie: "Factura servicii IT — Client SRL" },
-  { data: "15.01.2026", ndp: "FV-0042", felD: "Intrari", contD: "4111.00015", contC: "4427", suma: "2.625,00", explicatie: "TVA 21% — Factura servicii IT" },
+  { data: "15.01.2026", ndp: "FV-0042", felD: "Intrari", contD: "4111.00015", contC: "7015", suma: "12.500,00", explicatie: "Factura servicii IT, Client SRL" },
+  { data: "15.01.2026", ndp: "FV-0042", felD: "Intrari", contD: "4111.00015", contC: "4427", suma: "2.625,00", explicatie: "TVA 21%, Factura servicii IT" },
   { data: "18.01.2026", ndp: "OP-117", felD: "Banca", contD: "5121", contC: "4111.00015", suma: "15.125,00", explicatie: "Incasare Client SRL" },
-  { data: "20.01.2026", ndp: "FF-2891", felD: "Iesiri", contD: "628", contC: "401.00023", suma: "1.200,00", explicatie: "Abonament hosting — Provider SA" },
-  { data: "20.01.2026", ndp: "FF-2891", felD: "Iesiri", contD: "4426", contC: "401.00023", suma: "252,00", explicatie: "TVA 21% — Abonament hosting" },
+  { data: "20.01.2026", ndp: "FF-2891", felD: "Iesiri", contD: "628", contC: "401.00023", suma: "1.200,00", explicatie: "Abonament hosting, Provider SA" },
+  { data: "20.01.2026", ndp: "FF-2891", felD: "Iesiri", contD: "4426", contC: "401.00023", suma: "252,00", explicatie: "TVA 21%, Abonament hosting" },
 ];
 
 const COLUMNS = [
@@ -481,7 +612,7 @@ const COLUMNS = [
   { key: "contD", label: "Cont Debit", required: true },
   { key: "contC", label: "Cont Credit", required: true },
   { key: "suma", label: "Suma", required: true },
-  { key: "explicatie", label: "Explicatie", required: false },
+  { key: "explicatie", label: "Explicatie", required: true },
 ] as const;
 
 function FormatGuide() {
@@ -494,6 +625,9 @@ function FormatGuide() {
         Fisierul XLSX trebuie sa contina un registru jurnal cu urmatoarele coloane.
         Coloanele marcate cu <span className="text-white font-semibold">*</span> sunt obligatorii.
       </p>
+      <p className="mt-1.5 text-xs text-gray">
+        Explicatie este obligatorie: din ea identificam automat partenerii.
+      </p>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-dark-3">
         <table className="w-full border-collapse">
@@ -502,7 +636,7 @@ function FormatGuide() {
               {COLUMNS.map((col, i) => (
                 <th
                   key={col.key}
-                  className={`px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${
+                  className={`whitespace-nowrap px-3 py-2.5 font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray ${
                     i < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""
                   } text-left`}
                 >
@@ -518,7 +652,7 @@ function FormatGuide() {
                 {COLUMNS.map((col, j) => (
                   <td
                     key={col.key}
-                    className={`px-3 py-2 font-mono text-xs text-gray-light ${
+                    className={`whitespace-nowrap px-3 py-2 font-mono text-xs text-gray-light ${
                       j < COLUMNS.length - 1 ? "border-r border-white/[0.04]" : ""
                     }`}
                   >

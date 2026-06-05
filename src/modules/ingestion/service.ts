@@ -92,36 +92,17 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   await report({
     stage: "parsing",
     percent: 45,
-    label: `Verific ${parseResult.entries.length.toLocaleString("ro-RO")} de intrari`,
+    label: `Pregatesc ${parseResult.entries.length.toLocaleString("ro-RO")} de intrari`,
     totalEntries: parseResult.entries.length,
   });
 
-  const newEntries = await filterDuplicates(input.clientId, parseResult.entries);
-  const tDedup = performance.now();
+  // Full-replace import: every upload wipes the client's existing journal and
+  // re-imports the whole file. Partial/append imports are intentionally not
+  // supported for now, so the journal always mirrors the latest export.
+  const replacedCount = await softDeleteAllEntries(input.clientId);
+  const tReplace = performance.now();
 
-  if (newEntries.length === 0) {
-    console.log(
-      `[importJournal] client=${input.clientId.slice(0, 8)} ALL_DUPLICATES ` +
-      `fileBytes=${input.buffer.length} parsed=${parseResult.entries.length} ` +
-      `hash=${(tHash - tStart).toFixed(0)}ms parse=${(tParse - tHash).toFixed(0)}ms ` +
-      `dedup=${(tDedup - tParse).toFixed(0)}ms total=${(tDedup - tStart).toFixed(0)}ms`
-    );
-    if (input.importEventId) {
-      await prisma.importEvent.update({
-        where: { id: input.importEventId },
-        data: { status: "ready", entriesAdded: 0, progress: 100 },
-      });
-    }
-    return ok({
-      importEventId: input.importEventId ?? "",
-      entriesAdded: 0,
-      entriesSkipped: parseResult.entries.length,
-      dateStart: null,
-      dateEnd: null,
-      totalParsed: parseResult.entries.length,
-      errorsCount: parseResult.errors.length,
-    });
-  }
+  const newEntries = parseResult.entries;
 
   const dates = newEntries.map((e) => e.data).sort((a, b) => a.getTime() - b.getTime());
   const dateStart = dates[0];
@@ -228,14 +209,14 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
 
   const partnerCount = uniquePartnerCount(parseResult.entries);
   console.log(
-    `[importJournal] client=${input.clientId.slice(0, 8)} ` +
+    `[importJournal] client=${input.clientId.slice(0, 8)} FULL_REPLACE ` +
     `fileBytes=${input.buffer.length} parsed=${parseResult.entries.length} ` +
-    `new=${newEntries.length} partners=${partnerCount} ` +
+    `replaced=${replacedCount} new=${newEntries.length} partners=${partnerCount} ` +
     `accounts=${parseResult.accountNames.size} periods=${touchedPeriods.length} | ` +
     `hash=${(tHash - tStart).toFixed(0)}ms ` +
     `parse=${(tParse - tHash).toFixed(0)}ms ` +
-    `dedup=${(tDedup - tParse).toFixed(0)}ms ` +
-    `event=${(tEvent - tDedup).toFixed(0)}ms ` +
+    `replace=${(tReplace - tParse).toFixed(0)}ms ` +
+    `event=${(tEvent - tReplace).toFixed(0)}ms ` +
     `store=${(tStore - tEvent).toFixed(0)}ms ` +
     `partners=${(tPartners - tStore).toFixed(0)}ms ` +
     `accounts=${(tAccounts - tPartners).toFixed(0)}ms ` +
@@ -263,14 +244,15 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
     },
     metadata: {
       totalParsed: parseResult.entries.length,
-      duplicatesSkipped: parseResult.entries.length - newEntries.length,
+      mode: "full_replace",
+      entriesReplaced: replacedCount,
     },
   });
 
   return ok({
     importEventId: importEvent.id,
     entriesAdded: newEntries.length,
-    entriesSkipped: parseResult.entries.length - newEntries.length,
+    entriesSkipped: 0,
     dateStart,
     dateEnd,
     totalParsed: parseResult.entries.length,
@@ -284,17 +266,19 @@ function computeDedupHash(entry: JournalEntry): string {
     .digest("hex");
 }
 
-async function filterDuplicates(
-  clientId: string,
-  entries: JournalEntry[]
-): Promise<JournalEntry[]> {
-  const existingHashes = await prisma.journalLine.findMany({
+/**
+ * Soft-delete every active journal line for the client. Used by the
+ * full-replace import: each upload wipes the existing journal so the
+ * re-imported file becomes the sole source of truth. Soft-delete (not a
+ * hard DELETE) preserves the audit trail and lets us reconstruct history.
+ * Returns the number of rows wiped.
+ */
+async function softDeleteAllEntries(clientId: string): Promise<number> {
+  const result = await prisma.journalLine.updateMany({
     where: { clientId, deletedAt: null },
-    select: { dedupHash: true },
+    data: { deletedAt: new Date() },
   });
-
-  const hashSet = new Set(existingHashes.map((r) => r.dedupHash));
-  return entries.filter((e) => !hashSet.has(computeDedupHash(e)));
+  return result.count;
 }
 
 /**

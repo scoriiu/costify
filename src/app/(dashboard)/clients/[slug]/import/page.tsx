@@ -19,9 +19,18 @@ export default async function ImportPage(props: Props) {
 
   if (!client) notFound();
 
+  const existingEntries = await prisma.journalLine.count({
+    where: { clientId: client.id, deletedAt: null },
+  });
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
-      <ImportWizard clientId={client.id} clientSlug={client.slug} clientName={client.name} />
+      <ImportWizard
+        clientId={client.id}
+        clientSlug={client.slug}
+        clientName={client.name}
+        existingEntries={existingEntries}
+      />
     </div>
   );
 }

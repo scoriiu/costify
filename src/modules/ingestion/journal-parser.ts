@@ -87,7 +87,7 @@ interface ResolverState {
 
 function buildResolverState(rawHeaders: string[]): { state: ResolverState; missing: string[] } {
   const { resolved } = resolveHeaders(rawHeaders);
-  const required = ["data", "cont_d", "cont_c", "suma"] as const;
+  const required = ["data", "cont_d", "cont_c", "suma", "explicatie"] as const;
   const missing = required.filter((col) => !resolved[col]);
   return {
     state: {
@@ -107,6 +107,7 @@ const COLUMN_LABELS: Record<string, string> = {
   cont_d: "Cont Debit",
   cont_c: "Cont Credit",
   suma: "Suma",
+  explicatie: "Explicatie",
 };
 
 class JournalAccumulator {
