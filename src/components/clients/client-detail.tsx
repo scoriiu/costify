@@ -93,8 +93,11 @@ interface Props {
   /** Server-rendered "Istoric actiuni" section shown inside the Setari tab. */
   auditSection?: React.ReactNode;
   /** Optional cashflow year search param (?cashflow-year=YYYY). Driven by
-   *  the year selector inside MapariCashflowTab. */
+   *  the period selector inside MapariCashflowTab. */
   cashflowYear?: number;
+  /** Optional cashflow month search param (?cashflow-month=M). Driven by the
+   *  period selector inside MapariCashflowTab. */
+  cashflowMonth?: number;
   /** Server-loaded Mapari Cashflow data — populated only when the page
    *  was loaded with `?tab=mapari-cashflow`, so other entry points
    *  (Jurnal, Balanta, …) don't pay the 16k-line aggregation cost on
@@ -132,6 +135,7 @@ export function ClientDetail({
   publishBar,
   auditSection,
   cashflowYear,
+  cashflowMonth,
   mapariData,
 }: Props) {
   const router = useRouter();
@@ -365,6 +369,7 @@ export function ClientDetail({
             clientId={client.id}
             initialData={mapariData}
             initialYear={cashflowYear}
+            initialMonth={cashflowMonth}
             dataVersion={dataVersion}
           />
         )}

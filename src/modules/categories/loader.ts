@@ -159,6 +159,9 @@ export interface MapariCashflowData {
   /** All years for which the client has journal data, sorted DESC (newest
    *  first). The UI uses this to populate the year selector. */
   availableYears: number[];
+  /** All (year, month) periods for which the client has journal data, sorted
+   *  ASC. The UI uses this to populate the month selector for the chosen year. */
+  availablePeriods: { year: number; month: number }[];
   /** Class 6 + 7 leaves with rulaj. Sorted desc by abs(rulajD + rulajC). */
   accounts: AccountListItem[];
   /** Overall mapping coverage for the selected period. Header surfaces this
@@ -200,7 +203,7 @@ export interface MapariCashflowData {
 
 export async function loadMapariCashflow(
   clientId: string,
-  opts?: { year?: number }
+  opts?: { year?: number; month?: number }
 ): Promise<MapariCashflowData> {
   // Phase 1 — sequential: tree+autoSeed may insert default categories AND
   // default mappings, so we cannot parallelize listMappings with this call.
@@ -278,12 +281,14 @@ export async function loadMapariCashflow(
   const availableYears = Array.from(new Set(periods.map((p) => p.year))).sort(
     (a, b) => b - a
   );
+  const availablePeriods = periods.map((p) => ({ year: p.year, month: p.month }));
   if (periods.length === 0) {
     return {
       clientId,
       tree,
       period: null,
       availableYears: [],
+      availablePeriods: [],
       accounts: [],
       coverage: computeCoverage([]),
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
@@ -305,13 +310,18 @@ export async function loadMapariCashflow(
       ? opts.year
       : newestYear;
 
-  // Inside the chosen year, take the latest month with data — so YTD numbers
-  // reflect the firm's state as of the most recent close (e.g. Jan→Apr for
-  // 2026 in flight, Jan→Dec for closed years).
+  // Inside the chosen year, honour an explicit month if it has data; otherwise
+  // take the latest month with data — so the default YTD numbers reflect the
+  // firm's state as of the most recent close (e.g. Jan→Apr for 2026 in flight,
+  // Jan→Dec for closed years). The accountant can pick any earlier month to see
+  // the cumulative picture through that month (Jan→selected).
   const monthsForYear = periods
     .filter((p) => p.year === targetYear)
     .map((p) => p.month);
-  const latestMonth = Math.max(...monthsForYear);
+  const latestMonth =
+    opts?.month !== undefined && monthsForYear.includes(opts.month)
+      ? opts.month
+      : Math.max(...monthsForYear);
   const [balanceResult, partnerSummariesByCont, partnerAdjustments] = await Promise.all([
     getBalanceRowsCached(clientId, targetYear, latestMonth),
     loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
@@ -328,6 +338,7 @@ export async function loadMapariCashflow(
       tree,
       period: { year: targetYear, month: latestMonth },
       availableYears,
+      availablePeriods,
       accounts: [],
       coverage: computeCoverage([]),
       freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,
@@ -439,6 +450,7 @@ export async function loadMapariCashflow(
     tree,
     period: { year: targetYear, month: latestMonth },
     availableYears,
+    availablePeriods,
     accounts,
     coverage: computeCoverage(accounts),
     freshlySeeded: seeded !== null && seeded.categoriesCreated > 0,

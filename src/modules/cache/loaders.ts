@@ -139,19 +139,20 @@ const cachedMapariCashflow = unstable_cache(
   async (
     clientId: string,
     year: number | undefined,
+    month: number | undefined,
     /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
     _dataVersion: number
   ) => {
-    return computeMapariCashflow(clientId, { year });
+    return computeMapariCashflow(clientId, { year, month });
   },
-  ["mapari-cashflow-v1"],
+  ["mapari-cashflow-v2"],
   { revalidate: CACHE_REVALIDATE_SECONDS }
 );
 
 export const loadMapariCashflowCached = cache(
-  async (clientId: string, opts?: { year?: number }) => {
+  async (clientId: string, opts?: { year?: number; month?: number }) => {
     const dataVersion = await getClientDataVersion(clientId);
-    return cachedMapariCashflow(clientId, opts?.year, dataVersion);
+    return cachedMapariCashflow(clientId, opts?.year, opts?.month, dataVersion);
   }
 );
 

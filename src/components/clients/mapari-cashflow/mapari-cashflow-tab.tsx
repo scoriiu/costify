@@ -82,9 +82,18 @@ interface Props {
   /** The year that `initialData` corresponds to, or the URL-specified
    *  year when initialData is null. Optional (undefined == newest). */
   initialYear?: number;
+  /** The month within `initialYear` (URL-specified). Optional (undefined ==
+   *  latest month of the year). */
+  initialMonth?: number;
   /** Bumped by any client-data mutation. When the parent re-renders with
-   *  a higher value, we refetch the active year. */
+   *  a higher value, we refetch the active period. */
   dataVersion: number;
+}
+
+/** Stable string key for a (year, month) period — used as the cache key and
+ *  for URL sync. */
+function periodKey(year: number, month: number): string {
+  return `${year}-${month}`;
 }
 
 type Filter = "all" | "unmapped" | "expense" | "revenue" | "unallocated" | "split";
@@ -116,50 +125,65 @@ export function MapariCashflowTab({
   clientId,
   initialData,
   initialYear,
+  initialMonth,
   dataVersion,
 }: Props) {
-  // Resolved year for the payload we currently show. When initialData is
-  // present we trust the server's choice; otherwise we keep the URL year
-  // (or 0 — the empty placeholder meaning "ask the server for the newest").
-  const initialResolvedYear =
-    initialData?.period?.year ?? initialYear ?? 0;
-  const [currentYear, setCurrentYear] = useState<number>(initialResolvedYear);
-  const [yearCache, setYearCache] = useState<Map<number, MapariCashflowData>>(
-    () => {
-      const m = new Map<number, MapariCashflowData>();
-      if (initialData) m.set(initialResolvedYear, initialData);
-      return m;
-    },
-  );
+  // Resolved (year, month) for the payload we currently show. When initialData
+  // is present we trust the server's choice; otherwise we keep the URL period
+  // (or 0/0 — the empty placeholder meaning "ask the server for the newest").
+  const initialResolvedYear = initialData?.period?.year ?? initialYear ?? 0;
+  const initialResolvedMonth = initialData?.period?.month ?? initialMonth ?? 0;
+  const [current, setCurrent] = useState<{ year: number; month: number }>({
+    year: initialResolvedYear,
+    month: initialResolvedMonth,
+  });
+  const [periodCache, setPeriodCache] = useState<
+    Map<string, MapariCashflowData>
+  >(() => {
+    const m = new Map<string, MapariCashflowData>();
+    if (initialData) {
+      m.set(periodKey(initialResolvedYear, initialResolvedMonth), initialData);
+    }
+    return m;
+  });
   const [error, setError] = useState(false);
 
   // Cancels any prior in-flight refetch when a new save happens. Without
   // this, a fast user (save, save, save) would race three responses and
   // the last to land wins — usually fine, but a stale early response
   // could overwrite a fresh later one. AbortController makes the contract
-  // explicit: at most one in-flight refetch per (clientId, year).
+  // explicit: at most one in-flight refetch per (clientId, period).
   const inFlight = useRef<AbortController | null>(null);
 
-  function refetchYear(year: number, onSuccess?: () => void) {
+  function refetchPeriod(
+    year: number,
+    month: number,
+    onSuccess?: () => void
+  ) {
     inFlight.current?.abort();
     const ctrl = new AbortController();
     inFlight.current = ctrl;
     setError(false);
-    const url =
-      year > 0
-        ? `/api/mapari-cashflow?clientId=${clientId}&year=${year}`
-        : `/api/mapari-cashflow?clientId=${clientId}`;
-    fetch(url, { cache: "no-store", signal: ctrl.signal })
+    const params = new URLSearchParams({ clientId });
+    if (year > 0) params.set("year", String(year));
+    if (month > 0) params.set("month", String(month));
+    fetch(`/api/mapari-cashflow?${params.toString()}`, {
+      cache: "no-store",
+      signal: ctrl.signal,
+    })
       .then((r) => r.json())
       .then((payload: MapariCashflowData) => {
         if (ctrl.signal.aborted) return;
-        const resolved = payload.period?.year ?? year;
-        setYearCache((prev) => {
+        const resolvedYear = payload.period?.year ?? year;
+        const resolvedMonth = payload.period?.month ?? month;
+        setPeriodCache((prev) => {
           const next = new Map(prev);
-          next.set(resolved, payload);
+          next.set(periodKey(resolvedYear, resolvedMonth), payload);
           return next;
         });
-        if (resolved !== currentYear) setCurrentYear(resolved);
+        if (resolvedYear !== current.year || resolvedMonth !== current.month) {
+          setCurrent({ year: resolvedYear, month: resolvedMonth });
+        }
         onSuccess?.();
       })
       .catch((err) => {
@@ -170,65 +194,72 @@ export function MapariCashflowTab({
 
   // Initial-mount fetch when the server didn't preload Mapari (user
   // arrived via in-page tab switch from Jurnal / Balanta / …). Fires
-  // exactly once per mount; the year cache is empty so refetchYear's
+  // exactly once per mount; the period cache is empty so refetchPeriod's
   // success handler populates it and stops the spinner.
   const didMountFetch = useRef(false);
   useEffect(() => {
     if (initialData) return;
     if (didMountFetch.current) return;
     didMountFetch.current = true;
-    refetchYear(currentYear);
+    refetchPeriod(current.year, current.month);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // External bumps (journal upload, vertical alloc edit, anything that
   // called router.refresh) push a higher dataVersion AND a fresh
-  // initialData prop. When initialData covers the active year, just
+  // initialData prop. When initialData covers the active period, just
   // adopt it — no extra network call. Otherwise fall back to a
-  // year-targeted refetch.
+  // period-targeted refetch.
   const seenVersion = useRef(dataVersion);
   useEffect(() => {
     if (seenVersion.current === dataVersion) return;
     seenVersion.current = dataVersion;
     const initYear = initialData?.period?.year ?? 0;
-    if (initialData && initYear === currentYear) {
-      setYearCache((prev) => {
+    const initMonth = initialData?.period?.month ?? 0;
+    if (initialData && initYear === current.year && initMonth === current.month) {
+      setPeriodCache((prev) => {
         const next = new Map(prev);
-        next.set(currentYear, initialData);
+        next.set(periodKey(current.year, current.month), initialData);
         return next;
       });
       return;
     }
-    refetchYear(currentYear);
+    refetchPeriod(current.year, current.month);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataVersion]);
 
   // Called by child save flows after the server action succeeds. Refetches
-  // the year the user is currently looking at, with previous in-flight
+  // the period the user is currently looking at, with previous in-flight
   // requests cancelled so rapid saves don't stack up.
   function refreshAfterMutation() {
-    refetchYear(currentYear);
+    refetchPeriod(current.year, current.month);
   }
 
-  const data = yearCache.get(currentYear) ?? initialData ?? null;
+  const data =
+    periodCache.get(periodKey(current.year, current.month)) ??
+    initialData ??
+    null;
 
-  function selectYear(year: number) {
-    if (year === currentYear) return;
+  function syncUrl(year: number, month: number) {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("cashflow-year", String(year));
+    url.searchParams.set("cashflow-month", String(month));
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  function selectPeriod(year: number, month: number) {
+    if (year === current.year && month === current.month) return;
 
     // Mirror to URL so refresh + deep-link both work. No router.replace —
     // we don't want to re-run the server component (that's the slow path
-    // we are deliberately avoiding for the year switch).
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("cashflow-year", String(year));
-      window.history.replaceState({}, "", url.toString());
-    }
-
-    setCurrentYear(year);
+    // we are deliberately avoiding for the period switch).
+    syncUrl(year, month);
+    setCurrent({ year, month });
 
     // Cache hit — render is already correct (data derives from cache).
-    if (yearCache.has(year)) return;
-    refetchYear(year);
+    if (periodCache.has(periodKey(year, month))) return;
+    refetchPeriod(year, month);
   }
 
   if (error && !data) {
@@ -250,7 +281,7 @@ export function MapariCashflowTab({
   return (
     <MapariCashflowContent
       data={data}
-      onYearChange={selectYear}
+      onPeriodChange={selectPeriod}
       onMutated={refreshAfterMutation}
     />
   );
@@ -258,11 +289,11 @@ export function MapariCashflowTab({
 
 function MapariCashflowContent({
   data,
-  onYearChange,
+  onPeriodChange,
   onMutated,
 }: {
   data: MapariCashflowData;
-  onYearChange: (year: number) => void;
+  onPeriodChange: (year: number, month: number) => void;
   /** Called by child mutation flows after a successful server-side save.
    *  Triggers a refetch of the current year's payload in the parent so
    *  outer-page badges, coverage, and lists stay in sync — without a
@@ -402,9 +433,10 @@ function MapariCashflowContent({
       <PageHeader
         period={data.period}
         availableYears={data.availableYears}
+        availablePeriods={data.availablePeriods}
         coverage={data.coverage}
         freshlySeeded={data.freshlySeeded}
-        onYearChange={onYearChange}
+        onPeriodChange={onPeriodChange}
         onJumpToUnmapped={() => {
           setCategoryInitialFilter("unmapped");
         }}
@@ -2667,17 +2699,19 @@ function ActivateVerticalsModal({
 function PageHeader({
   period,
   availableYears,
+  availablePeriods,
   coverage,
   freshlySeeded,
   onJumpToUnmapped,
-  onYearChange,
+  onPeriodChange,
 }: {
   period: { year: number; month: number } | null;
   availableYears: number[];
+  availablePeriods: { year: number; month: number }[];
   coverage: CoverageStats;
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
-  onYearChange: (year: number) => void;
+  onPeriodChange: (year: number, month: number) => void;
 }) {
   const periodDescription = period
     ? period.month === 12
@@ -2697,10 +2731,12 @@ function PageHeader({
           </h2>
           <div className="flex items-center gap-4 shrink-0">
             {availableYears.length > 0 && period && (
-              <YearSelector
+              <PeriodSelector
                 availableYears={availableYears}
+                availablePeriods={availablePeriods}
                 selectedYear={period.year}
-                onChange={onYearChange}
+                selectedMonth={period.month}
+                onChange={onPeriodChange}
               />
             )}
             <div className="flex items-center gap-3 text-[12px]">
@@ -2809,44 +2845,92 @@ function CoverageBar({ percent }: { percent: number }) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Switches the working year. Calls the parent's `onChange(year)` instead of
- * `router.replace` so the year switch is a pure client-side state update —
- * no server re-render, no full page round-trip. The parent mirrors the
- * selection to `?cashflow-year=YYYY` via `history.replaceState` so deep-
- * links and reloads still land on the chosen year.
+ * Switches the working period (luna + an). Calls the parent's
+ * `onChange(year, month)` instead of `router.replace` so the switch is a pure
+ * client-side state update — no server re-render, no full page round-trip. The
+ * parent mirrors the selection to `?cashflow-year=YYYY&cashflow-month=M` via
+ * `history.replaceState` so deep-links and reloads land on the chosen period.
+ *
+ * The rulaj amounts are cumulative Jan→selected month of the chosen year, so
+ * picking an earlier month shows the YTD picture as of that month's close.
  */
-function YearSelector({
+function PeriodSelector({
   availableYears,
+  availablePeriods,
   selectedYear,
+  selectedMonth,
   onChange,
 }: {
   availableYears: number[];
+  availablePeriods: { year: number; month: number }[];
   selectedYear: number;
-  onChange: (year: number) => void;
+  selectedMonth: number;
+  onChange: (year: number, month: number) => void;
 }) {
-  function handleChange(value: string) {
+  const monthsForYear = availablePeriods
+    .filter((p) => p.year === selectedYear)
+    .map((p) => p.month)
+    .sort((a, b) => a - b);
+
+  function handleYearChange(value: string) {
     const yearNum = parseInt(value, 10);
-    if (Number.isFinite(yearNum)) onChange(yearNum);
+    if (!Number.isFinite(yearNum) || yearNum === selectedYear) return;
+    // Switching year resets the month to the latest available in that year —
+    // the most useful default (full YTD through the most recent close).
+    const months = availablePeriods
+      .filter((p) => p.year === yearNum)
+      .map((p) => p.month);
+    const latest = months.length > 0 ? Math.max(...months) : selectedMonth;
+    onChange(yearNum, latest);
+  }
+
+  function handleMonthChange(value: string) {
+    const monthNum = parseInt(value, 10);
+    if (Number.isFinite(monthNum) && monthNum !== selectedMonth) {
+      onChange(selectedYear, monthNum);
+    }
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className="font-mono text-[10px] uppercase tracking-wider text-gray"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        An
-      </span>
-      <Select
-        value={String(selectedYear)}
-        onChange={handleChange}
-        options={availableYears.map((y) => ({
-          value: String(y),
-          label: String(y),
-        }))}
-      />
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Luna
+        </span>
+        <Select
+          value={String(selectedMonth)}
+          onChange={handleMonthChange}
+          options={monthsForYear.map((m) => ({
+            value: String(m),
+            label: capitalize(MONTHS[m - 1]),
+          }))}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <span
+          className="font-mono text-[10px] uppercase tracking-wider text-gray"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          An
+        </span>
+        <Select
+          value={String(selectedYear)}
+          onChange={handleYearChange}
+          options={availableYears.map((y) => ({
+            value: String(y),
+            label: String(y),
+          }))}
+        />
+      </div>
     </div>
   );
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /* -------------------------------------------------------------------------- */

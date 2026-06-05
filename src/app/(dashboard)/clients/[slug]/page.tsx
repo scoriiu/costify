@@ -40,6 +40,7 @@ interface Props {
     view?: string;
     mode?: string;
     "cashflow-year"?: string;
+    "cashflow-month"?: string;
   }>;
 }
 
@@ -232,6 +233,14 @@ export default async function ClientDetailPage(props: Props) {
   const cashflowYearRaw = searchParams["cashflow-year"];
   const cashflowYearParsed = cashflowYearRaw ? parseInt(cashflowYearRaw, 10) : NaN;
   const cashflowYear = Number.isFinite(cashflowYearParsed) ? cashflowYearParsed : undefined;
+  const cashflowMonthRaw = searchParams["cashflow-month"];
+  const cashflowMonthParsed = cashflowMonthRaw ? parseInt(cashflowMonthRaw, 10) : NaN;
+  const cashflowMonth =
+    Number.isFinite(cashflowMonthParsed) &&
+    cashflowMonthParsed >= 1 &&
+    cashflowMonthParsed <= 12
+      ? cashflowMonthParsed
+      : undefined;
   const tab = searchParams.tab ?? "jurnal";
   // Only server-load Mapari when the user is actually on that tab. Other
   // tabs (Jurnal, Balanta, …) shouldn't pay the cost of 16k+ journal-line
@@ -255,7 +264,7 @@ export default async function ClientDetailPage(props: Props) {
     year && month ? getPublishedView(client.id, year, month) : Promise.resolve(null),
     listAccountantAuditTrail(client.id, { limit: 50 }),
     shouldLoadMapari
-      ? loadMapariCashflow(client.id, { year: cashflowYear })
+      ? loadMapariCashflow(client.id, { year: cashflowYear, month: cashflowMonth })
       : Promise.resolve(null),
     getPeriodResultFigures(client.id),
     checkPublishedSync(client.id),
@@ -341,6 +350,7 @@ export default async function ClientDetailPage(props: Props) {
       selectedYear={year}
       selectedMonth={month}
       cashflowYear={cashflowYear}
+      cashflowMonth={cashflowMonth}
       mapariData={mapariData}
       accessSection={
         <AccessSection
