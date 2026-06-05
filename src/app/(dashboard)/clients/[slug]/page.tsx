@@ -138,19 +138,56 @@ export default async function ClientDetailPage(props: Props) {
     t.mark("ownerPublishedList");
     const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
 
-    const previewYear = year ?? null;
-    const previewMonth = month ?? null;
+    // The owner preview must mirror what the patron actually sees on /firma:
+    // ONLY published months. The accountant's selected accountant-side period
+    // (which can point at unpublished journal data like the latest month) must
+    // never leak into the owner view. We therefore clamp to published periods:
+    // honour a requested period only if it's published, else fall back to the
+    // latest published month. If nothing is published, show the empty state.
+    const isPublished = (y: number, m: number) =>
+      publishedList.some((p) => p.year === y && p.month === m);
+    const latestPublished = publishedList.reduce<{ year: number; month: number } | null>(
+      (latest, p) => {
+        if (!latest) return { year: p.year, month: p.month };
+        const isNewer =
+          p.year > latest.year || (p.year === latest.year && p.month > latest.month);
+        return isNewer ? { year: p.year, month: p.month } : latest;
+      },
+      null
+    );
+
+    const requestedIsPublished = year != null && month != null && isPublished(year, month);
+    const previewYear = requestedIsPublished ? year : latestPublished?.year ?? null;
+    const previewMonth = requestedIsPublished ? month : latestPublished?.month ?? null;
+
+    // If the URL pointed at an unpublished period (e.g. the accountant's latest
+    // journal month) we clamped to the latest published one. Redirect so the
+    // URL + period selector reflect what's actually shown, never leaving a
+    // stale ?year/?month that disagrees with the rendered month.
+    if (
+      previewYear &&
+      previewMonth &&
+      (year !== previewYear || month !== previewMonth)
+    ) {
+      const qs = new URLSearchParams();
+      qs.set("view", "owner");
+      if (searchParams.mode) qs.set("mode", searchParams.mode);
+      qs.set("year", String(previewYear));
+      qs.set("month", String(previewMonth));
+      redirect(`/clients/${client.slug}?${qs.toString()}`);
+    }
 
     if (!previewYear || !previewMonth) {
-      t.end("(no-period)");
+      t.end("(no-published)");
       return (
         <OwnerLayout context={context} previewBack={previewBack}>
           <div className="rounded-xl border border-dashed border-dark-3 bg-dark-2/50 p-8 sm:p-12">
             <h1 className="text-[24px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
-              Nicio luna disponibila
+              Nicio luna publicata
             </h1>
             <p className="mt-3 max-w-xl text-[14px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-              Importa un jurnal pentru a putea previzualiza ce vede patronul.
+              Patronul vede doar lunile publicate. Publica o luna din Setari pentru
+              a previzualiza ce vede patronul.
             </p>
           </div>
         </OwnerLayout>
