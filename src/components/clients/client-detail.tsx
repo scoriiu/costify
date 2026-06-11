@@ -43,10 +43,11 @@ import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
 import { SetariTab } from "@/components/clients/setari-tab";
 import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
+import { IndustryKpiTab } from "@/components/clients/industry-kpi-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
 import { UnmappedBanner } from "@/components/clients/unmapped-banner";
 
-type Tab = "jurnal" | "balanta" | "cpp" | "plan" | "mapari-cashflow" | "setari";
+type Tab = "jurnal" | "balanta" | "cpp" | "kpi" | "plan" | "mapari-cashflow" | "setari";
 
 interface ImportEventInfo {
   id: string;
@@ -73,6 +74,8 @@ interface Props {
     name: string;
     cui: string | null;
     caen: string | null;
+    industry: string | null;
+    industrySource: string | null;
     createdAt: string;
   };
   /** Monotonic version. Any change invalidates client-side caches. */
@@ -110,6 +113,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "jurnal", label: "Registru Jurnal" },
   { key: "balanta", label: "Balanta de Verificare" },
   { key: "cpp", label: "Cont Profit si Pierdere" },
+  { key: "kpi", label: "KPI" },
   { key: "plan", label: "Plan de Conturi" },
   { key: "mapari-cashflow", label: "Mapari Cashflow" },
   { key: "setari", label: "Setari" },
@@ -346,6 +350,10 @@ export function ClientDetail({
             taxRegime={balanceData?.taxRegime ?? "profit_standard"}
             loading={balanceLoading || balanceState === null}
           />
+        )}
+
+        {tab === "kpi" && (
+          <IndustryKpiTab clientId={client.id} dataVersion={dataVersion} />
         )}
 
         {tab === "plan" && (

@@ -10,6 +10,8 @@
  *   - OutstandingPartner → answers "cine imi datoreaza / cui ii datorez?"
  */
 
+import type { IndustryKpiSection } from "@/modules/reporting/industry";
+
 export interface FinancialSummary {
   cifraAfaceriTotal: number;
   cifraAfaceriLuna: number;
@@ -412,6 +414,10 @@ export interface OwnerSnapshot {
    *  not raw unreviewed bank statements. Drives the small badge in the
    *  /firma header. Hidden when nothing has been mapped at all (the
    *  trust signal would be a lie). */
+  /** Industry-aware KPI catalog (essentials + industry-specific group),
+   *  with full formula traces for debugging. Optional because published
+   *  snapshots frozen before this feature don't carry it. */
+  industryKpis?: IndustryKpiSection;
   dataQuality: {
     /** Percent of class 6+7 rulaj that's covered by an explicit category
      *  mapping or a partner override (same definition as CoverageStats.

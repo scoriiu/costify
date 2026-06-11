@@ -332,6 +332,8 @@ export default async function ClientDetailPage(props: Props) {
         name: client.name,
         cui: client.cui,
         caen: client.caen,
+        industry: client.industry,
+        industrySource: client.industrySource,
         createdAt: client.createdAt.toISOString(),
       }}
       dataVersion={client.dataVersion}

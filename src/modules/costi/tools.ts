@@ -107,6 +107,25 @@ export const COSTI_TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_industry_kpis",
+    description:
+      "Obtine catalogul de KPI specifici industriei pentru un client (tab-ul KPI din UI si sectiunea 'Indicatorii afacerii tale' de pe /firma). Returneaza KPI esentiali (marje, lichiditate, DSO/DPO/DIO, indatorare, crestere) plus grupul specific industriei (consultanta/retail/telecom/banking/contabilitate/inchirieri), cu valoarea, formula, valorile de intrare folosite in calcul, pragurile (tinta/alarma, ajustate pe industrie) si starea semafor (good/warn/danger). Valorile sunt cumulate ianuarie -> luna selectata; indicatorii anuali sunt anualizati. Industria e detectata automat din CAEN, setata manual in Setari sau dedusa din mixul de venituri al jurnalului (fallback). Raspunsul include 'journalHint' cand jurnalul contrazice industria configurata (ex. profil consultanta dar venituri majoritare din 707 comert). Util cand contabilul intreaba 'cum sta clientul X la DSO', 'de ce e rosu indicatorul Y' sau 'ce inseamna KPI-ul Z'.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        year: { type: "number", description: "Anul" },
+        month: { type: "number", description: "Luna (1-12)" },
+        kpi_id: {
+          type: "string",
+          description:
+            "Optional: returneaza doar acest KPI, cu trace complet de calcul (ex: 'dso', 'marjaBruta', 'costPersonal')",
+        },
+      },
+      required: ["client_name", "year", "month"],
+    },
+  },
+  {
     name: "get_account_catalog",
     description: "Cauta in catalogul standard OMFP 1802 (~321 conturi). Util pentru a verifica daca un cod exista oficial, ce denumire oficiala are, ce tip (A/P/B) si ce grupa CPP. Poate cauta dupa cod exact sau dupa prefix (ex '60' pentru toate conturile de cheltuieli).",
     input_schema: {

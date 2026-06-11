@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Palette, Megaphone, Smile, Globe, Building2 } from "lucide-react";
+import { Palette, Megaphone, Smile, Globe, Building2, Gauge } from "lucide-react";
 import { isInternalUser } from "@/lib/internal-access";
 
 const ITEMS = [
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/internal/firma", icon: Building2, label: "Vederea Firma", desc: "Specs vizuale modul antreprenor — date reale QHM21" },
   { href: "/marketing", icon: Megaphone, label: "Marketing", desc: "Strategie, target audience, GTM, pricing" },
   { href: "/debug", icon: Smile, label: "Mascot", desc: "Costi — toate starile si expresiile" },
+  { href: "/internal/kpi-coverage", icon: Gauge, label: "KPI Coverage", desc: "Spec Excel vs registru implementat — calculat / date op. / lipsa" },
 ];
 
 export default async function InternalPage() {

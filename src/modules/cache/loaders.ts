@@ -112,7 +112,8 @@ const cachedOwnerSnapshot = unstable_cache(
       month,
     });
   },
-  ["owner-snapshot-v1"],
+  // v2: OwnerSnapshot gained industryKpis (industry-aware KPI catalog).
+  ["owner-snapshot-v2"],
   { revalidate: CACHE_REVALIDATE_SECONDS }
 );
 

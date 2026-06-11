@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import { recordClientMutation } from "@/modules/audit";
 import { bumpClientDataVersion } from "@/modules/clients/data-version";
+import { industryFromCaen, industryLabel } from "@/modules/reporting/industry";
+import { lookupCompanyByCui, type AnafCompanyData } from "@/modules/integrations/anaf";
 
 const createClientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(200),
@@ -232,6 +234,10 @@ const updateClientInfoSchema = z.object({
   name: z.string().min(2).max(200),
   cui: z.string().max(20).optional().nullable(),
   caen: z.string().max(10).optional().nullable(),
+  /** Explicit industry pick. "auto" = clear manual override, re-detect from CAEN. */
+  industry: z
+    .enum(["auto", "general", "consultanta", "retail", "telecom", "banking", "servicii_contabile", "inchirieri"])
+    .optional(),
 });
 
 export async function updateClientInfoAction(input: {
@@ -239,6 +245,7 @@ export async function updateClientInfoAction(input: {
   name: string;
   cui?: string | null;
   caen?: string | null;
+  industry?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Neautenticat" };
@@ -253,13 +260,37 @@ export async function updateClientInfoAction(input: {
 
   const before = await prisma.client.findUnique({
     where: { id: parsed.data.clientId },
-    select: { name: true, cui: true, caen: true },
+    select: { name: true, cui: true, caen: true, industry: true, industrySource: true },
   });
+
+  const newCaen = parsed.data.caen?.trim() || null;
+
+  // Industry resolution:
+  //   - explicit pick -> manual (auto-detect never overwrites it)
+  //   - "auto" or no pick -> derive from CAEN, unless an existing manual
+  //     selection is kept and the caller didn't ask to reset it
+  let industry: string | null;
+  let industrySource: string | null;
+  if (parsed.data.industry && parsed.data.industry !== "auto") {
+    industry = parsed.data.industry;
+    industrySource = "manual";
+  } else if (
+    parsed.data.industry !== "auto" &&
+    before?.industrySource === "manual"
+  ) {
+    industry = before.industry;
+    industrySource = "manual";
+  } else {
+    industry = industryFromCaen(newCaen) ?? "general";
+    industrySource = "auto";
+  }
 
   const after = {
     name: parsed.data.name.trim(),
     cui: parsed.data.cui?.trim() || null,
-    caen: parsed.data.caen?.trim() || null,
+    caen: newCaen,
+    industry,
+    industrySource,
   };
 
   await prisma.client.update({
@@ -278,7 +309,54 @@ export async function updateClientInfoAction(input: {
     metadata: {},
   });
 
+  // Industry/CAEN feed the owner snapshot (industry KPI section) — cached
+  // outputs must become unreachable when they change.
+  if (
+    before?.caen !== after.caen ||
+    before?.industry !== after.industry ||
+    before?.industrySource !== after.industrySource
+  ) {
+    await bumpClientDataVersion(parsed.data.clientId);
+  }
+
   revalidatePath(`/clients/${client.slug}`);
   revalidatePath(`/clients/${client.slug}/settings`);
   return { ok: true };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// ANAF lookup
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface AnafLookupResult {
+  ok: boolean;
+  error?: string;
+  data?: AnafCompanyData & {
+    /** Industry detected from the fetched CAEN, for instant UI feedback. */
+    detectedIndustry: string | null;
+    detectedIndustryLabel: string | null;
+  };
+}
+
+/**
+ * Fetches company registry data from the free ANAF public web service.
+ * Read-only: returns the data for the UI to prefill, never writes the
+ * client record (the accountant reviews and saves explicitly).
+ */
+export async function lookupCuiAction(rawCui: string): Promise<AnafLookupResult> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const result = await lookupCompanyByCui(rawCui);
+  if (!result.ok) return { ok: false, error: result.error.message };
+
+  const detected = industryFromCaen(result.data.caen);
+  return {
+    ok: true,
+    data: {
+      ...result.data,
+      detectedIndustry: detected,
+      detectedIndustryLabel: detected ? industryLabel(detected) : null,
+    },
+  };
 }

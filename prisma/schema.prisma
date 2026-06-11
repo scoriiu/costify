@@ -54,6 +54,13 @@ model Client {
   slug             String
   cui              String?
   caen             String?
+  /// Industry profile id driving industry-specific KPIs: "consultanta" |
+  /// "retail" | "telecom" | "banking" | "servicii_contabile" | "general".
+  /// Null = never resolved; treated as "general".
+  industry         String?
+  /// "auto" = detected from CAEN, re-runs when CAEN changes.
+  /// "manual" = accountant picked it explicitly; auto-detect never overwrites.
+  industrySource   String?
   /// @deprecated Use TaxRegimePeriod timeline instead. Kept as fallback until all clients have at least one TaxRegimePeriod row.
   taxRegime        String   @default("profit_standard")
   active           Boolean  @default(true)

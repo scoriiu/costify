@@ -66,6 +66,7 @@ import {
 } from "@/modules/partner-mappings";
 import type { OwnerSnapshot, MonthlyTrendPoint } from "./types";
 import type { CatalogAccount } from "@/modules/accounts";
+import { computeIndustryKpis, resolveIndustry } from "@/modules/reporting/industry";
 
 const MONTH_NAMES = [
   "Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie",
@@ -166,7 +167,12 @@ export async function loadOwnerSnapshot(
     getCatalogMap(),
     prisma.client.findUnique({
       where: { id: clientId },
-      select: { verticalsEnabled: true },
+      select: {
+        verticalsEnabled: true,
+        industry: true,
+        industrySource: true,
+        caen: true,
+      },
     }),
   ]);
 
@@ -315,6 +321,23 @@ export async function loadOwnerSnapshot(
   // §11 Obligations calendar
   const obligations = computeObligations(rows, year, month);
 
+  // Industry-aware KPI catalog. Prior-year rows for YoY growth are a pure
+  // in-memory derivation from the already-loaded balance context.
+  const resolved = resolveIndustry({
+    industry: clientFlag?.industry ?? null,
+    industrySource: clientFlag?.industrySource ?? null,
+    caen: clientFlag?.caen ?? null,
+  });
+  const prevYearRows = computeBalanceFromContext(balanceContext, year - 1, month);
+  const industryKpis = computeIndustryKpis(rows, catalog, {
+    industry: resolved.id,
+    industrySource: resolved.source,
+    caen: clientFlag?.caen ?? null,
+    year,
+    month,
+    prevYearRows,
+  });
+
   return {
     meta: {
       clientId,
@@ -347,6 +370,7 @@ export async function loadOwnerSnapshot(
     patrimoniu,
     topCustomersByActivity,
     topSuppliersByActivity,
+    industryKpis,
     dataQuality: computeDataQuality(
       rows,
       catalog,

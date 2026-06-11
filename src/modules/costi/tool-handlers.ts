@@ -8,6 +8,7 @@ import {
   taxRegimeAccount,
 } from "@/modules/clients/tax-regime";
 import { detectTaxRegimeTimeline } from "@/modules/clients/tax-regime-detector";
+import { computeIndustryKpis, resolveIndustry } from "@/modules/reporting/industry";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -48,6 +49,8 @@ export async function handleToolCall(
       return handleGetUnmappedAccounts(userId, input);
     case "get_tax_regime_timeline":
       return handleGetTaxRegimeTimeline(userId, input);
+    case "get_industry_kpis":
+      return handleGetIndustryKpis(userId, input);
     case "get_account_catalog":
       return handleGetAccountCatalog(input);
     default:
@@ -81,6 +84,85 @@ async function handleGetKpis(userId: string, input: Record<string, unknown>): Pr
 
   const kpis = computeKpis(result.data);
   return JSON.stringify({ client: resolved.client.name, year: input.year, month: input.month, ...kpis });
+}
+
+async function handleGetIndustryKpis(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const year = input.year as number;
+  const month = input.month as number;
+
+  const [result, prevResult, catalog, fields] = await Promise.all([
+    getBalanceRows(resolved.client.id, year, month),
+    getBalanceRows(resolved.client.id, year - 1, month),
+    getCatalogMap(),
+    prisma.client.findUnique({
+      where: { id: resolved.client.id },
+      select: { industry: true, industrySource: true, caen: true },
+    }),
+  ]);
+  if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
+
+  const industry = resolveIndustry({
+    industry: fields?.industry ?? null,
+    industrySource: fields?.industrySource ?? null,
+    caen: fields?.caen ?? null,
+  });
+  const section = computeIndustryKpis(result.data, catalog, {
+    industry: industry.id,
+    industrySource: industry.source,
+    caen: fields?.caen ?? null,
+    year,
+    month,
+    prevYearRows: prevResult.ok ? prevResult.data : [],
+  });
+
+  const kpiId = input.kpi_id as string | undefined;
+  if (kpiId) {
+    const kpi = section.groups.flatMap((g) => g.kpis).find((k) => k.id === kpiId);
+    if (!kpi) {
+      return JSON.stringify({
+        error: `KPI "${kpiId}" inexistent.`,
+        availableIds: section.groups.flatMap((g) => g.kpis.map((k) => k.id)),
+      });
+    }
+    return JSON.stringify({
+      client: resolved.client.name,
+      industry: section.industryLabel,
+      year,
+      month,
+      kpi,
+    });
+  }
+
+  // Compact form: full trace only via kpi_id to keep the payload small.
+  return JSON.stringify({
+    client: resolved.client.name,
+    industry: section.industryLabel,
+    industrySource: section.industrySource,
+    caen: section.caen,
+    year,
+    month,
+    journalHint: section.journalHint,
+    note: "Valori cumulate ianuarie -> luna selectata. Pentru formula completa si valorile de intrare ale unui KPI, apeleaza din nou cu kpi_id.",
+    groups: section.groups.map((g) => ({
+      id: g.id,
+      label: g.label,
+      kpis: g.kpis.map((k) => ({
+        id: k.id,
+        label: k.labelContabil,
+        value: k.value,
+        format: k.format,
+        target: k.thresholds?.label ?? null,
+        state: k.state,
+        unavailable: k.unavailableReason !== null ? true : undefined,
+      })),
+    })),
+  });
 }
 
 async function handleGetBalance(userId: string, input: Record<string, unknown>): Promise<string> {

@@ -44,6 +44,7 @@ import { PnlWaterfall } from "./pnl-waterfall";
 import { TopActivityList } from "./top-activity-list";
 import { ObligationsCalendar } from "./obligations-calendar";
 import { RatiosCatalog } from "./ratios-catalog";
+import { IndustryKpis } from "./industry-kpis";
 import { PatrimoniuView } from "./patrimoniu-view";
 import { type PeriodOption } from "./period-selector";
 import { StickyPeriodBar } from "./sticky-period-bar";
@@ -109,6 +110,7 @@ export function OwnerView({
     hasInsights: insights.length > 0,
     hasObligations: obligations.length > 0,
     hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
+    hasIndustryKpis: snapshot.industryKpis !== undefined,
   });
 
   // Sticky period bar sits under different chrome depending on context.
@@ -278,6 +280,14 @@ export function OwnerView({
         </Section>
       )}
 
+      {/* Industry-aware KPI catalog. Optional: published snapshots frozen
+          before this feature don't carry the section. */}
+      {snapshot.industryKpis && (
+        <Section id="industry-kpis" className="mb-8">
+          <IndustryKpis section={snapshot.industryKpis} />
+        </Section>
+      )}
+
       {/* §10 — Detailed ratios catalog (L2 only) */}
       <DetailedOnly>
         <Section id="ratios" className="mb-8">
@@ -334,12 +344,14 @@ function buildNavItems({
   hasInsights,
   hasObligations,
   hasPatrimoniu,
+  hasIndustryKpis,
 }: {
   hasYoy: boolean;
   hasVerticals: boolean;
   hasInsights: boolean;
   hasObligations: boolean;
   hasPatrimoniu: boolean;
+  hasIndustryKpis: boolean;
 }): {
   base: Array<{ id: string; label: string }>;
   tail: Array<{ id: string; label: string }>;
@@ -365,6 +377,7 @@ function buildNavItems({
     { id: "eu", label: "Eu si firma" }
   );
   if (hasPatrimoniu) base.push({ id: "patrimoniu", label: "Patrimoniu" });
+  if (hasIndustryKpis) base.push({ id: "industry-kpis", label: "KPI" });
 
   const tail: Array<{ id: string; label: string }> = [];
   if (hasInsights) tail.push({ id: "insights", label: "Semnale" });

@@ -16,10 +16,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Calendar, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { Building2, Calendar, Download, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { updateClientInfoAction } from "@/modules/clients/actions";
+import { Select } from "@/components/ui/select";
+import { updateClientInfoAction, lookupCuiAction } from "@/modules/clients/actions";
+import {
+  INDUSTRY_OPTIONS,
+  industryFromCaen,
+  industryLabel,
+  resolveIndustry,
+} from "@/modules/reporting/industry";
 
 interface Props {
   client: {
@@ -28,6 +35,8 @@ interface Props {
     name: string;
     cui: string | null;
     caen: string | null;
+    industry: string | null;
+    industrySource: string | null;
     createdAt: string;
   };
   entryCount: number;
@@ -65,13 +74,48 @@ export function SetariTab({
 // ──────────────────────────────────────────────────────────────────────────
 
 function GeneralInfoSection({ client }: { client: Props["client"] }) {
+  const resolved = resolveIndustry({
+    industry: client.industry,
+    industrySource: client.industrySource,
+    caen: client.caen,
+  });
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(client.name);
   const [cui, setCui] = useState(client.cui ?? "");
   const [caen, setCaen] = useState(client.caen ?? "");
+  // "auto" = follow CAEN detection; otherwise a manual industry id.
+  const [industry, setIndustry] = useState<string>(
+    client.industrySource === "manual" && client.industry ? client.industry : "auto"
+  );
   const [error, setError] = useState<string | null>(null);
+  const [anafMessage, setAnafMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [anafPending, startAnafTransition] = useTransition();
   const router = useRouter();
+
+  function onAnafLookup() {
+    setAnafMessage(null);
+    startAnafTransition(async () => {
+      const result = await lookupCuiAction(cui);
+      if (!result.ok || !result.data) {
+        setAnafMessage({ kind: "error", text: result.error ?? "Eroare la interogarea ANAF." });
+        return;
+      }
+      const d = result.data;
+      setName(d.denumire);
+      if (d.caen) setCaen(d.caen);
+      const parts = [`Date preluate de la ANAF: ${d.denumire}`];
+      if (d.caen) {
+        parts.push(
+          d.detectedIndustryLabel
+            ? `CAEN ${d.caen} (industrie: ${d.detectedIndustryLabel})`
+            : `CAEN ${d.caen}`
+        );
+      }
+      if (d.inactiv) parts.push("Atentie: firma figureaza ca inactiva fiscal.");
+      setAnafMessage({ kind: "ok", text: parts.join(". ") + "." });
+    });
+  }
 
   function onSave() {
     setError(null);
@@ -81,6 +125,7 @@ function GeneralInfoSection({ client }: { client: Props["client"] }) {
         name: name.trim(),
         cui: cui.trim() || null,
         caen: caen.trim() || null,
+        industry,
       });
       if (!result.ok) {
         setError(result.error ?? "Eroare");
@@ -95,9 +140,18 @@ function GeneralInfoSection({ client }: { client: Props["client"] }) {
     setName(client.name);
     setCui(client.cui ?? "");
     setCaen(client.caen ?? "");
+    setIndustry(
+      client.industrySource === "manual" && client.industry ? client.industry : "auto"
+    );
     setError(null);
+    setAnafMessage(null);
     setEditing(false);
   }
+
+  const detectedFromCaen = industryFromCaen(caen.trim() || null);
+  const autoOptionLabel = detectedFromCaen
+    ? `Automat dupa CAEN (${industryLabel(detectedFromCaen)})`
+    : "Automat dupa CAEN (Generala)";
 
   const createdLabel = new Date(client.createdAt).toLocaleDateString("ro-RO", {
     day: "numeric",
@@ -138,13 +192,34 @@ function GeneralInfoSection({ client }: { client: Props["client"] }) {
               placeholder="ex. 4Walls Studio SRL"
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                id="client-cui"
-                label="CUI"
-                value={cui}
-                onChange={(e) => setCui(e.target.value)}
-                placeholder="RO12345678"
-              />
+              <div>
+                <Input
+                  id="client-cui"
+                  label="CUI"
+                  value={cui}
+                  onChange={(e) => setCui(e.target.value)}
+                  placeholder="RO12345678"
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={onAnafLookup}
+                    disabled={anafPending || !cui.trim()}
+                    data-testid="setari-anaf-lookup"
+                  >
+                    <Download size={13} />
+                    {anafPending ? "Se interogheaza ANAF..." : "Preia date ANAF"}
+                  </Button>
+                </div>
+                {anafMessage && (
+                  <p
+                    className={`mt-1.5 text-[12px] ${anafMessage.kind === "error" ? "text-danger" : "text-green"}`}
+                    data-testid="setari-anaf-message"
+                  >
+                    {anafMessage.text}
+                  </p>
+                )}
+              </div>
               <Input
                 id="client-caen"
                 label="CAEN"
@@ -152,6 +227,30 @@ function GeneralInfoSection({ client }: { client: Props["client"] }) {
                 onChange={(e) => setCaen(e.target.value)}
                 placeholder="6920"
               />
+            </div>
+            <div data-testid="setari-industrie-select">
+              <label
+                className="font-mono text-[11px] font-medium uppercase text-gray"
+                style={{ letterSpacing: "-0.04em" }}
+              >
+                Industrie
+              </label>
+              <div className="mt-1.5 max-w-md">
+                <Select
+                  value={industry}
+                  onChange={setIndustry}
+                  options={[
+                    { value: "auto", label: autoOptionLabel },
+                    ...INDUSTRY_OPTIONS.map((o) => ({
+                      value: o.id,
+                      label: o.label,
+                    })),
+                  ]}
+                />
+              </div>
+              <p className="mt-1.5 text-[12px] text-gray">
+                Industria stabileste indicatorii (KPI) specifici afisati pentru aceasta firma si pragurile lor.
+              </p>
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <div className="flex items-center gap-2 pt-2">
@@ -168,6 +267,23 @@ function GeneralInfoSection({ client }: { client: Props["client"] }) {
             <Field label="Nume firma" value={client.name} mono={false} />
             <Field label="CUI" value={client.cui ?? "—"} />
             <Field label="CAEN" value={client.caen ?? "—"} />
+            <div data-testid="setari-industrie-view">
+              <dt
+                className="font-mono text-[11px] font-medium uppercase text-gray"
+                style={{ letterSpacing: "-0.04em" }}
+              >
+                Industrie
+              </dt>
+              <dd
+                className="mt-1 flex items-center gap-2 text-[14px] text-white"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                {industryLabel(resolved.id)}
+                <span className="rounded-md border border-dark-3 bg-dark-1/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-gray">
+                  {resolved.source === "manual" ? "Setata manual" : "Detectata automat"}
+                </span>
+              </dd>
+            </div>
             <Field label="Data creare" value={createdLabel} mono={false} icon={<Calendar size={12} className="text-gray" />} />
           </dl>
         )}

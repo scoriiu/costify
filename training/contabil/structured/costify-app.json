@@ -79,6 +79,23 @@
       ],
       "implementation_note": "Toate formulele sunt in src/modules/reporting/kpi.ts si folosesc roluri din AccountCatalog (derivate de src/modules/accounts/flags.ts). Schimbarile la formule afecteaza toate clientii in timp real — sunt pur-computate, fara cache."
     },
+    "industry_kpis": {
+      "description": "Iunie 2026. Sistem de KPI esentiali + specifici industriei. Tab nou 'KPI' pe pagina clientului (intre CPP si Plan de Conturi) pentru contabil, plus sectiunea 'Indicatorii afacerii tale' pe /firma pentru antreprenor. Ambele afiseaza ACEEASI computatie din acelasi registry, doar limbajul difera (labelContabil vs labelAntreprenor).",
+      "industry_detection": "Industria se detecteaza AUTOMAT din codul CAEN al clientului (Setari > Informatii generale): 45-47=retail, 61=telecom, 64-66=banking, 68/77=inchirieri (imobiliare si inchirieri), 6920=servicii_contabile, 62/63/69-74/78/82=consultanta, altfel general. Contabilul poate suprascrie manual din dropdown-ul 'Industrie' (optiunea 'Automat dupa CAEN' revine la detectare). Sursa: Client.industry + Client.industrySource ('auto'|'manual'). Schimbarea industriei sau a CAEN bumpeaza dataVersion (invalidare cache snapshot).",
+      "journal_detection": "FALLBACK + VALIDATOR din registru jurnal (src/modules/reporting/industry/detect-journal.ts). Mixul conturilor de venituri tradeaza modelul de business: 707 dominant (sau >=30% cu rulaj 371) = comert->retail; 704/705/708 >=60% = servicii->consultanta; 706 >=50% = inchirieri (profil imobiliare si inchirieri: pondere chirii, randament imobilizari, intretinere/chirii, concentrare chiriasi, grad ocupare); 701-703 = productie (fara profil); 766 > venituri operationale = financiar->banking. Prag minim 5.000 lei venituri YTD. REGULI: 1) daca nu exista nici CAEN nici setare manuala, jurnalul decide profilul (industrySource='journal', hint kind='fallback'); 2) daca jurnalul CONTRAZICE industria configurata (ex. profil consultanta dar 60% venituri din 707), apare un hint kind='mismatch' in tab-ul KPI cu dovada (procent + cont) si indrumarea spre Setari. NU suprascrie niciodata CAEN/manual. Limita cunoscuta: jurnalul nu poate distinge tipurile de servicii intre ele (IT vs contabilitate vs telecom, toate arata 704/705), pentru asta ramane CAEN. Hint-ul e doar pentru contabil, antreprenorul nu il vede.",
+      "anaf_lookup": "Buton 'Preia date ANAF' in Setari > Informatii generale (mod editare, langa CUI). Apeleaza serviciul public GRATUIT ANAF (PlatitorTvaRest v9, fara autentificare, 1 req/sec) si precompleteaza: denumire, cod CAEN preponderent (Rev. 3), plus afiseaza nr. Reg. Com., stare fiscala, platitor TVA, status e-Factura, flag inactiv. Read-only: contabilul revizuieste si salveaza explicit, nu se scrie nimic automat. Modul: src/modules/integrations/anaf.ts, actiune: lookupCuiAction.",
+      "structure": "6 grupuri: profitabilitate (marja bruta/EBITDA/EBIT/neta, ROE, ROA, ROCE), lichiditate (rata curenta/rapida/cash, capital de lucru, free cash flow aproximat = EBITDA - impozit - CapEx, fara variatia capitalului de lucru), eficienta (DSO, DPO, DIO, ciclu conversie numerar, rotatie active), indatorare (datorii/capital, datorie neta/EBITDA, acoperire dobanzi, grad indatorare), crestere (crestere CA YoY, Rule of 40 = crestere YoY + marja EBITDA, cost personal %), industrie (grup specific profilului: ex. retail = rotatie stocuri + chirie/vanzari + vanzari/mp + bon mediu; inchirieri = pondere chirii + randament imobilizari + intretinere/chirii + concentrare chiriasi + grad ocupare).",
+      "computation": "Valori cumulate ianuarie -> luna selectata, din BalanceRowView[] (leaf rows, exclude isClosing/isProfitTax/isExtraBilantier). Indicatorii anuali (ROE, ROA, DSO, DPO, DIO, rotatii, datorie/EBITDA) anualizeaza YTD: valoare/luni*12. COGS aproximat cu grupa 60 (cu 609 contra). EBITDA = rezultat brut + 666 - 766 + 681. Crestere YoY compara CA YTD cu aceeasi perioada an precedent. Top 3 concentrare clienti din rulaj creditor analitice 411. Registry: src/modules/reporting/industry/registry.ts.",
+      "thresholds": "Praguri tinta/alarma per KPI, ajustate de profilul industriei (ex. cost personal: general <25%, retail <18%, consultanta <55%, contabilitate <50%). Stare semafor: good (peste tinta), warn (intre), danger (sub alarma), unknown (necalculabil). Sursa praguri: docs/kpi/KPI_Formule_CFO.xlsx + Checklist_Controlling_Industrii.xlsx.",
+      "debugging": "Fiecare KPI poarta trace complet: formulaContabil, inputs[] (label + source cu agregarea exacta din balanta + valoare), calculation (substitutia numerica, ex. '90.000 / (1.180.000 / 365) = 27,8 zile'). In tab-ul KPI contabilul expandeaza randul pentru trace; pe /firma antreprenorul vede interpretarea plain-Romanian + calculul. Orice numar trebuie sa fie reproductibil manual din Balanta de Verificare.",
+      "operational_kpis": "KPI care necesita date din afara jurnalului (ore facturabile, nr. angajati, mp, abonati, NIM, NPL) apar cu valoare null si unavailableReason 'necesita date operationale'. NU se inventeaza valori. Formularul de date operationale e planificat pentru o versiune viitoare.",
+      "surfaces": "1) Tab KPI pe client (?tab=kpi) cu selector Luna+An, API GET /api/industry-kpis. 2) Sectiunea 'Indicatorii afacerii tale' pe /firma (OwnerSnapshot.industryKpis, optional — snapshot-uri publicate vechi nu o au). 3) Tool Costi get_industry_kpis.",
+      "tools_available_for_costi": [
+        "get_industry_kpis(client_name, year, month) — toate grupurile cu valori, praguri, stare",
+        "get_industry_kpis(client_name, year, month, kpi_id) — un singur KPI cu trace complet (formula, inputs, calculation)"
+      ],
+      "kpi_coverage_page": "Pagina interna /internal/kpi-coverage (doar echipa Costify) reconciliaza KPI-urile din specificatiile Excel (docs/kpi) cu registrul implementat: status calculat / asteapta date operationale / neimplementat, cu motivul omisiunii. Statusul e derivat live din registru."
+    },
     "upload_jurnal": {
       "description": "Import XLSX din Saga C cu deduplicare automata",
       "flow": [
@@ -132,10 +149,18 @@
     }
   },
   "client_detail_page": {
-    "tabs": ["Registru Jurnal", "Balanta de Verificare", "Cont Profit si Pierdere", "Plan de Conturi", "Setari"],
+    "tabs": [
+      "Registru Jurnal",
+      "Balanta de Verificare",
+      "Cont Profit si Pierdere",
+      "Plan de Conturi",
+      "Setari"
+    ],
     "header": {
       "info": "Numele clientului, CUI, CAEN, numar intrari",
-      "actions": ["Upload Jurnal"]
+      "actions": [
+        "Upload Jurnal"
+      ]
     },
     "period_selector": "Vizibil pe tab-urile Balanta si CPP, permite selectie an + luna"
   },
@@ -145,13 +170,21 @@
     "sections": {
       "informatii_generale": {
         "purpose": "Date de identificare ale firmei — denumire, CUI, CAEN, data adaugarii in platforma.",
-        "fields": ["name (denumire firma)", "cui (cod fiscal)", "caen (cod CAEN principal)", "createdAt (read-only)", "entryCount (read-only, derivat)"],
+        "fields": [
+          "name (denumire firma)",
+          "cui (cod fiscal)",
+          "caen (cod CAEN principal)",
+          "createdAt (read-only)",
+          "entryCount (read-only, derivat)"
+        ],
         "edit_pattern": "Mod read-only la deschidere. Buton 'Modifica' transforma blocul in inputs cu Salveaza/Anuleaza. Niciun inline-edit pe click — accountantii asteapta intentie clara pentru modificare.",
         "action": "updateClientInfoAction(clientId, name, cui, caen)"
       },
       "zona_periculoasa": {
         "purpose": "Operatii destructive separate vizual (border rosu, titlu rosu) astfel incat sa nu fie executate accidental.",
-        "operations": ["Sterge date istorice (mutat aici din meniul vechi din header)"],
+        "operations": [
+          "Sterge date istorice (mutat aici din meniul vechi din header)"
+        ],
         "confirmation": "Modal cu input text — utilizatorul trebuie sa scrie cuvantul STERGE manual (fara copy-paste) pentru a activa butonul rosu de confirmare."
       }
     }

@@ -4,8 +4,8 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 9 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(9);
+  it("defines 10 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(10);
   });
 
   it("all tools have name, description, and input_schema", () => {
@@ -48,6 +48,17 @@ describe("Costi tool definitions", () => {
     const names = COSTI_TOOLS.map((t) => t.name);
     expect(names).toContain("get_unmapped_accounts");
     expect(names).toContain("get_account_catalog");
+  });
+
+  it("get_industry_kpis requires client_name, year, month and supports kpi_id drill-down", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_industry_kpis");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name", "year", "month"]);
+    expect(schema.properties.kpi_id).toBeDefined();
   });
 
   it("get_unmapped_accounts requires client_name, year, month", () => {
