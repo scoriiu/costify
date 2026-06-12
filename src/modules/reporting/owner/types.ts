@@ -321,6 +321,10 @@ export interface FinancialRatio {
   state: "good" | "neutral" | "warn" | "danger" | "unknown";
   /** Plain Romanian explanation of what this means. */
   interpretation: string;
+  /** Substituted calculation with the actual numbers, so the value is never
+   *  a black box: "120.000 / 80.000 = 1,50". Optional: snapshots frozen
+   *  before this field exist without it. */
+  calculation?: string | null;
 }
 
 /**

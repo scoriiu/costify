@@ -290,7 +290,7 @@ function buildVitals(
           ? "Ai rezerva confortabila chiar daca nu mai intra venituri."
           : tone === "warn"
             ? "Rezerva tine cateva luni, dar e bine sa veghezi cheltuielile."
-            : "Atentie — rezerva e mica fata de cheltuieli.",
+            : "Atentie. Rezerva e mica fata de cheltuieli.",
       progress,
       tone,
       healthScore: Math.min(100, (months / target) * 100),
@@ -356,7 +356,7 @@ function buildVitals(
         tone === "pos"
           ? "Din fiecare leu vandut, ramane suficient pentru a creste firma."
           : tone === "warn"
-            ? "Marja e moderata — ramane putin dupa cheltuielile lunii."
+            ? "Marja e moderata. Ramane putin dupa cheltuielile lunii."
             : "Cheltuielile au depasit veniturile luna asta.",
       progress,
       tone,

@@ -10,7 +10,8 @@
  *  - "omitted":     not in the registry; `note` explains why
  */
 
-import { KPI_BY_ID, KPI_REGISTRY } from "./registry";
+import { KPI_BY_ID, KPI_REGISTRY, type KpiDefinition } from "./registry";
+import { INPUT_SOURCES } from "./inputs";
 
 export type CoverageStatus = "computed" | "placeholder" | "omitted";
 
@@ -28,10 +29,25 @@ export interface KpiCoverageSection {
   items: KpiCoverageSpecItem[];
 }
 
+/** Serializable formula trace for one implemented KPI (no compute fn). */
+export interface KpiCoverageDetail {
+  group: string;
+  labelAntreprenor: string;
+  formulaContabil: string;
+  formulaAntreprenor: string;
+  interpretationContabil: string;
+  thresholdLabel: string | null;
+  /** Balance aggregates entering the formula, with their exact source. */
+  inputs: Array<{ label: string; source: string }>;
+  unavailableReason: string | null;
+}
+
 export interface KpiCoverageRow extends KpiCoverageSpecItem {
   status: CoverageStatus;
   /** Label the contabil sees in the app, when implemented. */
   appLabel: string | null;
+  /** Full formula trace, present iff the KPI exists in the registry. */
+  detail: KpiCoverageDetail | null;
 }
 
 export interface KpiCoverageReport {
@@ -202,15 +218,29 @@ const CHECKLIST_DRIVERS: KpiCoverageSection[] = [
 
 const ALL_SECTIONS: KpiCoverageSection[] = [CFO_ESSENTIALS, CFO_ADVANCED, ...CHECKLIST_DRIVERS];
 
+function toDetail(def: KpiDefinition): KpiCoverageDetail {
+  return {
+    group: def.group,
+    labelAntreprenor: def.labelAntreprenor,
+    formulaContabil: def.formulaContabil,
+    formulaAntreprenor: def.formulaAntreprenor,
+    interpretationContabil: def.interpretationContabil,
+    thresholdLabel: def.thresholds?.label ?? null,
+    inputs: def.inputIds.map((id) => INPUT_SOURCES[id]),
+    unavailableReason: def.unavailableReason ?? null,
+  };
+}
+
 function resolveRow(item: KpiCoverageSpecItem): KpiCoverageRow {
   const def = item.registryId ? KPI_BY_ID.get(item.registryId) : undefined;
   if (!def) {
-    return { ...item, registryId: null, status: "omitted", appLabel: null };
+    return { ...item, registryId: null, status: "omitted", appLabel: null, detail: null };
   }
   return {
     ...item,
     status: def.unavailableReason ? "placeholder" : "computed",
     appLabel: def.labelContabil,
+    detail: toDetail(def),
   };
 }
 
@@ -231,6 +261,7 @@ export function getKpiCoverage(): KpiCoverageReport {
       status: d.unavailableReason ? "placeholder" : "computed",
       appLabel: d.labelContabil,
       note: "Adaugat de Costify peste specificatiile din Excel.",
+      detail: toDetail(d),
     })
   );
 

@@ -66,4 +66,25 @@ describe("getKpiCoverage", () => {
       expect((row.note ?? "").includes("\u2014"), row.specName).toBe(false);
     }
   });
+
+  it("every implemented row carries a full formula detail, omitted rows none", () => {
+    const all = [...report.sections.flatMap((s) => s.rows), ...report.extraRows];
+    for (const row of all) {
+      if (row.registryId === null) {
+        expect(row.detail, row.specName).toBeNull();
+        continue;
+      }
+      expect(row.detail, row.specName).not.toBeNull();
+      expect(row.detail!.formulaContabil.length, row.specName).toBeGreaterThan(0);
+      expect(row.detail!.formulaAntreprenor.length, row.specName).toBeGreaterThan(0);
+      expect(row.detail!.interpretationContabil.length, row.specName).toBeGreaterThan(0);
+      for (const inp of row.detail!.inputs) {
+        expect(inp.label.length, row.specName).toBeGreaterThan(0);
+        expect(inp.source.length, row.specName).toBeGreaterThan(0);
+      }
+      if (row.status === "placeholder") {
+        expect(row.detail!.unavailableReason, row.specName).not.toBeNull();
+      }
+    }
+  });
 });

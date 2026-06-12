@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { Select } from "@/components/ui/select";
+import { EquationSteps } from "@/components/clients/owner/formula-block";
 import type {
   IndustryKpi,
   IndustryKpiGroup,
@@ -361,7 +362,9 @@ function KpiDetail({ kpi }: { kpi: IndustryKpi }) {
           {kpi.calculation && (
             <div>
               <div className="font-mono text-[10px] uppercase tracking-wider text-gray">Calcul</div>
-              <div className="mt-0.5 font-mono text-gray-light">{kpi.calculation}</div>
+              <div className="mt-1 max-w-2xl">
+                <EquationSteps calculation={kpi.calculation} />
+              </div>
             </div>
           )}
         </>

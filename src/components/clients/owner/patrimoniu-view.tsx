@@ -19,6 +19,7 @@
 import { useState } from "react";
 import type { Patrimoniu, PatrimoniuBucket } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 import { ChevronDown } from "lucide-react";
 
 const MONTH_NAMES = [
@@ -44,17 +45,18 @@ export function PatrimoniuView({ data }: PatrimoniuViewProps) {
               La data de {MONTH_NAMES[data.asOfMonth - 1]} {data.asOfYear}
             </span>
             <h2
-              className="mt-2 text-[20px] sm:text-[22px] font-semibold text-white"
+              className="mt-2 inline-flex items-center gap-2 text-[20px] sm:text-[22px] font-semibold text-white"
               style={{ letterSpacing: "-0.04em" }}
             >
               Bilantul firmei
+              <ChartInfo text="Doua coloane care sunt mereu egale. In stanga, ce DETINE firma: bani, stocuri, facturi de incasat, echipamente. In dreapta, de unde provin banii pentru ele: banii pusi de tine plus profitul adunat, si datoriile. Asa vezi cat din firma e finantata din banii tai si cat din imprumuturi." />
             </h2>
             <p
               className="mt-1 text-[13px] text-gray-light max-w-xl"
               style={{ letterSpacing: "-0.02em" }}
             >
               Ce detine firma (Activ) vs cum este finantata (Pasiv). Cele doua coloane sunt
-              egale prin definitie — tot ce e in stanga are o sursa in dreapta.
+              egale prin definitie. Tot ce e in stanga are o sursa in dreapta.
             </p>
           </div>
 
@@ -65,14 +67,14 @@ export function PatrimoniuView({ data }: PatrimoniuViewProps) {
       {/* Equation tiles */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <PatrimoniuColumn
-          title="Activ — ce detine firma"
+          title="Activ: ce detine firma"
           subtitle="Bunurile, banii, sumele de incasat."
           total={data.totalActiv}
           buckets={data.activ}
           tone="activ"
         />
         <PatrimoniuColumn
-          title="Pasiv — de unde vin banii"
+          title="Pasiv: de unde vin banii"
           subtitle="Capitalul tau, profitul cumulat, datoriile."
           total={data.totalPasiv}
           buckets={data.pasiv}

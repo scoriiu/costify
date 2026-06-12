@@ -34,6 +34,7 @@ import {
 import { TrendingUp, ArrowDown, ArrowUp, Minus } from "lucide-react";
 import type { MonthlyTrendPoint } from "@/modules/reporting/owner";
 import { lei, leiShort } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 interface EvolutionChartProps {
   data: MonthlyTrendPoint[];
@@ -297,7 +298,7 @@ export function EvolutionChart({ data, onSelectMonth }: EvolutionChartProps) {
             style={{ letterSpacing: "-0.02em" }}
           >
             <span className="text-gray-light font-mono">{peakCash.monthLabel}</span>{" "}
-            a fost varful — {lei(peakCash.cashEnd)} in cont.
+            a fost varful: {lei(peakCash.cashEnd)} in cont.
           </p>
         </div>
       )}
@@ -314,6 +315,7 @@ function ChartHeader() {
       >
         <TrendingUp size={15} className="text-primary" />
         Cum a evoluat firma in ultimul an
+        <ChartInfo text="Fiecare punct e o luna din ultimul an. O linie pentru venituri, una pentru cheltuieli si una pentru banii ramasi in banca la finalul lunii. Apasa pe un nume din legenda ca sa ascunzi sau afisezi linia lui. Treci peste grafic ca sa vezi valorile exacte ale fiecarei luni." />
       </h3>
       <p
         className="mt-0.5 text-[12px] text-gray"

@@ -17,8 +17,10 @@ interface NavItem {
 interface Props {
   /** Items always shown, in render order. */
   baseItems: NavItem[];
-  /** Items shown only in L2 (Detaliat) mode. Inserted before `tailItems`. */
+  /** Items shown only in L2 (Detaliat) mode. Inserted after the base item
+   *  with id `insertAfterId`, or before `tailItems` when not specified. */
   detailedOnlyItems?: NavItem[];
+  insertAfterId?: string;
   /** Items appended after detailedOnly. */
   tailItems?: NavItem[];
 }
@@ -26,12 +28,26 @@ interface Props {
 export function SectionQuickNavDynamic({
   baseItems,
   detailedOnlyItems = [],
+  insertAfterId,
   tailItems = [],
 }: Props) {
   const { mode } = useViewMode();
-  const items =
-    mode === "detailed"
-      ? [...baseItems, ...detailedOnlyItems, ...tailItems]
-      : [...baseItems, ...tailItems];
+  let items: NavItem[];
+  if (mode !== "detailed" || detailedOnlyItems.length === 0) {
+    items = [...baseItems, ...tailItems];
+  } else {
+    const anchor = insertAfterId
+      ? baseItems.findIndex((i) => i.id === insertAfterId)
+      : -1;
+    items =
+      anchor >= 0
+        ? [
+            ...baseItems.slice(0, anchor + 1),
+            ...detailedOnlyItems,
+            ...baseItems.slice(anchor + 1),
+            ...tailItems,
+          ]
+        : [...baseItems, ...detailedOnlyItems, ...tailItems];
+  }
   return <SectionQuickNav items={items} />;
 }

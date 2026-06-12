@@ -38,6 +38,7 @@ import type {
   YearOverYearComparison,
 } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 interface HeroSummaryProps {
   summary: FinancialSummary;
@@ -256,70 +257,63 @@ function BigSparkline({
   values: number[];
   labels: string[];
 }) {
-  // Interactive hero spark: hover any month → readout above the line shows
-  // the month + the exact cash value at that point. Cursor crosshair stays
-  // anchored to the closest data point so the readout always feels precise.
+  // Interactive hero chart: every month has a visible dot; hovering (or
+  // touching) anchors a tooltip with the month + exact value at that point.
+  // The crosshair snaps to the closest data point so the tooltip always
+  // feels precise.
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const w = 720;
-  const h = 72;
-  const padY = 10;
+  const h = 130;
+  const padY = 14;
+  const padX = 8;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
-  const stepX = w / (values.length - 1);
-  const xs = values.map((_, i) => i * stepX);
+  const stepX = (w - padX * 2) / (values.length - 1);
+  const xs = values.map((_, i) => padX + i * stepX);
   const ys = values.map((v) => h - ((v - min) / range) * (h - padY * 2) - padY);
   const linePath = xs
     .map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`)
     .join(" ");
   const areaPath = `${linePath} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`;
 
-  const active = hoverIdx !== null ? hoverIdx : values.length - 1;
-  const activeLabel = labels[active] ?? "";
-  const activeValue = values[active];
-
-  function onMove(evt: React.MouseEvent<SVGSVGElement>) {
-    const rect = evt.currentTarget.getBoundingClientRect();
-    const rel = (evt.clientX - rect.left) / rect.width;
+  function snapToPoint(clientX: number, target: SVGSVGElement) {
+    const rect = target.getBoundingClientRect();
+    const rel = (clientX - rect.left) / rect.width;
     const i = Math.max(0, Math.min(values.length - 1, Math.round(rel * (values.length - 1))));
     setHoverIdx(i);
   }
 
   return (
     <div className="relative">
-      {/* Floating readout */}
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span
-          className="font-mono text-[10px] uppercase tracking-wider text-gray"
-          style={{ letterSpacing: "0.04em" }}
-        >
-          Ultimele 6 luni{hoverIdx !== null ? ` · ${activeLabel}` : ""}
-        </span>
-        <span
-          className="font-mono text-[12px] text-gray-light tabular-nums"
-          style={{ letterSpacing: "-0.02em" }}
-        >
-          {lei(activeValue)}
-        </span>
-      </div>
+      <span
+        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-gray"
+        style={{ letterSpacing: "0.04em" }}
+      >
+        Ultimele {values.length} luni
+        <ChartInfo text="Linia arata cati bani avea firma in casa si banca la finalul fiecarei luni. Daca linia urca, firma strange bani. Daca linia coboara, banii se consuma. Treci cu mouse-ul peste grafic ca sa vezi suma exacta din fiecare luna." />
+      </span>
       {/* The SVG stretches with preserveAspectRatio="none" so the line
           fills the full container width, but that flattens any <circle>
           inside it (the X and Y scales decouple → ovals). We render the
           dots as absolutely-positioned <div>s on top instead, so they
           stay perfectly round regardless of container width. */}
-      <div className="relative w-full h-14 sm:h-16">
+      <div className="relative mt-1.5 w-full h-24 sm:h-32">
         <svg
           viewBox={`0 0 ${w} ${h}`}
           className="absolute inset-0 w-full h-full cursor-crosshair"
           preserveAspectRatio="none"
-          onMouseMove={onMove}
+          onMouseMove={(e) => snapToPoint(e.clientX, e.currentTarget)}
           onMouseLeave={() => setHoverIdx(null)}
+          onTouchStart={(e) => snapToPoint(e.touches[0].clientX, e.currentTarget)}
+          onTouchMove={(e) => snapToPoint(e.touches[0].clientX, e.currentTarget)}
+          onTouchEnd={() => setHoverIdx(null)}
           role="img"
           aria-label={`Cash la finalul ultimelor ${values.length} luni`}
         >
           <defs>
             <linearGradient id="hero-cash-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.4} />
+              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
               <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
             </linearGradient>
           </defs>
@@ -347,31 +341,75 @@ function BigSparkline({
             />
           )}
         </svg>
-        {/* Round endpoint / hover dot — positioned in % so it sits on the
-            line wherever the SVG is rendered, but the dot itself is a
-            real DOM circle so it never deforms. */}
-        {(() => {
-          const idx = hoverIdx ?? xs.length - 1;
-          const xPct = (xs[idx] / w) * 100;
-          const yPct = (ys[idx] / h) * 100;
-          const size = hoverIdx !== null ? 10 : 8;
+
+        {/* Round dots, one per month — real DOM circles so they never
+            deform under the stretched SVG. The active one (hover, or the
+            latest month by default) is emphasized. */}
+        {xs.map((x, i) => {
+          const isActive = (hoverIdx ?? xs.length - 1) === i;
+          const size = isActive ? (hoverIdx !== null ? 11 : 9) : 6;
           return (
             <div
-              className="absolute rounded-full pointer-events-none"
+              key={i}
+              className="absolute rounded-full pointer-events-none transition-[width,height,margin] duration-100"
               style={{
-                left: `${xPct}%`,
-                top: `${yPct}%`,
+                left: `${(x / w) * 100}%`,
+                top: `${(ys[i] / h) * 100}%`,
                 width: size,
                 height: size,
                 marginLeft: -size / 2,
                 marginTop: -size / 2,
                 background: "var(--color-primary)",
                 border: "2px solid var(--color-dark-2)",
+                opacity: isActive ? 1 : 0.75,
               }}
               aria-hidden
             />
           );
-        })()}
+        })}
+
+        {/* Point-anchored tooltip: month + exact value. Flips below the
+            point when the point sits near the top of the chart, and clamps
+            horizontally so it never escapes the card. */}
+        {hoverIdx !== null && (
+          <div
+            className="absolute z-10 pointer-events-none rounded-lg border border-dark-3 bg-dark px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+            data-testid="hero-spark-tooltip"
+            style={{
+              left: `${Math.max(7, Math.min(93, (xs[hoverIdx] / w) * 100))}%`,
+              top: `${(ys[hoverIdx] / h) * 100}%`,
+              transform: `translate(-50%, ${ys[hoverIdx] / h < 0.38 ? "14px" : "calc(-100% - 12px)"})`,
+            }}
+          >
+            <p
+              className="font-mono text-[10px] uppercase tracking-wider text-gray"
+              style={{ letterSpacing: "0.04em" }}
+            >
+              {labels[hoverIdx]}
+            </p>
+            <p
+              className="font-mono text-[13px] font-semibold text-white tabular-nums"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              {lei(values[hoverIdx])}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Month axis — one label per point, aligned with the dots. */}
+      <div className="relative mt-1 h-4" aria-hidden>
+        {xs.map((x, i) => (
+          <span
+            key={i}
+            className={`absolute -translate-x-1/2 font-mono text-[9px] uppercase ${
+              (hoverIdx ?? xs.length - 1) === i ? "text-gray-light" : "text-gray"
+            }`}
+            style={{ left: `${(x / w) * 100}%`, letterSpacing: "0.04em" }}
+          >
+            {labels[i]}
+          </span>
+        ))}
       </div>
     </div>
   );

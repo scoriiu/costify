@@ -1,22 +1,19 @@
 /**
  * OwnerView (Acasa) — the firma's overview page.
  *
- * Per Claudia spec §4.1: ONE scrollable page, 9 sections, anchor TOC on the
- * right (SectionQuickNav). No sub-routes. Every "see more" is a drill-down
- * (expand inline / open dialog) — not a navigation away from this page.
+ * ONE scrollable page (Claudia spec §4.1), organized in SIX chapters, each
+ * answering one question the patron actually asks. Every "see more" is a
+ * drill-down in place (inline expand / in-card month switch), never a
+ * navigation away from this page.
  *
- *  §6  Pe scurt        — VerdictBanner + KpiStrip + HeroSummary
- *  §10 Sanatate        — HealthScoreCard (composite + 4 subscores)
- *  §8  Cash-flow       — CashflowSplitChart (O/I/F) + CashflowWaterfall
- *  §7  Evolutie        — EvolutionChart (12 luni) + YoyComparison
- *  §9  Venituri/chelt. — PnlWaterfall + CategoryBreakdown + TopActivity + TopExpenses
- *      Verticals       — VerticalBreakdownCard (per linie de business)
- *  §11 Obligatii       — ObligationsCalendar + CashPositionCard
- *  §11 Parteneri       — OutstandingTable clienti + furnizori
- *      Eu si firma     — OwnerWithdrawalsCard
- *  §12 Patrimoniu      — PatrimoniuView (Activ vs Pasiv)
- *  §10 L2              — RatiosCatalog (mode=detailed only)
- *  §13 Insights        — InsightsList (semantic flags)
+ *  1. CUM STA FIRMA        — VerdictBanner + KpiStrip + HeroSummary + HealthScore
+ *  2. INDICATORII AFACERII — IndustryKpis (per-industry signal) + RatiosCatalog (L2)
+ *  3. LUNA ASTA            — PnlWaterfall + CashflowMap (month-switchable) +
+ *                            TopActivity + TopExpenses + Verticals + CashflowCard
+ *  4. LUNA DE LUNA         — MonthTimeline (publish dates + notes) + MomTable (L2) +
+ *                            EvolutionChart + YoY
+ *  5. DE INCASAT, DE PLATIT— Obligations + CashPosition + Outstanding + Runway/Salarii
+ *  6. EU SI FIRMA          — OwnerWithdrawals + Patrimoniu + Insights
  */
 
 import type { OwnerSnapshot } from "@/modules/reporting/owner";
@@ -26,8 +23,7 @@ import { PageHeader } from "./page-header";
 import { TrustBadge } from "./trust-badge";
 import { HeroSummary } from "./hero-summary";
 import { HealthScoreCard } from "./health-score-card";
-import { CashflowWaterfall } from "./cashflow-waterfall";
-import { CashflowSplitChart } from "./cashflow-split-chart";
+import { CashflowCard } from "./cashflow-card";
 import { CashPositionCard } from "./cash-position-card";
 import { OwnerWithdrawalsCard } from "./owner-withdrawals-card";
 import { EvolutionChart } from "./evolution-chart";
@@ -46,6 +42,9 @@ import { ObligationsCalendar } from "./obligations-calendar";
 import { RatiosCatalog } from "./ratios-catalog";
 import { IndustryKpis } from "./industry-kpis";
 import { PatrimoniuView } from "./patrimoniu-view";
+import { RunwayAndSalaryCards } from "./runway-cards";
+import { MonthTimeline, type PublishedMonthMeta } from "./month-timeline";
+import { MomTable } from "./mom-table";
 import { type PeriodOption } from "./period-selector";
 import { StickyPeriodBar } from "./sticky-period-bar";
 import {
@@ -61,6 +60,9 @@ interface OwnerViewProps {
   /** Published periods available for the period selector. When empty, the
    *  selector is hidden. */
   availablePeriods?: PeriodOption[];
+  /** Publish metadata (date + note per month) for the MonthTimeline and the
+   *  in-card month switching. Superset of availablePeriods. */
+  publishedMeta?: PublishedMonthMeta[];
   /** Initial mode read from the URL (?mode=simple). After mount, user
    *  preference from localStorage wins. Defaults to "detailed" — the full
    *  L2 surface is the more useful starting point for both the contabil
@@ -73,6 +75,7 @@ export function OwnerView({
   context,
   marjaOperationala,
   availablePeriods = [],
+  publishedMeta = [],
   mode = "detailed",
 }: OwnerViewProps) {
   const {
@@ -86,8 +89,8 @@ export function OwnerView({
     expenseBreakdown,
     revenueBreakdown,
     topMonthlyExpenses,
-    runway: _runway,
-    salaryAffordability: _salaryAffordability,
+    runway,
+    salaryAffordability,
     yoy,
     verticalBreakdown,
     dataQuality,
@@ -105,12 +108,13 @@ export function OwnerView({
   const period = monthLabel(meta.year, meta.month);
 
   const { base: baseNav, tail: tailNav } = buildNavItems({
-    hasYoy: yoy.hasPreviousYear,
+    hasIndustryKpis: snapshot.industryKpis !== undefined,
     hasVerticals: verticalBreakdown.length > 0,
-    hasInsights: insights.length > 0,
+    hasTimeline: publishedMeta.length > 0,
+    hasYoy: yoy.hasPreviousYear,
     hasObligations: obligations.length > 0,
     hasPatrimoniu: patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0,
-    hasIndustryKpis: snapshot.industryKpis !== undefined,
+    hasInsights: insights.length > 0,
   });
 
   // Sticky period bar sits under different chrome depending on context.
@@ -119,12 +123,20 @@ export function OwnerView({
   // so we infer from context.isPreview.
   const stickyTopClass = context.isPreview ? "top-11" : "top-14";
 
+  // The Excel export reads the frozen published snapshot, so the action only
+  // makes sense when the viewed month is published (always true on /firma;
+  // the preview clamps to published months too, but guard anyway).
+  const viewedMonthIsPublished = publishedMeta.some(
+    (p) => p.year === meta.year && p.month === meta.month
+  );
+
   return (
     <ViewModeProvider initialMode={mode}>
       <StickyPeriodBar
         year={meta.year}
         month={meta.month}
         availablePeriods={availablePeriods}
+        exportClientId={viewedMonthIsPublished ? meta.clientId : undefined}
         topClassName={stickyTopClass}
       />
 
@@ -145,23 +157,22 @@ export function OwnerView({
 
       <SectionQuickNavDynamic
         baseItems={baseNav}
-        detailedOnlyItems={[{ id: "ratios", label: "Indicatori" }]}
+        detailedOnlyItems={[{ id: "ratios", label: "Toti indicatorii" }]}
+        insertAfterId="industry-kpis"
         tailItems={tailNav}
       />
 
-      {/* §6 — Verdict narativ */}
+      {/* ============ 1. CUM STA FIRMA ============ */}
       <Section id="verdict" className="mb-6">
         <VerdictBanner verdict={verdict} />
       </Section>
 
-      {/* §6 — KPI strip */}
       {kpiStrip.length > 0 && (
         <Section id="kpis" className="mb-8">
           <KpiStrip items={kpiStrip} />
         </Section>
       )}
 
-      {/* §6 — Hero (cash + 3 metrics) */}
       <Section id="hero" className="mb-8">
         <HeroSummary
           summary={summary}
@@ -173,51 +184,51 @@ export function OwnerView({
         />
       </Section>
 
-      {/* §10 — Health score composite */}
-      <Section id="sanatate" className="mb-8">
+      <Section id="sanatate" className="mb-10">
         <HealthScoreCard data={healthScore} />
       </Section>
 
-      {/* §8 — Operating/Investing/Financing split */}
-      <Section id="cashflow-split" className="mb-8">
-        <CashflowSplitChart data={cashflowBreakdown} />
-      </Section>
-
-      {/* §8 — Cashflow waterfall (Inceput → Final) */}
-      <Section id="cashflow" className="mb-8">
-        <CashflowWaterfall trends={trends} />
-      </Section>
-
-      {/* §7 — Evolution chart */}
-      <Section id="evolutie" className="mb-8">
-        <EvolutionChart data={trends} />
-      </Section>
-
-      {/* §7 — YoY */}
-      {yoy.hasPreviousYear && (
-        <Section id="yoy" className="mb-8">
-          <YoyComparison yoy={yoy} />
-        </Section>
+      {/* ============ 2. INDICATORII AFACERII ============ */}
+      {snapshot.industryKpis && (
+        <>
+          <ChapterHeading
+            label="Indicatorii afacerii tale"
+            description="Cifrele care conteaza pentru tipul tau de activitate, cu praguri si explicatii."
+          />
+          <Section id="industry-kpis" className="mb-8">
+            <IndustryKpis section={snapshot.industryKpis} />
+          </Section>
+        </>
       )}
 
-      {/* §9 — P&L waterfall */}
+      <DetailedOnly>
+        <Section id="ratios" className="mb-10">
+          <RatiosCatalog ratios={ratios} />
+        </Section>
+      </DetailedOnly>
+
+      {/* ============ 3. LUNA ASTA IN DETALIU ============ */}
+      <ChapterHeading
+        label={`Luna asta in detaliu (${period})`}
+        description="De unde au venit banii, pe ce s-au dus si cine a contat cel mai mult."
+      />
+
       <Section id="profit" className="mb-8">
         <PnlWaterfall summary={summary} expenseBreakdown={expenseBreakdown} />
       </Section>
 
-      {/* §9 — Cashflow Map (treemap). Replaces the side-by-side donut breakdown:
-            one visualization that answers "where did money go / come from"
-            in one glance, with click-to-expand for sub-categories.
-            Owner version: no conts, no OMFP codes, no codes period. */}
       <Section id="breakdowns" className="mb-8">
         <CashflowMap
           expenseBreakdown={expenseBreakdown}
           revenueBreakdown={revenueBreakdown}
           periodLabel={period}
+          clientId={meta.clientId}
+          currentYear={meta.year}
+          currentMonth={meta.month}
+          publishedPeriods={publishedMeta}
         />
       </Section>
 
-      {/* §9 — Top customers + suppliers by ACTIVITY this month */}
       <Section id="top-activity" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <TopActivityList
@@ -237,7 +248,6 @@ export function OwnerView({
         </div>
       </Section>
 
-      {/* Top single expenses */}
       <Section id="top-cheltuieli" className="mb-8">
         <TopExpensesList
           items={topMonthlyExpenses}
@@ -245,14 +255,55 @@ export function OwnerView({
         />
       </Section>
 
-      {/* Verticals */}
       {verticalBreakdown.length > 0 && (
         <Section id="verticals" className="mb-8">
           <VerticalBreakdownCard items={verticalBreakdown} periodLabel={period} />
         </Section>
       )}
 
-      {/* §11 — Obligations calendar + cash position */}
+      <Section id="cashflow" className="mb-10">
+        <CashflowCard breakdown={cashflowBreakdown} trends={trends} />
+      </Section>
+
+      {/* ============ 4. LUNA DE LUNA ============ */}
+      <ChapterHeading
+        label="Luna de luna"
+        description="Cum a evoluat firma de la o luna la alta, pe lunile publicate de contabil."
+      />
+
+      {publishedMeta.length > 0 && (
+        <Section id="luni" className="mb-8">
+          <MonthTimeline
+            trends={trends}
+            published={publishedMeta}
+            currentYear={meta.year}
+            currentMonth={meta.month}
+          />
+        </Section>
+      )}
+
+      <DetailedOnly>
+        <Section id="lunar" className="mb-8">
+          <MomTable trends={trends} />
+        </Section>
+      </DetailedOnly>
+
+      <Section id="evolutie" className="mb-8">
+        <EvolutionChart data={trends} />
+      </Section>
+
+      {yoy.hasPreviousYear && (
+        <Section id="yoy" className="mb-10">
+          <YoyComparison yoy={yoy} />
+        </Section>
+      )}
+
+      {/* ============ 5. DE INCASAT, DE PLATIT ============ */}
+      <ChapterHeading
+        label="De incasat, de platit"
+        description="Ce urmeaza sa iasa din firma, cine iti datoreaza bani si cat de departe ajungi cu rezerva actuala."
+      />
+
       <Section id="obligations" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <ObligationsCalendar items={obligations} />
@@ -260,7 +311,6 @@ export function OwnerView({
         </div>
       </Section>
 
-      {/* §11 — Outstanding partners */}
       <Section id="parteneri" className="mb-8">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <OutstandingTable variant="clienti" partners={outstanding.clienti} />
@@ -268,34 +318,26 @@ export function OwnerView({
         </div>
       </Section>
 
-      {/* Owner withdrawals */}
+      <Section id="rezerve" className="mb-10">
+        <RunwayAndSalaryCards runway={runway} salary={salaryAffordability} />
+      </Section>
+
+      {/* ============ 6. EU SI FIRMA ============ */}
+      <ChapterHeading
+        label="Eu si firma"
+        description="Relatia ta cu firma si ce detine ea, una sub alta."
+      />
+
       <Section id="eu" className="mb-8">
         <OwnerWithdrawalsCard data={ownerWithdrawals} />
       </Section>
 
-      {/* §12 — Patrimoniu (Activ vs Pasiv) */}
       {(patrimoniu.totalActiv !== 0 || patrimoniu.totalPasiv !== 0) && (
         <Section id="patrimoniu" className="mb-8">
           <PatrimoniuView data={patrimoniu} />
         </Section>
       )}
 
-      {/* Industry-aware KPI catalog. Optional: published snapshots frozen
-          before this feature don't carry the section. */}
-      {snapshot.industryKpis && (
-        <Section id="industry-kpis" className="mb-8">
-          <IndustryKpis section={snapshot.industryKpis} />
-        </Section>
-      )}
-
-      {/* §10 — Detailed ratios catalog (L2 only) */}
-      <DetailedOnly>
-        <Section id="ratios" className="mb-8">
-          <RatiosCatalog ratios={ratios} />
-        </Section>
-      </DetailedOnly>
-
-      {/* §13 — Insights */}
       {insights.length > 0 && (
         <Section id="insights" className="mb-8">
           <InsightsList insights={insights} />
@@ -332,26 +374,44 @@ function Section({
   );
 }
 
-/**
- * Build the static parts of the right-side TOC. The mode-dependent
- * "Indicatori" entry is injected by SectionQuickNavDynamic between `base`
- * and `tail` when L2 is active — that keeps mode toggling instant
- * (no server roundtrip, no parent re-render).
- */
+function ChapterHeading({
+  label,
+  description,
+}: {
+  label: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-4 border-b border-dark-3 pb-3">
+      <h2
+        className="font-mono text-[11px] font-medium uppercase text-primary"
+        style={{ letterSpacing: "0.08em" }}
+      >
+        {label}
+      </h2>
+      <p className="mt-1 text-[12px] text-gray" style={{ letterSpacing: "-0.02em" }}>
+        {description}
+      </p>
+    </div>
+  );
+}
+
 function buildNavItems({
-  hasYoy,
+  hasIndustryKpis,
   hasVerticals,
-  hasInsights,
+  hasTimeline,
+  hasYoy,
   hasObligations,
   hasPatrimoniu,
-  hasIndustryKpis,
+  hasInsights,
 }: {
-  hasYoy: boolean;
+  hasIndustryKpis: boolean;
   hasVerticals: boolean;
-  hasInsights: boolean;
+  hasTimeline: boolean;
+  hasYoy: boolean;
   hasObligations: boolean;
   hasPatrimoniu: boolean;
-  hasIndustryKpis: boolean;
+  hasInsights: boolean;
 }): {
   base: Array<{ id: string; label: string }>;
   tail: Array<{ id: string; label: string }>;
@@ -360,24 +420,26 @@ function buildNavItems({
     { id: "verdict", label: "Pe scurt" },
     { id: "hero", label: "Privire" },
     { id: "sanatate", label: "Scor sanatate" },
-    { id: "cashflow-split", label: "Cash O/I/F" },
-    { id: "evolutie", label: "Evolutie" },
   ];
-  if (hasYoy) base.push({ id: "yoy", label: "An vs an" });
+  if (hasIndustryKpis) base.push({ id: "industry-kpis", label: "Indicatori" });
   base.push(
     { id: "profit", label: "P&L" },
-    { id: "breakdowns", label: "Categorii" },
+    { id: "breakdowns", label: "Harta banilor" },
     { id: "top-activity", label: "Top clienti" },
     { id: "top-cheltuieli", label: "Top plati" }
   );
   if (hasVerticals) base.push({ id: "verticals", label: "Linii" });
+  base.push({ id: "cashflow", label: "Cash-flow" });
+  if (hasTimeline) base.push({ id: "luni", label: "Luna de luna" });
+  base.push({ id: "evolutie", label: "Evolutie" });
+  if (hasYoy) base.push({ id: "yoy", label: "An vs an" });
   if (hasObligations) base.push({ id: "obligations", label: "De platit" });
   base.push(
     { id: "parteneri", label: "Parteneri" },
+    { id: "rezerve", label: "Rezerve" },
     { id: "eu", label: "Eu si firma" }
   );
   if (hasPatrimoniu) base.push({ id: "patrimoniu", label: "Patrimoniu" });
-  if (hasIndustryKpis) base.push({ id: "industry-kpis", label: "KPI" });
 
   const tail: Array<{ id: string; label: string }> = [];
   if (hasInsights) tail.push({ id: "insights", label: "Semnale" });

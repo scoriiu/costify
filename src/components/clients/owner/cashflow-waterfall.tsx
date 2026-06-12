@@ -21,6 +21,7 @@ import { useMemo, useState } from "react";
 import { Waves } from "lucide-react";
 import type { MonthlyTrendPoint } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 interface CashflowWaterfallProps {
   /** Last 12 months of trend data. We use the last point's revenue/expenses
@@ -100,6 +101,7 @@ function Header() {
       >
         <Waves size={15} className="text-primary" />
         Cum s-au miscat banii luna asta
+        <ChartInfo text="Se citeste de la stanga la dreapta, ca o poveste: prima bara e cu cati bani ai inceput luna, barele verzi sunt banii care au intrat, barele rosii banii care au iesit, iar ultima bara e cu cati bani ai terminat luna. Treci peste o bara ca sa vezi explicatia ei." />
       </h3>
       <p
         className="mt-0.5 text-[12px] text-gray"
@@ -287,7 +289,7 @@ function computeSteps(trends: MonthlyTrendPoint[]): Step[] | null {
       value: last.revenue,
       range: [start, afterRevenue],
       tone: "pos",
-      story: `Ai incasat ${lei(last.revenue)} luna asta — bani care au intrat in firma din vanzari, clienti, alte surse.`,
+      story: `Ai incasat ${lei(last.revenue)} luna asta. Bani care au intrat in firma din vanzari, clienti, alte surse.`,
     },
     {
       key: "expenses",
@@ -295,7 +297,7 @@ function computeSteps(trends: MonthlyTrendPoint[]): Step[] | null {
       value: last.expenses,
       range: [afterRevenue, end],
       tone: "neg",
-      story: `Ai platit ${lei(last.expenses)} luna asta — salarii, furnizori, chirie si alte cheltuieli.`,
+      story: `Ai platit ${lei(last.expenses)} luna asta. Salarii, furnizori, chirie si alte cheltuieli.`,
     },
     {
       key: "end",
@@ -303,7 +305,7 @@ function computeSteps(trends: MonthlyTrendPoint[]): Step[] | null {
       value: end,
       range: [0, end],
       tone: "neutral",
-      story: `La sfarsitul lunii ai ${lei(end)} — diferenta de ${end >= start ? "+" : ""}${lei(end - start)} fata de cum ai inceput.`,
+      story: `La sfarsitul lunii ai ${lei(end)}. Diferenta de ${end >= start ? "+" : ""}${lei(end - start)} fata de cum ai inceput.`,
     },
   ];
 }
@@ -316,8 +318,8 @@ function summaryStory(steps: Step[]): string {
     return "Ai inceput si ai terminat luna cu suma asemanatoare in conturi.";
   }
   if (delta > 0) {
-    return `Luna asta ai crescut cu ${lei(delta)} in conturi — venituri peste cheltuieli.`;
+    return `Luna asta ai crescut cu ${lei(delta)} in conturi. Venituri peste cheltuieli.`;
   }
-  return `Luna asta ai consumat ${lei(Math.abs(delta))} din rezerva — cheltuieli peste venituri.`;
+  return `Luna asta ai consumat ${lei(Math.abs(delta))} din rezerva. Cheltuieli peste venituri.`;
 }
 

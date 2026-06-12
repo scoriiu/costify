@@ -17,6 +17,7 @@
 import { useMemo } from "react";
 import type { FinancialSummary, CategoryBreakdownItem } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 import { Tooltip } from "@/components/ui/tooltip";
 
 interface PnlWaterfallProps {
@@ -60,7 +61,7 @@ function computeSteps(summary: FinancialSummary, expenseBreakdown: CategoryBreak
     value: venituri,
     runningTotal: (running += venituri),
     kind: "in",
-    hint: "Tot ce a vandut firma luna asta — produse, servicii, alte venituri operationale.",
+    hint: "Tot ce a vandut firma luna asta: produse, servicii, alte venituri operationale.",
   });
 
   if (operationale > 0) {
@@ -70,7 +71,7 @@ function computeSteps(summary: FinancialSummary, expenseBreakdown: CategoryBreak
       value: -operationale,
       runningTotal: (running -= operationale),
       kind: "out",
-      hint: "Salarii, marfa, servicii, energie — costurile zilnice ale activitatii.",
+      hint: "Salarii, marfa, servicii, energie: costurile zilnice ale activitatii.",
     });
   }
 
@@ -137,10 +138,11 @@ export function PnlWaterfall({ summary, expenseBreakdown }: PnlWaterfallProps) {
     <div className="rounded-2xl border border-dark-3 bg-dark-2 p-5 sm:p-6">
       <div className="mb-5">
         <h3
-          className="text-[16px] font-semibold text-white"
+          className="inline-flex items-center gap-2 text-[16px] font-semibold text-white"
           style={{ letterSpacing: "-0.04em" }}
         >
           De la venituri la profit
+          <ChartInfo text="Porneste de la tot ce a incasat firma luna asta (prima bara) si scade, pas cu pas, fiecare tip de cheltuiala. Bara de la final e ce ramane: castig (verde) sau pierdere (rosu). Treci peste o bara ca sa vezi suma ei exacta." />
         </h3>
         <p
           className="mt-1 text-[12px] text-gray-light max-w-xl"

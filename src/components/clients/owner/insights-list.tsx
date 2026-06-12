@@ -171,7 +171,7 @@ function Header({
 
 function buildCostiPrompt(insight: Insight): string {
   const action = insight.action ? ` Recomandarea de pe card: ${insight.action}` : "";
-  return `Despre semnalul "${insight.title}": ${insight.message}${action}\n\nSpune-mi mai mult — ce inseamna asta pentru firma mea si ce ar trebui sa fac concret?`;
+  return `Despre semnalul "${insight.title}": ${insight.message}${action}\n\nSpune-mi mai mult: ce inseamna asta pentru firma mea si ce ar trebui sa fac concret?`;
 }
 
 function askCosti(insight: Insight) {

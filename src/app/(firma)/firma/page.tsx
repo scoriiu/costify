@@ -48,6 +48,12 @@ export default async function FirmaHomePage(props: Props) {
 
   const publishedList = await listPublishedPeriods(client.id);
   const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
+  const publishedMeta = publishedList.map((p) => ({
+    year: p.year,
+    month: p.month,
+    publishedAt: p.publishedAt.toISOString(),
+    noteForOwner: p.noteForOwner,
+  }));
 
   const requestedYear = year ? parseInt(year, 10) : null;
   const requestedMonth = month ? parseInt(month, 10) : null;
@@ -87,6 +93,7 @@ export default async function FirmaHomePage(props: Props) {
         context={context}
         marjaOperationala={null}
         availablePeriods={availablePeriods}
+        publishedMeta={publishedMeta}
         mode={viewMode}
       />
     </OwnerLayout>

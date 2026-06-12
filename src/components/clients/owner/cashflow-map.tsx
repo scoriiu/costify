@@ -35,12 +35,21 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { CategoryBreakdownItem } from "@/modules/reporting/owner";
 import { squarify } from "@/lib/squarify";
+import { ChartInfo } from "./chart-info";
+import { MonthChips, type MonthChipOption } from "./month-chips";
+import { usePublishedSnapshot } from "./use-published-snapshot";
 
 interface Props {
   expenseBreakdown: CategoryBreakdownItem[];
   revenueBreakdown: CategoryBreakdownItem[];
   /** Period label like "Aprilie 2026", used in the empty-state copy. */
   periodLabel: string;
+  /** In-card month switching (drill-down pattern). All four are needed
+   *  together; when absent the map is static, exactly as before. */
+  clientId?: string;
+  currentYear?: number;
+  currentMonth?: number;
+  publishedPeriods?: MonthChipOption[];
 }
 
 type Kind = "expense" | "revenue";
@@ -58,11 +67,48 @@ export function CashflowMap({
   expenseBreakdown,
   revenueBreakdown,
   periodLabel,
+  clientId,
+  currentYear,
+  currentMonth,
+  publishedPeriods = [],
 }: Props) {
-  const expenseGroups = useMemo(() => groupRoots(expenseBreakdown), [expenseBreakdown]);
-  const revenueGroups = useMemo(() => groupRoots(revenueBreakdown), [revenueBreakdown]);
+  const canSwitchMonths =
+    clientId !== undefined &&
+    currentYear !== undefined &&
+    currentMonth !== undefined &&
+    publishedPeriods.length > 1;
+
+  const [viewed, setViewed] = useState<{ year: number; month: number } | null>(null);
+  const fetched = usePublishedSnapshot(clientId ?? "");
+
+  const isPageMonth =
+    viewed === null || (viewed.year === currentYear && viewed.month === currentMonth);
+
+  const activeExpense = isPageMonth
+    ? expenseBreakdown
+    : fetched.snapshot?.expenseBreakdown ?? [];
+  const activeRevenue = isPageMonth
+    ? revenueBreakdown
+    : fetched.snapshot?.revenueBreakdown ?? [];
+  const activeLabel = isPageMonth
+    ? periodLabel
+    : fetched.snapshot?.meta.periodLabel ?? periodLabel;
+
+  const expenseGroups = useMemo(() => groupRoots(activeExpense), [activeExpense]);
+  const revenueGroups = useMemo(() => groupRoots(activeRevenue), [activeRevenue]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  function selectMonth(year: number, month: number) {
+    setSelectedId(null);
+    if (year === currentYear && month === currentMonth) {
+      setViewed(null);
+      fetched.reset();
+      return;
+    }
+    setViewed({ year, month });
+    void fetched.load(year, month);
+  }
 
   // Find the selected group across both sides — selection lives at the
   // CashflowMap level so clicking a Cheltuieli cell clears any Venituri
@@ -105,10 +151,11 @@ export function CashflowMap({
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3
-            className="text-[15px] font-semibold text-white"
+            className="inline-flex items-center gap-2 text-[15px] font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
             Pe ce s-au dus banii, de unde au venit
+            <ChartInfo text="Harta banilor lunii. Fiecare patrat e o categorie: in stanga cheltuielile, in dreapta veniturile. Cu cat patratul e mai mare, cu atat suma e mai mare. Apasa pe un patrat ca sa vezi ce contine. Cu butoanele de luni de deasupra schimbi luna afisata, fara sa parasesti pagina." />
           </h3>
           <p
             className="text-[11px] text-gray mt-0.5 max-w-2xl"
@@ -131,7 +178,33 @@ export function CashflowMap({
         )}
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {canSwitchMonths && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <MonthChips
+            options={publishedPeriods}
+            activeYear={viewed?.year ?? currentYear ?? 0}
+            activeMonth={viewed?.month ?? currentMonth ?? 0}
+            onSelect={selectMonth}
+          />
+          {!isPageMonth && !fetched.loading && !fetched.error && (
+            <p className="font-mono text-[11px] uppercase text-gray" data-testid="map-viewed-month">
+              {activeLabel}
+            </p>
+          )}
+        </div>
+      )}
+
+      {!isPageMonth && fetched.error && (
+        <p className="rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-[12px] text-danger">
+          {fetched.error}
+        </p>
+      )}
+
+      <div
+        className={`grid gap-4 lg:grid-cols-2 transition-opacity ${
+          !isPageMonth && fetched.loading ? "animate-pulse opacity-50" : ""
+        }`}
+      >
         <MapPanel
           title="Cheltuieli"
           subtitle="Iesirile firmei"
@@ -139,7 +212,7 @@ export function CashflowMap({
           groups={expenseGroups}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          periodLabel={periodLabel}
+          periodLabel={activeLabel}
         />
         <MapPanel
           title="Venituri"
@@ -148,7 +221,7 @@ export function CashflowMap({
           groups={revenueGroups}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          periodLabel={periodLabel}
+          periodLabel={activeLabel}
         />
       </div>
 

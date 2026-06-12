@@ -14,6 +14,7 @@
 import { useMemo, useState } from "react";
 import type { FinancialRatio } from "@/modules/reporting/owner";
 import { ChevronDown } from "lucide-react";
+import { FormulaBlock } from "./formula-block";
 
 const GROUP_META: Array<{ id: FinancialRatio["group"]; label: string; description: string }> = [
   {
@@ -210,13 +211,16 @@ function RatioRow({ ratio }: { ratio: FinancialRatio }) {
         </div>
       </button>
       {expanded && (
-        <div className="ml-5 mb-3 -mt-1 rounded-md border-l-2 border-primary/40 bg-dark-3/30 px-3 py-2">
+        <div className="ml-5 mb-3 -mt-1 space-y-2 rounded-md border-l-2 border-primary/40 bg-dark-3/30 px-3 py-2.5">
           <p
             className="text-[12px] text-gray-light leading-relaxed"
             style={{ letterSpacing: "-0.02em" }}
           >
             {ratio.interpretation}
           </p>
+          <div data-testid={`ratio-calc-${ratio.id}`}>
+            <FormulaBlock formula={ratio.formula} calculation={ratio.calculation} />
+          </div>
         </div>
       )}
     </li>

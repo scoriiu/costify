@@ -24,14 +24,20 @@
  *   The wrapping page knows which chrome it has and passes `topOffset`.
  */
 
+import { Download } from "lucide-react";
 import { PeriodSelector, type PeriodOption } from "./period-selector";
 import { ViewModeToggle } from "./view-mode-toggle";
+import { Tooltip } from "@/components/ui/tooltip";
 import { monthLabel } from "@/lib/owner-format";
 
 interface Props {
   year: number;
   month: number;
   availablePeriods: PeriodOption[];
+  /** When set, shows the "Descarca Excel" action: downloads the FROZEN
+   *  published snapshot of the viewed month via /api/owner/export. Only
+   *  passed when the viewed month is actually published. */
+  exportClientId?: string;
   /** Tailwind class for the sticky top offset. Defaults to top-11 (preview
    *  strip is 44 px). For /firma's owner topbar (56 px) pass top-14. */
   topClassName?: string;
@@ -41,6 +47,7 @@ export function StickyPeriodBar({
   year,
   month,
   availablePeriods,
+  exportClientId,
   topClassName = "top-11",
 }: Props) {
   const label = monthLabel(year, month);
@@ -69,6 +76,19 @@ export function StickyPeriodBar({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {exportClientId && (
+            <Tooltip content="Descarca luna afisata ca fisier Excel" side="bottom">
+              <a
+                href={`/api/owner/export?clientId=${exportClientId}&year=${year}&month=${month}`}
+                download
+                data-testid="owner-export"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-dark-3 bg-dark-2 px-3 font-mono text-[11px] text-gray-light transition-colors hover:border-primary/30 hover:text-white"
+              >
+                <Download size={12} />
+                <span className="hidden sm:inline">Excel</span>
+              </a>
+            </Tooltip>
+          )}
           {availablePeriods.length > 1 && (
             <PeriodSelector
               currentYear={year}

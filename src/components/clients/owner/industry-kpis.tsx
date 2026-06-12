@@ -18,6 +18,7 @@ import type {
   IndustryKpiSection,
   KpiState,
 } from "@/modules/reporting/industry";
+import { FormulaBlock } from "./formula-block";
 
 const STATE_DOT: Record<KpiState, string> = {
   good: "bg-green",
@@ -168,17 +169,9 @@ function KpiRow({ kpi }: { kpi: IndustryKpi }) {
             {kpi.interpretationAntreprenor}
           </p>
           {kpi.value !== null ? (
-            <>
-              <p className="text-[12px] text-gray" style={{ letterSpacing: "-0.02em" }}>
-                <span className="font-mono text-[10px] uppercase tracking-wide">Cum se calculeaza:</span>{" "}
-                {kpi.formulaAntreprenor}.
-              </p>
-              {kpi.calculation && (
-                <p className="font-mono text-[11px] text-gray" data-testid={`owner-kpi-calc-${kpi.id}`}>
-                  {kpi.calculation}
-                </p>
-              )}
-            </>
+            <div data-testid={`owner-kpi-calc-${kpi.id}`}>
+              <FormulaBlock formula={kpi.formulaAntreprenor} calculation={kpi.calculation} />
+            </div>
           ) : (
             <p className="flex items-start gap-1.5 text-[12px] text-gray">
               <Info size={12} className="mt-0.5 shrink-0" />

@@ -18,6 +18,7 @@
 import { ArrowUp, ArrowDown, Minus, CalendarRange } from "lucide-react";
 import type { YearOverYearComparison } from "@/modules/reporting/owner";
 import { lei, pctSigned } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 interface Props {
   yoy: YearOverYearComparison;
@@ -50,6 +51,7 @@ export function YoyComparison({ yoy }: Props) {
         >
           <CalendarRange size={15} className="text-primary" />
           Cum stai fata de aceeasi luna anul trecut
+          <ChartInfo text="Compara luna asta cu exact aceeasi luna de anul trecut. Se compara aceeasi luna ca sa nu te insele sezonul: decembrie se compara tot cu decembrie, nu cu noiembrie. Verde inseamna mai bine decat anul trecut, rosu mai slab." />
         </h3>
         <p
           className="mt-0.5 text-[12px] text-gray"

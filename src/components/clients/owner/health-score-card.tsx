@@ -10,6 +10,7 @@
  */
 
 import type { HealthScore, HealthSubscore } from "@/modules/reporting/owner";
+import { ChartInfo } from "./chart-info";
 
 const TIER_RING: Record<HealthScore["tier"], { ring: string; text: string; bg: string }> = {
   excellent: { ring: "stroke-green", text: "text-green", bg: "bg-green/10" },
@@ -45,10 +46,11 @@ export function HealthScoreCard({ data }: HealthScoreCardProps) {
         {/* Left: gauge */}
         <div className="flex flex-col items-center gap-3 lg:items-start">
           <span
-            className="font-mono text-[10px] uppercase tracking-wider text-gray"
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-gray"
             style={{ letterSpacing: "0.08em" }}
           >
             Scor sanatate firma
+            <ChartInfo text="Nota generala a firmei, de la 0 la 100, ca o medie la scoala. E calculata din 4 zone: banii disponibili, profitul, datoriile si incasarile de la clienti. Peste 70 inseamna ca firma sta bine. Sub 40 inseamna ca o zona are nevoie de atentie. Fiecare zona are scorul ei, afisat alaturi." />
           </span>
           <Gauge score={data.score} ringClass={tierStyles.ring} textClass={tierStyles.text} />
           <div className="flex flex-col items-center gap-1 lg:items-start">

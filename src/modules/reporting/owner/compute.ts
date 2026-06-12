@@ -823,7 +823,7 @@ function computeBreakdownByCategory(
       adjustment.targetCategoryId === resolved?.category.id
         ? null // no-op: override matches the cont's default category
         : resolver.byId.get(adjustment.targetCategoryId);
-    if (!target) continue; // target category not in tree (deleted?) — skip safely
+    if (!target) continue; // target category not in tree (deleted?). Skip safely
 
     // Subtract from the default bucket (categoryId OR fallback code).
     if (resolved) {
@@ -1286,7 +1286,7 @@ const ACTIV_BUCKETS: BucketDef[] = [
   {
     id: "imobilizari",
     label: "Bunuri si echipamente",
-    description: "Cladiri, masini, utilaje, IT — lucruri care raman ani in firma. Activele scad pe masura ce se amortizeaza.",
+    description: "Cladiri, masini, utilaje, IT. Lucruri care raman ani in firma. Activele scad pe masura ce se amortizeaza.",
     match: (row) => {
       const b = row.contBase;
       // 20x, 21x, 23x, 26x, 27x = brut; 28x = amortizare cumulata (contra)
@@ -1405,7 +1405,7 @@ const PASIV_BUCKETS: BucketDef[] = [
   {
     id: "datoriiCT",
     label: "Datorii pe termen scurt",
-    description: "Furnizori, salarii, contributii, TVA — tot ce trebuie platit in urmatoarele 12 luni.",
+    description: "Furnizori, salarii, contributii, TVA. Tot ce trebuie platit in urmatoarele 12 luni.",
     match: (row) => {
       const b = row.contBase;
       if (b.startsWith("401") || b.startsWith("403") || b.startsWith("404") || b.startsWith("405") || b.startsWith("408")) {
@@ -1565,7 +1565,7 @@ export function computeVerdict(
   if (runway.status !== "unknown" && runway.monthlyBurnRate > 0) {
     if (runwayCritical) {
       parts.push(
-        `La ritmul actual de cheltuieli, banii ajung pentru aproximativ ${runway.monthsRemaining.toFixed(1)} luni — sub pragul de siguranta.`
+        `La ritmul actual de cheltuieli, banii ajung pentru aproximativ ${runway.monthsRemaining.toFixed(1)} luni. Sub pragul de siguranta.`
       );
     } else if (runwayTight) {
       parts.push(
@@ -1573,7 +1573,7 @@ export function computeVerdict(
       );
     } else {
       parts.push(
-        `Banii ajung pentru ${runway.monthsRemaining.toFixed(1)} luni la ritmul actual de cheltuieli — confortabil.`
+        `Banii ajung pentru ${runway.monthsRemaining.toFixed(1)} luni la ritmul actual de cheltuieli. Confortabil.`
       );
     }
   }
@@ -1627,7 +1627,7 @@ export function computeKpiStrip(
       id: "burnRate",
       label: "Cheltuieli medii lunare",
       value: `${fmtLei(runway.monthlyBurnRate)} lei`,
-      hint: `Media ultimelor ${runway.windowMonths} luni — cu cati bani opereaza firma pe luna.`,
+      hint: `Media ultimelor ${runway.windowMonths} luni. Cu cati bani opereaza firma pe luna.`,
       state: "neutral",
     });
   }
@@ -1725,7 +1725,7 @@ function tierFromScore(score: number): {
     return {
       tier: "watch",
       tierLabel: "Necesita atentie",
-      message: "Cativa indicatori sunt sub prag — vezi detaliile mai jos.",
+      message: "Cativa indicatori sunt sub prag. Vezi detaliile mai jos.",
     };
   }
   return {
@@ -1743,42 +1743,42 @@ export function computeHealthScore(
 ): HealthScore {
   // 1. Liquidity: runway-based. 6+ months = 100, 0 months = 0.
   let liquidityScore = 50;
-  let liquidityMsg = "Indisponibil — nu avem cheltuieli istorice suficiente.";
+  let liquidityMsg = "Indisponibil. Nu avem cheltuieli istorice suficiente.";
   let liquidityState: HealthSubscore["state"] = "neutral";
   if (runway.status !== "unknown" && runway.monthlyBurnRate > 0) {
     liquidityScore = clamp((runway.monthsRemaining / 6) * 100, 0, 100);
     if (runway.monthsRemaining >= 6) {
-      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni de operare — peste pragul de 6 luni.`;
+      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni de operare. Peste pragul de 6 luni.`;
       liquidityState = "good";
     } else if (runway.monthsRemaining >= 3) {
-      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni — confortabil dar nu generos.`;
+      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni. Confortabil dar nu generos.`;
       liquidityState = "neutral";
     } else if (runway.monthsRemaining >= 1) {
-      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni — strans. Lichiditatea trebuie urmarita.`;
+      liquidityMsg = `${runway.monthsRemaining.toFixed(1)} luni. Strans. Lichiditatea trebuie urmarita.`;
       liquidityState = "warn";
     } else {
-      liquidityMsg = `Sub o luna — risc critic. Discuta urgent cu contabilul.`;
+      liquidityMsg = `Sub o luna. Risc critic. Discuta urgent cu contabilul.`;
       liquidityState = "danger";
     }
   }
 
   // 2. Profitability: monthly margin. 20%+ = 100, <0% = 0.
   let profitScore = 50;
-  let profitMsg = "Indisponibil — nu sunt venituri luna asta.";
+  let profitMsg = "Indisponibil. Nu sunt venituri luna asta.";
   let profitState: HealthSubscore["state"] = "neutral";
   if (marja !== null) {
     profitScore = clamp(((marja - 0) / 20) * 100, 0, 100);
     if (marja >= 15) {
-      profitMsg = `Marja ${marja.toFixed(1)}% — afacerea genereaza profit solid.`;
+      profitMsg = `Marja ${marja.toFixed(1)}%. Afacerea genereaza profit solid.`;
       profitState = "good";
     } else if (marja >= 5) {
-      profitMsg = `Marja ${marja.toFixed(1)}% — modesta dar pozitiva.`;
+      profitMsg = `Marja ${marja.toFixed(1)}%. Modesta dar pozitiva.`;
       profitState = "neutral";
     } else if (marja >= 0) {
-      profitMsg = `Marja ${marja.toFixed(1)}% — foarte subtire, costuri aproape de venituri.`;
+      profitMsg = `Marja ${marja.toFixed(1)}%. Foarte subtire, costuri aproape de venituri.`;
       profitState = "warn";
     } else {
-      profitMsg = `Marja ${marja.toFixed(1)}% — pierdere. Cheltuielile depasesc veniturile.`;
+      profitMsg = `Marja ${marja.toFixed(1)}%. Pierdere. Cheltuielile depasesc veniturile.`;
       profitState = "danger";
     }
   }
@@ -1786,33 +1786,33 @@ export function computeHealthScore(
   // 3. Efficiency: receivables as share of monthly revenue (proxy for DSO).
   //    <30 days equiv (≤1× monthly revenue) = 100, >120 days (≥4×) = 0.
   let efficiencyScore = 50;
-  let efficiencyMsg = "Indisponibil — nu sunt clienti sau venituri.";
+  let efficiencyMsg = "Indisponibil. Nu sunt clienti sau venituri.";
   let efficiencyState: HealthSubscore["state"] = "neutral";
   if (summary.cifraAfaceriLuna > 0 && summary.clientiNeincasati > 0) {
     const ratio = summary.clientiNeincasati / summary.cifraAfaceriLuna;
     efficiencyScore = clamp(100 - ((ratio - 1) / 3) * 100, 0, 100);
     if (ratio <= 1) {
-      efficiencyMsg = `Creantele sub o luna de venituri — clientii platesc rapid.`;
+      efficiencyMsg = `Creantele sub o luna de venituri. Clientii platesc rapid.`;
       efficiencyState = "good";
     } else if (ratio <= 2) {
-      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri — perioada normala de incasare.`;
+      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri. Perioada normala de incasare.`;
       efficiencyState = "neutral";
     } else if (ratio <= 3) {
-      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri — incasarile incep sa intarzie.`;
+      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri. Incasarile incep sa intarzie.`;
       efficiencyState = "warn";
     } else {
-      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri — risc semnificativ de neincasare.`;
+      efficiencyMsg = `Creantele cat ${ratio.toFixed(1)} luni de venituri. Risc semnificativ de neincasare.`;
       efficiencyState = "danger";
     }
   } else if (summary.clientiNeincasati === 0) {
     efficiencyScore = 100;
-    efficiencyMsg = "Nu ai clienti restanti — toate facturile sunt incasate.";
+    efficiencyMsg = "Nu ai clienti restanti. Toate facturile sunt incasate.";
     efficiencyState = "good";
   }
 
   // 4. Solvency: equity ratio = (capital + rezultat) / totalActiv. >50% = 100, <0 = 0.
   let solvencyScore = 50;
-  let solvencyMsg = "Indisponibil — bilantul nu poate fi calculat.";
+  let solvencyMsg = "Indisponibil. Bilantul nu poate fi calculat.";
   let solvencyState: HealthSubscore["state"] = "neutral";
   if (patrimoniu.totalActiv > 0) {
     const capital = patrimoniu.pasiv.find((b) => b.id === "capital")?.value ?? 0;
@@ -1821,16 +1821,16 @@ export function computeHealthScore(
     const equityRatio = (equity / patrimoniu.totalActiv) * 100;
     solvencyScore = clamp(((equityRatio - 0) / 50) * 100, 0, 100);
     if (equityRatio >= 40) {
-      solvencyMsg = `Capitalul propriu reprezinta ${equityRatio.toFixed(0)}% din activ — autonomie financiara solida.`;
+      solvencyMsg = `Capitalul propriu reprezinta ${equityRatio.toFixed(0)}% din activ. Autonomie financiara solida.`;
       solvencyState = "good";
     } else if (equityRatio >= 25) {
-      solvencyMsg = `Capitalul propriu reprezinta ${equityRatio.toFixed(0)}% din activ — nivel acceptabil.`;
+      solvencyMsg = `Capitalul propriu reprezinta ${equityRatio.toFixed(0)}% din activ. Nivel acceptabil.`;
       solvencyState = "neutral";
     } else if (equityRatio >= 10) {
-      solvencyMsg = `Capitalul propriu reprezinta doar ${equityRatio.toFixed(0)}% din activ — firma e finantata in mare parte de datorii.`;
+      solvencyMsg = `Capitalul propriu reprezinta doar ${equityRatio.toFixed(0)}% din activ. Firma e finantata in mare parte de datorii.`;
       solvencyState = "warn";
     } else {
-      solvencyMsg = `Capitalul propriu sub 10% din activ — risc de insolventa.`;
+      solvencyMsg = `Capitalul propriu sub 10% din activ. Risc de insolventa.`;
       solvencyState = "danger";
     }
   }
@@ -1865,6 +1865,14 @@ function ratioState(
     if (r.lte !== undefined && value <= r.lte) return r.state;
   }
   return defaultState;
+}
+
+/** ro-RO formatted number for substituted calculation strings. */
+function fmtCalc(n: number, decimals = 0): string {
+  return n.toLocaleString("ro-RO", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
 }
 
 export function computeRatios(
@@ -1906,6 +1914,10 @@ export function computeRatios(
     ]),
     interpretation:
       "De cate ori activele curente acopera datoriile pe termen scurt. Peste 1.5 = comfort.",
+    calculation:
+      datoriiCT > 0
+        ? `${fmtCalc(activeCurente)} / ${fmtCalc(datoriiCT)} = ${fmtCalc(activeCurente / datoriiCT, 2)}`
+        : null,
   });
 
   list.push({
@@ -1923,6 +1935,10 @@ export function computeRatios(
       { lte: 0.4, state: "danger" },
     ]),
     interpretation: "Capacitatea de plata fara a vinde stocul.",
+    calculation:
+      datoriiCT > 0
+        ? `(${fmtCalc(cashAndEq)} + ${fmtCalc(creante)}) / ${fmtCalc(datoriiCT)} = ${fmtCalc((cashAndEq + creante) / datoriiCT, 2)}`
+        : null,
   });
 
   list.push({
@@ -1940,6 +1956,10 @@ export function computeRatios(
       { lte: 0.1, state: "danger" },
     ]),
     interpretation: "Cat din datoriile pe termen scurt poti achita pe loc, din banii din cont.",
+    calculation:
+      datoriiCT > 0
+        ? `${fmtCalc(cashAndEq)} / ${fmtCalc(datoriiCT)} = ${fmtCalc(cashAndEq / datoriiCT, 2)}`
+        : null,
   });
 
   list.push({
@@ -1956,6 +1976,7 @@ export function computeRatios(
       { lte: 0, state: "danger" },
     ]),
     interpretation: "Diferenta dintre ce poti incasa pe termen scurt si ce trebuie sa platesti.",
+    calculation: `${fmtCalc(activeCurente)} − ${fmtCalc(datoriiCT)} = ${fmtCalc(activeCurente - datoriiCT)} lei`,
   });
 
   // ---- PROFITABILITATE ----
@@ -1992,6 +2013,7 @@ export function computeRatios(
         { lte: 0, state: "danger" },
       ]),
       interpretation: "Marja generata strict de activitatea operationala, fara efecte financiare.",
+      calculation: `(${fmtCalc(summary.cifraAfaceriLuna)} − ${fmtCalc(summary.cheltuieliLuna)}) / ${fmtCalc(summary.cifraAfaceriLuna)} × 100 = ${fmtCalc(opMargin, 1)}%`,
     });
   }
 
@@ -2012,6 +2034,7 @@ export function computeRatios(
         { lte: 0, state: "danger" },
       ]),
       interpretation: "Cati lei profit aduce fiecare 100 lei pe care i-ai investit in firma.",
+      calculation: `(${fmtCalc(summary.cifraAfaceriTotal)} − ${fmtCalc(summary.cheltuieliTotal)}) / ${fmtCalc(equity)} × 100 = ${fmtCalc(roe, 1)}%`,
     });
   }
 
@@ -2032,6 +2055,7 @@ export function computeRatios(
         { lte: 0, state: "danger" },
       ]),
       interpretation: "Cat de eficient sunt folosite resursele firmei pentru a genera profit.",
+      calculation: `(${fmtCalc(summary.cifraAfaceriTotal)} − ${fmtCalc(summary.cheltuieliTotal)}) / ${fmtCalc(patrimoniu.totalActiv)} × 100 = ${fmtCalc(roa, 1)}%`,
     });
   }
 
@@ -2054,6 +2078,7 @@ export function computeRatios(
       ]),
       interpretation:
         "Cat din firma este finantata din banii tai vs imprumuturi. Peste 30% = autonomie buna.",
+      calculation: `${fmtCalc(equity)} / ${fmtCalc(patrimoniu.totalActiv)} × 100 = ${fmtCalc(equityRatio, 1)}%`,
     });
   }
 
@@ -2074,6 +2099,7 @@ export function computeRatios(
         { gte: 2, state: "danger" },
       ]),
       interpretation: "De cate ori datoriile depasesc capitalul propriu. Sub 1 = sanatos.",
+      calculation: `${fmtCalc(totalDatorii)} / ${fmtCalc(equity)} = ${fmtCalc(debtToEquity, 2)}`,
     });
   }
 
@@ -2096,7 +2122,8 @@ export function computeRatios(
         { gte: 90, state: "danger" },
       ]),
       interpretation:
-        "Cate zile in medie astepti pana incasezi facturile. Calculat aproximativ — pentru DSO exact e nevoie de data factura.",
+        "Cate zile in medie astepti pana incasezi facturile. Calculat aproximativ. Pentru DSO exact e nevoie de data factura.",
+      calculation: `${fmtCalc(creante)} / ${fmtCalc(summary.cifraAfaceriLuna)} × 30 = ${fmtCalc(dsoDays)} zile`,
     });
   }
 
@@ -2118,6 +2145,7 @@ export function computeRatios(
       ]),
       interpretation:
         "Cate zile in medie iei pana platesti furnizorii. Mai mult inseamna mai mult timp cu banii in cont.",
+      calculation: `${fmtCalc(summary.furnizoriNeachitati)} / ${fmtCalc(summary.cheltuieliLuna)} × 30 = ${fmtCalc(dpoDays)} zile`,
     });
   }
 
@@ -2137,6 +2165,10 @@ export function computeRatios(
         { lte: -10, state: "danger" },
       ]),
       interpretation: "Cu cat ai crescut vs aceeasi luna anul trecut.",
+      calculation:
+        yoy.revenue.previous !== 0
+          ? `(${fmtCalc(yoy.revenue.current)} − ${fmtCalc(yoy.revenue.previous)}) / ${fmtCalc(Math.abs(yoy.revenue.previous))} × 100 = ${fmtCalc(yoy.revenue.deltaPct, 1)}%`
+          : null,
     });
   }
 
@@ -2157,6 +2189,7 @@ export function computeRatios(
           : "danger",
       interpretation:
         "Cati luni mai poate functiona firma daca veniturile s-ar opri complet.",
+      calculation: `${fmtCalc(runway.cashAvailable)} / ${fmtCalc(runway.monthlyBurnRate)} = ${fmtCalc(runway.monthsRemaining, 1)} luni`,
     });
   }
 

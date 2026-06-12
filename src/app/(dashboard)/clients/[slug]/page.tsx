@@ -138,6 +138,12 @@ export default async function ClientDetailPage(props: Props) {
     const publishedList = await listPublishedPeriods(client.id);
     t.mark("ownerPublishedList");
     const availablePeriods = publishedList.map((p) => ({ year: p.year, month: p.month }));
+    const publishedMeta = publishedList.map((p) => ({
+      year: p.year,
+      month: p.month,
+      publishedAt: p.publishedAt.toISOString(),
+      noteForOwner: p.noteForOwner,
+    }));
 
     // The owner preview must mirror what the patron actually sees on /firma:
     // ONLY published months. The accountant's selected accountant-side period
@@ -223,6 +229,7 @@ export default async function ClientDetailPage(props: Props) {
           context={context}
           marjaOperationala={previewMarja}
           availablePeriods={availablePeriods}
+          publishedMeta={publishedMeta}
           mode={mode}
         />
       </OwnerLayout>

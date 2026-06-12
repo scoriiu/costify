@@ -14,6 +14,7 @@
 import { useState } from "react";
 import type { CashflowBreakdown } from "@/modules/reporting/owner";
 import { lei } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 type Tab = "operating" | "investing" | "financing";
 
@@ -54,16 +55,17 @@ export function CashflowSplitChart({ data }: CashflowSplitChartProps) {
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <h3
-            className="text-[16px] font-semibold text-white"
+            className="inline-flex items-center gap-2 text-[16px] font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
             Cum a circulat cash-ul
+            <ChartInfo text="Imparte miscarea banilor lunii in 3 cosuri. Operational: activitatea de zi cu zi (incasari de la clienti, plati catre furnizori, salarii). Investitii: echipamente si dotari cumparate sau vandute. Finantare: credite luate sau rambursate si dividende. Asa vezi DE CE s-au schimbat banii, nu doar cu cat." />
           </h3>
           <p
             className="mt-1 text-[12px] text-gray-light"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Defalcat pe Operational / Investitii / Finantare — modelul standard cerut de banci si investitori.
+            Defalcat pe Operational / Investitii / Finantare. Modelul standard cerut de banci si investitori.
           </p>
         </div>
         <div

@@ -13,6 +13,7 @@
 import { Layers } from "lucide-react";
 import type { VerticalBreakdownItem } from "@/modules/reporting/owner";
 import { lei, pct } from "@/lib/owner-format";
+import { ChartInfo } from "./chart-info";
 
 interface Props {
   items: VerticalBreakdownItem[];
@@ -47,6 +48,7 @@ export function VerticalBreakdownCard({ items, periodLabel }: Props) {
         >
           <Layers size={15} className="text-primary" />
           Pe linii de business
+          <ChartInfo text="Imparte veniturile si cheltuielile lunii pe fiecare activitate a firmei (linie de business), asa cum le-a configurat contabilul. Vezi dintr-o privire care activitate aduce profit si care pierde bani." />
         </h3>
         <p
           className="mt-0.5 text-[12px] text-gray"
