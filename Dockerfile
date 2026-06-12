@@ -9,6 +9,10 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 FROM base AS builder
 WORKDIR /app
+# NEXT_PUBLIC_* vars are inlined at build time; .env is dockerignored so the
+# value must arrive as a build arg (deploy.sh reads it from the local .env).
+ARG NEXT_PUBLIC_INTERNAL_USER_EMAILS=""
+ENV NEXT_PUBLIC_INTERNAL_USER_EMAILS=$NEXT_PUBLIC_INTERNAL_USER_EMAILS
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm prisma generate
