@@ -100,7 +100,7 @@ async function authedPage(context: BrowserContext): Promise<Page> {
 async function openLinii(page: Page) {
   await page.goto(MAPARI_URL);
   await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
-  await page.getByRole("button", { name: "Linii", exact: true }).click();
+  await page.getByRole("button", { name: "Linii de business", exact: true }).click();
 }
 
 function parseLei(s: string): number {
@@ -207,7 +207,7 @@ test.describe("Linii de business — mutation flows", () => {
     // bump dataVersion isn't reachable here; force a fresh server fetch.
     await page.goto(MAPARI_URL);
     await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
-    await page.getByRole("button", { name: "Linii", exact: true }).click();
+    await page.getByRole("button", { name: "Linii de business", exact: true }).click();
     await page.locator("button").filter({ hasText: "Coworking" }).first().click();
     const restored = await coworkingExpenses(page);
     expect(Math.abs(restored - before)).toBeLessThan(before * 0.02);
@@ -300,7 +300,7 @@ test.describe("Linii de business — mutation flows", () => {
     });
     await page.goto(MAPARI_URL);
     await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
-    await page.getByRole("button", { name: "Linii", exact: true }).click();
+    await page.getByRole("button", { name: "Linii de business", exact: true }).click();
     await page.locator("button").filter({ hasText: "Coworking" }).first().click();
     const restored = await coworkingExpenses(page);
     expect(Math.abs(restored - before)).toBeLessThan(before * 0.02);

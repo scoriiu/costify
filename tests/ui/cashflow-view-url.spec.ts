@@ -63,9 +63,9 @@ async function authedPage(context: BrowserContext): Promise<Page> {
 
 function viewToggle(page: Page) {
   return {
-    lista: page.getByRole("button", { name: "Lista", exact: true }).first(),
-    harta: page.getByRole("button", { name: "Harta", exact: true }).first(),
-    linii: page.getByRole("button", { name: "Linii", exact: true }).first(),
+    lista: page.getByRole("button", { name: "Linii de cost", exact: true }).first(),
+    harta: page.getByRole("button", { name: "Harta de cost", exact: true }).first(),
+    linii: page.getByRole("button", { name: "Linii de business", exact: true }).first(),
   };
 }
 

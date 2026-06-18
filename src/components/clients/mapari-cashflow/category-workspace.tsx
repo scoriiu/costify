@@ -160,9 +160,9 @@ type ViewMode = "list" | "treemap" | "verticals";
 // icons. Ordered by increasing aggregation: raw list -> visual map -> rolled
 // up into business lines. Both render sites share this so they never drift.
 const VIEW_OPTIONS: { value: ViewMode; label: string; icon: typeof List }[] = [
-  { value: "list", label: "Lista", icon: List },
-  { value: "treemap", label: "Harta", icon: LayoutGrid },
-  { value: "verticals", label: "Linii", icon: Columns3 },
+  { value: "list", label: "Linii de cost", icon: List },
+  { value: "treemap", label: "Harta de cost", icon: LayoutGrid },
+  { value: "verticals", label: "Linii de business", icon: Columns3 },
 ];
 
 // URL slugs for the view toggle, kept friendly/stable so deep links read well
@@ -617,33 +617,69 @@ function WorkspaceShell({
   const intro = VIEW_INTRO[view];
   return (
     <div className="space-y-4">
-      {/* The header bar is identical across all three views: title left,
-          primary switcher right, same size, same position. Only the copy
-          changes — the switcher never appears to move or resize. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3
-            className="text-[15px] font-semibold text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            {intro.title}
-          </h3>
-          <p
-            className="text-[11px] text-gray mt-0.5 max-w-2xl"
-            style={{ letterSpacing: "-0.02em" }}
-          >
-            {intro.desc}
-          </p>
-        </div>
-        <ToggleGroup<ViewMode>
-          value={view}
-          onChange={onViewChange}
-          options={VIEW_OPTIONS}
-          size="lg"
-          ariaLabel="Schimba vizualizarea"
-        />
+      {/* The view switcher is a full-width 3-way segmented bar on its own row,
+          ABOVE the title. It never moves or resizes when the active view (and
+          its title/description below) changes, because it owns its own row and
+          each segment is an equal third of the card width. */}
+      <ViewSwitcher view={view} onViewChange={onViewChange} />
+      <div>
+        <h3
+          className="text-[15px] font-semibold text-white"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          {intro.title}
+        </h3>
+        <p
+          className="text-[11px] text-gray mt-0.5 max-w-2xl"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          {intro.desc}
+        </p>
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Full-width 3-way segmented control for the primary view switch. Each segment
+ * is an equal third so the bar is stable regardless of label length, and the
+ * active segment never shifts the inactive ones. Color follows the design
+ * system: active segment is `bg-primary text-[#E9E8E3]` (never `text-white`
+ * on teal), inactive is muted with hover.
+ */
+function ViewSwitcher({
+  view,
+  onViewChange,
+}: {
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Schimba vizualizarea"
+      className="grid grid-cols-3 gap-1 rounded-[10px] bg-dark-2 p-1.5"
+    >
+      {VIEW_OPTIONS.map((opt) => {
+        const active = view === opt.value;
+        const Icon = opt.icon;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onViewChange(opt.value)}
+            data-state={active ? "active" : "inactive"}
+            aria-pressed={active}
+            className={`flex h-10 items-center justify-center gap-2.5 rounded-lg font-mono text-[15px] font-medium transition-colors ${
+              active ? "bg-primary text-[#E9E8E3]" : "text-gray hover:text-white"
+            }`}
+          >
+            <Icon size={16} aria-hidden className="shrink-0" />
+            <span>{opt.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

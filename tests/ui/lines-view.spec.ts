@@ -2,7 +2,7 @@
  * End-to-end coverage of the redesigned "Linii de business" view.
  *
  * The accountant's real flows, in order of how they'd actually use it:
- *   1. Land on the Mapari Cashflow tab, switch to "Linii".
+ *   1. Land on the Mapari Cashflow tab, switch to "Linii de business".
  *   2. Block A — firm totals render with real money (not zero).
  *   3. Block B — the line cards (Outsourcing / Coworking) each carry their
  *      share of the money. THIS is the regression that bit us: a 50/50
@@ -103,7 +103,7 @@ async function authedPage(context: BrowserContext): Promise<Page> {
 async function openLinii(page: Page) {
   await page.goto(MAPARI_URL);
   await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
-  await page.getByRole("button", { name: "Linii", exact: true }).click();
+  await page.getByRole("button", { name: "Linii de business", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: /Din ce e compusa|Liniile de business/ }).first()
   ).toBeVisible({ timeout: 6000 });
@@ -361,7 +361,7 @@ test.describe("Linii de business — redesigned view", () => {
     await openLinii(page);
     await page.reload();
     await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
-    await page.getByRole("button", { name: "Linii", exact: true }).click();
+    await page.getByRole("button", { name: "Linii de business", exact: true }).click();
     const coworking = lineCard(page, "Coworking");
     await expect(coworking).toBeVisible({ timeout: 6000 });
     const cwText = await coworking.innerText();
