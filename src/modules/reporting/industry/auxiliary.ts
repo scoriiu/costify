@@ -143,8 +143,7 @@ export const AUXILIARY_INPUTS: Record<AuxiliaryInputId, AuxiliaryInput> = {
 export const KPI_AUX_REQUIREMENTS: Record<string, AuxiliaryInputId[]> = {
   // --- unlocked by employee count alone (journal already has venituri/EBITDA) ---
   venitPerAngajat: ["numberOfEmployees"],
-  "Venit / Angajat": ["numberOfEmployees"],
-  "Profit / Angajat": ["numberOfEmployees"],
+  profitPerAngajat: ["numberOfEmployees"],
 
   // --- professional services utilization ---
   oreFacturabile: ["billableHours", "totalWorkedHours"],

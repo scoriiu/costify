@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { updateClientInfoAction, lookupCuiAction } from "@/modules/clients/actions";
+import { EmployeeCountSection } from "./employee-count-section";
+import type { EmployeeCountPoint } from "@/modules/clients/employee-counts";
 import {
   INDUSTRY_OPTIONS,
   industryFromCaen,
@@ -40,6 +42,7 @@ interface Props {
     createdAt: string;
   };
   entryCount: number;
+  employeeCounts: EmployeeCountPoint[];
   onOpenDeleteModal: () => void;
   /** Server-rendered "Acces clientului" section. Passed as a slot so server data
    *  (current accesses) can be fetched without making the whole tab a server component. */
@@ -53,6 +56,7 @@ interface Props {
 export function SetariTab({
   client,
   entryCount,
+  employeeCounts,
   onOpenDeleteModal,
   accessSection,
   publishSection,
@@ -61,6 +65,7 @@ export function SetariTab({
   return (
     <div className="space-y-6 max-w-5xl">
       <GeneralInfoSection client={client} />
+      <EmployeeCountSection clientId={client.id} initialCounts={employeeCounts} />
       {accessSection}
       {publishSection}
       {auditSection}

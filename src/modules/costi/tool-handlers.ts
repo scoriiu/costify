@@ -8,6 +8,7 @@ import {
   taxRegimeAccount,
 } from "@/modules/clients/tax-regime";
 import { detectTaxRegimeTimeline } from "@/modules/clients/tax-regime-detector";
+import { getEmployeeCount, getEmployeeCounts } from "@/modules/clients/employee-counts";
 import { computeIndustryKpis, resolveIndustry } from "@/modules/reporting/industry";
 
 const MAX_JOURNAL_RESULTS = 50;
@@ -51,6 +52,8 @@ export async function handleToolCall(
       return handleGetTaxRegimeTimeline(userId, input);
     case "get_industry_kpis":
       return handleGetIndustryKpis(userId, input);
+    case "get_employee_counts":
+      return handleGetEmployeeCounts(userId, input);
     case "get_account_catalog":
       return handleGetAccountCatalog(input);
     default:
@@ -96,7 +99,7 @@ async function handleGetIndustryKpis(
   const year = input.year as number;
   const month = input.month as number;
 
-  const [result, prevResult, catalog, fields] = await Promise.all([
+  const [result, prevResult, catalog, fields, employeeCount] = await Promise.all([
     getBalanceRows(resolved.client.id, year, month),
     getBalanceRows(resolved.client.id, year - 1, month),
     getCatalogMap(),
@@ -104,6 +107,7 @@ async function handleGetIndustryKpis(
       where: { id: resolved.client.id },
       select: { industry: true, industrySource: true, caen: true },
     }),
+    getEmployeeCount(resolved.client.id, year, month),
   ]);
   if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
 
@@ -119,6 +123,7 @@ async function handleGetIndustryKpis(
     year,
     month,
     prevYearRows: prevResult.ok ? prevResult.data : [],
+    numberOfEmployees: employeeCount,
   });
 
   const kpiId = input.kpi_id as string | undefined;
@@ -162,6 +167,24 @@ async function handleGetIndustryKpis(
         unavailable: k.unavailableReason !== null ? true : undefined,
       })),
     })),
+  });
+}
+
+async function handleGetEmployeeCounts(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const counts = await getEmployeeCounts(resolved.client.id);
+  const latest = counts.length > 0 ? counts[counts.length - 1] : null;
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    note: "Numar mediu de angajati pe luna, introdus de contabil in Setari. Deblocheaza Venituri/Profit per angajat. Lunile fara valoare nu au aceste KPI calculate.",
+    latest,
+    counts,
   });
 }
 

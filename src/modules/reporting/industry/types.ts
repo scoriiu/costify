@@ -157,4 +157,7 @@ export interface KpiBaseInputs {
   top3ClientiPercent: number | null;
   /** Prior-year same-period cifra de afaceri (YTD). Null when no data. */
   cifraAfaceriAnPrecedent: number | null;
+  /** Average employee count for the selected month, entered by the accountant
+   *  (auxiliary input, not derivable from the journal). Null when not set. */
+  numberOfEmployees: number | null;
 }

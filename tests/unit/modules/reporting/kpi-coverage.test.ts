@@ -135,12 +135,10 @@ describe("getKpiCoverage", () => {
 });
 
 describe("auxiliary unlocks", () => {
-  it("employee count alone unlocks exactly venitPerAngajat + profit/venit per angajat", () => {
+  it("employee count alone unlocks exactly venituri + profit per angajat", () => {
     const unlocked = unlockedBy(new Set(["numberOfEmployees"]));
-    expect(unlocked.sort()).toEqual(
-      ["Profit / Angajat", "Venit / Angajat", "venitPerAngajat"].sort()
-    );
-    expect(countUnlocked(new Set(["numberOfEmployees"]))).toBe(3);
+    expect(unlocked.sort()).toEqual(["profitPerAngajat", "venitPerAngajat"].sort());
+    expect(countUnlocked(new Set(["numberOfEmployees"]))).toBe(2);
   });
 
   it("MRR needs two aux inputs, neither alone unlocks it", () => {

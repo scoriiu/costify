@@ -818,15 +818,46 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     group: "industrie",
     labelContabil: "Venituri per angajat",
     labelAntreprenor: "Cat venit produce fiecare om din echipa",
-    formulaContabil: "Venituri totale / Numar mediu de angajati",
+    formulaContabil: "Venituri totale (cumulat an) / Numar mediu de angajati",
     formulaAntreprenor: "Veniturile impartite la numarul de oameni",
     format: "lei",
-    inputIds: [],
-    compute: () => ({ value: null, calculation: null }),
+    inputIds: ["venituriTotale", "numberOfEmployees"],
+    compute: (i) => {
+      if (i.numberOfEmployees === null || i.numberOfEmployees <= 0) {
+        return { value: null, calculation: null };
+      }
+      const v = round2(i.venituriTotale / i.numberOfEmployees);
+      return {
+        value: v,
+        calculation: `${fmtNum(i.venituriTotale)} / ${fmtNum(i.numberOfEmployees, 1)} angajati = ${fmtNum(v)} lei`,
+      };
+    },
     thresholds: null,
     interpretationContabil: "Productivitatea muncii. Urmariti trendul, nu valoarea absoluta.",
     interpretationAntreprenor: "Util ca trend: daca scade luna de luna, echipa creste mai repede decat veniturile.",
-    unavailableReason: OPERATIONAL_REASON,
+  },
+  {
+    id: "profitPerAngajat",
+    group: "industrie",
+    labelContabil: "Profit per angajat",
+    labelAntreprenor: "Cat profit aduce fiecare om din echipa",
+    formulaContabil: "EBITDA (cumulat an) / Numar mediu de angajati",
+    formulaAntreprenor: "Profitul operational impartit la numarul de oameni",
+    format: "lei",
+    inputIds: ["ebitda", "numberOfEmployees"],
+    compute: (i) => {
+      if (i.numberOfEmployees === null || i.numberOfEmployees <= 0) {
+        return { value: null, calculation: null };
+      }
+      const v = round2(i.ebitda / i.numberOfEmployees);
+      return {
+        value: v,
+        calculation: `EBITDA ${fmtNum(i.ebitda)} / ${fmtNum(i.numberOfEmployees, 1)} angajati = ${fmtNum(v)} lei`,
+      };
+    },
+    thresholds: null,
+    interpretationContabil: "Profitabilitatea per resursa umana. Urmariti trendul, nu valoarea absoluta.",
+    interpretationAntreprenor: "Cat ramane, in medie, din munca fiecarui om dupa cheltuielile operationale.",
   },
   {
     id: "retentieClienti",

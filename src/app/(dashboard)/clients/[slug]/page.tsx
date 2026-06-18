@@ -6,6 +6,7 @@ import { computeKpis } from "@/modules/reporting";
 import { getCatalogMap } from "@/modules/accounts";
 import { listAccessesForClient } from "@/modules/roles";
 import { loadMapariCashflow, type MapariCashflowData } from "@/modules/categories";
+import { getEmployeeCounts } from "@/modules/clients/employee-counts";
 import {
   listPublishedPeriods,
   getPublishedView,
@@ -265,6 +266,7 @@ export default async function ClientDetailPage(props: Props) {
     mapariData,
     periodResults,
     syncStatus,
+    employeeCounts,
   ] = await Promise.all([
     listAccessesForClient(client.id),
     listPublishedPeriods(client.id),
@@ -275,6 +277,7 @@ export default async function ClientDetailPage(props: Props) {
       : Promise.resolve(null),
     getPeriodResultFigures(client.id),
     checkPublishedSync(client.id),
+    getEmployeeCounts(client.id),
   ]);
   t.mark("accountantParallel");
 
@@ -345,6 +348,7 @@ export default async function ClientDetailPage(props: Props) {
       }}
       dataVersion={client.dataVersion}
       entryCount={entryCount}
+      employeeCounts={employeeCounts}
       importEvents={importEvents.map((e) => ({
         id: e.id,
         fileName: e.fileName,

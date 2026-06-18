@@ -42,6 +42,7 @@ import { BalantaTab } from "@/components/clients/balanta-tab";
 import { CppTab } from "@/components/clients/cpp-tab";
 import { PlanConturiTab } from "@/components/clients/plan-conturi-tab";
 import { SetariTab } from "@/components/clients/setari-tab";
+import type { EmployeeCountPoint } from "@/modules/clients/employee-counts";
 import { MapariCashflowTab } from "@/components/clients/mapari-cashflow/mapari-cashflow-tab";
 import { IndustryKpiTab } from "@/components/clients/industry-kpi-tab";
 import { DeleteJournalModal } from "@/components/journal/delete-journal-modal";
@@ -81,6 +82,8 @@ interface Props {
   /** Monotonic version. Any change invalidates client-side caches. */
   dataVersion: number;
   entryCount: number;
+  /** Stored monthly employee counts, for the Setari "Angajati pe luna" section. */
+  employeeCounts: EmployeeCountPoint[];
   importEvents: ImportEventInfo[];
   periods: DatasetPeriod[];
   activeTab: string;
@@ -129,6 +132,7 @@ export function ClientDetail({
   client,
   dataVersion,
   entryCount,
+  employeeCounts,
   importEvents,
   periods,
   activeTab,
@@ -387,6 +391,7 @@ export function ClientDetail({
           <SetariTab
             client={client}
             entryCount={entryCount}
+            employeeCounts={employeeCounts}
             onOpenDeleteModal={() => setDeleteOpen(true)}
             accessSection={accessSection}
             publishSection={publishSection}

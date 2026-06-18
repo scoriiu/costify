@@ -99,6 +99,9 @@ export interface ComputeIndustryKpisOptions {
   month: number;
   /** Rows of the SAME period in the previous year, for YoY growth. */
   prevYearRows?: BalanceRowView[];
+  /** Average employee count for this month (accountant-entered auxiliary
+   *  input). Null/undefined when not set; headcount KPIs then stay "in curand". */
+  numberOfEmployees?: number | null;
 }
 
 interface EffectiveIndustry {
@@ -160,7 +163,13 @@ export function computeIndustryKpis(
 ): IndustryKpiSection {
   const effective = applyJournalSignal(rows, opts.industry, opts.industrySource);
   const profile = INDUSTRY_PROFILES[effective.industry] ?? INDUSTRY_PROFILES.general;
-  const inputs = extractKpiBaseInputs(rows, catalog, opts.month, opts.prevYearRows);
+  const inputs = extractKpiBaseInputs(
+    rows,
+    catalog,
+    opts.month,
+    opts.prevYearRows,
+    opts.numberOfEmployees ?? null
+  );
 
   const groups: IndustryKpiGroup[] = [];
 

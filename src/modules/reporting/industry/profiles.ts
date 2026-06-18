@@ -45,7 +45,7 @@ export const INDUSTRY_PROFILES: Record<IndustryId, IndustryProfile> = {
   },
   general: {
     id: "general",
-    industryKpiIds: ["top3Concentration", "venitPerAngajat"],
+    industryKpiIds: ["top3Concentration", "venitPerAngajat", "profitPerAngajat"],
     thresholdOverrides: {},
     industryGroupContabil:
       "Indicatori suplimentari general aplicabili: concentrarea portofoliului de clienti si productivitatea muncii.",
@@ -58,6 +58,7 @@ export const INDUSTRY_PROFILES: Record<IndustryId, IndustryProfile> = {
       "top3Concentration",
       "oreFacturabile",
       "venitPerAngajat",
+      "profitPerAngajat",
       "retentieClienti",
     ],
     thresholdOverrides: {
@@ -128,6 +129,7 @@ export const INDUSTRY_PROFILES: Record<IndustryId, IndustryProfile> = {
       "top3Concentration",
       "oreFacturabile",
       "venitPerAngajat",
+      "profitPerAngajat",
       "retentieClienti",
     ],
     thresholdOverrides: {

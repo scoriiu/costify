@@ -100,9 +100,30 @@ model Client {
   categoryVerticalAllocs   CategoryVerticalAllocation[]
   firmVerticalDefault      FirmVerticalDefault?
   partnerVerticalAllocs    PartnerVerticalAllocation[]
+  employeeCounts           EmployeeCount[]
 
   @@unique([userId, slug])
   @@index([userId])
+}
+
+/// Accountant-entered auxiliary input: the average number of employees for one
+/// (client, year, month). Not derivable from the journal — sourced from the
+/// payroll / Revisal. Unlocks headcount-dependent KPIs (venitPerAngajat,
+/// profit per angajat). One value per period; re-saving overwrites it.
+/// Stored as Decimal because "numar mediu" can be fractional (e.g. 4.5).
+model EmployeeCount {
+  id        String   @id @default(cuid())
+  clientId  String
+  year      Int
+  month     Int // 1..12
+  count     Decimal  @db.Decimal(8, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, year, month])
+  @@index([clientId, year, month])
 }
 
 /// Grants an OWNER user read access to a Client's /firma dashboard.

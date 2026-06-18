@@ -28,9 +28,10 @@
  *   - historical correction (softDeleteEntriesAfter)
  *   - mapari mapping save/delete (AccountCategoryMapping)
  *   - mapari partner override save/delete (PartnerCategoryOverride)
- *   - vertical allocation save/delete (VerticalAllocation, CategoryVerticalAllocation)
+  *   - vertical allocation save/delete (VerticalAllocation, CategoryVerticalAllocation)
  *   - Client.verticalsEnabled toggle
  *   - JournalPartner rename / override (affects partner-keyed aggregates)
+ *   - employee count save/delete (EmployeeCount — feeds headcount KPIs)
  */
 
 import type { PrismaClient } from "@prisma/client";

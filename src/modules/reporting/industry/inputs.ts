@@ -143,6 +143,10 @@ export const INPUT_SOURCES: Record<keyof Omit<KpiBaseInputs, "monthsElapsed">, {
     label: "Cifra de afaceri an precedent",
     source: "Aceeasi formula a cifrei de afaceri, calculata pe perioada echivalenta a anului anterior (ianuarie -> aceeasi luna).",
   },
+  numberOfEmployees: {
+    label: "Numar mediu de angajati",
+    source: "Introdus de contabil pentru luna selectata (din statul de plata / Revisal). Nu se poate deduce din jurnal.",
+  },
 };
 
 /**
@@ -155,7 +159,8 @@ export function extractKpiBaseInputs(
   rows: BalanceRowView[],
   catalog: Map<string, CatalogAccount>,
   monthsElapsed: number,
-  prevYearRows?: BalanceRowView[]
+  prevYearRows?: BalanceRowView[],
+  numberOfEmployees: number | null = null
 ): KpiBaseInputs {
   const leaves = rows.filter((r) => r.isLeaf);
 
@@ -369,5 +374,6 @@ export function extractKpiBaseInputs(
     imobilizariNete: round2(imobilizariNete),
     top3ClientiPercent,
     cifraAfaceriAnPrecedent,
+    numberOfEmployees,
   };
 }

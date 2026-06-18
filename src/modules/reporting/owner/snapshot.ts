@@ -45,6 +45,7 @@ import {
   computeTopSuppliersByActivity,
 } from "./compute";
 import { prisma } from "@/lib/db";
+import { getEmployeeCount } from "@/modules/clients/employee-counts";
 import {
   listCategoryTree,
   listMappings,
@@ -162,7 +163,7 @@ export async function loadOwnerSnapshot(
   // fetched mid-flow) so we don't pay an extra sequential RTT in the
   // verticals branch below. One extra column in the parallel set, zero
   // extra wall-clock cost.
-  const [balanceContext, catalog, clientFlag] = await Promise.all([
+  const [balanceContext, catalog, clientFlag, employeeCount] = await Promise.all([
     prepareBalanceContext(clientId),
     getCatalogMap(),
     prisma.client.findUnique({
@@ -174,6 +175,7 @@ export async function loadOwnerSnapshot(
         caen: true,
       },
     }),
+    getEmployeeCount(clientId, year, month),
   ]);
 
   if (!balanceContext) {
@@ -336,6 +338,7 @@ export async function loadOwnerSnapshot(
     year,
     month,
     prevYearRows,
+    numberOfEmployees: employeeCount,
   });
 
   return {

@@ -286,6 +286,43 @@ describe("KPI formulas", () => {
     expect(byId("costPersonal").value).toBeCloseTo((120000 / 592000) * 100, 1);
   });
 
+  it("headcount KPIs are null without employee count, computed with it", () => {
+    const without = byId("venitPerAngajat");
+    expect(without.value).toBeNull();
+    expect(without.unavailableReason).toBeTruthy();
+
+    const withEmp = computeIndustryKpis(fixtureRows(), fixtureCatalog, {
+      industry: "general",
+      industrySource: "default",
+      caen: null,
+      year: 2026,
+      month: 6,
+      numberOfEmployees: 8,
+    });
+    const kpis = withEmp.groups.flatMap((g) => g.kpis);
+    const venit = kpis.find((k) => k.id === "venitPerAngajat")!;
+    const profit = kpis.find((k) => k.id === "profitPerAngajat")!;
+    expect(venit.value).toBeCloseTo(592000 / 8, 0);
+    expect(venit.calculation).toContain("8");
+    expect(profit.value).toBeCloseTo(140000 / 8, 0);
+    expect(venit.unavailableReason).toBeNull();
+  });
+
+  it("headcount KPIs stay null for zero or negative employees", () => {
+    const withZero = computeIndustryKpis(fixtureRows(), fixtureCatalog, {
+      industry: "general",
+      industrySource: "default",
+      caen: null,
+      year: 2026,
+      month: 6,
+      numberOfEmployees: 0,
+    });
+    const venit = withZero.groups
+      .flatMap((g) => g.kpis)
+      .find((k) => k.id === "venitPerAngajat")!;
+    expect(venit.value).toBeNull();
+  });
+
   it("every computed KPI carries inputs trace and calculation string", () => {
     for (const k of all) {
       if (k.value === null) continue;

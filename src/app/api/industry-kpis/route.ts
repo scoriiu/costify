@@ -17,6 +17,7 @@ import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import { getAvailablePeriods } from "@/modules/balances";
 import { getCatalogMap } from "@/modules/accounts";
 import { computeIndustryKpis, resolveIndustry } from "@/modules/reporting/industry";
+import { getEmployeeCount } from "@/modules/clients/employee-counts";
 import { prisma } from "@/lib/db";
 
 export async function GET(request: Request) {
@@ -81,6 +82,8 @@ export async function GET(request: Request) {
     caen: clientFields?.caen ?? null,
   });
 
+  const numberOfEmployees = await getEmployeeCount(clientId, period.year, period.month);
+
   const section = computeIndustryKpis(rows, catalog, {
     industry: resolved.id,
     industrySource: resolved.source,
@@ -88,6 +91,7 @@ export async function GET(request: Request) {
     year: period.year,
     month: period.month,
     prevYearRows,
+    numberOfEmployees,
   });
 
   return NextResponse.json(

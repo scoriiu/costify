@@ -360,3 +360,74 @@ export async function lookupCuiAction(rawCui: string): Promise<AnafLookupResult>
     },
   };
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// Employee count (monthly auxiliary input)
+// ──────────────────────────────────────────────────────────────────────────
+
+const setEmployeeCountSchema = z.object({
+  clientId: z.string().min(1),
+  year: z.number().int().min(2000).max(2100),
+  month: z.number().int().min(1).max(12),
+  // null clears the value for that month; a number sets it (0..100000, 2 decimals)
+  count: z.number().min(0).max(100000).nullable(),
+});
+
+/**
+ * Sets (or clears, when count is null) the average employee count for one
+ * (client, year, month). Feeds headcount KPIs (venitPerAngajat,
+ * profitPerAngajat) in the owner snapshot + KPI tab, so it MUST bump the
+ * data version to invalidate cached computed outputs.
+ */
+export async function setEmployeeCountAction(input: {
+  clientId: string;
+  year: number;
+  month: number;
+  count: number | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "Neautenticat" };
+
+  const parsed = setEmployeeCountSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const client = await assertClientOwned(user.id, parsed.data.clientId);
+  if (!client) return { ok: false, error: "Client negasit" };
+
+  const { clientId, year, month, count } = parsed.data;
+  const where = { clientId_year_month: { clientId, year, month } };
+
+  const existing = await prisma.employeeCount.findUnique({
+    where,
+    select: { count: true },
+  });
+  const before = existing ? { count: Number(existing.count) } : null;
+
+  if (count === null) {
+    if (!existing) return { ok: true }; // nothing to clear
+    await prisma.employeeCount.delete({ where });
+  } else {
+    await prisma.employeeCount.upsert({
+      where,
+      create: { clientId, year, month, count },
+      update: { count },
+    });
+  }
+
+  await recordClientMutation({
+    clientId,
+    actorId: user.id,
+    action: count === null ? "delete" : existing ? "update" : "create",
+    entityType: "employee_count",
+    entityId: `${clientId}:${year}-${String(month).padStart(2, "0")}`,
+    before,
+    after: count === null ? null : { count },
+    metadata: { year, month },
+  });
+
+  await bumpClientDataVersion(clientId);
+  revalidatePath(`/clients/${client.slug}`);
+  return { ok: true };
+}

@@ -122,7 +122,7 @@ const CFO_ESSENTIALS: KpiCoverageSection = {
     { specName: "Cost Personal %", registryId: "costPersonal" },
     { specName: "Absenteism %", registryId: null, note: "Necesita pontaje. " + OPERATIONAL },
     { specName: "Fluctuatie Personal %", registryId: null, note: "Necesita evidenta de personal. " + OPERATIONAL },
-    { specName: "Profit / Angajat", registryId: null, note: "Necesita numarul de angajati. " + OPERATIONAL },
+    { specName: "Profit / Angajat", registryId: "profitPerAngajat" },
     { specName: "OEE %", registryId: null, note: "Productie: necesita date de echipamente. Nu exista inca profil de productie." },
     { specName: "Rebut %", registryId: null, note: "Productie: necesita date de calitate. " + OPERATIONAL },
     { specName: "Cost / Unitate", registryId: null, note: "Productie: necesita volume fizice. " + OPERATIONAL },
