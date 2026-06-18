@@ -141,7 +141,7 @@ export const COSTI_TOOLS: Tool[] = [
   {
     name: "get_employee_counts",
     description:
-      "Obtine numarul mediu de angajati pe luna, introdus manual de contabil in Setari (sectiunea 'Angajati pe luna'). E o sursa auxiliara: nu se deduce din jurnal, dar deblocheaza indicatorii Venituri per angajat si Profit per angajat. Returneaza lista (an, luna, numar) plus ultima valoare. Util cand contabilul intreaba 'cati angajati am setat pentru clientul X', 'de ce nu apare venitul per angajat' (raspuns: nu e introdus numarul de angajati pentru luna respectiva) sau cand vrea sa verifice evolutia echipei.",
+      "Obtine numarul mediu de angajati pe luna, introdus manual de contabil in Setari (sectiunea 'Numar mediu de angajati'). E o sursa auxiliara: nu se deduce din jurnal, dar deblocheaza indicatorii Venituri per angajat si Profit per angajat. Returneaza lista (an, luna, numar) plus ultima valoare. Util cand contabilul intreaba 'cati angajati am setat pentru clientul X', 'de ce nu apare venitul per angajat' (raspuns: nu e introdus numarul de angajati pentru luna respectiva) sau cand vrea sa verifice evolutia echipei.",
     input_schema: {
       type: "object" as const,
       properties: {

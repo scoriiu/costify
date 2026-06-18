@@ -365,30 +365,36 @@ export async function lookupCuiAction(rawCui: string): Promise<AnafLookupResult>
 // Employee count (monthly auxiliary input)
 // ──────────────────────────────────────────────────────────────────────────
 
-const setEmployeeCountSchema = z.object({
+const employeeCountEntrySchema = z.object({
+  month: z.number().int().min(1).max(12),
+  count: z.number().min(0).max(100000),
+});
+
+const setEmployeeCountsSchema = z.object({
   clientId: z.string().min(1),
   year: z.number().int().min(2000).max(2100),
-  month: z.number().int().min(1).max(12),
-  // null clears the value for that month; a number sets it (0..100000, 2 decimals)
-  count: z.number().min(0).max(100000).nullable(),
+  // The COMPLETE set of EXPLICIT values for this year. Months not listed are
+  // cleared. Carry-forward (inherited months) is not stored; it is computed at
+  // read time in employee-counts.ts.
+  entries: z.array(employeeCountEntrySchema).max(12),
 });
 
 /**
- * Sets (or clears, when count is null) the average employee count for one
- * (client, year, month). Feeds headcount KPIs (venitPerAngajat,
- * profitPerAngajat) in the owner snapshot + KPI tab, so it MUST bump the
- * data version to invalidate cached computed outputs.
+ * Reconciles all EXPLICIT employee-count entries for one (client, year) in a
+ * single transaction: upserts the provided months, deletes any previously
+ * stored month for that year that is no longer present. Future months are
+ * rejected server-side. Feeds headcount KPIs (venitPerAngajat,
+ * profitPerAngajat), so it bumps the data version to invalidate caches.
  */
-export async function setEmployeeCountAction(input: {
+export async function setEmployeeCountsAction(input: {
   clientId: string;
   year: number;
-  month: number;
-  count: number | null;
+  entries: Array<{ month: number; count: number }>;
 }): Promise<{ ok: boolean; error?: string }> {
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Neautenticat" };
 
-  const parsed = setEmployeeCountSchema.safeParse(input);
+  const parsed = setEmployeeCountsSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
@@ -396,35 +402,56 @@ export async function setEmployeeCountAction(input: {
   const client = await assertClientOwned(user.id, parsed.data.clientId);
   if (!client) return { ok: false, error: "Client negasit" };
 
-  const { clientId, year, month, count } = parsed.data;
-  const where = { clientId_year_month: { clientId, year, month } };
+  const { clientId, year, entries } = parsed.data;
 
-  const existing = await prisma.employeeCount.findUnique({
-    where,
-    select: { count: true },
-  });
-  const before = existing ? { count: Number(existing.count) } : null;
-
-  if (count === null) {
-    if (!existing) return { ok: true }; // nothing to clear
-    await prisma.employeeCount.delete({ where });
-  } else {
-    await prisma.employeeCount.upsert({
-      where,
-      create: { clientId, year, month, count },
-      update: { count },
-    });
+  // Guard against future months for the current year.
+  const now = new Date();
+  const maxMonth = year > now.getFullYear() ? 0 : year === now.getFullYear() ? now.getMonth() + 1 : 12;
+  if (entries.some((e) => e.month > maxMonth)) {
+    return { ok: false, error: "Nu poti seta numarul de angajati pentru luni viitoare." };
   }
+
+  // Reject duplicate months in the payload.
+  const months = new Set(entries.map((e) => e.month));
+  if (months.size !== entries.length) {
+    return { ok: false, error: "Luni duplicate in cerere." };
+  }
+
+  const existing = await prisma.employeeCount.findMany({
+    where: { clientId, year },
+    select: { month: true, count: true },
+  });
+  const existingByMonth = new Map(existing.map((e) => [e.month, Number(e.count)]));
+  const keepMonths = new Set(entries.map((e) => e.month));
+  const toDelete = existing.filter((e) => !keepMonths.has(e.month)).map((e) => e.month);
+
+  const changed =
+    toDelete.length > 0 ||
+    entries.some((e) => existingByMonth.get(e.month) !== e.count);
+  if (!changed) return { ok: true };
+
+  await prisma.$transaction([
+    ...(toDelete.length > 0
+      ? [prisma.employeeCount.deleteMany({ where: { clientId, year, month: { in: toDelete } } })]
+      : []),
+    ...entries.map((e) =>
+      prisma.employeeCount.upsert({
+        where: { clientId_year_month: { clientId, year, month: e.month } },
+        create: { clientId, year, month: e.month, count: e.count },
+        update: { count: e.count },
+      })
+    ),
+  ]);
 
   await recordClientMutation({
     clientId,
     actorId: user.id,
-    action: count === null ? "delete" : existing ? "update" : "create",
+    action: "update",
     entityType: "employee_count",
-    entityId: `${clientId}:${year}-${String(month).padStart(2, "0")}`,
-    before,
-    after: count === null ? null : { count },
-    metadata: { year, month },
+    entityId: `${clientId}:${year}`,
+    before: { entries: existing.map((e) => ({ month: e.month, count: Number(e.count) })) },
+    after: { entries },
+    metadata: { year, deleted: toDelete },
   });
 
   await bumpClientDataVersion(clientId);

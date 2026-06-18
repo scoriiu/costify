@@ -82,7 +82,7 @@ interface Props {
   /** Monotonic version. Any change invalidates client-side caches. */
   dataVersion: number;
   entryCount: number;
-  /** Stored monthly employee counts, for the Setari "Angajati pe luna" section. */
+  /** Stored monthly employee counts, for the Setari "Numar mediu de angajati" section. */
   employeeCounts: EmployeeCountPoint[];
   importEvents: ImportEventInfo[];
   periods: DatasetPeriod[];
