@@ -11,12 +11,14 @@
  */
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
+import { Tooltip } from "@/components/ui/tooltip";
 import type {
   KpiCoverageReport,
   KpiCoverageRow,
   CoverageStatus,
+  AuxiliaryUnlockView,
 } from "@/modules/reporting/industry/coverage";
 
 const STATUS_META: Record<CoverageStatus, { label: string; className: string }> = {
@@ -36,6 +38,7 @@ function rowMatches(row: KpiCoverageRow, q: string): boolean {
     row.detail?.formulaAntreprenor,
     row.detail?.group,
     ...(row.detail?.inputs.flatMap((i) => [i.label, i.source]) ?? []),
+    ...row.missingAux.flatMap((a) => [a.label, a.source]),
   ]
     .filter(Boolean)
     .join(" ")
@@ -82,6 +85,8 @@ export function CoverageExplorer({ report }: { report: KpiCoverageReport }) {
         )}
       </div>
 
+      {!query.trim() && <AuxiliaryPanel auxiliary={report.auxiliary} />}
+
       {sections.length === 0 && (
         <p className="mt-8 text-[13px] text-gray" style={{ letterSpacing: "-0.02em" }}>
           Niciun KPI nu se potriveste cautarii.
@@ -97,6 +102,87 @@ export function CoverageExplorer({ report }: { report: KpiCoverageReport }) {
         />
       ))}
     </>
+  );
+}
+
+function AuxiliaryPanel({ auxiliary }: { auxiliary: AuxiliaryUnlockView[] }) {
+  const relevant = auxiliary.filter(
+    (a) => a.unlocksAlone.length > 0 || a.contributesTo.length > 0
+  );
+  if (relevant.length === 0) return null;
+
+  return (
+    <section className="mt-8" data-testid="auxiliary-panel">
+      <h2 className="text-[16px] font-semibold text-white" style={{ letterSpacing: "-0.04em" }}>
+        Surse auxiliare. Cat deblocheaza fiecare
+      </h2>
+      <p className="mt-2 max-w-3xl text-[13px] text-gray" style={{ letterSpacing: "-0.02em" }}>
+        Date care nu exista in jurnal dar pe care contabilul le poate colecta lunar,
+        odata cu incarcarea. Pentru fiecare sursa: cati indicatori devin calculabili
+        imediat (singura) si la cati contribuie partial (mai au nevoie de alte surse).
+      </p>
+      <div className="mt-4 overflow-hidden rounded-xl border border-dark-3 bg-dark-2">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-dark-3">
+              <th className="py-2.5 px-3 font-mono text-[0.6rem] uppercase tracking-wider text-gray border-r border-white/[0.04]">
+                Sursa auxiliara
+              </th>
+              <th className="py-2.5 px-3 font-mono text-[0.6rem] uppercase tracking-wider text-gray border-r border-white/[0.04]">
+                Frecventa
+              </th>
+              <th className="py-2.5 px-3 text-center font-mono text-[0.6rem] uppercase tracking-wider text-gray border-r border-white/[0.04]">
+                Deblocheaza singura
+              </th>
+              <th className="py-2.5 px-3 font-mono text-[0.6rem] uppercase tracking-wider text-gray">
+                Indicatori
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {relevant.map((a) => (
+              <tr
+                key={a.id}
+                className="border-b border-dark-3/50 last:border-b-0 align-top hover:bg-dark-2/40"
+                data-testid={`auxiliary-row-${a.id}`}
+              >
+                <td className="py-2.5 px-3 text-[13px] text-gray-light border-r border-white/[0.04]">
+                  <div>{a.label}</div>
+                  <div className="mt-0.5 text-[11px] text-gray">{a.source}</div>
+                </td>
+                <td className="py-2.5 px-3 font-mono text-[11px] uppercase text-gray border-r border-white/[0.04]">
+                  {a.cadence}
+                </td>
+                <td className="py-2.5 px-3 text-center border-r border-white/[0.04]">
+                  <span
+                    className={`inline-block min-w-7 rounded-md border px-2 py-0.5 font-mono text-[13px] font-semibold ${
+                      a.unlocksAlone.length > 0
+                        ? "border-green/20 bg-green/5 text-green"
+                        : "border-dark-3 text-gray"
+                    }`}
+                  >
+                    {a.unlocksAlone.length}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 text-[12px] text-gray-light">
+                  {a.unlocksAlone.length > 0 && (
+                    <div>
+                      <span className="text-green">Direct: </span>
+                      {a.unlocksAlone.join(", ")}
+                    </div>
+                  )}
+                  {a.contributesTo.length > 0 && (
+                    <div className="mt-1 text-gray">
+                      Partial: {a.contributesTo.join(", ")}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -151,7 +237,7 @@ function CoverageTable({
 
 function CoverageRow({ row }: { row: KpiCoverageRow }) {
   const [open, setOpen] = useState(false);
-  const expandable = row.detail !== null;
+  const expandable = row.detail !== null || row.missingAux.length > 0;
 
   return (
     <>
@@ -184,16 +270,66 @@ function CoverageRow({ row }: { row: KpiCoverageRow }) {
         <td className="py-2 px-3 font-mono text-[12px] text-gray-light border-r border-white/[0.04]">
           {row.registryId ?? ""}
         </td>
-        <td className="py-2 px-3 text-[12px] leading-relaxed text-gray">{row.note ?? ""}</td>
+        <td className="py-2 px-3 text-[12px] leading-relaxed text-gray">
+          {row.missingAux.length > 0 && (
+            <Tooltip
+              content={`Devine calculabil daca se colecteaza: ${row.missingAux
+                .map((a) => a.label)
+                .join(", ")}.`}
+            >
+              <span className="mb-1 inline-flex items-center gap-1 rounded-md border border-blue/20 bg-blue/5 px-1.5 py-0.5 font-mono text-[10px] uppercase text-blue">
+                <Plus size={10} />
+                {row.missingAux.length} {row.missingAux.length === 1 ? "atribut" : "atribute"}
+              </span>
+            </Tooltip>
+          )}
+          {row.note && <span className="block">{row.note}</span>}
+        </td>
       </tr>
-      {open && row.detail && (
+      {open && expandable && (
         <tr className="border-b border-dark-3/50 last:border-b-0 bg-dark/30">
           <td colSpan={4} className="py-3 px-3">
-            <DetailPanel row={row} />
+            {row.detail ? <DetailPanel row={row} /> : <AuxOnlyPanel row={row} />}
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+function MissingAuxField({ row }: { row: KpiCoverageRow }) {
+  if (row.missingAux.length === 0) return null;
+  return (
+    <Field label="Atribute necesare (surse auxiliare)">
+      <table className="mt-1 w-full max-w-3xl border-collapse">
+        <tbody>
+          {row.missingAux.map((a) => (
+            <tr key={a.id} className="border-b border-dark-3/40 align-top">
+              <td className="py-1.5 pr-3 whitespace-nowrap text-blue">{a.label}</td>
+              <td className="py-1.5 pr-3 whitespace-nowrap font-mono text-[11px] uppercase text-gray">
+                {a.cadence}
+              </td>
+              <td className="py-1.5 text-gray">{a.source}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Field>
+  );
+}
+
+function AuxOnlyPanel({ row }: { row: KpiCoverageRow }) {
+  return (
+    <div
+      className="ml-5 space-y-3 border-l-2 border-blue/40 pl-4 text-[12px]"
+      data-testid={`coverage-aux-${row.specName}`}
+    >
+      <p className="text-gray-light">
+        Acest indicator nu exista inca in registru, dar devine calculabil din datele
+        din jurnal plus atributele de mai jos.
+      </p>
+      <MissingAuxField row={row} />
+    </div>
   );
 }
 
@@ -248,6 +384,8 @@ function DetailPanel({ row }: { row: KpiCoverageRow }) {
           <span className="text-warn">{d.unavailableReason}</span>
         </Field>
       )}
+
+      <MissingAuxField row={row} />
 
       <Field label="Interpretare">
         <span className="max-w-3xl leading-relaxed text-gray-light">{d.interpretationContabil}</span>

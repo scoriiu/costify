@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { isInternalUser } from "@/lib/internal-access";
-import { getKpiCoverage } from "@/modules/reporting/industry/coverage";
+import { getKpiCoverage, countUnlocked } from "@/modules/reporting/industry/coverage";
 import { CoverageExplorer } from "./coverage-explorer";
 
 export const metadata = { title: "KPI Coverage" };
@@ -15,6 +15,7 @@ export default async function KpiCoveragePage() {
 
   const report = getKpiCoverage();
   const pct = Math.round((report.totals.computed / report.totals.total) * 100);
+  const employeeUnlocks = countUnlocked(new Set(["numberOfEmployees"]));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
@@ -39,6 +40,17 @@ export default async function KpiCoveragePage() {
         <SummaryCard label="Calculate" value={report.totals.computed} tone="text-green" suffix={` (${pct}%)`} />
         <SummaryCard label="Asteapta date op." value={report.totals.placeholder} tone="text-warn" />
         <SummaryCard label="Neimplementate" value={report.totals.omitted} />
+      </div>
+
+      <div className="mt-4 rounded-xl border border-blue/20 bg-blue/5 p-4">
+        <p className="text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
+          Daca am colecta lunar doar{" "}
+          <span className="font-semibold text-white">numarul de angajati</span>, ar
+          deveni calculabili{" "}
+          <span className="font-mono font-semibold text-blue">{employeeUnlocks}</span>{" "}
+          indicatori (venituri per angajat si profit per angajat). Vezi toate sursele
+          auxiliare mai jos.
+        </p>
       </div>
 
       <CoverageExplorer report={report} />

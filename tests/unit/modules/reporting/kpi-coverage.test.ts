@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getKpiCoverage } from "@/modules/reporting/industry/coverage";
+import { getKpiCoverage, countUnlocked } from "@/modules/reporting/industry/coverage";
 import { KPI_BY_ID } from "@/modules/reporting/industry/registry";
+import {
+  AUXILIARY_INPUTS,
+  KPI_AUX_REQUIREMENTS,
+  unlockedBy,
+} from "@/modules/reporting/industry/auxiliary";
 
 describe("getKpiCoverage", () => {
   const report = getKpiCoverage();
@@ -64,6 +69,46 @@ describe("getKpiCoverage", () => {
     for (const row of all) {
       expect(row.specName.includes("\u2014"), row.specName).toBe(false);
       expect((row.note ?? "").includes("\u2014"), row.specName).toBe(false);
+      for (const a of row.missingAux) {
+        expect(a.label.includes("\u2014"), a.label).toBe(false);
+        expect(a.source.includes("\u2014"), a.source).toBe(false);
+      }
+    }
+  });
+
+  it("computed KPIs never list missing auxiliary attributes", () => {
+    const all = [...report.sections.flatMap((s) => s.rows), ...report.extraRows];
+    for (const row of all.filter((r) => r.status === "computed")) {
+      expect(row.missingAux.length, row.specName).toBe(0);
+    }
+  });
+
+  it("missingAux only references known auxiliary inputs", () => {
+    const all = [...report.sections.flatMap((s) => s.rows), ...report.extraRows];
+    for (const row of all) {
+      for (const a of row.missingAux) {
+        expect(AUXILIARY_INPUTS[a.id], a.id).toBeDefined();
+      }
+    }
+  });
+
+  it("every aux requirement key maps to a real row (registryId or spec name)", () => {
+    const all = [...report.sections.flatMap((s) => s.rows), ...report.extraRows];
+    const keys = new Set<string>([
+      ...all.map((r) => r.registryId).filter(Boolean) as string[],
+      ...all.map((r) => r.specName),
+    ]);
+    for (const key of Object.keys(KPI_AUX_REQUIREMENTS)) {
+      expect(keys.has(key), `aux requirement key "${key}" has no coverage row`).toBe(true);
+    }
+  });
+
+  it("report.auxiliary is sorted by impact, descending", () => {
+    const a = report.auxiliary;
+    for (let i = 1; i < a.length; i++) {
+      const prev = a[i - 1].unlocksAlone.length;
+      const cur = a[i].unlocksAlone.length;
+      expect(prev).toBeGreaterThanOrEqual(cur);
     }
   });
 
@@ -85,6 +130,33 @@ describe("getKpiCoverage", () => {
       if (row.status === "placeholder") {
         expect(row.detail!.unavailableReason, row.specName).not.toBeNull();
       }
+    }
+  });
+});
+
+describe("auxiliary unlocks", () => {
+  it("employee count alone unlocks exactly venitPerAngajat + profit/venit per angajat", () => {
+    const unlocked = unlockedBy(new Set(["numberOfEmployees"]));
+    expect(unlocked.sort()).toEqual(
+      ["Profit / Angajat", "Venit / Angajat", "venitPerAngajat"].sort()
+    );
+    expect(countUnlocked(new Set(["numberOfEmployees"]))).toBe(3);
+  });
+
+  it("MRR needs two aux inputs, neither alone unlocks it", () => {
+    expect(unlockedBy(new Set(["activeSubscribers"]))).not.toContain("mrr");
+    expect(unlockedBy(new Set(["subscriptionRevenue"]))).not.toContain("mrr");
+    expect(unlockedBy(new Set(["activeSubscribers", "subscriptionRevenue"]))).toContain("mrr");
+  });
+
+  it("no aux input collected unlocks nothing", () => {
+    expect(countUnlocked(new Set())).toBe(0);
+  });
+
+  it("every aux input is referenced by at least one KPI requirement", () => {
+    const used = new Set(Object.values(KPI_AUX_REQUIREMENTS).flat());
+    for (const id of Object.keys(AUXILIARY_INPUTS)) {
+      expect(used.has(id as never), `aux input ${id} is defined but unused`).toBe(true);
     }
   });
 });

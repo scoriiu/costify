@@ -12,6 +12,14 @@
 
 import { KPI_BY_ID, KPI_REGISTRY, type KpiDefinition } from "./registry";
 import { INPUT_SOURCES } from "./inputs";
+import {
+  auxInputsFor,
+  auxiliaryUnlockReport,
+  unlockedBy,
+  type AuxiliaryInput,
+  type AuxiliaryInputId,
+  type AuxiliaryUnlock,
+} from "./auxiliary";
 
 export type CoverageStatus = "computed" | "placeholder" | "omitted";
 
@@ -48,6 +56,21 @@ export interface KpiCoverageRow extends KpiCoverageSpecItem {
   appLabel: string | null;
   /** Full formula trace, present iff the KPI exists in the registry. */
   detail: KpiCoverageDetail | null;
+  /** Auxiliary (operational) inputs that would make this KPI computable.
+   *  Empty when the KPI is already computed or genuinely out of scope. */
+  missingAux: AuxiliaryInput[];
+}
+
+/** What-if summary for a single auxiliary input. */
+export interface AuxiliaryUnlockView {
+  id: AuxiliaryInputId;
+  label: string;
+  cadence: string;
+  source: string;
+  /** KPIs this input unlocks on its own. */
+  unlocksAlone: string[];
+  /** KPIs it contributes to but which still need other inputs. */
+  contributesTo: string[];
 }
 
 export interface KpiCoverageReport {
@@ -55,6 +78,8 @@ export interface KpiCoverageReport {
   /** Registry KPIs that exist beyond the spec files. */
   extraRows: KpiCoverageRow[];
   totals: { computed: number; placeholder: number; omitted: number; total: number };
+  /** Per-auxiliary-input unlock breakdown, sorted by impact. */
+  auxiliary: AuxiliaryUnlockView[];
 }
 
 const OPERATIONAL = "Necesita date operationale (nu exista in jurnalul contabil).";
@@ -231,16 +256,31 @@ function toDetail(def: KpiDefinition): KpiCoverageDetail {
   };
 }
 
+/** Aux requirements are keyed by registryId when present, else the spec name. */
+function missingAuxFor(registryId: string | null, specName: string, computed: boolean): AuxiliaryInput[] {
+  if (computed) return [];
+  return auxInputsFor(registryId ?? specName);
+}
+
 function resolveRow(item: KpiCoverageSpecItem): KpiCoverageRow {
   const def = item.registryId ? KPI_BY_ID.get(item.registryId) : undefined;
   if (!def) {
-    return { ...item, registryId: null, status: "omitted", appLabel: null, detail: null };
+    return {
+      ...item,
+      registryId: null,
+      status: "omitted",
+      appLabel: null,
+      detail: null,
+      missingAux: missingAuxFor(item.registryId, item.specName, false),
+    };
   }
+  const computed = !def.unavailableReason;
   return {
     ...item,
-    status: def.unavailableReason ? "placeholder" : "computed",
+    status: computed ? "computed" : "placeholder",
     appLabel: def.labelContabil,
     detail: toDetail(def),
+    missingAux: missingAuxFor(def.id, item.specName, computed),
   };
 }
 
@@ -262,6 +302,7 @@ export function getKpiCoverage(): KpiCoverageReport {
       appLabel: d.labelContabil,
       note: "Adaugat de Costify peste specificatiile din Excel.",
       detail: toDetail(d),
+      missingAux: missingAuxFor(d.id, d.labelContabil, !d.unavailableReason),
     })
   );
 
@@ -273,5 +314,26 @@ export function getKpiCoverage(): KpiCoverageReport {
     total: allRows.length,
   };
 
-  return { sections, extraRows, totals };
+  const auxiliary: AuxiliaryUnlockView[] = auxiliaryUnlockReport()
+    .map((u: AuxiliaryUnlock) => ({
+      id: u.input.id,
+      label: u.input.label,
+      cadence: u.input.cadence,
+      source: u.input.source,
+      unlocksAlone: u.unlocksAlone,
+      contributesTo: u.contributesTo,
+    }))
+    .sort(
+      (a, b) =>
+        b.unlocksAlone.length - a.unlocksAlone.length ||
+        b.contributesTo.length - a.contributesTo.length
+    );
+
+  return { sections, extraRows, totals, auxiliary };
+}
+
+/** How many currently-uncomputable KPIs become computable for a given set of
+ *  collected auxiliary inputs. Used by the what-if summary on the page. */
+export function countUnlocked(collected: ReadonlySet<AuxiliaryInputId>): number {
+  return unlockedBy(collected).length;
 }
