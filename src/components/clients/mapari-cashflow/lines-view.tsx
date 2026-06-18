@@ -341,7 +341,7 @@ function ActivateLines({
         </h3>
         <p className="mt-2 text-[13px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
           Imparte firma pe activitati (Outsourcing, Recrutare, Coworking) ca sa
-          vezi cat aduce si cat costa fiecare. Apoi mapezi categorii, conturi sau
+          vezi cat aduce si cat costa fiecare. Apoi mapezi linii de cost, conturi sau
           parteneri pe fiecare linie, in procente.
         </p>
         {adding ? (
@@ -658,7 +658,7 @@ function FirmDefaultControl({
         >
           Impartirea implicita
         </span>
-        <Tooltip content="Tot ce nu are o regula proprie (categorie, cont, partener) se imparte asa. O setezi o data.">
+        <Tooltip content="Tot ce nu are o regula proprie (linie de cost, cont, partener) se imparte asa. O setezi o data.">
           <span className="font-mono text-[9px] text-gray cursor-help">?</span>
         </Tooltip>
       </div>
@@ -1222,7 +1222,7 @@ function SortHeader({
   );
   return (
     <div className={`grid ${GRID} items-center gap-2 px-3 pb-1`}>
-      {cell("name", "Categorie", "left")}
+      {cell("name", "Linie de cost", "left")}
       {cell("count", "Conturi", "right")}
       <span className="text-right font-mono text-[9px] uppercase tracking-wider text-gray" style={{ letterSpacing: "-0.02em" }}>
         %
@@ -1398,7 +1398,7 @@ function CategoryRow({
           </span>
           <span className="flex items-center justify-end">
             {cat.categoryId && (
-              <Tooltip content="Schimba pe ce linii merge aceasta categorie.">
+              <Tooltip content="Schimba pe ce linii merge aceasta linie de cost.">
                 <span
                   role="button"
                   tabIndex={0}
@@ -1407,7 +1407,7 @@ function CategoryRow({
                     onEditCategory({ id: cat.categoryId!, name: cat.name, kind });
                   }}
                   className="p-1 text-gray hover:text-primary"
-                  aria-label="Editeaza linia categoriei"
+                  aria-label="Editeaza impartirea liniei de cost"
                 >
                   <Pencil size={12} />
                 </span>

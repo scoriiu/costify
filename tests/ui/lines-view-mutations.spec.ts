@@ -147,7 +147,7 @@ test.describe("Linii de business — mutation flows", () => {
       .filter({ hasText: /Marfa, materii prime si materiale/ })
       .first();
     await marfaRow
-      .getByRole("button", { name: /Editeaza linia categoriei/ })
+      .getByRole("button", { name: /Editeaza impartirea liniei de cost/ })
       .click();
 
     const dialog = page.getByRole("dialog", { name: /Editeaza liniile/ });

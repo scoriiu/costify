@@ -283,7 +283,7 @@ function describeForAccountant(r: AuditRecord): string {
       }
       if (r.action === "delete") {
         return prevCat
-          ? `a sters exceptia pentru "${partner}" pe cont ${cont} (era "${prevCat}", revine la categoria contului)`
+          ? `a sters exceptia pentru "${partner}" pe cont ${cont} (era "${prevCat}", revine la linia de cost a contului)`
           : `a sters exceptia pentru "${partner}" pe cont ${cont}`;
       }
       if (r.action === "approve") {

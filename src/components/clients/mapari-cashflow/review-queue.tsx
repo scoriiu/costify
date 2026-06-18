@@ -312,7 +312,7 @@ function QueueCard({
             className="font-mono text-[10px] uppercase tracking-wider text-gray"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Alege alta categorie
+            Alege alta linie de cost
           </p>
           <Select
             value={pickedCategory}
@@ -436,7 +436,7 @@ function QueueEmpty() {
         className="text-[12px] text-gray mt-2"
         style={{ letterSpacing: "-0.02em" }}
       >
-        Cand mapezi un partener pe un cont, sistemul propune aceeasi categorie
+        Cand mapezi un partener pe un cont, sistemul propune aceeasi linie de cost
         cand acelasi partener apare pe alt cont.
       </p>
     </div>

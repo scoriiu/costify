@@ -217,7 +217,7 @@ function ReplaceWarning({ existingEntries }: { existingEntries: number }) {
             )}
           </p>
           <p className="mt-2 text-gray">
-            Maparile pe categorii raman neschimbate si se aplica automat
+            Maparile pe linii de cost raman neschimbate si se aplica automat
             intrarilor noi.
           </p>
         </div>

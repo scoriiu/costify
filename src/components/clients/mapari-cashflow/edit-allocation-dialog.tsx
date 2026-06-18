@@ -468,7 +468,7 @@ function DialogHeader({
         ? `primeste ${formatRon(entity.rulaj)} lei din exceptii de partener · ${
             entity.financialKind === "expense" ? "cheltuiala" : "venit"
           }`
-        : `categorie · ${
+        : `linie de cost · ${
             entity.financialKind === "expense" ? "cheltuiala" : "venit"
           }`;
 
@@ -555,12 +555,12 @@ function ViewMode({
 
   const emptyStateMessage =
     entity.kind === "firm"
-      ? "Firma nu are inca o impartire implicita pe linii de business. Pana o setezi, tot ce nu are regula proprie merge integral pe \"Toata firma\". Seteaza una si toate categoriile, conturile si partenerii o mostenesc automat."
+      ? "Firma nu are inca o impartire implicita pe linii de business. Pana o setezi, tot ce nu are regula proprie merge integral pe \"Toata firma\". Seteaza una si toate liniile de cost, conturile si partenerii o mostenesc automat."
       : entity.kind === "partner"
       ? "Acest partener urmeaza linia de business a contului. Pune-i o impartire proprie doar daca activitatea lui difera de a contului."
       : entity.kind === "account"
-      ? "Acest cont nu are alocare explicita — mosteneste linia de business din categoria lui, sau impartirea firmei."
-      : "Aceasta categorie nu are o impartire proprie pe linii de business — mosteneste impartirea firmei. Seteaz-o si toate conturile din categorie o vor urma automat.";
+      ? "Acest cont nu are alocare explicita. Mosteneste linia de business din linia de cost a lui, sau impartirea firmei."
+      : "Aceasta linie de cost nu are o impartire proprie pe linii de business. Mosteneste impartirea firmei. Seteaz-o si toate conturile din linia de cost o vor urma automat.";
 
   return (
     <div className="p-5 space-y-5">

@@ -35,8 +35,8 @@ export function TrustBadge({
 
   const tooltipContent =
     partnerOverrideCount > 0
-      ? `Contabilul a revizuit manual maparea cheltuielilor si veniturilor pe categorii intelese de antreprenor. ${coveragePercent}% din rulajul perioadei e mapat explicit, plus ${partnerOverrideCount} reguli pe parteneri specifici.`
-      : `Contabilul a revizuit manual maparea cheltuielilor si veniturilor pe categorii intelese de antreprenor. ${coveragePercent}% din rulajul perioadei e mapat explicit.`;
+      ? `Contabilul a revizuit manual maparea cheltuielilor si veniturilor pe linii de cost intelese de antreprenor. ${coveragePercent}% din rulajul perioadei e mapat explicit, plus ${partnerOverrideCount} reguli pe parteneri specifici.`
+      : `Contabilul a revizuit manual maparea cheltuielilor si veniturilor pe linii de cost intelese de antreprenor. ${coveragePercent}% din rulajul perioadei e mapat explicit.`;
 
   return (
     <Tooltip content={tooltipContent}>

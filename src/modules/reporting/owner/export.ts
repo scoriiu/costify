@@ -315,7 +315,7 @@ function buildBreakdown(
 ): void {
   setWidths(ws, [46, 16, 12]);
   addTitle(ws, title, "Procentul este formula Excel raportata la randul Total.", 3);
-  addHeader(ws, ["Categorie", "Suma", "% din total"]);
+  addHeader(ws, ["Linie de cost", "Suma", "% din total"]);
 
   const first = ws.rowCount + 1;
   const rootCount = items.filter((i) => (i.depth ?? 0) === 0).length;
@@ -340,7 +340,7 @@ function buildBreakdown(
     }
   });
 
-  const total = ws.addRow([`Total (suma celor ${rootCount} categorii principale)`, grandTotal, null]);
+  const total = ws.addRow([`Total (suma celor ${rootCount} linii de cost principale)`, grandTotal, null]);
   leiCell(total.getCell(2));
   total.eachCell({ includeEmpty: true }, (cell) => {
     cell.font = { bold: true, size: 10, color: { argb: C.ink } };

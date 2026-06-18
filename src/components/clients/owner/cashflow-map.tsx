@@ -155,14 +155,14 @@ export function CashflowMap({
             style={{ letterSpacing: "-0.04em" }}
           >
             Pe ce s-au dus banii, de unde au venit
-            <ChartInfo text="Harta banilor lunii. Fiecare patrat e o categorie: in stanga cheltuielile, in dreapta veniturile. Cu cat patratul e mai mare, cu atat suma e mai mare. Apasa pe un patrat ca sa vezi ce contine. Cu butoanele de luni de deasupra schimbi luna afisata, fara sa parasesti pagina." />
+            <ChartInfo text="Harta banilor lunii. Fiecare patrat e o linie de cost: in stanga cheltuielile, in dreapta veniturile. Cu cat patratul e mai mare, cu atat suma e mai mare. Apasa pe un patrat ca sa vezi ce contine. Cu butoanele de luni de deasupra schimbi luna afisata, fara sa parasesti pagina." />
           </h3>
           <p
             className="text-[11px] text-gray mt-0.5 max-w-2xl"
             style={{ letterSpacing: "-0.02em" }}
           >
             Cat e patratul mai mare, cu atat suma e mai mare. Apasa pe o
-            categorie ca sa vezi ce contine.
+            linie de cost ca sa vezi ce contine.
           </p>
         </div>
         {selectedId && (
@@ -739,7 +739,7 @@ function CategoryDetail({
           className="text-[12px] text-gray italic py-2"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Aceasta categorie nu are sub-grupe.
+          Aceasta linie de cost nu are sub-grupe.
         </p>
       ) : (
         <ul className="space-y-0.5">

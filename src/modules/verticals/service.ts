@@ -421,7 +421,7 @@ export async function setCategoryAllocation(
     select: { id: true },
   });
   if (!category) {
-    throw new Error("Categoria nu exista pentru aceasta firma");
+    throw new Error("Linia de cost nu exista pentru aceasta firma");
   }
 
   return prisma.categoryVerticalAllocation.upsert({

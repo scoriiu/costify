@@ -220,9 +220,9 @@ test.describe("Linii de business — redesigned view", () => {
       .locator("li")
       .filter({ hasText: /Marfa, materii prime si materiale/ })
       .first();
-    // The pencil "Editeaza linia categoriei" button.
+    // The pencil "Editeaza impartirea liniei de cost" button.
     await marfaRow
-      .getByRole("button", { name: /Editeaza linia categoriei/ })
+      .getByRole("button", { name: /Editeaza impartirea liniei de cost/ })
       .click();
 
     // The dialog opens. It must reflect the EXISTING 50/50 split — both

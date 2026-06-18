@@ -189,7 +189,7 @@ function DetailList({ items }: { items: CashflowBreakdown["operatingDetail"] }) 
           className="text-[12px] text-gray-light"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Nicio miscare semnificativa pe aceasta categorie luna asta.
+          Nicio miscare semnificativa pe aceasta linie de cost luna asta.
         </p>
       </div>
     );

@@ -125,10 +125,10 @@ export async function createCategory(
 ) {
   const trimmedName = input.name.trim();
   if (trimmedName.length === 0) {
-    throw new Error("Numele categoriei nu poate fi gol");
+    throw new Error("Numele liniei de cost nu poate fi gol");
   }
   if (trimmedName.length > 80) {
-    throw new Error("Numele categoriei este prea lung (max 80 caractere)");
+    throw new Error("Numele liniei de cost este prea lung (max 80 caractere)");
   }
 
   if (input.parentId) {
@@ -136,10 +136,10 @@ export async function createCategory(
       where: { id: input.parentId, clientId: input.clientId },
     });
     if (!parent) {
-      throw new Error("Categoria parinte nu exista pentru aceasta firma");
+      throw new Error("Linia de cost parinte nu exista pentru aceasta firma");
     }
     if (parent.kind !== input.kind) {
-      throw new Error("Subcategoria trebuie sa aiba acelasi tip ca parintele");
+      throw new Error("Sub-linia de cost trebuie sa aiba acelasi tip ca parintele");
     }
     // Max two levels: a subgroup cannot itself have subgroups.
     if (parent.parentId !== null) {
@@ -174,13 +174,13 @@ export async function renameCategory(
   newName: string
 ) {
   const trimmed = newName.trim();
-  if (trimmed.length === 0) throw new Error("Numele categoriei nu poate fi gol");
+  if (trimmed.length === 0) throw new Error("Numele liniei de cost nu poate fi gol");
   if (trimmed.length > 80) throw new Error("Numele este prea lung (max 80)");
 
   const existing = await prisma.costCategory.findFirst({
     where: { id: categoryId, clientId },
   });
-  if (!existing) throw new Error("Categoria nu exista pentru aceasta firma");
+  if (!existing) throw new Error("Linia de cost nu exista pentru aceasta firma");
 
   return prisma.costCategory.update({
     where: { id: categoryId },
@@ -204,11 +204,11 @@ export async function deleteCategory(
     where: { id: categoryId, clientId },
     include: { _count: { select: { children: true, mappings: true } } },
   });
-  if (!existing) throw new Error("Categoria nu exista pentru aceasta firma");
+  if (!existing) throw new Error("Linia de cost nu exista pentru aceasta firma");
 
   if (existing._count.children > 0) {
     throw new Error(
-      "Aceasta categorie are subcategorii. Sterge intai subcategoriile."
+      "Aceasta linie de cost are sub-linii. Sterge intai sub-liniile."
     );
   }
 
@@ -251,7 +251,7 @@ export async function mapAccount(
     where: { id: input.categoryId, clientId: input.clientId },
   });
   if (!category) {
-    throw new Error("Categoria nu exista pentru aceasta firma");
+    throw new Error("Linia de cost nu exista pentru aceasta firma");
   }
 
   return prisma.accountCategoryMapping.upsert({

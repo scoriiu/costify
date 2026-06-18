@@ -552,8 +552,8 @@ function BulkActionBar({
     targets.every((p) => p.override === null);
 
   const headerSentence = isSubset
-    ? `Atribuie cei ${targetCount} parteneri din rezultatul curent (${formatRon(targetRulaj)} lei) la categoria:`
-    : `Atribuie toti cei ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei) la categoria:`;
+    ? `Atribuie cei ${targetCount} parteneri din rezultatul curent (${formatRon(targetRulaj)} lei) la linia de cost:`
+    : `Atribuie toti cei ${targetCount} ${targetCount === 1 ? "partener" : "parteneri"} (${formatRon(targetRulaj)} lei) la linia de cost:`;
 
   /**
    * `overwriteMode=false` (default): only fresh targets are written; partners
@@ -606,7 +606,7 @@ function BulkActionBar({
               value={categoryId}
               options={categoryOptions}
               onChange={setCategoryId}
-              placeholder="Alege categoria..."
+              placeholder="Alege linia de cost..."
             />
           </div>
           <Button
@@ -623,9 +623,9 @@ function BulkActionBar({
             className="text-[11px] text-gray"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Categoria selectata este deja default-ul contului
-            ({contCategoryName}) — nu este nimic de redirectionat. Alege alta
-            categorie pentru a face exceptii.
+            Linia de cost selectata este deja default-ul contului
+            ({contCategoryName}). Nu este nimic de redirectionat. Alege alta
+            linie de cost pentru a face exceptii.
           </p>
         )}
         {error && (
@@ -747,7 +747,7 @@ function BulkPreviewModal({
           <span className="font-mono tabular-nums">
             {formatRon(totalRulaj)} lei
           </span>
-          ) la categoria{" "}
+          ) la linia de cost{" "}
           <strong className="text-white">{categoryLabel}</strong>
           {isSubset ? " (rezultatul filtrului curent)" : ""}.
         </p>
@@ -826,11 +826,11 @@ function BulkPreviewModal({
               {overwriteCount === 1
                 ? "exceptie manuala existenta"
                 : "exceptii manuale existente"}{" "}
-              cu categoria selectata.
+              cu linia de cost selectata.
               {overwriteDisabled && (
                 <span className="block text-[11px] text-gray mt-0.5">
                   Suprascrierea cu default-ul contului ar crea exceptii
-                  redundante — alege alta categorie pentru a activa.
+                  redundante. Alege alta linie de cost pentru a activa.
                 </span>
               )}
             </span>
@@ -1105,7 +1105,7 @@ function DistributionBlock({
   const allOverridden = followCount === 0;
   const headline = allOverridden ? (
     <>
-      Toti partenerii au exceptie individuala. Categoria contului (
+      Toti partenerii au exceptie individuala. Linia de cost a contului (
       <span className="text-gray-light">{contCategoryName}</span>) nu se aplica
       pe aceasta perioada.
     </>
@@ -1454,7 +1454,7 @@ function PartnerRow({
       data-exception={isExcepted ? "true" : undefined}
     >
       {isSuggested && (
-        <Tooltip content="Sugerat din memoria contului. Confirma sau alege alta categorie.">
+        <Tooltip content="Sugerat din memoria contului. Confirma sau alege alta linie de cost.">
           <span
             className="w-1.5 h-1.5 rounded-full bg-tone-warn shrink-0"
             aria-label="Sugerat"
@@ -1491,7 +1491,7 @@ function PartnerRow({
             />
           </div>
           {isExcepted && (
-            <Tooltip content="Acest partener are exceptie individuala — merge la o alta categorie decat default-ul contului.">
+            <Tooltip content="Acest partener are exceptie individuala. Merge la o alta linie de cost decat default-ul contului.">
               <span
                 className="shrink-0 inline-flex items-center font-mono text-[9px] uppercase tracking-wider px-1.5 py-[1px] rounded bg-primary/15 text-primary border border-primary/30 cursor-help"
                 style={{ letterSpacing: "0.02em" }}

@@ -33,7 +33,7 @@ async function authorizeClient(clientId: string): Promise<{ userId: string } | n
 const createCategorySchema = z.object({
   clientId: z.string().min(1),
   parentId: z.string().nullable(),
-  name: z.string().min(1, "Numele categoriei este obligatoriu").max(80),
+  name: z.string().min(1, "Numele liniei de cost este obligatoriu").max(80),
   kind: z.enum(["expense", "revenue"]),
 });
 
@@ -95,7 +95,7 @@ export async function renameCategoryAction(
       where: { id: parsed.data.categoryId, clientId: parsed.data.clientId },
       select: { name: true },
     });
-    if (!existing) return { error: "Categoria nu exista" };
+    if (!existing) return { error: "Linia de cost nu exista" };
 
     const updated = await service.renameCategory(
       prisma,

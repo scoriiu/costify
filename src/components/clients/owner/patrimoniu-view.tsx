@@ -199,7 +199,7 @@ function PatrimoniuColumn({
       {nonZero.length === 0 && (
         <div className="rounded-lg border border-dashed border-dark-3 bg-dark-3/20 p-6 text-center">
           <p className="text-[12px] text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-            Nicio valoare in aceasta categorie la data selectata.
+            Nicio valoare in aceasta linie de cost la data selectata.
           </p>
         </div>
       )}

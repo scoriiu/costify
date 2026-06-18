@@ -321,7 +321,7 @@ export function AllExceptionsDialog({
               <SearchInput
                 value={query}
                 onChange={setQuery}
-                placeholder="Cauta dupa partener, cont, sau categorie..."
+                placeholder="Cauta dupa partener, cont, sau linie de cost..."
               />
             </div>
 
@@ -654,7 +654,7 @@ function ExceptionRow({
   function removeOverride() {
     if (
       !confirm(
-        `Sterg exceptia pentru "${row.partnerNameOriginal}" pe cont ${row.contBase}? Va reveni la categoria contului.`
+        `Sterg exceptia pentru "${row.partnerNameOriginal}" pe cont ${row.contBase}? Va reveni la linia de cost a contului.`
       )
     )
       return;
@@ -805,7 +805,7 @@ function ExceptionRow({
                 </span>
               </Tooltip>
             )}
-            <Tooltip content="Sterge exceptia (partenerul revine la categoria contului)">
+            <Tooltip content="Sterge exceptia (partenerul revine la linia de cost a contului)">
               <button
                 type="button"
                 onClick={removeOverride}
@@ -858,7 +858,7 @@ function EmptyState() {
         className="text-[12px] text-gray max-w-md mx-auto"
         style={{ letterSpacing: "-0.02em" }}
       >
-        Cand suprascrii un partener pe un cont catre alta categorie decat
+        Cand suprascrii un partener pe un cont catre alta linie de cost decat
         cea a contului, exceptia va aparea aici. Pana atunci, toti
         partenerii urmeaza maparea contului.
       </p>

@@ -34,7 +34,7 @@ export const DOC_NAVIGATION: DocCategory[] = [
     label: "Modulul Cashflow",
     description: "Limbajul si conceptele de baza ale maparii",
     pages: [
-      { slug: "cashflow-limbajul-mapari", title: "Limbajul maparii — o singura pagina pentru tot", description: "Cele 4 cuvinte de baza + cascada split-ului pe linii de business (firma → categorie → cont → partener), cu exemple concrete. Doar procente fixe." },
+      { slug: "cashflow-limbajul-mapari", title: "Limbajul maparii, o singura pagina pentru tot", description: "Cele 4 cuvinte de baza + cascada split-ului pe linii de business (firma, categorie, cont, partener), cu exemple concrete. Doar procente fixe." },
     ],
   },
   {

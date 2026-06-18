@@ -595,7 +595,7 @@ const VIEW_INTRO: Record<ViewMode, { title: string; desc: string }> = {
   },
   verticals: {
     title: "Liniile de business",
-    desc: "Imparte firma pe activitati si vezi cat aduce si cat costa fiecare linie. Mapezi categorii, conturi sau parteneri pe fiecare linie.",
+    desc: "Imparte firma pe activitati si vezi cat aduce si cat costa fiecare linie. Mapezi linii de cost, conturi sau parteneri pe fiecare linie.",
   },
 };
 
@@ -1049,7 +1049,7 @@ function CategoryNode({
               </span>
             )}
             {node.isOmfpDefault && (
-              <Tooltip content="Categorie generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
+              <Tooltip content="Linie de cost generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
                 <span className="font-mono text-[9px] uppercase tracking-wider text-gray shrink-0 cursor-help">
                   OMFP
                 </span>
@@ -1263,7 +1263,7 @@ function FirmSplitBand({
         >
           Impartirea firmei
         </span>
-        <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (categorie, cont sau partener) o mosteneste automat. O singura regula, aplicata live in fiecare luna.">
+        <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (linie de cost, cont sau partener) o mosteneste automat. O singura regula, aplicata live in fiecare luna.">
           <span className="font-mono text-[9px] text-gray cursor-help">?</span>
         </Tooltip>
       </div>
@@ -1322,7 +1322,7 @@ function CategorySplitControl({ node }: { node: CostCategoryNode }) {
 
   if (own) {
     return (
-      <Tooltip content="Impartirea pe linii de business a acestei categorii. Se aplica tuturor conturilor si partenerilor din ea. Click pentru a edita.">
+      <Tooltip content="Impartirea pe linii de business a acestei linii de cost. Se aplica tuturor conturilor si partenerilor din ea. Click pentru a edita.">
         <button
           type="button"
           data-testid={`category-split-${node.id}`}
@@ -1342,8 +1342,8 @@ function CategorySplitControl({ node }: { node: CostCategoryNode }) {
     <Tooltip
       content={
         firm && firm.length > 0
-          ? "Aceasta categorie mosteneste impartirea firmei. Click ca sa-i dai o impartire proprie."
-          : "Aceasta categorie merge integral pe \"Toata firma\". Click ca sa o imparti pe linii de business."
+          ? "Aceasta linie de cost mosteneste impartirea firmei. Click ca sa-i dai o impartire proprie."
+          : "Aceasta linie de cost merge integral pe \"Toata firma\". Click ca sa o imparti pe linii de business."
       }
     >
       <button
@@ -1386,7 +1386,7 @@ function ContResidueMarker({
   const tooltip = (
     <>
       Acest cont are <strong>{formatRon(redirected)} lei</strong> redirectati
-      la alte categorii prin exceptii de partener. Orizontala contului se
+      la alte linii de cost prin exceptii de partener. Orizontala contului se
       aplica doar pe reziduul de <strong>{formatRon(residual)} lei</strong>.
     </>
   );
@@ -1443,14 +1443,14 @@ function CategoryResidueMarker({
       return `Se distribuie: ${pieces}.`;
     }
     const def = residue.verticals.find((v) => v.isDefault);
-    return `Merg la ${def?.name ?? "verticala implicita"}. Click pentru a seta orizontala categoriei.`;
+    return `Merg la ${def?.name ?? "verticala implicita"}. Click pentru a seta orizontala liniei de cost.`;
   })();
 
   const topSources = inflow.sources.slice(0, 3);
   const tooltip = (
     <>
       <div>
-        Aceasta categorie primeste <strong>{formatRon(inflow.amount)} lei</strong>{" "}
+        Aceasta linie de cost primeste <strong>{formatRon(inflow.amount)} lei</strong>{" "}
         din exceptii de partener.
       </div>
       {topSources.length > 0 && (
@@ -1544,7 +1544,7 @@ function ContSplitBadge({
   const sourceLabel = isOwn
     ? "Regula proprie a contului."
     : source === "category"
-    ? "Mosteneste impartirea categoriei."
+    ? "Mosteneste impartirea liniei de cost."
     : "Mosteneste impartirea firmei.";
 
   return (

@@ -473,7 +473,7 @@ function CashflowTabBar({
   }[] = [
     {
       id: "categorii",
-      label: "Categorii",
+      label: "Linii de cost",
       hint: "Cum se grupeaza cheltuielile si veniturile pentru patron",
       icon: Layers,
       badge:
@@ -680,7 +680,7 @@ function LinesOfBusinessBand({
           >
             Linii de business
           </h3>
-          <Tooltip content="Activitatile firmei. Fiecare categorie, cont sau partener se imparte intre ele. Defineste-le o data aici.">
+          <Tooltip content="Activitatile firmei. Fiecare linie de cost, cont sau partener se imparte intre ele. Defineste-le o data aici.">
             <span className="font-mono text-[10px] text-gray cursor-help">?</span>
           </Tooltip>
         </div>
@@ -730,7 +730,7 @@ function LinesOfBusinessBand({
           >
             Impartirea firmei (implicita)
           </span>
-          <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (categorie, cont sau partener) o mosteneste automat.">
+          <Tooltip content="Impartirea implicita pe linii de business. Tot ce nu are o regula proprie (linie de cost, cont sau partener) o mosteneste automat.">
             <span className="font-mono text-[9px] text-gray cursor-help">?</span>
           </Tooltip>
         </div>
@@ -1848,7 +1848,7 @@ function ExpandedColumn({
                         Aceasta linie absoarbe{" "}
                         <strong>{formatRon(residueAbsorbed)} lei</strong> din
                         reziduul exceptiilor de partener, pentru ca acele
-                        exceptii pica pe categorii fara orizontala proprie
+                        exceptii pica pe linii de cost fara orizontala proprie
                         setata.{" "}
                         {residueFilterActive
                           ? "Apasa din nou ca sa elimini filtrul."
@@ -2359,7 +2359,7 @@ function ContInlineBreakdown({
             className="mt-1 text-[10px] text-gray italic"
             style={{ letterSpacing: "-0.02em" }}
           >
-            Banii cad pe {vertical.name} pentru ca aceste categorii nu au
+            Banii cad pe {vertical.name} pentru ca aceste linii de cost nu au
             orizontala proprie setata.
           </p>
         </div>
@@ -2748,7 +2748,7 @@ function PageHeader({
           className="mt-1 max-w-3xl text-[13px] text-gray-light"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Organizeaza conturile firmei in categorii usor de inteles pentru
+          Organizeaza conturile firmei in linii de cost usor de inteles pentru
           antreprenor. Acestea apar pe /firma sub &quot;Unde s-au dus banii&quot;
           si &quot;De unde au venit banii&quot;. Sumele de mai jos sunt
           rulajul cumulat
@@ -2769,7 +2769,7 @@ function PageHeader({
             style={{ letterSpacing: "-0.02em" }}
           >
             Am pornit cu taxonomia standard OMFP. Editeaz&apos;o cum vrei —
-            redenumeste, adauga subcategorii, sterge ce nu se aplica.
+            redenumeste, adauga sub-linii de cost, sterge ce nu se aplica.
           </p>
         </div>
       )}
@@ -3118,7 +3118,7 @@ function CategorySection({
       )}
 
       {roots.length === 0 && addingAt !== "ROOT" && (
-        <p className="text-[12px] text-gray italic">Nicio categorie inca.</p>
+        <p className="text-[12px] text-gray italic">Nicio linie de cost inca.</p>
       )}
 
       <ul className="space-y-0.5">
@@ -3181,21 +3181,21 @@ function CategoryTreeNode({
               {node.name}
             </span>
             {node.isOmfpDefault && (
-              <Tooltip content="Categorie generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
+              <Tooltip content="Linie de cost generata automat la prima vizita din planul de conturi standard OMFP. Poti redenumi sau sterge fara probleme.">
                 <span className="font-mono text-[9px] uppercase tracking-wider text-gray shrink-0 cursor-help">
                   OMFP
                 </span>
               </Tooltip>
             )}
             {node.mappingCount > 0 && (
-              <Tooltip content={`${node.mappingCount} conturi mapate direct la aceasta categorie.`}>
+              <Tooltip content={`${node.mappingCount} conturi mapate direct la aceasta linie de cost.`}>
                 <span className="font-mono text-[10px] text-gray tabular-nums shrink-0 cursor-help">
                   {node.mappingCount}
                 </span>
               </Tooltip>
             )}
             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-              <Tooltip content="Adauga sub-categorie. Va aparea indentata sub aceasta categorie pe /firma.">
+              <Tooltip content="Adauga sub-linie de cost. Va aparea indentata sub aceasta linie de cost pe /firma.">
                 <button
                   type="button"
                   onClick={() => setAddingAt(node.id)}
@@ -3204,7 +3204,7 @@ function CategoryTreeNode({
                   <Plus size={11} />
                 </button>
               </Tooltip>
-              <Tooltip content="Redenumeste categoria.">
+              <Tooltip content="Redenumeste linia de cost.">
                 <button
                   type="button"
                   onClick={() => setRenaming(true)}
@@ -3297,7 +3297,7 @@ function NewCategoryRow({
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nume categorie noua"
+          placeholder="Nume linie de cost noua"
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
             if (e.key === "Escape") onCancel();
@@ -3391,7 +3391,7 @@ function DeleteCategoryButton({
   function submit() {
     if (
       !confirm(
-        `Sterg categoria "${node.name}"? Aceasta actiune se inregistreaza in istoric.`
+        `Sterg linia de cost "${node.name}"? Aceasta actiune se inregistreaza in istoric.`
       )
     )
       return;
@@ -3411,7 +3411,7 @@ function DeleteCategoryButton({
   }
 
   return (
-    <Tooltip content={error ?? "Sterge categoria. Trebuie sa muti intai conturile alocate la alta categorie."}>
+    <Tooltip content={error ?? "Sterge linia de cost. Trebuie sa muti intai conturile alocate la alta linie de cost."}>
       <button
         type="button"
         onClick={submit}
@@ -3622,8 +3622,8 @@ function AccountListPanel({
                   {(residueSourceContCount ?? visibleCount) === 1
                     ? "cont sursa"
                     : "conturi sursa"}
-                  . Conturile au exceptii de partener redirectate la categorii
-                  fara orizontala proprie — banii cad pe verticala implicita.
+                  . Conturile au exceptii de partener redirectate la linii de cost
+                  fara orizontala proprie. Banii cad pe verticala implicita.
                 </span>
               </>
             ) : (
@@ -3810,7 +3810,7 @@ function AccountRow({
           </span>
         </Tooltip>
         {account.currentMapping === null && (
-          <Tooltip content="Acest cont nu are categorie atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
+          <Tooltip content="Acest cont nu are linie de cost atribuita. Pe /firma va aparea grupat generic dupa codul OMFP.">
             <span className="inline-flex items-center gap-1 text-[10px] text-neg cursor-help shrink-0">
               <AlertTriangle size={10} /> Nemapat
             </span>
