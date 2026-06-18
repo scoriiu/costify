@@ -739,7 +739,7 @@ function CategoryDetail({
           className="text-[12px] text-gray italic py-2"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Aceasta linie de cost nu are sub-grupe.
+          Aceasta linie de cost nu are sub-linii.
         </p>
       ) : (
         <ul className="space-y-0.5">

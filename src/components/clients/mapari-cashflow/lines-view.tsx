@@ -175,7 +175,7 @@ function buildModel(
     const root = resolved?.root ?? null;
     const subgroup = resolved?.subgroup ?? null;
     const catKey = root?.id ?? "__none__";
-    const catName = root?.name ?? "Fara grup";
+    const catName = root?.name ?? "Fara linie de cost";
 
     for (const s of splits) {
       if (s.percent <= 0) continue;
@@ -1501,7 +1501,7 @@ function SubgroupRow({
             {sub.name}
           </span>
           <span className="shrink-0 rounded border border-dark-3 px-1 py-0.5 font-mono text-[9px] uppercase tracking-wider text-gray">
-            sub-grup
+            sub-linie
           </span>
         </span>
         <span className="text-right font-mono text-[10px] text-gray tabular-nums">
@@ -1514,7 +1514,7 @@ function SubgroupRow({
           {formatLei(sideAmount)}
         </span>
         <span className="flex items-center justify-end">
-          <Tooltip content="Schimba pe ce linii merge acest sub-grup.">
+          <Tooltip content="Schimba pe ce linii merge aceasta sub-linie de cost.">
             <span
               role="button"
               tabIndex={0}
@@ -1523,7 +1523,7 @@ function SubgroupRow({
                 onEditCategory({ id: sub.categoryId, name: sub.name, kind: tone });
               }}
               className="p-1 text-gray hover:text-primary"
-              aria-label="Editeaza linia sub-grupului"
+              aria-label="Editeaza impartirea sub-liniei de cost"
             >
               <Pencil size={11} />
             </span>

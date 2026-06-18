@@ -586,12 +586,12 @@ export function CategoryWorkspace({
 // changes — so the switcher never appears to "move" between views.
 const VIEW_INTRO: Record<ViewMode, { title: string; desc: string }> = {
   list: {
-    title: "Conturile firmei pe grupuri patron",
-    desc: "Fiecare grup arata cum apare pe pagina patronului (/firma). Conturile sunt indentate sub grupul lor. Adauga, redenumeste sau muta direct de aici.",
+    title: "Conturile firmei pe linii de cost",
+    desc: "Fiecare linie de cost arata cum apare pe pagina patronului (/firma). Conturile sunt indentate sub linia lor de cost. Adauga, redenumeste sau muta direct de aici.",
   },
   treemap: {
-    title: "Harta grupurilor",
-    desc: "Aceleasi grupuri, dimensionate dupa cat cantaresc. Vezi dintr-o privire unde se duc banii firmei.",
+    title: "Harta liniilor de cost",
+    desc: "Aceleasi linii de cost, dimensionate dupa cat cantaresc. Vezi dintr-o privire unde se duc banii firmei.",
   },
   verticals: {
     title: "Liniile de business",
@@ -672,15 +672,15 @@ function WorkspaceFilters({
       {unmappedCount > 0 && (
         <p className="text-[11px] text-neg" style={{ letterSpacing: "-0.02em" }}>
           {unmappedCount === 1
-            ? "1 cont nu e inca asezat in niciun grup."
-            : `${unmappedCount} conturi nu sunt inca asezate in niciun grup.`}
+            ? "1 cont nu e inca asezat in nicio linie de cost."
+            : `${unmappedCount} conturi nu sunt inca asezate in nicio linie de cost.`}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           value={query}
           onChange={onQueryChange}
-          placeholder="Cauta dupa cont, denumire sau grup..."
+          placeholder="Cauta dupa cont, denumire sau linie de cost..."
           className="flex-1 min-w-[240px] max-w-md"
         />
         <ToggleGroup<Filter>
@@ -737,15 +737,15 @@ function UnmappedAccountsCallout({
           style={{ letterSpacing: "-0.04em" }}
         >
           {accounts.length === 1
-            ? "1 cont fara grupare"
-            : `${accounts.length} conturi fara grupare`}
+            ? "1 cont fara linie de cost"
+            : `${accounts.length} conturi fara linie de cost`}
         </span>
         <span
           className="text-[11px] text-gray flex-1"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Aceste conturi apar pe /firma intr-un grup generic. Aseaza-le in
-          grupul potrivit ca patronul sa vada nume clare.
+          Aceste conturi apar pe /firma intr-o linie de cost generica. Aseaza-le in
+          linia de cost potrivita ca patronul sa vada nume clare.
         </span>
       </button>
 
@@ -830,7 +830,7 @@ function CategoryGroup({
             className="inline-flex items-center gap-1 text-[12px] text-primary hover:text-primary-light"
             style={{ letterSpacing: "-0.02em" }}
           >
-            <Plus size={14} /> Adauga grup
+            <Plus size={14} /> Adauga linie de cost
           </button>
         )}
       </div>
@@ -856,8 +856,8 @@ function CategoryGroup({
           style={{ letterSpacing: "-0.02em" }}
         >
           {trimmedQuery
-            ? "Niciun grup nu se potriveste cautarii."
-            : "Niciun grup inca. Apasa +Adauga grup."}
+            ? "Nicio linie de cost nu se potriveste cautarii."
+            : "Nicio linie de cost inca. Apasa +Adauga linie de cost."}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -1045,7 +1045,7 @@ function CategoryNode({
                 className="font-mono text-[9px] uppercase tracking-wider text-primary/70 border border-primary/30 rounded px-1 py-0.5 shrink-0"
                 style={{ letterSpacing: "0.04em" }}
               >
-                sub-grup
+                sub-linie
               </span>
             )}
             {node.isOmfpDefault && (
@@ -1064,18 +1064,18 @@ function CategoryNode({
             <CategoryResidueMarker node={node} />
             <div className="flex items-center gap-0.5 shrink-0">
               {depth === 0 && (
-                <Tooltip content="Adauga sub-grup. Apare indentat sub acesta pe /firma.">
+                <Tooltip content="Adauga sub-linie de cost. Apare indentata sub aceasta pe /firma.">
                   <button
                     type="button"
                     onClick={() => setAddingSubcategory(true)}
                     className="p-1.5 text-gray hover:text-primary"
-                    aria-label="Adauga sub-grup"
+                    aria-label="Adauga sub-linie de cost"
                   >
                     <FolderPlus size={14} />
                   </button>
                 </Tooltip>
               )}
-              <Tooltip content="Adauga un cont la acest grup.">
+              <Tooltip content="Adauga un cont la aceasta linie de cost.">
                 <button
                   type="button"
                   onClick={() => setAddingAccount(true)}
@@ -1085,7 +1085,7 @@ function CategoryNode({
                   <Plus size={14} />
                 </button>
               </Tooltip>
-              <Tooltip content="Redenumeste grupul.">
+              <Tooltip content="Redenumeste linia de cost.">
                 <button
                   type="button"
                   onClick={() => setRenaming(true)}
@@ -1620,7 +1620,7 @@ function AccountRow({
   function unmap() {
     if (
       !confirm(
-        `Sterg gruparea pentru ${account.cont}? Va aparea pe /firma intr-un grup generic.`
+        `Scot ${account.cont} din linia de cost? Va aparea pe /firma intr-o linie de cost generica.`
       )
     )
       return;
@@ -1720,7 +1720,7 @@ function AccountRow({
         </Tooltip>
       )}
       <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 transition-opacity">
-        <Tooltip content="Muta acest cont la alt grup patron.">
+        <Tooltip content="Muta acest cont la alta linie de cost.">
           <button
             type="button"
             onClick={() => setMoving(true)}
@@ -1731,7 +1731,7 @@ function AccountRow({
           </button>
         </Tooltip>
         {account.currentMapping && (
-          <Tooltip content="Sterge gruparea. Contul revine la 'fara grupare'.">
+          <Tooltip content="Scoate contul din linia de cost. Revine la 'fara linie de cost'.">
             <button
               type="button"
               onClick={unmap}
@@ -1819,7 +1819,7 @@ function NewCategoryInline({
           if (e.key === "Enter") submit();
           if (e.key === "Escape") onCancel();
         }}
-        placeholder="Numele grupului (cum apare pe /firma)"
+        placeholder="Numele liniei de cost (cum apare pe /firma)"
         disabled={pending}
         className="flex-1"
       />
@@ -1908,15 +1908,15 @@ function DeleteCategoryButton({
       <Tooltip
         content={
           isSubgroup
-            ? "Sterge sub-grupul. Conturile lui se muta in grupul parinte."
-            : "Sterge grupul. Conturile lui raman fara grupare."
+            ? "Sterge sub-linia de cost. Conturile ei se muta in linia de cost parinte."
+            : "Sterge linia de cost. Conturile ei raman fara linie de cost."
         }
       >
         <button
           type="button"
           onClick={() => setOpen(true)}
           className="p-1.5 text-gray hover:text-neg"
-          aria-label="Sterge grupul"
+          aria-label="Sterge linia de cost"
         >
           <Trash2 size={14} />
         </button>
@@ -1984,12 +1984,12 @@ function DeleteCategoryModal({
             className="text-lg font-semibold text-white"
             style={{ letterSpacing: "-0.04em" }}
           >
-            {isSubgroup ? "Sterge sub-grupul" : "Sterge grupul"}
+            {isSubgroup ? "Sterge sub-linia de cost" : "Sterge linia de cost"}
           </h2>
         </div>
 
         <p className="mb-4 text-sm text-gray-light" style={{ letterSpacing: "-0.02em" }}>
-          Stergi {isSubgroup ? "sub-grupul" : "grupul"}{" "}
+          Stergi {isSubgroup ? "sub-linia de cost" : "linia de cost"}{" "}
           <strong className="text-white">{node.name}</strong>?
         </p>
 
@@ -2002,7 +2002,7 @@ function DeleteCategoryModal({
                   <strong className="text-white">
                     {contCount} {contCount === 1 ? "cont" : "conturi"}
                   </strong>{" "}
-                  din el se vor muta automat in grupul parinte. Nu se pierde
+                  din ea se vor muta automat in linia de cost parinte. Nu se pierde
                   nimic.
                 </>
               ) : (
@@ -2011,7 +2011,7 @@ function DeleteCategoryModal({
                   <strong className="text-white">
                     {contCount} {contCount === 1 ? "cont" : "conturi"}
                   </strong>{" "}
-                  din el vor ramane fara grupare (le poti reasigna oricand).
+                  din ea vor ramane fara linie de cost (le poti reasigna oricand).
                 </>
               )}
             </p>
@@ -2021,7 +2021,7 @@ function DeleteCategoryModal({
         {hasChildren && (
           <div className="mb-4 rounded-lg border border-danger/20 bg-danger/5 p-3">
             <p className="text-sm text-danger" style={{ letterSpacing: "-0.02em" }}>
-              Acest grup are sub-grupuri. Sterge-le intai.
+              Aceasta linie de cost are sub-linii. Sterge-le intai.
             </p>
           </div>
         )}
@@ -2067,7 +2067,7 @@ function AddAccountToCategory({
         value: a.cont,
         label:
           a.currentMapping !== null
-            ? `${a.cont} · ${a.denumire} (mutat de la alt grup)`
+            ? `${a.cont} · ${a.denumire} (mutat de la alta linie de cost)`
             : `${a.cont} · ${a.denumire}`,
       }));
   }, [accounts, category]);
@@ -2193,7 +2193,7 @@ function MoveAccountInline({
         <Select
           value={targetId}
           onChange={setTargetId}
-          placeholder="Alege grupul..."
+          placeholder="Alege linia de cost..."
           options={options}
         />
       </div>

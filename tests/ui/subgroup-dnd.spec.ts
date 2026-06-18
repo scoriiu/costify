@@ -161,7 +161,7 @@ function groupHeader(page: Page, name: string) {
 function groupCard(page: Page, name: string) {
   return page
     .locator("li")
-    .filter({ has: page.locator("span", { hasText: "sub-grup" }) })
+    .filter({ has: page.locator("span", { hasText: "sub-linie" }) })
     .filter({ hasText: name })
     .last();
 }
@@ -204,24 +204,24 @@ test.describe("Subgroup UX — instant DnD, delete modal, depth-2", () => {
     expect(await dbCategoryOf(CONT)).toBe(subgroupId);
   });
 
-  test("1. Subgroup shows a 'sub-grup' tag and NO add-subgroup button", async ({
+  test("1. Subgroup shows a 'sub-linie' tag and NO add-subgroup button", async ({
     context,
   }) => {
     const page = await authedPage(context);
     await openLista(page);
 
-    // The subgroup header carries the "sub-grup" tag.
+    // The subgroup header carries the "sub-linie" tag.
     const subHeader = groupHeader(page, SUBGROUP_NAME);
-    await expect(subHeader.getByText("sub-grup")).toBeVisible({ timeout: 6000 });
+    await expect(subHeader.getByText("sub-linie")).toBeVisible({ timeout: 6000 });
 
-    // Subgroup header must NOT offer "Adauga sub-grup" (depth-2 rule).
+    // Subgroup header must NOT offer "Adauga sub-linie de cost" (depth-2 rule).
     await expect(
-      subHeader.getByRole("button", { name: "Adauga sub-grup" })
+      subHeader.getByRole("button", { name: "Adauga sub-linie de cost" })
     ).toHaveCount(0);
     // The top-level parent DOES offer it.
     const parentHeader = groupHeader(page, PARENT_NAME);
     await expect(
-      parentHeader.getByRole("button", { name: "Adauga sub-grup" }).first()
+      parentHeader.getByRole("button", { name: "Adauga sub-linie de cost" }).first()
     ).toBeVisible();
   });
 
@@ -417,14 +417,14 @@ test.describe("Subgroup UX — instant DnD, delete modal, depth-2", () => {
 
     const tempHeader = groupHeader(page, tempName);
     await expect(tempHeader).toBeVisible({ timeout: 6000 });
-    await tempHeader.getByRole("button", { name: "Sterge grupul" }).click();
+    await tempHeader.getByRole("button", { name: "Sterge linia de cost" }).click();
 
     // Our styled modal appears (heading + the reparent explanation).
     await expect(
-      page.getByRole("heading", { name: "Sterge sub-grupul" })
+      page.getByRole("heading", { name: "Sterge sub-linia de cost" })
     ).toBeVisible({ timeout: 4000 });
     await expect(
-      page.getByText(/se vor muta automat in grupul parinte/i)
+      page.getByText(/se vor muta automat in linia de cost parinte/i)
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Sterge", exact: true }).click();

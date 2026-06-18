@@ -137,7 +137,7 @@ async function openListaAndFind(page: Page, cont: string) {
   await page.goto(MAPARI_URL);
   await page.waitForSelector("text=Cheltuieli", { timeout: 8000 });
   // Default view is Lista (the workspace). Search narrows + force-expands.
-  const search = page.getByPlaceholder(/Cauta dupa cont, denumire sau grup/);
+  const search = page.getByPlaceholder(/Cauta dupa cont, denumire sau linie de cost/);
   await expect(search).toBeVisible({ timeout: 6000 });
   await search.fill(cont);
 }
@@ -174,7 +174,7 @@ async function openMoveEditor(page: Page, cont: string) {
   return editor;
 }
 
-/** Open the move-target Select (the one showing "Alege grupul...") and pick
+/** Open the move-target Select (the one showing "Alege linia de cost...") and pick
  *  the option whose label matches `optionName`. Scoped to avoid the page's
  *  year selector, which is also an aria-haspopup=listbox button. */
 async function pickMoveTarget(

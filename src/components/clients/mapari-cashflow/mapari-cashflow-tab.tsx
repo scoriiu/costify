@@ -3495,11 +3495,11 @@ function AccountListPanel({
 
   const headerTitle =
     mode === "category"
-      ? "Conturile firmei — pe grupuri"
-      : "Conturile firmei — pe linii de business";
+      ? "Conturile firmei, pe linii de cost"
+      : "Conturile firmei, pe linii de business";
   const headerSubtitle =
     mode === "category"
-      ? "Aseaza fiecare cont in grupul potrivit pentru patron. Lista e sortata dupa rulaj — incepe cu cele mai mari."
+      ? "Aseaza fiecare cont in linia de cost potrivita pentru patron. Lista e sortata dupa rulaj, incepe cu cele mai mari."
       : "Aloca fiecare cont pe verticala potrivita (sau lasa la 'Toata firma' daca e cheltuiala generala). Lista e sortata dupa rulaj.";
 
   const filterOptions: {
@@ -3565,8 +3565,8 @@ function AccountListPanel({
               ,{" "}
               <span className="font-semibold text-neg">
                 {unmappedCount === 1
-                  ? "1 fara grupare"
-                  : `${unmappedCount} fara grupare`}
+                  ? "1 fara linie de cost"
+                  : `${unmappedCount} fara linie de cost`}
               </span>
             </>
           )}

@@ -496,7 +496,7 @@ function CategoryDetail({
           className="text-[12px] text-gray italic py-4 text-center"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Niciun cont mapat la acest grup.
+          Niciun cont mapat la aceasta linie de cost.
         </p>
       ) : (
         <ul className="space-y-0.5">
@@ -669,7 +669,7 @@ function CategoryTreeView({
           style={{ letterSpacing: "-0.02em" }}
         >
           Aceleasi date, structurate ca arbore cu bara de proportie. Apasa pe
-          un grup ca sa-l vezi evidentiat si in harta.
+          o linie de cost ca sa o vezi evidentiata si in harta.
         </p>
       </div>
 
@@ -736,7 +736,7 @@ function TreeSide({
           className="text-[11px] text-gray italic py-2"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Niciun grup cu rulaj.
+          Nicio linie de cost cu rulaj.
         </p>
       ) : (
         <ul className="space-y-0.5">
