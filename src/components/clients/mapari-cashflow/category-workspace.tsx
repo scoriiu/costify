@@ -21,12 +21,15 @@
  */
 
 import { useState, useTransition, useMemo, useEffect, useCallback, useRef, createContext, useContext } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft, FolderPlus, FolderTree, Check, List, LayoutGrid, Columns3 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft, FolderPlus, FolderTree, Check, List, LayoutGrid, Columns3, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEscapeKey } from "@/lib/use-escape-key";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
+import { PeriodScopeControl, scopeFromKind } from "./period-scope-control";
+import { PeriodProvider, useViewedPeriod } from "./period-context";
+import type { MappingPeriodScope } from "@/lib/period";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
 import type {
@@ -307,6 +310,11 @@ export function CategoryWorkspace({
       setRecentlyMovedCont(cont);
       if (movedTimer.current) clearTimeout(movedTimer.current);
       movedTimer.current = setTimeout(() => setRecentlyMovedCont(null), 2200);
+      // Drag-drop is the fast, coarse gesture: it always maps for ALL periods
+      // (no periodScope = inception), preserving the pre-ADR-0004 behaviour and
+      // never fragmenting the timeline on a quick drag. Period-precise edits go
+      // through the deliberate "muta" / "aseaza" inline forms, which expose the
+      // PeriodScopeControl. This keeps the gesture predictable and simple.
       void mapAccountAction({
         clientId,
         cont: account.cont,
@@ -465,7 +473,9 @@ export function CategoryWorkspace({
 
   if (view === "verticals") {
     return (
-      <>
+      // PeriodProvider so allocation dialogs opened from the Linii de business
+      // view also expose the period-scope control (ADR-0004), same as the list.
+      <PeriodProvider value={period}>
         <WorkspaceShell view={view} onViewChange={changeView}>
           <LinesView
             accounts={accounts}
@@ -488,11 +498,12 @@ export function CategoryWorkspace({
           onClose={() => setPanelAccount(null)}
           onMutate={onMutate}
         />
-      </>
+      </PeriodProvider>
     );
   }
 
   return (
+    <PeriodProvider value={period}>
     <PartnerPanelContext.Provider value={{ open: setPanelAccount }}>
      <ContDragContext.Provider value={dragValue}>
      <ResidueContext.Provider value={residueValue}>
@@ -578,6 +589,7 @@ export function CategoryWorkspace({
      </ResidueContext.Provider>
      </ContDragContext.Provider>
     </PartnerPanelContext.Provider>
+    </PeriodProvider>
   );
 }
 
@@ -1715,6 +1727,17 @@ function AccountRow({
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[60px]">
         {account.cont}
       </span>
+      {account.mappingPeriodScoped && (
+        <Tooltip content="Maparea acestui cont variaza in timp. Linia afisata este cea valabila in luna selectata.">
+          <span
+            className="shrink-0 inline-flex text-primary-light/70"
+            data-testid={`cont-period-scoped-${account.cont}`}
+            aria-label="Mapare pe perioade"
+          >
+            <Clock size={11} />
+          </span>
+        </Tooltip>
+      )}
       <span
         className="flex-1 min-w-0 text-[12px] text-gray-light truncate"
         style={{ letterSpacing: "-0.02em" }}
@@ -1761,6 +1784,8 @@ function AccountRow({
             type="button"
             onClick={() => setMoving(true)}
             disabled={pending}
+            data-testid={`move-cont-${account.cont}`}
+            aria-label={`Muta contul ${account.cont}`}
             className="p-1.5 text-gray hover:text-primary"
           >
             <ArrowRightLeft size={14} />
@@ -2089,8 +2114,10 @@ function AddAccountToCategory({
   onCancel: () => void;
 }) {
   const [selectedCont, setSelectedCont] = useState("");
+  const [scopeKind, setScopeKind] = useState<MappingPeriodScope["kind"]>("all");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const viewedPeriod = useViewedPeriod();
 
   // Valid options: same kind as the category, not already mapped to this
   // exact category. Accounts mapped elsewhere are still allowed (this is
@@ -2122,6 +2149,7 @@ function AddAccountToCategory({
         cont: account.cont,
         scope: account.cont !== account.contBase ? "analytic" : "contBase",
         categoryId: category.id,
+        periodScope: scopeFromKind(scopeKind, viewedPeriod),
       });
       if (r.error) setError(r.error);
       else onDone();
@@ -2152,6 +2180,7 @@ function AddAccountToCategory({
           Renunta
         </Button>
       </div>
+      <PeriodScopeControl value={scopeKind} onChange={setScopeKind} period={viewedPeriod} />
       {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );
@@ -2171,8 +2200,10 @@ function MoveAccountInline({
   onCancel: () => void;
 }) {
   const [targetId, setTargetId] = useState("");
+  const [scopeKind, setScopeKind] = useState<MappingPeriodScope["kind"]>("all");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const viewedPeriod = useViewedPeriod();
 
   // Flatten tree of the right kind into a picker, sub-categories prefixed
   // with their parent so the contabil sees the full path.
@@ -2208,6 +2239,7 @@ function MoveAccountInline({
         cont: account.cont,
         scope: account.cont !== account.contBase ? "analytic" : "contBase",
         categoryId: targetId,
+        periodScope: scopeFromKind(scopeKind, viewedPeriod),
       });
       if (r.error) setError(r.error);
       else onDone();
@@ -2215,30 +2247,33 @@ function MoveAccountInline({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0">
-        {account.cont}
-      </span>
-      <span
-        className="text-[12px] text-gray shrink-0"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        muta la:
-      </span>
-      <div className="flex-1">
-        <Select
-          value={targetId}
-          onChange={setTargetId}
-          placeholder="Alege linia de cost..."
-          options={options}
-        />
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0">
+          {account.cont}
+        </span>
+        <span
+          className="text-[12px] text-gray shrink-0"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          muta la:
+        </span>
+        <div className="flex-1">
+          <Select
+            value={targetId}
+            onChange={setTargetId}
+            placeholder="Alege linia de cost..."
+            options={options}
+          />
+        </div>
+        <Button onClick={submit} disabled={pending || !targetId}>
+          Muta
+        </Button>
+        <Button variant="ghost" onClick={onCancel} disabled={pending}>
+          Renunta
+        </Button>
       </div>
-      <Button onClick={submit} disabled={pending || !targetId}>
-        Muta
-      </Button>
-      <Button variant="ghost" onClick={onCancel} disabled={pending}>
-        Renunta
-      </Button>
+      <PeriodScopeControl value={scopeKind} onChange={setScopeKind} period={viewedPeriod} />
       {error && <p className="text-[11px] text-neg">{error}</p>}
     </div>
   );

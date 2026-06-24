@@ -54,3 +54,36 @@ export {
 
 export { loadOwnerSnapshot } from "./snapshot";
 export type { LoadOwnerSnapshotInput } from "./snapshot";
+
+export {
+  buildWindow,
+  computeLineSeriesGeneric,
+  computeCostLineSeries,
+  computeBusinessLineSeries,
+} from "./line-series";
+export type {
+  LineSeries,
+  LineSeriesResult,
+  SeriesMonth,
+  LineBreakdownItem,
+  BusinessLineMetric,
+  CostLineSeriesInput,
+  BusinessLineSeriesInput,
+} from "./line-series";
+
+export { loadLineTrends } from "./line-trends";
+export type { LoadLineTrendsInput, LineTrendsData } from "./line-trends";
+export { computeCategoryConfigChanges } from "./config-timeline";
+export type {
+  CategoryConfigChanges,
+  MonthConfigChange,
+  ContMembershipChange,
+} from "./config-timeline";
+export { computePeriodConfigOverview } from "./config-overview";
+export type {
+  PeriodConfigItem,
+  ConfigSegment,
+  ConfigGroup,
+} from "./config-overview";
+export { computeConfigChangelog } from "./config-changelog";
+export type { ConfigChange } from "./config-changelog";

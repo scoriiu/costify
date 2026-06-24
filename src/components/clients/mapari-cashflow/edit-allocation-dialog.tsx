@@ -36,6 +36,9 @@ import { Select } from "@/components/ui/select";
 import { useEscapeKey } from "@/lib/use-escape-key";
 import type { VerticalView, AllocationSplit } from "@/modules/verticals/types";
 import type { AccountListItem } from "@/modules/categories";
+import type { MappingPeriodScope } from "@/lib/period";
+import { PeriodScopeControl, scopeFromKind } from "./period-scope-control";
+import { useViewedPeriod } from "./period-context";
 import {
   setAllocationAction,
   clearAllocationAction,
@@ -81,8 +84,13 @@ export interface AllocationDialogEntity {
    *  Used to show + pre-fill the editor from the parent instead of a blank
    *  100% on the first vertical. */
   inheritedSplits?: AllocationSplit[];
-  /** Bound save callback. Caller wires to the right server action. */
-  save: (splits: AllocationSplit[]) => Promise<{ error?: string }>;
+  /** Bound save callback. Caller wires to the right server action. The optional
+   *  periodScope (ADR-0004 D3) is chosen in the dialog and forwarded to the
+   *  action; omitted = all periods (inception). */
+  save: (
+    splits: AllocationSplit[],
+    periodScope?: MappingPeriodScope
+  ) => Promise<{ error?: string }>;
   /** Bound clear callback. Caller wires to the right server action. */
   clear: () => Promise<{ error?: string }>;
 }
@@ -138,12 +146,13 @@ export function EditAllocationDialog({
     financialKind: account.kind,
     currentAllocation: account.currentAllocation,
     inheritedSplits,
-    save: (splits) =>
+    save: (splits, periodScope) =>
       setAllocationAction({
         clientId,
         scope: account.cont !== account.contBase ? "analytic" : "contBase",
         cont: account.cont,
         splits,
+        periodScope,
       }),
     clear: () => clearAllocationAction({ clientId, cont: account.cont }),
   };
@@ -196,8 +205,8 @@ export function EditCategoryAllocationDialog({
     rulaj: inflow,
     financialKind: kind,
     currentAllocation: currentSplits.length > 0 ? { splits: currentSplits } : null,
-    save: (splits) =>
-      setCategoryAllocationAction({ clientId, categoryId, splits }),
+    save: (splits, periodScope) =>
+      setCategoryAllocationAction({ clientId, categoryId, splits, periodScope }),
     clear: () => clearCategoryAllocationAction({ clientId, categoryId }),
   };
   return (
@@ -240,7 +249,7 @@ export function EditFirmDefaultAllocationDialog({
     financialKind: "expense",
     currentAllocation:
       currentSplits.length > 0 ? { splits: currentSplits } : null,
-    save: (splits) => setFirmDefaultAction({ clientId, splits }),
+    save: (splits, periodScope) => setFirmDefaultAction({ clientId, splits, periodScope }),
     clear: () => clearFirmDefaultAction({ clientId }),
   };
   return (
@@ -575,9 +584,9 @@ function ViewMode({
         <AllocationBar segments={segments} />
 
         <ul className="mt-3 space-y-2">
-          {segments.map((seg) => (
+          {segments.map((seg, idx) => (
             <li
-              key={seg.verticalId}
+              key={idx}
               className="flex items-baseline gap-3 px-3 py-2 rounded-md bg-dark-3/30"
             >
               <span
@@ -667,6 +676,11 @@ function EditMode({
   // vertical) instead of writing rows. Lets the contabil stage the change
   // and commit it with the same Salveaza button as everything else.
   const [stagedClear, setStagedClear] = useState(false);
+  // Period scope of this split edit (ADR-0004 D3). Partner allocations are not
+  // period-scoped, so the control is shown only for account/category/firm.
+  const viewedPeriod = useViewedPeriod();
+  const [scopeKind, setScopeKind] = useState<MappingPeriodScope["kind"]>("all");
+  const supportsPeriodScope = entity.kind !== "partner";
 
   const total = rows.reduce(
     (s, r) => s + (Number.isFinite(r.percent) ? r.percent : 0),
@@ -736,7 +750,10 @@ function EditMode({
       return;
     }
     startTransition(async () => {
-      const r = await entity.save(effectiveRows);
+      const r = await entity.save(
+        effectiveRows,
+        supportsPeriodScope ? scopeFromKind(scopeKind, viewedPeriod) : undefined
+      );
       if (r.error) setError(r.error);
       else onSaved();
     });
@@ -766,9 +783,9 @@ function EditMode({
           <AllocationBar segments={previewSegments} />
           {entity.rulaj > 0 && (
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              {previewSegments.map((seg) => (
+              {previewSegments.map((seg, idx) => (
                 <li
-                  key={seg.verticalId}
+                  key={idx}
                   className="inline-flex items-center gap-1.5 font-mono text-[11px] tabular-nums text-gray-light"
                   style={{ letterSpacing: "-0.02em" }}
                 >
@@ -814,6 +831,14 @@ function EditMode({
         <p className="text-[12px] text-neg" role="alert">
           {error}
         </p>
+      )}
+
+      {supportsPeriodScope && !stagedClear && (
+        <PeriodScopeControl
+          value={scopeKind}
+          onChange={setScopeKind}
+          period={viewedPeriod}
+        />
       )}
 
       <div className="flex justify-end gap-2 pt-2 border-t border-dark-3">
@@ -897,7 +922,7 @@ function SplitEditor({
           className="font-mono text-[10px] uppercase tracking-wider text-gray mb-1"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Imparte intre verticale
+          Imparte intre linii de business
         </h4>
         <p
           className="text-[11px] text-gray italic"
@@ -915,7 +940,7 @@ function SplitEditor({
               <Select
                 value={row.verticalId}
                 onChange={(v) => updateVertical(idx, v)}
-                placeholder="— alege verticala —"
+                placeholder="— alege linia de business —"
                 options={buildVerticalOptions(splittable, row.verticalId, verticals)}
               />
             </div>
@@ -1014,7 +1039,7 @@ function buildVerticalOptions(
     const known = allVerticals.find((v) => v.id === currentValue);
     options.unshift({
       value: currentValue,
-      label: known ? `${known.name} (nu mai e o linie de business)` : "(verticala invalida)",
+      label: known ? `${known.name} (nu mai e o linie de business)` : "(linie de business invalida)",
     });
   }
   return options;
@@ -1105,9 +1130,9 @@ function buildSegments(
 function AllocationBar({ segments }: { segments: Segment[] }) {
   return (
     <div className="flex h-3 w-full overflow-hidden rounded-full bg-dark-3">
-      {segments.map((seg) => (
+      {segments.map((seg, idx) => (
         <div
-          key={seg.verticalId}
+          key={idx}
           className={`h-full ${seg.color}`}
           style={{ width: `${seg.percent}%` }}
           title={`${seg.percent}% ${seg.name}`}

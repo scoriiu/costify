@@ -1,11 +1,16 @@
 "use client";
 
-import type { CppF20Data, CppF20Line } from "@/modules/reporting";
+import type { CppF20Data, CppF20Line, CppVerticalColumn } from "@/modules/reporting";
 import { Tooltip } from "@/components/ui/tooltip";
+import { buildLineColorMap } from "@/lib/line-colors";
 
 interface Props {
   cpp: CppF20Data;
 }
+
+// Each business-line (axis B) column carries the same color as its pillar in
+// the "Linii de business" view; a divider brackets the group.
+const lobDivider = (i: number) => (i === 0 ? "border-l border-dark-3" : "");
 
 const SECTION_LABELS: Record<CppF20Line["section"], string> = {
   A: "CIFRA DE AFACERI NETA",
@@ -19,32 +24,66 @@ const SECTION_LABELS: Record<CppF20Line["section"], string> = {
 
 export function CppF20View({ cpp }: Props) {
   const grouped = groupBySection(cpp.lines);
+  const verticals = cpp.verticals ?? [];
+  const hasBreakdown = verticals.length > 0;
+  const colors = buildLineColorMap(verticals);
+  const baseCols = 4; // Rand, Denumire, Conturi, Valoare
+  const totalCols = baseCols + verticals.length;
 
   return (
     <div className="rounded-xl border border-dark-3 overflow-hidden">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-dark-2 border-b border-dark-3">
-            <th className="border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[68px]">
-              Rand
-            </th>
-            <th className="border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray">
-              Denumire
-            </th>
-            <th className="border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[160px]">
-              Conturi
-            </th>
-            <th className="px-3 py-2.5 text-right font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[150px]">
-              Valoare (RON)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {grouped.map(({ section, lines }) => (
-            <SectionBlock key={section} section={section} lines={lines} />
-          ))}
-        </tbody>
-      </table>
+      {hasBreakdown && (
+        <div className="border-b border-dark-3 bg-dark-2/60 px-3 py-2">
+          <span className="font-mono text-[0.6rem] uppercase tracking-widest text-gray">
+            Defalcare pe linii de business, conform mapari pentru luna selectata
+          </span>
+        </div>
+      )}
+      <div className="max-h-[70vh] overflow-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-dark-3">
+              <th className="sticky top-0 z-10 bg-dark-2 border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[68px]">
+                Rand
+              </th>
+              <th className="sticky top-0 z-10 bg-dark-2 border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray">
+                Denumire
+              </th>
+              <th className="sticky top-0 z-10 bg-dark-2 border-r border-white/[0.04] px-3 py-2.5 text-left font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[160px]">
+                Conturi
+              </th>
+              {verticals.map((v, i) => {
+                const c = colors.get(v.id)!;
+                return (
+                  <th
+                    key={v.id}
+                    className={`sticky top-0 z-10 bg-dark-2 border-r border-white/[0.04] px-3 py-2.5 text-right font-mono text-[0.6rem] font-medium uppercase tracking-widest text-gray w-[110px] ${lobDivider(i)}`}
+                  >
+                    <span className="inline-flex items-center justify-end gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${c.dot}`} aria-hidden />
+                      {v.name}
+                    </span>
+                  </th>
+                );
+              })}
+              <th className={`sticky top-0 z-10 bg-dark-2 px-3 py-2.5 text-right font-mono text-[0.6rem] font-medium uppercase tracking-widest ${hasBreakdown ? "text-white border-l border-dark-3" : "text-gray"} w-[150px]`}>
+                {hasBreakdown ? "Total (RON)" : "Valoare (RON)"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.map(({ section, lines }) => (
+              <SectionBlock
+                key={section}
+                section={section}
+                lines={lines}
+                verticals={verticals}
+                totalCols={totalCols}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <SummaryFooter cpp={cpp} />
     </div>
@@ -72,36 +111,59 @@ function groupBySection(lines: CppF20Line[]): GroupedSection[] {
 function SectionBlock({
   section,
   lines,
+  verticals,
+  totalCols,
 }: {
   section: CppF20Line["section"];
   lines: CppF20Line[];
+  verticals: CppVerticalColumn[];
+  totalCols: number;
 }) {
   return (
     <>
       <tr className="border-b border-dark-3 bg-dark-2/60">
-        <td
-          colSpan={4}
-          className="px-3 py-2"
-        >
+        <td colSpan={totalCols} className="px-3 py-2">
           <span className="font-mono text-[0.65rem] font-bold uppercase tracking-wide text-white">
             {section}. {SECTION_LABELS[section]}
           </span>
         </td>
       </tr>
       {lines.map((line) => (
-        <F20Row key={line.rowNumber} line={line} />
+        <F20Row key={line.rowNumber} line={line} verticals={verticals} />
       ))}
     </>
   );
 }
 
-function F20Row({ line }: { line: CppF20Line }) {
+function verticalCells(
+  line: CppF20Line,
+  verticals: CppVerticalColumn[],
+  tone: "muted" | "strong" | "result",
+  py: string
+) {
+  return verticals.map((v, i) => {
+    const value = line.byVertical?.[v.id];
+    const empty = value === undefined || value === 0;
+    const cls =
+      tone === "result" && value !== undefined && !empty
+        ? value >= 0 ? "text-green" : "text-danger"
+        : tone === "strong" ? "text-white/90" : "text-gray-light";
+    const weight = tone === "muted" ? "" : "font-semibold";
+    return (
+      <td key={v.id} className={`border-r border-white/[0.04] ${lobDivider(i)} px-3 ${py} text-right`}>
+        <span className={`font-mono text-xs ${weight} ${cls}`}>
+          {empty ? "" : formatValue(value)}
+        </span>
+      </td>
+    );
+  });
+}
+
+function F20Row({ line, verticals }: { line: CppF20Line; verticals: CppVerticalColumn[] }) {
   if (line.kind === "total") {
     const isRezultat = line.label.toUpperCase().includes("REZULTAT");
     const valueClass = isRezultat
-      ? line.value >= 0
-        ? "text-green"
-        : "text-danger"
+      ? line.value >= 0 ? "text-green" : "text-danger"
       : "text-white";
     return (
       <tr className="border-b border-dark-3 bg-dark-2/30">
@@ -116,7 +178,8 @@ function F20Row({ line }: { line: CppF20Line }) {
             </Tooltip>
           )}
         </td>
-        <td className="px-3 py-2 text-right">
+        {verticalCells(line, verticals, isRezultat ? "result" : "strong", "py-2")}
+        <td className={`px-3 py-2 text-right ${verticals.length > 0 ? "border-l border-dark-3" : ""}`}>
           <span className={`font-mono text-xs font-bold ${valueClass}`}>
             {formatValue(line.value)}
           </span>
@@ -143,7 +206,8 @@ function F20Row({ line }: { line: CppF20Line }) {
             </Tooltip>
           )}
         </td>
-        <td className="px-3 py-1.5 text-right">
+        {verticalCells(line, verticals, "strong", "py-1.5")}
+        <td className={`px-3 py-1.5 text-right ${verticals.length > 0 ? "border-l border-dark-3" : ""}`}>
           <span className="font-mono text-xs font-semibold text-white/90">
             {formatValue(line.value)}
           </span>
@@ -170,12 +234,11 @@ function F20Row({ line }: { line: CppF20Line }) {
         </span>
       </td>
       <td className="border-r border-white/[0.04] px-3 py-1.5">
-        <span className="font-mono text-[0.65rem] text-gray/80">
-          {accountsLabel || "—"}
-        </span>
+        <span className="font-mono text-[0.65rem] text-gray/80">{accountsLabel || "—"}</span>
       </td>
-      <td className="px-3 py-1.5 text-right">
-        <span className={`font-mono text-xs ${isInfo ? "text-gray" : "text-gray-light"}`}>
+      {verticalCells(line, verticals, "muted", "py-1.5")}
+      <td className={`px-3 py-1.5 text-right ${verticals.length > 0 ? "border-l border-dark-3" : ""}`}>
+        <span className={`font-mono text-xs ${isInfo ? "text-gray" : "text-white"}`}>
           {formatValue(line.value)}
         </span>
       </td>

@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod/v4";
 import * as service from "./service";
 import type { CategoryKind, MappingScope } from "./types";
+import { scopeToWindow } from "@/lib/period";
 
 type ActionResult<T = void> = { error?: string; data?: T };
 
@@ -163,11 +164,20 @@ export async function deleteCategoryAction(
   }
 }
 
+const periodScopeSchema = z
+  .object({
+    kind: z.enum(["all", "from", "only"]),
+    from: z.number().int().optional(),
+    to: z.number().int().optional(),
+  })
+  .optional();
+
 const mapAccountSchema = z.object({
   clientId: z.string().min(1),
   cont: z.string().min(1).max(20),
   scope: z.enum(["contBase", "analytic"]),
   categoryId: z.string().min(1),
+  periodScope: periodScopeSchema,
 });
 
 export async function mapAccountAction(
@@ -180,8 +190,13 @@ export async function mapAccountAction(
   if (!auth) return { error: "Firma nu exista sau nu ai acces" };
 
   try {
+    const { effectiveFrom } = scopeToWindow(parsed.data.periodScope);
     const existing = await prisma.accountCategoryMapping.findFirst({
-      where: { clientId: parsed.data.clientId, cont: parsed.data.cont },
+      where: {
+        clientId: parsed.data.clientId,
+        cont: parsed.data.cont,
+        effectiveFrom,
+      },
       select: { id: true, categoryId: true, scope: true },
     });
 
@@ -190,6 +205,7 @@ export async function mapAccountAction(
       cont: parsed.data.cont,
       scope: parsed.data.scope as MappingScope,
       categoryId: parsed.data.categoryId,
+      periodScope: parsed.data.periodScope,
     });
 
     await recordClientMutation({
@@ -205,6 +221,8 @@ export async function mapAccountAction(
         cont: parsed.data.cont,
         categoryId: parsed.data.categoryId,
         scope: parsed.data.scope,
+        effectiveFrom: updated.effectiveFrom,
+        effectiveTo: updated.effectiveTo,
       },
     });
 

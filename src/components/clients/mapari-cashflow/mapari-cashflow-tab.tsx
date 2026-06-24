@@ -28,7 +28,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -67,6 +67,7 @@ import {
   EditFirmDefaultAllocationDialog,
 } from "./edit-allocation-dialog";
 import { CategoryWorkspace } from "./category-workspace";
+import { LineTrendsChart } from "./line-trends-chart";
 import { ReviewQueueDialog } from "./review-queue";
 import { AllExceptionsDialog } from "./all-exceptions-dialog";
 import type { VerticalView, AllocationSplit } from "@/modules/verticals";
@@ -346,7 +347,13 @@ function MapariCashflowContent({
     setActiveTab("categorii");
     setPendingPanelContBase(contBase);
   }
-  const onMutate = onMutated;
+  // Mutations bump a local key so the windowed trend chart (its own fetch)
+  // reloads alongside the parent's per-period refetch.
+  const [chartReload, setChartReload] = useState(0);
+  const onMutate = () => {
+    onMutated();
+    setChartReload((v) => v + 1);
+  };
 
   // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
   // so the contabil can deep-link straight to "Linii de business" and refresh
@@ -432,15 +439,32 @@ function MapariCashflowContent({
     <div className="space-y-6 max-w-6xl">
       <PageHeader
         period={data.period}
-        availableYears={data.availableYears}
-        availablePeriods={data.availablePeriods}
         coverage={data.coverage}
         freshlySeeded={data.freshlySeeded}
-        onPeriodChange={onPeriodChange}
         onJumpToUnmapped={() => {
           setCategoryInitialFilter("unmapped");
         }}
       />
+
+      {data.availableYears.length > 0 && data.period && (
+        <StickyPeriodBar
+          period={data.period}
+          availableYears={data.availableYears}
+          availablePeriods={data.availablePeriods}
+          onPeriodChange={onPeriodChange}
+        />
+      )}
+
+      {data.period && (
+        <LineTrendsChart
+          clientId={data.clientId}
+          year={data.period.year}
+          month={data.period.month}
+          verticalsEnabled={data.verticalsEnabled}
+          reloadKey={chartReload}
+          onJumpToPeriod={onPeriodChange}
+        />
+      )}
 
       <CategoryAxisContent
         data={data}
@@ -2698,20 +2722,14 @@ function ActivateVerticalsModal({
 
 function PageHeader({
   period,
-  availableYears,
-  availablePeriods,
   coverage,
   freshlySeeded,
   onJumpToUnmapped,
-  onPeriodChange,
 }: {
   period: { year: number; month: number } | null;
-  availableYears: number[];
-  availablePeriods: { year: number; month: number }[];
   coverage: CoverageStats;
   freshlySeeded: boolean;
   onJumpToUnmapped: () => void;
-  onPeriodChange: (year: number, month: number) => void;
 }) {
   const periodDescription = period
     ? period.month === 12
@@ -2722,28 +2740,12 @@ function PageHeader({
   return (
     <div className="space-y-3">
       <div>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <h2
-            className="text-[20px] font-semibold text-white"
-            style={{ letterSpacing: "-0.04em" }}
-          >
-            Mapari Cashflow
-          </h2>
-          <div className="flex items-center gap-4 shrink-0">
-            {availableYears.length > 0 && period && (
-              <PeriodSelector
-                availableYears={availableYears}
-                availablePeriods={availablePeriods}
-                selectedYear={period.year}
-                selectedMonth={period.month}
-                onChange={onPeriodChange}
-              />
-            )}
-            <div className="flex items-center gap-3 text-[12px]">
-              <DocsLink href={DocsLinks.mappingLanguage}>Limbajul maparii</DocsLink>
-            </div>
-          </div>
-        </div>
+        <h2
+          className="text-[20px] font-semibold text-white"
+          style={{ letterSpacing: "-0.04em" }}
+        >
+          Mapari Cashflow
+        </h2>
         <p
           className="mt-1 max-w-3xl text-[13px] text-gray-light"
           style={{ letterSpacing: "-0.02em" }}
@@ -2854,6 +2856,57 @@ function CoverageBar({ percent }: { percent: number }) {
  * The rulaj amounts are cumulative Jan→selected month of the chosen year, so
  * picking an earlier month shows the YTD picture as of that month's close.
  */
+/**
+ * Sticky toolbar that keeps the period controls (luna/an + prev/next) in view
+ * while the accountant scrolls the long Mapari page. It must be a direct child
+ * of the tall content container, not nested inside the short header block, or
+ * `position: sticky` would release it the moment the header scrolls away.
+ * Sits at `top-14` (under the h-14 TopNav), below the nav's z-50.
+ */
+function StickyPeriodBar({
+  period,
+  availableYears,
+  availablePeriods,
+  onPeriodChange,
+}: {
+  period: { year: number; month: number };
+  availableYears: number[];
+  availablePeriods: { year: number; month: number }[];
+  onPeriodChange: (year: number, month: number) => void;
+}) {
+  const description =
+    period.month === 12
+      ? `anul ${period.year} complet`
+      : `${monthLabel(period.year, 1)} → ${monthLabel(period.year, period.month)}`;
+  return (
+    <div
+      data-testid="mapari-period-bar"
+      className="sticky top-14 z-30 rounded-xl border border-dark-3 bg-dark-2/95 px-4 py-2.5 backdrop-blur-sm"
+    >
+      <div className="flex items-center gap-4">
+        <div className="shrink-0">
+          <PeriodSelector
+            availableYears={availableYears}
+            availablePeriods={availablePeriods}
+            selectedYear={period.year}
+            selectedMonth={period.month}
+            onChange={onPeriodChange}
+          />
+        </div>
+        <span
+          className="flex-1 min-w-0 truncate text-right font-mono text-[11px] text-gray tabular-nums"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          Rulaj cumulat: <span className="text-gray-light">{description}</span>
+        </span>
+        <div className="hidden md:flex items-center shrink-0 text-[12px]">
+          <DocsLink href={DocsLinks.mappingLanguage}>Limbajul maparii</DocsLink>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PeriodSelector({
   availableYears,
   availablePeriods,
@@ -2891,8 +2944,34 @@ function PeriodSelector({
     }
   }
 
+  // Flat, chronological list of every available period so prev/next can step
+  // month by month and cross year boundaries (Dec 2025 -> Jan 2026).
+  const ordered = [...availablePeriods].sort(
+    (a, b) => a.year - b.year || a.month - b.month
+  );
+  const currentIdx = ordered.findIndex(
+    (p) => p.year === selectedYear && p.month === selectedMonth
+  );
+  const prevPeriod = currentIdx > 0 ? ordered[currentIdx - 1] : null;
+  const nextPeriod =
+    currentIdx >= 0 && currentIdx < ordered.length - 1
+      ? ordered[currentIdx + 1]
+      : null;
+
   return (
     <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1">
+        <StepButton
+          direction="prev"
+          target={prevPeriod}
+          onClick={() => prevPeriod && onChange(prevPeriod.year, prevPeriod.month)}
+        />
+        <StepButton
+          direction="next"
+          target={nextPeriod}
+          onClick={() => nextPeriod && onChange(nextPeriod.year, nextPeriod.month)}
+        />
+      </div>
       <div className="flex items-center gap-2">
         <span
           className="font-mono text-[10px] uppercase tracking-wider text-gray"
@@ -2901,6 +2980,7 @@ function PeriodSelector({
           Luna
         </span>
         <Select
+          className="w-[132px]"
           value={String(selectedMonth)}
           onChange={handleMonthChange}
           options={monthsForYear.map((m) => ({
@@ -2926,6 +3006,36 @@ function PeriodSelector({
         />
       </div>
     </div>
+  );
+}
+
+function StepButton({
+  direction,
+  target,
+  onClick,
+}: {
+  direction: "prev" | "next";
+  target: { year: number; month: number } | null;
+  onClick: () => void;
+}) {
+  const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
+  const label =
+    target === null
+      ? direction === "prev"
+        ? "Nu exista luna anterioara"
+        : "Nu exista luna urmatoare"
+      : `${direction === "prev" ? "Luna anterioara" : "Luna urmatoare"}: ${capitalize(MONTHS[target.month - 1])} ${target.year}`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={target === null}
+      aria-label={label}
+      title={label}
+      className="flex h-10 w-9 items-center justify-center rounded-[10px] border border-dark-3 bg-dark-2 text-gray transition-colors hover:text-white hover:border-gray disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+    >
+      <Icon size={16} />
+    </button>
   );
 }
 

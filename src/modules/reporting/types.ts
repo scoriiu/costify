@@ -9,6 +9,13 @@ export interface KpiSnapshot {
   marjaOperationala: number | null;
 }
 
+/** One business-line (vertical) column shown in the per-line CPP breakdown. */
+export interface CppVerticalColumn {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
 export interface CppLine {
   cont: string;
   denumire: string;
@@ -16,6 +23,10 @@ export interface CppLine {
   isHeader: boolean;
   isTotal: boolean;
   value: number;
+  /** Per business-line split of `value`, keyed by vertical id. Present only
+   *  when the client has business lines enabled. Always sums to `value`
+   *  exactly (the breakdown never leaks money). Absent on header rows. */
+  byVertical?: Record<string, number>;
 }
 
 export interface CppData {
@@ -28,6 +39,9 @@ export interface CppData {
   rezultatFinanciar: number;
   rezultatBrut: number;
   rezultatNet: number;
+  /** Business-line columns in display order. Present only when verticals are
+   *  enabled and at least one line carries a `byVertical` breakdown. */
+  verticals?: CppVerticalColumn[];
 }
 
 /** D17: one row of the detailed F20 view (OMFP 1802 Anexa 3). */
@@ -42,6 +56,9 @@ export interface CppF20Line {
   accounts?: string[];
   /** Human description of how a subtotal/total is computed. */
   formula?: string;
+  /** Per business-line split of `value`, keyed by vertical id. Present only
+   *  when verticals are enabled. Sums to `value` exactly. */
+  byVertical?: Record<string, number>;
 }
 
 export interface CppF20Data {
@@ -58,6 +75,9 @@ export interface CppF20Data {
   venituriFinanciare: number;
   cheltuieliFinanciare: number;
   rezultatFinanciar: number;
+  /** Business-line columns in display order. Present only when verticals are
+   *  enabled and at least one line carries a `byVertical` breakdown. */
+  verticals?: CppVerticalColumn[];
 }
 
 export interface BalanceSheetSection {

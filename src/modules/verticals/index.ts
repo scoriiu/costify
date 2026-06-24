@@ -16,12 +16,15 @@ export {
   renameVertical,
   deleteVertical,
   listAllocations,
+  listAllocationVersions,
   setAllocation,
   clearAllocation,
   listCategoryAllocations,
+  listCategoryAllocationVersions,
   setCategoryAllocation,
   clearCategoryAllocation,
   getFirmDefaultSplits,
+  listFirmDefaultVersions,
   setFirmDefaultSplits,
   clearFirmDefaultSplits,
   listPartnerAllocations,
@@ -36,8 +39,12 @@ export {
 
 export {
   buildVerticalResolver,
+  buildVerticalResolverAsOf,
   resolveAllocationForCont,
   resolveAllocationForCategory,
   applySplit,
   type VerticalResolverState,
+  type AllocationVersion,
+  type CategoryAllocationVersion,
+  type FirmDefaultVersion,
 } from "./resolver";

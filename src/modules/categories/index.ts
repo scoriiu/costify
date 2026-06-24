@@ -10,6 +10,7 @@ export type {
 export {
   listCategoryTree,
   listMappings,
+  listMappingVersions,
   createCategory,
   renameCategory,
   deleteCategory,
@@ -21,8 +22,10 @@ export {
 
 export {
   buildResolverState,
+  buildResolverStateAsOf,
   resolveCategoryForCont,
   type ResolverState,
+  type CategoryMappingVersion,
 } from "./resolver";
 
 export {

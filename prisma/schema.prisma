@@ -98,7 +98,7 @@ model Client {
   verticals                Vertical[]
   verticalAllocations      VerticalAllocation[]
   categoryVerticalAllocs   CategoryVerticalAllocation[]
-  firmVerticalDefault      FirmVerticalDefault?
+  firmVerticalDefault      FirmVerticalDefault[]
   partnerVerticalAllocs    PartnerVerticalAllocation[]
   employeeCounts           EmployeeCount[]
 
@@ -205,13 +205,14 @@ model PublishedPeriod {
 ///   - Accountant freely renames, reorders and adds verticals. They cannot
 ///     delete the default — they can only rename it.
 model Vertical {
-  id        String   @id @default(cuid())
-  clientId  String
-  name      String
-  position  Int      @default(0)
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  clientId   String
+  name       String
+  position   Int       @default(0)
+  isDefault  Boolean   @default(false)
+  archivedAt DateTime? // D4: soft-archive when referenced by historical versions
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   client              Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   allocations         VerticalAllocation[]
@@ -239,13 +240,15 @@ model Vertical {
 /// Accounts WITHOUT a matching row roll up to the client's default Vertical
 /// (the "Toata firma" one). This guarantees totals reconcile across breakdowns.
 model VerticalAllocation {
-  id        String   @id @default(cuid())
-  clientId  String
-  scope     String // "contBase" | "analytic"
-  cont      String
-  splits    Json // [{ verticalId, percent }]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String
+  scope         String // "contBase" | "analytic"
+  cont          String
+  splits        Json // [{ verticalId, percent }]; [] = tombstone (ADR-0004 D3)
+  effectiveFrom Int      @default(0) // YYYYMM; 0 = inception (ADR-0004 D1)
+  effectiveTo   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -255,8 +258,9 @@ model VerticalAllocation {
   primaryVerticalId String?
   primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
 
-  @@unique([clientId, cont])
+  @@unique([clientId, cont, effectiveFrom])
   @@index([clientId])
+  @@index([clientId, cont, effectiveFrom])
   @@index([primaryVerticalId])
 }
 
@@ -277,22 +281,23 @@ model VerticalAllocation {
 /// They can be renamed or deleted, but the UI shows a small badge so the
 /// accountant knows what was the system's starting point.
 model CostCategory {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   clientId      String
   parentId      String?
   name          String
   kind          String // "expense" | "revenue"
-  position      Int      @default(0)
-  isOmfpDefault Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  position      Int       @default(0)
+  isOmfpDefault Boolean   @default(false)
+  archivedAt    DateTime? // D4: soft-archive when referenced by historical versions
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  client             Client                      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  parent             CostCategory?               @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children           CostCategory[]              @relation("CostCategoryTree")
+  client             Client                       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  parent             CostCategory?                @relation("CostCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children           CostCategory[]               @relation("CostCategoryTree")
   mappings           AccountCategoryMapping[]
   partnerOverrides   PartnerCategoryOverride[]
-  verticalAllocation CategoryVerticalAllocation?
+  verticalAllocation CategoryVerticalAllocation[]
 
   @@unique([clientId, parentId, name])
   @@index([clientId])
@@ -312,12 +317,14 @@ model CostCategory {
 /// One row per category (unique constraint). Absence of a row means "use the
 /// firm default vertical" — the absence is the explicit fallback, not an error.
 model CategoryVerticalAllocation {
-  id         String   @id @default(cuid())
-  clientId   String
-  categoryId String   @unique
-  splits     Json // [{ verticalId, percent }]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String
+  categoryId    String
+  splits        Json // [{ verticalId, percent }]; [] = tombstone (ADR-0004 D3)
+  effectiveFrom Int      @default(0) // YYYYMM; 0 = inception (ADR-0004 D1)
+  effectiveTo   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -325,6 +332,7 @@ model CategoryVerticalAllocation {
   primaryVerticalId String?
   primaryVertical   Vertical? @relation(fields: [primaryVerticalId], references: [id], onDelete: SetNull)
 
+  @@unique([categoryId, effectiveFrom])
   @@index([clientId])
   @@index([primaryVerticalId])
 }
@@ -345,14 +353,17 @@ model CategoryVerticalAllocation {
 ///   1..5 entries, integer percent 1..100, sum(percent) === 100, all
 ///   verticalIds belong to the same client.
 model FirmVerticalDefault {
-  id        String   @id @default(cuid())
-  clientId  String   @unique
-  splits    Json // [{ verticalId, percent }]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String
+  splits        Json // [{ verticalId, percent }]; [] = tombstone (ADR-0004 D3)
+  effectiveFrom Int      @default(0) // YYYYMM; 0 = inception (ADR-0004 D1)
+  effectiveTo   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
+  @@unique([clientId, effectiveFrom])
   @@index([clientId])
 }
 
@@ -367,14 +378,16 @@ model PartnerVerticalAllocation {
   contBase              String
   partnerNameNormalized String
   partnerNameOriginal   String
-  splits                Json // [{ verticalId, percent }]
+  splits                Json // [{ verticalId, percent }]; [] = tombstone (ADR-0004 D3)
   primaryVerticalId     String?
+  effectiveFrom         Int      @default(0) // YYYYMM; 0 = inception (ADR-0004 D1)
+  effectiveTo           Int?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  @@unique([clientId, contBase, partnerNameNormalized])
+  @@unique([clientId, contBase, partnerNameNormalized, effectiveFrom])
   @@index([clientId])
   @@index([clientId, contBase])
 }
@@ -395,19 +408,25 @@ model PartnerVerticalAllocation {
 /// Uniqueness on `(clientId, cont)` enforces "one cont = one category". To
 /// move a cont, the row is updated, not duplicated.
 model AccountCategoryMapping {
-  id         String   @id @default(cuid())
-  clientId   String
-  scope      String // "contBase" | "analytic"
-  cont       String
-  categoryId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(cuid())
+  clientId      String
+  scope         String // "contBase" | "analytic"
+  cont          String
+  categoryId    String? // null = tombstone (explicitly unmapped for this period, ADR-0004 D3)
+  // ADR-0004 D1/D3: effective-dated versioning. effectiveFrom is a YYYYMM
+  // period key; 0 = inception ("de la inceput"). effectiveTo null = open
+  // timeline version; set = bounded override winning only inside its window.
+  effectiveFrom Int      @default(0)
+  effectiveTo   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  client   Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@unique([clientId, cont])
+  @@unique([clientId, cont, effectiveFrom])
   @@index([clientId])
+  @@index([clientId, cont, effectiveFrom])
   @@index([categoryId])
 }
 
@@ -438,16 +457,18 @@ model PartnerCategoryOverride {
   contBase              String
   partnerNameNormalized String
   partnerNameOriginal   String
-  categoryId            String
+  categoryId            String? // null = tombstone (ADR-0004 D3)
   source                String // "manual" | "bulk" | "suggested"
   confirmedAt           DateTime?
+  effectiveFrom         Int       @default(0) // YYYYMM; 0 = inception (ADR-0004 D1)
+  effectiveTo           Int?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  client   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  client   Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category CostCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@unique([clientId, contBase, partnerNameNormalized])
+  @@unique([clientId, contBase, partnerNameNormalized, effectiveFrom])
   @@index([clientId])
   @@index([clientId, contBase])
   @@index([categoryId])

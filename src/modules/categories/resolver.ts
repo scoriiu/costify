@@ -28,6 +28,7 @@
 
 import type { CostCategoryNode, MappingScope, ResolvedCategory } from "./types";
 import { getContBase } from "@/lib/accounts";
+import { pickEffective, type PeriodKey } from "@/lib/period";
 
 export interface ResolverState {
   /** All categories for the client, indexed by id. Tree is materialized via
@@ -51,6 +52,51 @@ export function buildResolverState(
   for (const m of mappings) {
     byCont.set(m.cont, { categoryId: m.categoryId, scope: m.scope });
   }
+  return { byId, byCont };
+}
+
+/** One effective-dated version of a cont->category mapping (ADR-0004 D1/D3). A
+ *  `categoryId === null` row is a tombstone: "explicitly unmapped here",
+ *  distinct from "no version at all". `effectiveTo === null` is an open
+ *  timeline version; a set `effectiveTo` is a bounded override. */
+export interface CategoryMappingVersion {
+  cont: string;
+  categoryId: string | null;
+  scope: MappingScope;
+  effectiveFrom: PeriodKey;
+  effectiveTo: PeriodKey | null;
+}
+
+/**
+ * Build resolver state for a specific period from versioned mappings: per cont,
+ * apply the two-layer pick (bounded override first, else open timeline as-of,
+ * ADR-0004 D3) and drop tombstones so they resolve as unmapped. The produced
+ * state is the exact shape `resolveCategoryForCont` already consumes, so the
+ * hot path is unchanged.
+ */
+export function buildResolverStateAsOf(
+  categories: CostCategoryNode[],
+  versions: CategoryMappingVersion[],
+  period: PeriodKey
+): ResolverState {
+  const byId = new Map<string, CostCategoryNode>();
+  for (const node of flattenTree(categories)) byId.set(node.id, node);
+
+  const versionsByCont = new Map<string, CategoryMappingVersion[]>();
+  for (const v of versions) {
+    const arr = versionsByCont.get(v.cont);
+    if (arr) arr.push(v);
+    else versionsByCont.set(v.cont, [v]);
+  }
+
+  const byCont = new Map<string, { categoryId: string; scope: MappingScope }>();
+  for (const [cont, vs] of versionsByCont) {
+    const picked = pickEffective(vs, period);
+    if (picked && picked.categoryId !== null) {
+      byCont.set(cont, { categoryId: picked.categoryId, scope: picked.scope });
+    }
+  }
+
   return { byId, byCont };
 }
 

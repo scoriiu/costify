@@ -45,19 +45,9 @@ import {
   EditCategoryAllocationDialog,
   EditFirmDefaultAllocationDialog,
 } from "./edit-allocation-dialog";
+import { lineColorForIndex as colorFor, type LineColor } from "@/lib/line-colors";
 
-const LINE_COLORS = [
-  { dot: "bg-primary", text: "text-primary", soft: "bg-primary/10", border: "border-primary/30", stroke: "var(--color-primary)" },
-  { dot: "bg-amber-400", text: "text-amber-300", soft: "bg-amber-400/10", border: "border-amber-400/30", stroke: "#fbbf24" },
-  { dot: "bg-sky-400", text: "text-sky-300", soft: "bg-sky-400/10", border: "border-sky-400/30", stroke: "#38bdf8" },
-  { dot: "bg-emerald-400", text: "text-emerald-300", soft: "bg-emerald-400/10", border: "border-emerald-400/30", stroke: "#34d399" },
-  { dot: "bg-rose-400", text: "text-rose-300", soft: "bg-rose-400/10", border: "border-rose-400/30", stroke: "#fb7185" },
-] as const;
-const NEUTRAL = { dot: "bg-gray/40", text: "text-gray", soft: "bg-dark-3/40", border: "border-dark-3", stroke: "var(--color-gray)" };
 
-function colorFor(index: number) {
-  return index < 0 ? NEUTRAL : LINE_COLORS[index % LINE_COLORS.length];
-}
 
 // Synthetic "Toata firma" line — the residue of everything not assigned to a
 // real line of business. It's not a DB Vertical; it's computed so the patron's
@@ -1106,8 +1096,6 @@ function ConfirmDeleteLine({
 }
 
 /* ---------------------------- Pillar composition -------------------------- */
-
-type LineColor = typeof NEUTRAL;
 
 /** The composition of one pillar: its categories → conturi, rendered INSIDE
  *  the selected line column. Each row carries its share of THIS line so the

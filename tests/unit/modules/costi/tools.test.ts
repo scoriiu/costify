@@ -4,8 +4,8 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 11 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(11);
+  it("defines 12 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(12);
   });
 
   it("all tools have name, description, and input_schema", () => {
@@ -142,6 +142,31 @@ describe("Costi tool definitions", () => {
     expect(tool).toBeDefined();
     const desc = tool!.description!.toLowerCase();
     expect(desc).toMatch(/timeline|tranzitie|istoric/);
+  });
+
+  it("exposes get_account_mapping_timeline for period-scoped mapping questions", () => {
+    const names = COSTI_TOOLS.map((t) => t.name);
+    expect(names).toContain("get_account_mapping_timeline");
+  });
+
+  it("get_account_mapping_timeline requires client_name + cont, year/month optional", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_account_mapping_timeline");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name", "cont"]);
+    expect(schema.properties.year).toBeDefined();
+    expect(schema.properties.month).toBeDefined();
+  });
+
+  it("get_account_mapping_timeline description explains effectiveFrom/effectiveTo semantics", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_account_mapping_timeline");
+    expect(tool).toBeDefined();
+    const desc = tool!.description!.toLowerCase();
+    expect(desc).toContain("effectivefrom");
+    expect(desc).toContain("effectiveto");
   });
 });
 

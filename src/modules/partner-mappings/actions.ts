@@ -311,10 +311,11 @@ export async function upsertPartnerOverrideAction(
   // Capture before-state for audit (null if this is a fresh row).
   const existing = await prisma.partnerCategoryOverride.findUnique({
     where: {
-      clientId_contBase_partnerNameNormalized: {
+      clientId_contBase_partnerNameNormalized_effectiveFrom: {
         clientId: parsed.data.clientId,
         contBase: parsed.data.contBase,
         partnerNameNormalized,
+        effectiveFrom: 0,
       },
     },
   });

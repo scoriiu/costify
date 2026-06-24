@@ -14,6 +14,12 @@ import type {
   PartnerAllocationView,
   VerticalView,
 } from "./types";
+import { scopeToWindow, type MappingPeriodScope } from "@/lib/period";
+import type {
+  AllocationVersion,
+  CategoryAllocationVersion,
+  FirmDefaultVersion,
+} from "./resolver";
 
 const DEFAULT_VERTICAL_NAME = "Toata firma";
 const MAX_SPLITS_PER_ALLOCATION = 5;
@@ -258,25 +264,25 @@ export async function deleteVertical(
     });
   }
 
-  // Firm-top default split: same drop-and-renormalize treatment.
-  const firmDefault = await prisma.firmVerticalDefault.findUnique({
+  // Firm-top default split: same drop-and-renormalize treatment, applied to
+  // every version row (inception + dated) so historical resolution stays valid.
+  const firmDefaults = await prisma.firmVerticalDefault.findMany({
     where: { clientId },
   });
-  if (firmDefault) {
+  for (const firmDefault of firmDefaults) {
     const splits = parseSplits(firmDefault.splits);
     const filtered = splits.filter((s) => s.verticalId !== verticalId);
-    if (filtered.length !== splits.length) {
-      if (filtered.length === 0) {
-        await prisma.firmVerticalDefault.delete({ where: { clientId } });
-      } else {
-        const total = filtered.reduce((s, x) => s + x.percent, 0);
-        await prisma.firmVerticalDefault.update({
-          where: { clientId },
-          data: {
-            splits: renormalizeSplits(filtered, total) as unknown as Prisma.InputJsonValue,
-          },
-        });
-      }
+    if (filtered.length === splits.length) continue;
+    if (filtered.length === 0) {
+      await prisma.firmVerticalDefault.delete({ where: { id: firmDefault.id } });
+    } else {
+      const total = filtered.reduce((s, x) => s + x.percent, 0);
+      await prisma.firmVerticalDefault.update({
+        where: { id: firmDefault.id },
+        data: {
+          splits: renormalizeSplits(filtered, total) as unknown as Prisma.InputJsonValue,
+        },
+      });
     }
   }
 
@@ -293,14 +299,64 @@ export async function listAllocations(
   clientId: string
 ): Promise<AllocationView[]> {
   const rows = await prisma.verticalAllocation.findMany({
+    where: { clientId, effectiveFrom: 0, effectiveTo: null },
+  });
+  return rows
+    .map((r) => ({
+      id: r.id,
+      clientId: r.clientId,
+      scope: r.scope as AllocationScope,
+      cont: r.cont,
+      splits: parseSplits(r.splits),
+    }))
+    .filter((r) => r.splits.length > 0);
+}
+
+/* -------------------------------------------------------------------------- */
+/*               VERSION LISTS (as-of resolver, ADR-0004 D2)                  */
+/* -------------------------------------------------------------------------- */
+
+/** All cont-allocation versions (inception + dated + bounded) for a client. */
+export async function listAllocationVersions(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<AllocationVersion[]> {
+  const rows = await prisma.verticalAllocation.findMany({ where: { clientId } });
+  return rows.map((r) => ({
+    cont: r.cont,
+    scope: r.scope as AllocationScope,
+    splits: parseSplits(r.splits),
+    effectiveFrom: r.effectiveFrom,
+    effectiveTo: r.effectiveTo,
+  }));
+}
+
+/** All category-allocation versions for a client. */
+export async function listCategoryAllocationVersions(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<CategoryAllocationVersion[]> {
+  const rows = await prisma.categoryVerticalAllocation.findMany({
     where: { clientId },
   });
   return rows.map((r) => ({
-    id: r.id,
-    clientId: r.clientId,
-    scope: r.scope as AllocationScope,
-    cont: r.cont,
+    categoryId: r.categoryId,
     splits: parseSplits(r.splits),
+    effectiveFrom: r.effectiveFrom,
+    effectiveTo: r.effectiveTo,
+  }));
+}
+
+/** All firm-default versions for a client. */
+export async function listFirmDefaultVersions(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<FirmDefaultVersion[]> {
+  const rows = await prisma.firmVerticalDefault.findMany({ where: { clientId } });
+  return rows.map((r) => ({
+    splits: parseSplits(r.splits),
+    effectiveFrom: r.effectiveFrom,
+    effectiveTo: r.effectiveTo,
   }));
 }
 
@@ -309,6 +365,8 @@ export interface SetAllocationInput {
   scope: AllocationScope;
   cont: string;
   splits: AllocationSplit[];
+  /** Period scope (ADR-0004 D3). Omitted = inception (all periods). */
+  periodScope?: MappingPeriodScope;
 }
 
 /**
@@ -337,9 +395,15 @@ export async function setAllocation(
     throw new Error("Una sau mai multe verticale nu apartin acestei firme");
   }
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(input.periodScope);
+
   return prisma.verticalAllocation.upsert({
     where: {
-      clientId_cont: { clientId: input.clientId, cont: input.cont },
+      clientId_cont_effectiveFrom: {
+        clientId: input.clientId,
+        cont: input.cont,
+        effectiveFrom,
+      },
     },
     create: {
       clientId: input.clientId,
@@ -347,11 +411,14 @@ export async function setAllocation(
       cont: input.cont,
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       scope: input.scope,
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveTo,
     },
   });
 }
@@ -359,15 +426,38 @@ export async function setAllocation(
 export async function clearAllocation(
   prisma: PrismaClient,
   clientId: string,
-  cont: string
+  cont: string,
+  periodScope?: MappingPeriodScope
 ) {
-  const existing = await prisma.verticalAllocation.findFirst({
-    where: { clientId, cont },
-  });
-  if (!existing) return null;
+  if (!periodScope || periodScope.kind === "all") {
+    const existing = await prisma.verticalAllocation.findFirst({
+      where: { clientId, cont, effectiveFrom: 0 },
+    });
+    if (!existing) return null;
+    await prisma.verticalAllocation.delete({ where: { id: existing.id } });
+    return existing;
+  }
 
-  await prisma.verticalAllocation.delete({ where: { id: existing.id } });
-  return existing;
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
+  return prisma.verticalAllocation.upsert({
+    where: {
+      clientId_cont_effectiveFrom: { clientId, cont, effectiveFrom },
+    },
+    create: {
+      clientId,
+      scope: "contBase",
+      cont,
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveFrom,
+      effectiveTo,
+    },
+    update: {
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveTo,
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -385,20 +475,23 @@ export async function listCategoryAllocations(
   clientId: string
 ): Promise<CategoryAllocationView[]> {
   const rows = await prisma.categoryVerticalAllocation.findMany({
-    where: { clientId },
+    where: { clientId, effectiveFrom: 0, effectiveTo: null },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    clientId: r.clientId,
-    categoryId: r.categoryId,
-    splits: parseSplits(r.splits),
-  }));
+  return rows
+    .map((r) => ({
+      id: r.id,
+      clientId: r.clientId,
+      categoryId: r.categoryId,
+      splits: parseSplits(r.splits),
+    }))
+    .filter((r) => r.splits.length > 0);
 }
 
 export interface SetCategoryAllocationInput {
   clientId: string;
   categoryId: string;
   splits: AllocationSplit[];
+  periodScope?: MappingPeriodScope;
 }
 
 export async function setCategoryAllocation(
@@ -424,17 +517,24 @@ export async function setCategoryAllocation(
     throw new Error("Linia de cost nu exista pentru aceasta firma");
   }
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(input.periodScope);
+
   return prisma.categoryVerticalAllocation.upsert({
-    where: { categoryId: input.categoryId },
+    where: {
+      categoryId_effectiveFrom: { categoryId: input.categoryId, effectiveFrom },
+    },
     create: {
       clientId: input.clientId,
       categoryId: input.categoryId,
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveTo,
     },
   });
 }
@@ -442,15 +542,35 @@ export async function setCategoryAllocation(
 export async function clearCategoryAllocation(
   prisma: PrismaClient,
   clientId: string,
-  categoryId: string
+  categoryId: string,
+  periodScope?: MappingPeriodScope
 ) {
-  const existing = await prisma.categoryVerticalAllocation.findFirst({
-    where: { clientId, categoryId },
-  });
-  if (!existing) return null;
+  if (!periodScope || periodScope.kind === "all") {
+    const existing = await prisma.categoryVerticalAllocation.findFirst({
+      where: { clientId, categoryId, effectiveFrom: 0 },
+    });
+    if (!existing) return null;
+    await prisma.categoryVerticalAllocation.delete({ where: { id: existing.id } });
+    return existing;
+  }
 
-  await prisma.categoryVerticalAllocation.delete({ where: { id: existing.id } });
-  return existing;
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
+  return prisma.categoryVerticalAllocation.upsert({
+    where: { categoryId_effectiveFrom: { categoryId, effectiveFrom } },
+    create: {
+      clientId,
+      categoryId,
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveFrom,
+      effectiveTo,
+    },
+    update: {
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveTo,
+    },
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -469,16 +589,20 @@ export async function listPartnerAllocations(
   contBase?: string
 ): Promise<PartnerAllocationView[]> {
   const rows = await prisma.partnerVerticalAllocation.findMany({
-    where: contBase ? { clientId, contBase } : { clientId },
+    where: contBase
+      ? { clientId, contBase, effectiveFrom: 0, effectiveTo: null }
+      : { clientId, effectiveFrom: 0, effectiveTo: null },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    clientId: r.clientId,
-    contBase: r.contBase,
-    partnerNameNormalized: r.partnerNameNormalized,
-    partnerNameOriginal: r.partnerNameOriginal,
-    splits: parseSplits(r.splits),
-  }));
+  return rows
+    .map((r) => ({
+      id: r.id,
+      clientId: r.clientId,
+      contBase: r.contBase,
+      partnerNameNormalized: r.partnerNameNormalized,
+      partnerNameOriginal: r.partnerNameOriginal,
+      splits: parseSplits(r.splits),
+    }))
+    .filter((r) => r.splits.length > 0);
 }
 
 export interface SetPartnerAllocationInput {
@@ -487,6 +611,7 @@ export interface SetPartnerAllocationInput {
   partnerNameNormalized: string;
   partnerNameOriginal: string;
   splits: AllocationSplit[];
+  periodScope?: MappingPeriodScope;
 }
 
 export async function setPartnerAllocation(
@@ -503,12 +628,15 @@ export async function setPartnerAllocation(
     throw new Error("Una sau mai multe linii de business nu apartin acestei firme");
   }
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(input.periodScope);
+
   return prisma.partnerVerticalAllocation.upsert({
     where: {
-      clientId_contBase_partnerNameNormalized: {
+      clientId_contBase_partnerNameNormalized_effectiveFrom: {
         clientId: input.clientId,
         contBase: input.contBase,
         partnerNameNormalized: input.partnerNameNormalized,
+        effectiveFrom,
       },
     },
     create: {
@@ -518,11 +646,14 @@ export async function setPartnerAllocation(
       partnerNameOriginal: input.partnerNameOriginal,
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       partnerNameOriginal: input.partnerNameOriginal,
       splits: input.splits as unknown as Prisma.InputJsonValue,
       primaryVerticalId: input.splits[0].verticalId,
+      effectiveTo,
     },
   });
 }
@@ -531,14 +662,44 @@ export async function clearPartnerAllocation(
   prisma: PrismaClient,
   clientId: string,
   contBase: string,
-  partnerNameNormalized: string
+  partnerNameNormalized: string,
+  periodScope?: MappingPeriodScope
 ) {
-  const existing = await prisma.partnerVerticalAllocation.findFirst({
-    where: { clientId, contBase, partnerNameNormalized },
+  if (!periodScope || periodScope.kind === "all") {
+    const existing = await prisma.partnerVerticalAllocation.findFirst({
+      where: { clientId, contBase, partnerNameNormalized, effectiveFrom: 0 },
+    });
+    if (!existing) return null;
+    await prisma.partnerVerticalAllocation.delete({ where: { id: existing.id } });
+    return existing;
+  }
+
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
+  return prisma.partnerVerticalAllocation.upsert({
+    where: {
+      clientId_contBase_partnerNameNormalized_effectiveFrom: {
+        clientId,
+        contBase,
+        partnerNameNormalized,
+        effectiveFrom,
+      },
+    },
+    create: {
+      clientId,
+      contBase,
+      partnerNameNormalized,
+      partnerNameOriginal: partnerNameNormalized,
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveFrom,
+      effectiveTo,
+    },
+    update: {
+      splits: [] as unknown as Prisma.InputJsonValue,
+      primaryVerticalId: null,
+      effectiveTo,
+    },
   });
-  if (!existing) return null;
-  await prisma.partnerVerticalAllocation.delete({ where: { id: existing.id } });
-  return existing;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -555,8 +716,8 @@ export async function getFirmDefaultSplits(
   prisma: PrismaClient,
   clientId: string
 ): Promise<AllocationSplit[] | null> {
-  const row = await prisma.firmVerticalDefault.findUnique({
-    where: { clientId },
+  const row = await prisma.firmVerticalDefault.findFirst({
+    where: { clientId, effectiveFrom: 0 },
   });
   if (!row) return null;
   const splits = parseSplits(row.splits);
@@ -566,7 +727,8 @@ export async function getFirmDefaultSplits(
 export async function setFirmDefaultSplits(
   prisma: PrismaClient,
   clientId: string,
-  splits: AllocationSplit[]
+  splits: AllocationSplit[],
+  periodScope?: MappingPeriodScope
 ) {
   validateSplits(splits);
 
@@ -579,28 +741,47 @@ export async function setFirmDefaultSplits(
     throw new Error("Una sau mai multe linii de business nu apartin acestei firme");
   }
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
   return prisma.firmVerticalDefault.upsert({
-    where: { clientId },
+    where: { clientId_effectiveFrom: { clientId, effectiveFrom } },
     create: {
       clientId,
       splits: splits as unknown as Prisma.InputJsonValue,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       splits: splits as unknown as Prisma.InputJsonValue,
+      effectiveTo,
     },
   });
 }
 
 export async function clearFirmDefaultSplits(
   prisma: PrismaClient,
-  clientId: string
+  clientId: string,
+  periodScope?: MappingPeriodScope
 ) {
-  const existing = await prisma.firmVerticalDefault.findUnique({
-    where: { clientId },
+  if (!periodScope || periodScope.kind === "all") {
+    const existing = await prisma.firmVerticalDefault.findFirst({
+      where: { clientId, effectiveFrom: 0 },
+    });
+    if (!existing) return null;
+    await prisma.firmVerticalDefault.delete({ where: { id: existing.id } });
+    return existing;
+  }
+
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
+  return prisma.firmVerticalDefault.upsert({
+    where: { clientId_effectiveFrom: { clientId, effectiveFrom } },
+    create: {
+      clientId,
+      splits: [] as unknown as Prisma.InputJsonValue,
+      effectiveFrom,
+      effectiveTo,
+    },
+    update: { splits: [] as unknown as Prisma.InputJsonValue, effectiveTo },
   });
-  if (!existing) return null;
-  await prisma.firmVerticalDefault.delete({ where: { clientId } });
-  return existing;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -13,6 +13,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { CategoryKind, CostCategoryNode, MappingScope } from "./types";
 import { seedOmfpDefaults, type SeedReport } from "./seed";
+import { scopeToWindow, type MappingPeriodScope } from "@/lib/period";
 
 /**
  * Returns the full category tree for a client, with mapping counts attached.
@@ -40,12 +41,14 @@ export async function listCategoryTree(
 
   const mappingCounts = await prisma.accountCategoryMapping.groupBy({
     by: ["categoryId"],
-    where: { clientId },
+    where: { clientId, categoryId: { not: null }, effectiveTo: null },
     _count: { _all: true },
   });
   const countByCategoryId = new Map<string, number>();
   for (const row of mappingCounts) {
-    countByCategoryId.set(row.categoryId, row._count._all);
+    if (row.categoryId !== null) {
+      countByCategoryId.set(row.categoryId, row._count._all);
+    }
   }
 
   const tree = buildTree(rows, countByCategoryId);
@@ -93,20 +96,55 @@ function buildTree(
   return roots;
 }
 
-/** List all mappings for a client. Pre-loaded once per request and reused
- *  by the resolver inside hot loops over balance rows. */
+/** List the inception ("pentru toate perioadele") mappings for a client.
+ *  This is the period-independent view: the resolver built from it behaves
+ *  exactly as before period-scoping. Loaders that need per-month resolution
+ *  use `listMappingVersions` instead. */
 export async function listMappings(
   prisma: PrismaClient,
   clientId: string
 ): Promise<Array<{ cont: string; categoryId: string; scope: MappingScope }>> {
   const rows = await prisma.accountCategoryMapping.findMany({
-    where: { clientId },
+    where: { clientId, effectiveFrom: 0, effectiveTo: null, categoryId: { not: null } },
     select: { cont: true, categoryId: true, scope: true },
+  });
+  return rows.map((r) => ({
+    cont: r.cont,
+    categoryId: r.categoryId as string,
+    scope: r.scope as MappingScope,
+  }));
+}
+
+/** All versions (inception + dated open + bounded overrides) for a client,
+ *  for the as-of resolver (ADR-0004 D2). categoryId null = tombstone. */
+export async function listMappingVersions(
+  prisma: PrismaClient,
+  clientId: string
+): Promise<
+  Array<{
+    cont: string;
+    categoryId: string | null;
+    scope: MappingScope;
+    effectiveFrom: number;
+    effectiveTo: number | null;
+  }>
+> {
+  const rows = await prisma.accountCategoryMapping.findMany({
+    where: { clientId },
+    select: {
+      cont: true,
+      categoryId: true,
+      scope: true,
+      effectiveFrom: true,
+      effectiveTo: true,
+    },
   });
   return rows.map((r) => ({
     cont: r.cont,
     categoryId: r.categoryId,
     scope: r.scope as MappingScope,
+    effectiveFrom: r.effectiveFrom,
+    effectiveTo: r.effectiveTo,
   }));
 }
 
@@ -236,6 +274,9 @@ export interface MapAccountInput {
   cont: string;
   scope: MappingScope;
   categoryId: string;
+  /** Period scope (ADR-0004 D3). Omitted = "pentru toate perioadele"
+   *  (inception version), preserving the pre-period behavior. */
+  periodScope?: MappingPeriodScope;
 }
 
 /**
@@ -254,33 +295,66 @@ export async function mapAccount(
     throw new Error("Linia de cost nu exista pentru aceasta firma");
   }
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(input.periodScope);
+
   return prisma.accountCategoryMapping.upsert({
     where: {
-      clientId_cont: { clientId: input.clientId, cont: input.cont },
+      clientId_cont_effectiveFrom: {
+        clientId: input.clientId,
+        cont: input.cont,
+        effectiveFrom,
+      },
     },
     create: {
       clientId: input.clientId,
       cont: input.cont,
       scope: input.scope,
       categoryId: input.categoryId,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       scope: input.scope,
       categoryId: input.categoryId,
+      effectiveTo,
     },
   });
 }
 
+/**
+ * Remove a cont's mapping. With no period scope this deletes the inception
+ * version (today's "sterge maparea" for all periods). With a period scope it
+ * writes a tombstone version (categoryId null) so the cont is explicitly
+ * unmapped from that month onward, or only inside a window (ADR-0004 D3).
+ */
 export async function unmapAccount(
   prisma: PrismaClient,
   clientId: string,
-  cont: string
+  cont: string,
+  periodScope?: MappingPeriodScope
 ) {
-  const existing = await prisma.accountCategoryMapping.findFirst({
-    where: { clientId, cont },
-  });
-  if (!existing) return null;
+  if (!periodScope || periodScope.kind === "all") {
+    const existing = await prisma.accountCategoryMapping.findFirst({
+      where: { clientId, cont, effectiveFrom: 0 },
+    });
+    if (!existing) return null;
+    await prisma.accountCategoryMapping.delete({ where: { id: existing.id } });
+    return existing;
+  }
 
-  await prisma.accountCategoryMapping.delete({ where: { id: existing.id } });
-  return existing;
+  const { effectiveFrom, effectiveTo } = scopeToWindow(periodScope);
+  return prisma.accountCategoryMapping.upsert({
+    where: {
+      clientId_cont_effectiveFrom: { clientId, cont, effectiveFrom },
+    },
+    create: {
+      clientId,
+      cont,
+      scope: "contBase",
+      categoryId: null,
+      effectiveFrom,
+      effectiveTo,
+    },
+    update: { categoryId: null, effectiveTo },
+  });
 }

@@ -10,6 +10,13 @@ import {
 import { detectTaxRegimeTimeline } from "@/modules/clients/tax-regime-detector";
 import { getEmployeeCount, getEmployeeCounts } from "@/modules/clients/employee-counts";
 import { computeIndustryKpis, resolveIndustry } from "@/modules/reporting/industry";
+import {
+  listCategoryTree,
+  listMappingVersions,
+  buildResolverStateAsOf,
+  resolveCategoryForCont,
+} from "@/modules/categories";
+import { periodKey, periodYear, periodMonth, pickEffective } from "@/lib/period";
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -56,6 +63,8 @@ export async function handleToolCall(
       return handleGetEmployeeCounts(userId, input);
     case "get_account_catalog":
       return handleGetAccountCatalog(input);
+    case "get_account_mapping_timeline":
+      return handleGetAccountMappingTimeline(userId, input);
     default:
       return JSON.stringify({ error: `Tool necunoscut: ${toolName}` });
   }
@@ -498,4 +507,84 @@ async function handleGetAccountCatalog(input: Record<string, unknown>): Promise<
       special: e.special,
     })),
   });
+}
+
+async function handleGetAccountMappingTimeline(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const cont = String(input.cont ?? "").trim();
+  if (!cont) return JSON.stringify({ error: "Lipseste contul." });
+
+  const [{ tree }, versions] = await Promise.all([
+    listCategoryTree(prisma, resolved.client.id, { autoSeed: false }),
+    listMappingVersions(prisma, resolved.client.id),
+  ]);
+  const nameById = new Map<string, string>();
+  const walk = (nodes: typeof tree) => {
+    for (const n of nodes) {
+      nameById.set(n.id, n.name);
+      walk(n.children);
+    }
+  };
+  walk(tree);
+
+  // Direct versions on this exact cont key, oldest first.
+  const direct = versions
+    .filter((v) => v.cont === cont)
+    .sort((a, b) => a.effectiveFrom - b.effectiveFrom)
+    .map((v) => ({
+      effectiveFrom: v.effectiveFrom,
+      from: v.effectiveFrom === 0 ? "de la inceput" : describePeriod(v.effectiveFrom),
+      effectiveTo: v.effectiveTo,
+      to: v.effectiveTo === null ? null : describePeriod(v.effectiveTo),
+      kind: v.effectiveTo === null ? "open" : "bounded",
+      line: v.categoryId ? nameById.get(v.categoryId) ?? v.categoryId : null,
+      tombstone: v.categoryId === null,
+    }));
+
+  // Optional: resolved active line for a specific month (full prefix-walk).
+  let resolvedForMonth: { year: number; month: number; line: string | null } | null = null;
+  if (typeof input.year === "number" && typeof input.month === "number") {
+    const p = periodKey(input.year, input.month);
+    const state = buildResolverStateAsOf(tree, versions, p);
+    const r = resolveCategoryForCont(cont, state);
+    resolvedForMonth = {
+      year: input.year,
+      month: input.month,
+      line: r ? r.category.name : null,
+    };
+  }
+
+  // The directly-effective version for the queried month (no prefix walk).
+  const directNow =
+    typeof input.year === "number" && typeof input.month === "number"
+      ? pickEffective(
+          versions.filter((v) => v.cont === cont),
+          periodKey(input.year, input.month)
+        )
+      : null;
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    cont,
+    versions: direct,
+    versionCount: direct.length,
+    isPeriodScoped: direct.some((v) => v.effectiveFrom !== 0 || v.effectiveTo !== null),
+    resolvedForMonth,
+    directlyEffectiveLine: directNow
+      ? directNow.categoryId
+        ? nameById.get(directNow.categoryId) ?? directNow.categoryId
+        : "nemapat (tombstone)"
+      : undefined,
+    note:
+      "Versiunile deschise (effectiveTo null) se aplica de la luna lor inainte; exceptiile marginite (effectiveTo setat) doar in fereastra lor. effectiveFrom=0 inseamna 'de la inceput' (legacy, fara perioade).",
+  });
+}
+
+function describePeriod(key: number): string {
+  return `${String(periodMonth(key)).padStart(2, "0")}.${periodYear(key)}`;
 }

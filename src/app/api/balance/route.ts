@@ -23,6 +23,7 @@ import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
+import { loadCppVerticalContext } from "@/modules/reporting/cpp-vertical-context";
 import { getCatalogMap } from "@/modules/accounts";
 import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
 import {
@@ -64,10 +65,11 @@ export async function GET(request: Request) {
   // unstable_cache for the balance rows themselves). On success we
   // materialize the result so the next read goes through tier 1.
   const t0 = Date.now();
-  const [balanceResult, catalog, taxRegime] = await Promise.all([
+  const [balanceResult, catalog, taxRegime, verticalCtx] = await Promise.all([
     getBalanceRowsCached(clientId, year, month),
     getCatalogMap(),
     getRegimeForPeriod(clientId, year, month),
+    loadCppVerticalContext(clientId, year, month),
   ]);
   const tLoad = Date.now() - t0;
 
@@ -85,10 +87,16 @@ export async function GET(request: Request) {
   const kpis = computeKpis(balanceResult.data, catalog);
   const tKpi = Date.now() - t1;
   const t2 = Date.now();
-  const cpp = computeCpp(balanceResult.data, catalog, { taxRegime });
+  const cpp = computeCpp(balanceResult.data, catalog, {
+    taxRegime,
+    vertical: verticalCtx ?? undefined,
+  });
   const tCpp = Date.now() - t2;
   const t3 = Date.now();
-  const cppF20 = computeCppF20(balanceResult.data, catalog, { taxRegime });
+  const cppF20 = computeCppF20(balanceResult.data, catalog, {
+    taxRegime,
+    vertical: verticalCtx ?? undefined,
+  });
   const tF20 = Date.now() - t3;
 
   const payload: ComputedPeriodPayload = {

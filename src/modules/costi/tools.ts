@@ -150,4 +150,22 @@ export const COSTI_TOOLS: Tool[] = [
       required: ["client_name"],
     },
   },
+  {
+    name: "get_account_mapping_timeline",
+    description:
+      "Returneaza istoricul maparii unui cont pe linia de cost (axa A) in timp, pentru clientii care folosesc mapari pe perioade (ADR-0004). Fiecare versiune are o luna de inceput (effectiveFrom, format YYYYMM; 0 = de la inceput), o eventuala luna de sfarsit (effectiveTo, doar pentru exceptii pe o fereastra) si linia de cost activa (sau 'nemapat' pentru un tombstone). Rezolvarea: o exceptie marginita (cu effectiveTo) castiga doar in fereastra ei; altfel se ia versiunea deschisa cu cel mai mare effectiveFrom <= luna ceruta. Util cand contabilul intreaba 'pe ce linie a fost contul 6028 in martie fata de aprilie' sau 'cand am schimbat maparea contului X'. Daca se da year+month, intoarce si linia activa rezolvata pentru acea luna.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        cont: {
+          type: "string",
+          description: "Contul analizat (ex: '6028', '628.01' sau baza '62')",
+        },
+        year: { type: "number", description: "Optional: anul pentru rezolvarea liniei active" },
+        month: { type: "number", description: "Optional: luna (1-12) pentru rezolvarea liniei active" },
+      },
+      required: ["client_name", "cont"],
+    },
+  },
 ];

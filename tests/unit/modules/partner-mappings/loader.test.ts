@@ -152,7 +152,13 @@ describe("loadPartnersForCont", () => {
     const call = prisma._spies.overrideFindMany.mock.calls[0][0];
     // Pre-Sprint 4 this was scoped to a single contBase. Now we fetch all
     // overrides for the client so suggestions can fire from other conts.
-    expect(call.where).toEqual({ clientId: "client-1" });
+    // ADR-0004: the inception view filters to effectiveFrom=0 open versions.
+    expect(call.where).toEqual({
+      clientId: "client-1",
+      effectiveFrom: 0,
+      effectiveTo: null,
+      categoryId: { not: null },
+    });
   });
 
   it("integrates lines + partner names + overrides end-to-end", async () => {

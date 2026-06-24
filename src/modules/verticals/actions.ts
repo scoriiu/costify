@@ -10,6 +10,15 @@ import * as service from "./service";
 
 type ActionResult<T = void> = { error?: string; data?: T };
 
+/** Shared period-scope sub-schema (ADR-0004 D3). Omitted = inception/all. */
+const periodScopeSchema = z
+  .object({
+    kind: z.enum(["all", "from", "only"]),
+    from: z.number().int().optional(),
+    to: z.number().int().optional(),
+  })
+  .optional();
+
 async function authorize(clientId: string): Promise<{ userId: string } | null> {
   const user = await getSessionUser();
   if (!user) redirect("/login");
@@ -208,6 +217,7 @@ const setAllocationSchema = z.object({
     .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
     .min(1)
     .max(5),
+  periodScope: periodScopeSchema,
 });
 
 export async function setAllocationAction(
@@ -289,6 +299,7 @@ const setCategoryAllocationSchema = z.object({
     .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
     .min(1)
     .max(5),
+  periodScope: periodScopeSchema,
 });
 
 export async function setCategoryAllocationAction(
@@ -332,6 +343,7 @@ const setFirmDefaultSchema = z.object({
     .array(z.object({ verticalId: z.string().min(1), percent: z.number().int() }))
     .min(1)
     .max(5),
+  periodScope: periodScopeSchema,
 });
 
 export async function setFirmDefaultAction(
@@ -343,14 +355,15 @@ export async function setFirmDefaultAction(
   if (!auth) return { error: "Firma nu exista sau nu ai acces" };
 
   try {
-    const before = await prisma.firmVerticalDefault.findUnique({
-      where: { clientId: parsed.data.clientId },
+    const before = await prisma.firmVerticalDefault.findFirst({
+      where: { clientId: parsed.data.clientId, effectiveFrom: 0 },
       select: { id: true, splits: true },
     });
     const result = await service.setFirmDefaultSplits(
       prisma,
       parsed.data.clientId,
-      parsed.data.splits
+      parsed.data.splits,
+      parsed.data.periodScope
     );
     await recordClientMutation({
       clientId: parsed.data.clientId,

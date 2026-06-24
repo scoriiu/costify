@@ -15,10 +15,19 @@ import type { CatalogAccount, TaxRegime } from "@/modules/accounts";
 import { loadCatalogSync } from "@/modules/accounts";
 import { computeCppF20 } from "./cpp-f20";
 import type { CppData, CppF20Line, CppLine } from "./types";
+import {
+  buildVerticalSplitter,
+  resolveCatalogCode,
+  type CppVerticalContext,
+  type VerticalSplitter,
+} from "./cpp-vertical";
 
 export interface CppOptions {
   /** D13: which accounts map to the impozit line. Defaults to all profit-tax accounts. */
   taxRegime?: TaxRegime;
+  /** When present, attach a per business-line (vertical) split to every line,
+   *  resolved as of the selected month. Sums to each line's value exactly. */
+  vertical?: CppVerticalContext;
 }
 
 interface SectionSpec {
@@ -74,20 +83,35 @@ export function computeCpp(
   const f20 = computeCppF20(rows, cat, options);
   const byRow = new Map(f20.lines.map((l) => [l.rowNumber, l]));
   const perCode = aggregatePerCode(rows, cat);
+  const splitter = options.vertical ? buildVerticalSplitter(rows, cat, options.vertical) : null;
 
   const lines: CppLine[] = [];
 
-  // Build the four operating + financial sections from F20 detail rows.
+  // Build the four operating + financial sections from F20 detail rows. Each
+  // returns its section-total per-vertical map (null when no splitter / empty).
+  const sectionMaps: (Record<string, number> | null)[] = [];
   for (const section of SECTIONS) {
-    pushSection(section, byRow, perCode, cat, lines);
+    sectionMaps.push(pushSection(section, byRow, perCode, cat, lines, splitter));
   }
+  const z = () => (splitter ? splitter.zero() : null);
+  const [venExpl, cheltExpl, venFin, cheltFin] = sectionMaps.map((m) => m ?? z());
 
-  lines.push(totalLine("REZULTAT DIN EXPLOATARE", f20.rezultatExploatare));
-  lines.push(totalLine("REZULTAT FINANCIAR", f20.rezultatFinanciar));
-  lines.push(totalLine("REZULTAT BRUT", f20.rezultatBrut));
+  const rezExpl = splitter
+    ? splitter.reconcile(splitter.sub(venExpl!, cheltExpl!), f20.rezultatExploatare)
+    : undefined;
+  lines.push(totalLine("REZULTAT DIN EXPLOATARE", f20.rezultatExploatare, rezExpl));
+  const rezFin = splitter
+    ? splitter.reconcile(splitter.sub(venFin!, cheltFin!), f20.rezultatFinanciar)
+    : undefined;
+  lines.push(totalLine("REZULTAT FINANCIAR", f20.rezultatFinanciar, rezFin));
+  const rezBrut = splitter
+    ? splitter.reconcile(splitter.add(rezExpl!, rezFin!), f20.rezultatBrut)
+    : undefined;
+  lines.push(totalLine("REZULTAT BRUT", f20.rezultatBrut, rezBrut));
 
   // Tax line — show every contributing tax account on its own line so the
   // accountant sees exactly which tax account drove the rezultat net.
+  let taxMap = splitter ? splitter.zero() : null;
   for (const rn of TAX_ROWS) {
     const taxRow = byRow.get(rn);
     if (!taxRow || taxRow.value === 0) continue;
@@ -95,18 +119,25 @@ export function computeCpp(
       const agg = perCode.get(code);
       if (!agg || agg.td === 0) continue;
       const meta = cat.get(code);
+      const value = round2(agg.td);
+      const byVertical = splitter ? splitter.split(code, "td", value) : undefined;
+      if (splitter && byVertical) taxMap = splitter.add(taxMap!, byVertical);
       lines.push({
         cont: code,
         denumire: getTaxLabel(code, meta),
         indent: 0,
         isHeader: false,
         isTotal: false,
-        value: round2(agg.td),
+        value,
+        byVertical,
       });
     }
   }
 
-  lines.push(totalLine("REZULTAT NET", f20.rezultatNet));
+  const rezNet = splitter
+    ? splitter.reconcile(splitter.sub(rezBrut!, taxMap!), f20.rezultatNet)
+    : undefined;
+  lines.push(totalLine("REZULTAT NET", f20.rezultatNet, rezNet));
 
   return {
     lines,
@@ -118,6 +149,7 @@ export function computeCpp(
     rezultatFinanciar: f20.rezultatFinanciar,
     rezultatBrut: f20.rezultatBrut,
     rezultatNet: f20.rezultatNet,
+    verticals: options.vertical?.verticals,
   };
 }
 
@@ -148,31 +180,23 @@ function aggregatePerCode(
   return agg;
 }
 
-function resolveCatalogCode(
-  contBase: string,
-  catalog: Map<string, CatalogAccount>
-): string | null {
-  if (catalog.has(contBase)) return contBase;
-  for (let len = contBase.length - 1; len >= 2; len--) {
-    const prefix = contBase.slice(0, len);
-    if (catalog.has(prefix)) return prefix;
-  }
-  return null;
-}
-
 /**
  * Emit one section: header row, one row per contributing account, and a
  * section total. Contributing accounts are exactly those that appeared on
  * the F20 detail rows belonging to this section — guaranteeing that the
  * displayed per-account values sum to the F20 section total.
+ *
+ * Returns the section-total per-vertical map (null when no splitter is active
+ * or the section has no contributing accounts).
  */
 function pushSection(
   section: SectionSpec,
   byRow: Map<string, CppF20Line>,
   perCode: Map<string, PerCodeAgg>,
   catalog: Map<string, CatalogAccount>,
-  lines: CppLine[]
-): void {
+  lines: CppLine[],
+  splitter: VerticalSplitter | null
+): Record<string, number> | null {
   // Collect contributing accounts with their signed value, deduped across
   // F20 rows. A code can appear on only one DETAIL row in a section (info
   // rows are skipped, dual-row split is sign-aware) so a Map keyed by code
@@ -215,7 +239,7 @@ function pushSection(
     }
   }
 
-  if (entries.size === 0) return;
+  if (entries.size === 0) return null;
 
   lines.push({
     cont: "",
@@ -226,19 +250,29 @@ function pushSection(
     value: 0,
   });
 
+  const side = isDebitSection(section) ? "td" : "tc";
+  let totalMap = splitter ? splitter.zero() : null;
+
   const sorted = [...entries.values()].sort((a, b) => a.code.localeCompare(b.code));
   for (const e of sorted) {
+    const value = round2(e.value);
+    const byVertical = splitter ? splitter.split(e.code, side, value) : undefined;
+    if (splitter && byVertical) totalMap = splitter.add(totalMap!, byVertical);
     lines.push({
       cont: e.code,
       denumire: e.label,
       indent: 1,
       isHeader: false,
       isTotal: false,
-      value: round2(e.value),
+      value,
+      byVertical,
     });
   }
 
-  lines.push(totalLine(section.totalLabel, round2(sectionTotal)));
+  const sectionTotalValue = round2(sectionTotal);
+  const reconciled = splitter ? splitter.reconcile(totalMap!, sectionTotalValue) : undefined;
+  lines.push(totalLine(section.totalLabel, sectionTotalValue, reconciled));
+  return reconciled ?? null;
 }
 
 function isDebitSection(section: SectionSpec): boolean {
@@ -271,8 +305,12 @@ function getTaxLabel(code: string, meta: CatalogAccount | undefined): string {
   }
 }
 
-function totalLine(label: string, value: number): CppLine {
-  return { cont: "", denumire: label, indent: 0, isHeader: false, isTotal: true, value };
+function totalLine(
+  label: string,
+  value: number,
+  byVertical?: Record<string, number>
+): CppLine {
+  return { cont: "", denumire: label, indent: 0, isHeader: false, isTotal: true, value, byVertical };
 }
 
 function round2(n: number): number {

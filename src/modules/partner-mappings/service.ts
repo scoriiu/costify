@@ -16,6 +16,7 @@ import type {
   PartnerCategoryOverrideRow,
   PartnerOverrideSource,
 } from "./types";
+import { scopeToWindow, type MappingPeriodScope } from "@/lib/period";
 
 /* -------------------------------------------------------------------------- */
 /*                                    READ                                    */
@@ -30,7 +31,7 @@ export async function listOverridesForClient(
   clientId: string
 ): Promise<PartnerCategoryOverrideRow[]> {
   const rows = await prisma.partnerCategoryOverride.findMany({
-    where: { clientId },
+    where: { clientId, effectiveFrom: 0, effectiveTo: null, categoryId: { not: null } },
     orderBy: [{ contBase: "asc" }, { partnerNameNormalized: "asc" }],
   });
   return rows.map(toRow);
@@ -47,7 +48,7 @@ export async function listOverridesForCont(
   contBase: string
 ): Promise<PartnerCategoryOverrideRow[]> {
   const rows = await prisma.partnerCategoryOverride.findMany({
-    where: { clientId, contBase },
+    where: { clientId, contBase, effectiveFrom: 0, effectiveTo: null, categoryId: { not: null } },
     orderBy: { partnerNameNormalized: "asc" },
   });
   return rows.map(toRow);
@@ -77,6 +78,7 @@ export async function upsertOverride(
     categoryId: string;
     source: PartnerOverrideSource;
     confirmedAt?: Date | null;
+    periodScope?: MappingPeriodScope;
   }
 ): Promise<PartnerCategoryOverrideRow> {
   const confirmedAt =
@@ -86,12 +88,15 @@ export async function upsertOverride(
         ? null
         : new Date();
 
+  const { effectiveFrom, effectiveTo } = scopeToWindow(input.periodScope);
+
   const row = await prisma.partnerCategoryOverride.upsert({
     where: {
-      clientId_contBase_partnerNameNormalized: {
+      clientId_contBase_partnerNameNormalized_effectiveFrom: {
         clientId: input.clientId,
         contBase: input.contBase,
         partnerNameNormalized: input.partnerNameNormalized,
+        effectiveFrom,
       },
     },
     create: {
@@ -102,12 +107,15 @@ export async function upsertOverride(
       categoryId: input.categoryId,
       source: input.source,
       confirmedAt,
+      effectiveFrom,
+      effectiveTo,
     },
     update: {
       partnerNameOriginal: input.partnerNameOriginal,
       categoryId: input.categoryId,
       source: input.source,
       confirmedAt,
+      effectiveTo,
     },
   });
   return toRow(row);
@@ -176,6 +184,7 @@ export async function bulkApplyOverrides(
     where: {
       clientId: input.clientId,
       contBase: input.contBase,
+      effectiveFrom: 0,
       partnerNameNormalized: { in: input.partners.map((p) => p.nameNormalized) },
     },
     select: { partnerNameNormalized: true },
@@ -195,10 +204,11 @@ export async function bulkApplyOverrides(
     targets.map((p) =>
       prisma.partnerCategoryOverride.upsert({
         where: {
-          clientId_contBase_partnerNameNormalized: {
+          clientId_contBase_partnerNameNormalized_effectiveFrom: {
             clientId: input.clientId,
             contBase: input.contBase,
             partnerNameNormalized: p.nameNormalized,
+            effectiveFrom: 0,
           },
         },
         create: {
@@ -238,7 +248,7 @@ function toRow(
     contBase: row.contBase,
     partnerNameNormalized: row.partnerNameNormalized,
     partnerNameOriginal: row.partnerNameOriginal,
-    categoryId: row.categoryId,
+    categoryId: row.categoryId as string,
     source: row.source as PartnerOverrideSource,
     confirmedAt: row.confirmedAt,
     createdAt: row.createdAt,

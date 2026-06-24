@@ -48,19 +48,20 @@ import { prisma } from "@/lib/db";
 import { getEmployeeCount } from "@/modules/clients/employee-counts";
 import {
   listCategoryTree,
-  listMappings,
-  buildResolverState,
+  listMappingVersions,
+  buildResolverStateAsOf,
   resolveCategoryForCont,
   type ResolverState,
 } from "@/modules/categories";
 import type { BalanceRowView } from "@/modules/balances";
 import {
   listVerticals,
-  listAllocations,
-  listCategoryAllocations,
-  getFirmDefaultSplits,
-  buildVerticalResolver,
+  listAllocationVersions,
+  listCategoryAllocationVersions,
+  listFirmDefaultVersions,
+  buildVerticalResolverAsOf,
 } from "@/modules/verticals";
+import { periodKey } from "@/lib/period";
 import {
   listOverridesForClient,
   loadPartnerCategoryAdjustments,
@@ -208,14 +209,22 @@ export async function loadOwnerSnapshot(
   // come from the accountant opening the Mapari Cashflow tab explicitly.
   // If the firm has no categories yet, fall through to the PR-2a hardcoded
   // breakdown so the patron view still works.
-  const [categoryTreeResult, mappings, partnerOverrides] = await Promise.all([
+  const [categoryTreeResult, mappingVersions, partnerOverrides] = await Promise.all([
     listCategoryTree(prisma, clientId, { autoSeed: false }),
-    listMappings(prisma, clientId),
+    listMappingVersions(prisma, clientId),
     listOverridesForClient(prisma, clientId),
   ]);
-  const useCategoryBreakdown = mappings.length > 0;
+  // Resolve cont->category AS OF the selected month (ADR-0004 D5). The owner
+  // breakdown is single-month (rulajD/rulajC), so the correct version is the
+  // one effective at (year, month): a cont reclassified mid-year shows on the
+  // line it carried in THIS month, matching the Mapari tab and CPP exactly.
+  const useCategoryBreakdown = mappingVersions.length > 0;
   const resolverState = useCategoryBreakdown
-    ? buildResolverState(categoryTreeResult.tree, mappings)
+    ? buildResolverStateAsOf(
+        categoryTreeResult.tree,
+        mappingVersions,
+        periodKey(year, month)
+      )
     : null;
 
   // Sprint 6: compute partner-override redistribution adjustments for the
@@ -257,20 +266,21 @@ export async function loadOwnerSnapshot(
   // verticals exist — owner UI hides the card in that case.
   let verticalBreakdown: ReturnType<typeof computeVerticalBreakdown> = [];
   if (clientFlag?.verticalsEnabled) {
-    const [verticals, allocations, categoryAllocations, firmDefaultSplits] =
+    const [verticals, allocVersions, catAllocVersions, firmVersions] =
       await Promise.all([
         listVerticals(prisma, clientId),
-        listAllocations(prisma, clientId),
-        listCategoryAllocations(prisma, clientId),
-        getFirmDefaultSplits(prisma, clientId),
+        listAllocationVersions(prisma, clientId),
+        listCategoryAllocationVersions(prisma, clientId),
+        listFirmDefaultVersions(prisma, clientId),
       ]);
     if (verticals.length > 0) {
       const defaultV = verticals.find((v) => v.isDefault);
-      const vResolver = buildVerticalResolver(
-        allocations,
+      const vResolver = buildVerticalResolverAsOf(
+        allocVersions,
         defaultV?.id ?? null,
-        categoryAllocations,
-        firmDefaultSplits
+        catAllocVersions,
+        firmVersions,
+        periodKey(year, month)
       );
       verticalBreakdown = computeVerticalBreakdown(
         rows,

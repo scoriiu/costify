@@ -22,6 +22,7 @@
  */
 
 import { getContBase } from "@/lib/accounts";
+import { pickEffective, type PeriodKey } from "@/lib/period";
 import type {
   AllocationScope,
   AllocationSplit,
@@ -58,6 +59,83 @@ export function buildVerticalResolver(
   const byCategoryId = new Map<string, CategoryAllocationView>();
   for (const c of categoryAllocations) byCategoryId.set(c.categoryId, c);
   return { byCont, byCategoryId, firmDefaultSplits, defaultVerticalId };
+}
+
+/** Effective-dated versions of the axis-B rules (ADR-0004 D1/D3). For all
+ *  three, a version with empty `splits` is a tombstone ("cleared here"): it is
+ *  dropped so resolution falls through to the next cascade level.
+ *  `effectiveTo === null` is an open version; a set `effectiveTo` is a bounded
+ *  override winning only inside its window. */
+export interface AllocationVersion {
+  cont: string;
+  scope: AllocationScope;
+  splits: AllocationSplit[];
+  effectiveFrom: PeriodKey;
+  effectiveTo: PeriodKey | null;
+}
+export interface CategoryAllocationVersion {
+  categoryId: string;
+  splits: AllocationSplit[];
+  effectiveFrom: PeriodKey;
+  effectiveTo: PeriodKey | null;
+}
+export interface FirmDefaultVersion {
+  splits: AllocationSplit[];
+  effectiveFrom: PeriodKey;
+  effectiveTo: PeriodKey | null;
+}
+
+/**
+ * Build the vertical resolver for a specific period from versioned rules: per
+ * key (cont / categoryId / firm), pick the version effective at `period` and
+ * drop tombstones (empty splits). Produces the exact state the existing
+ * resolve functions consume, so the hot path is unchanged. `defaultVerticalId`
+ * is global (line definitions are not period-scoped, ADR-0004 D4).
+ */
+export function buildVerticalResolverAsOf(
+  allocationVersions: AllocationVersion[],
+  defaultVerticalId: string | null,
+  categoryAllocationVersions: CategoryAllocationVersion[],
+  firmDefaultVersions: FirmDefaultVersion[],
+  period: PeriodKey
+): VerticalResolverState {
+  const byCont = new Map<string, AllocationView>();
+  for (const [cont, vs] of groupBy(allocationVersions, (v) => v.cont)) {
+    const picked = pickEffective(vs, period);
+    if (picked && picked.splits.length > 0) {
+      byCont.set(cont, {
+        id: cont,
+        clientId: "",
+        scope: picked.scope,
+        cont,
+        splits: picked.splits,
+      });
+    }
+  }
+
+  const byCategoryId = new Map<string, CategoryAllocationView>();
+  for (const [categoryId, vs] of groupBy(categoryAllocationVersions, (v) => v.categoryId)) {
+    const picked = pickEffective(vs, period);
+    if (picked && picked.splits.length > 0) {
+      byCategoryId.set(categoryId, { id: categoryId, clientId: "", categoryId, splits: picked.splits });
+    }
+  }
+
+  const pickedFirm = pickEffective(firmDefaultVersions, period);
+  const firmDefaultSplits = pickedFirm && pickedFirm.splits.length > 0 ? pickedFirm.splits : null;
+
+  return { byCont, byCategoryId, firmDefaultSplits, defaultVerticalId };
+}
+
+function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {
+  const out = new Map<K, T[]>();
+  for (const item of items) {
+    const k = key(item);
+    const arr = out.get(k);
+    if (arr) arr.push(item);
+    else out.set(k, [item]);
+  }
+  return out;
 }
 
 /**

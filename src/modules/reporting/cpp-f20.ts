@@ -30,6 +30,11 @@ import {
   type F20Structure,
 } from "./f20-structure";
 import type { CppF20Data, CppF20Line } from "./types";
+import {
+  buildVerticalSplitter,
+  type CppVerticalContext,
+  type VerticalSplitter,
+} from "./cpp-vertical";
 
 // All runtime knobs (dual-row split, tax regime mapping, summary row refs)
 // live in seeds/f20-structure.json and are read fresh per call. This keeps
@@ -37,6 +42,9 @@ import type { CppF20Data, CppF20Line } from "./types";
 
 export interface CppF20Options {
   taxRegime?: TaxRegime;
+  /** When present, attach a per business-line (vertical) split to every row,
+   *  resolved as of the selected month. Sums to each row's value exactly. */
+  vertical?: CppVerticalContext;
 }
 
 interface PerCodeAgg {
@@ -74,9 +82,16 @@ export function computeCppF20(
   const taxRegimeMap = structure.taxRegimeAccounts;
   const taxRows = new Set(Object.values(taxRegimeMap).map((m) => m.row));
 
+  const splitter = options.vertical ? buildVerticalSplitter(rows, cat, options.vertical) : null;
+
   // Compute detail rows.
   const rowValues = new Map<string, number>();
   const rowAccounts = new Map<string, Set<string>>();
+  // Parallel per-vertical row values (one map per vertical), so subtotals and
+  // totals split the same way their formula combines the detail rows.
+  const vidValues = new Map<string, Map<string, number>>();
+  if (splitter) for (const id of splitter.order) vidValues.set(id, new Map());
+  const rowByVertical = new Map<string, Record<string, number>>();
 
   for (const row of structure.rows) {
     if (!isDetailRow(row)) continue;
@@ -92,15 +107,38 @@ export function computeCppF20(
     );
     rowValues.set(row.rowNumber, value);
     rowAccounts.set(row.rowNumber, accounts);
+    if (splitter) {
+      const bv = dualTargetRows.has(row.rowNumber)
+        ? splitter.splitCodesNet(accounts, value)
+        : splitter.splitCodes(accounts, (row.side ?? "D") === "C" ? "tc" : "td", value);
+      rowByVertical.set(row.rowNumber, bv);
+      for (const id of splitter.order) vidValues.get(id)!.set(row.rowNumber, bv[id]);
+    }
   }
 
-  // Evaluate subtotals/totals in document order.
+  // Evaluate subtotals/totals in document order. Per vertical we use the
+  // unclamped formula then reconcile to the displayed value, so the columns
+  // always sum to the row total even across the paired profit/loss rows.
   for (const row of structure.rows) {
     if (isDetailRow(row)) continue;
-    rowValues.set(row.rowNumber, evaluateFormula(row.formula, rowValues));
+    const value = evaluateFormula(row.formula, rowValues);
+    rowValues.set(row.rowNumber, value);
+    if (splitter) {
+      const raw: Record<string, number> = {};
+      for (const id of splitter.order) {
+        const v = value === 0 ? 0 : evaluateFormulaLinear(row.formula, vidValues.get(id)!);
+        raw[id] = v;
+        vidValues.get(id)!.set(row.rowNumber, v);
+      }
+      const bv = value === 0 ? splitter.zero() : splitter.reconcile(raw, value);
+      for (const id of splitter.order) vidValues.get(id)!.set(row.rowNumber, bv[id]);
+      rowByVertical.set(row.rowNumber, bv);
+    }
   }
 
-  const lines: CppF20Line[] = structure.rows.map((row) => buildLine(row, rowValues, rowAccounts));
+  const lines: CppF20Line[] = structure.rows.map((row) =>
+    buildLine(row, rowValues, rowAccounts, rowByVertical)
+  );
   const summary = computeSummary(structure, rowValues);
 
   return {
@@ -116,6 +154,7 @@ export function computeCppF20(
     cheltuieliTotale: summary.cheltuieliTotale ?? 0,
     rezultatBrut: summary.rezultatBrut ?? 0,
     rezultatNet: summary.rezultatNet ?? 0,
+    verticals: options.vertical?.verticals,
   };
 }
 
@@ -347,12 +386,32 @@ export function evaluateFormula(
   return clampPositive && result < 0 ? 0 : result;
 }
 
+/**
+ * Same arithmetic as evaluateFormula but WITHOUT the positive clamp. Used for
+ * the per-vertical pass: a single business line may be loss-making while the
+ * firm total is clamped to a profit row, so we keep signed contributions and
+ * reconcile against the displayed (clamped) total afterwards.
+ */
+function evaluateFormulaLinear(formula: string, rowValues: Map<string, number>): number {
+  const tokens = formula.match(/[+-]?\s*rd\.[0-9a-z]+/g);
+  if (!tokens) return 0;
+  let total = 0;
+  for (const raw of tokens) {
+    const sign = raw.trim().startsWith("-") ? -1 : 1;
+    const rowRef = raw.replace(/[+\-\s]/g, "").replace("rd.", "");
+    total += sign * (rowValues.get(rowRef) ?? 0);
+  }
+  return round2(total);
+}
+
 function buildLine(
   row: F20Structure["rows"][number],
   rowValues: Map<string, number>,
-  rowAccounts: Map<string, Set<string>>
+  rowAccounts: Map<string, Set<string>>,
+  rowByVertical: Map<string, Record<string, number>>
 ): CppF20Line {
   const value = round2(rowValues.get(row.rowNumber) ?? 0);
+  const byVertical = rowByVertical.get(row.rowNumber);
   if (isDetailRow(row)) {
     const accs = rowAccounts.get(row.rowNumber);
     return {
@@ -363,6 +422,7 @@ function buildLine(
       kind: row.kind, // "detail" or "info" — preserve for UI rendering
       value,
       accounts: accs && accs.size > 0 ? [...accs].sort() : undefined,
+      byVertical,
     };
   }
   return {
@@ -373,6 +433,7 @@ function buildLine(
     kind: row.kind,
     value,
     formula: row.formula,
+    byVertical,
   };
 }
 

@@ -76,7 +76,12 @@ describe("partner-mappings/service", () => {
 
       expect(rows).toHaveLength(2);
       expect(prisma.partnerCategoryOverride.findMany).toHaveBeenCalledWith({
-        where: { clientId: "client-1" },
+        where: {
+          clientId: "client-1",
+          effectiveFrom: 0,
+          effectiveTo: null,
+          categoryId: { not: null },
+        },
         orderBy: [{ contBase: "asc" }, { partnerNameNormalized: "asc" }],
       });
     });
@@ -99,7 +104,13 @@ describe("partner-mappings/service", () => {
     it("queries with both clientId and contBase as the filter", async () => {
       await listOverridesForCont(prisma, "client-1", "6022");
       expect(prisma.partnerCategoryOverride.findMany).toHaveBeenCalledWith({
-        where: { clientId: "client-1", contBase: "6022" },
+        where: {
+          clientId: "client-1",
+          contBase: "6022",
+          effectiveFrom: 0,
+          effectiveTo: null,
+          categoryId: { not: null },
+        },
         orderBy: { partnerNameNormalized: "asc" },
       });
     });
@@ -184,10 +195,11 @@ describe("partner-mappings/service", () => {
       const call = (prisma.partnerCategoryOverride.upsert as ReturnType<typeof vi.fn>)
         .mock.calls[0][0];
       expect(call.where).toEqual({
-        clientId_contBase_partnerNameNormalized: {
+        clientId_contBase_partnerNameNormalized_effectiveFrom: {
           clientId: "client-1",
           contBase: "6022",
           partnerNameNormalized: "omv",
+          effectiveFrom: 0,
         },
       });
     });

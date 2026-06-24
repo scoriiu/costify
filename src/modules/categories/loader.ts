@@ -14,17 +14,18 @@
 
 import { prisma } from "@/lib/db";
 import { round2 } from "@/lib/money";
-import { listCategoryTree, listMappings } from "./service";
-import { buildResolverState, resolveCategoryForCont } from "./resolver";
+import { periodKey } from "@/lib/period";
+import { listCategoryTree, listMappingVersions } from "./service";
+import { buildResolverStateAsOf, resolveCategoryForCont } from "./resolver";
 import { getAvailablePeriods } from "@/modules/balances";
 import { getBalanceRowsCached } from "@/modules/cache/loaders";
 import {
   listVerticals,
-  listAllocations,
-  listCategoryAllocations,
+  listAllocationVersions,
+  listCategoryAllocationVersions,
   listPartnerAllocations,
-  getFirmDefaultSplits,
-  buildVerticalResolver,
+  listFirmDefaultVersions,
+  buildVerticalResolverAsOf,
   resolveAllocationForCont,
   type VerticalView,
   type AllocationView,
@@ -94,6 +95,12 @@ export interface AccountListItem {
    *  split (PartnerVerticalAllocation), differing from the cont's split.
    *  > 0 → show the "some partners split differently" marker on the row. */
   partnerLobOverrideCount: number;
+  /** True when this cont's category mapping varies across periods (ADR-0004):
+   *  it has at least one dated (effectiveFrom != 0) or bounded (effectiveTo set)
+   *  version on the cont or its contBase. Drives the per-row "varies in time"
+   *  clock indicator so the accountant knows the line shown is as-of THIS
+   *  month, not a single global mapping. */
+  mappingPeriodScoped: boolean;
 }
 
 /**
@@ -216,24 +223,24 @@ export async function loadMapariCashflow(
   // SELECTs in one round-trip latency window (~10-20 ms instead of 50-80 ms
   // sequential).
   const [
-    mappings,
+    mappingVersions,
     clientFlag,
     verticals,
-    allocations,
-    categoryAllocations,
-    firmDefaultSplits,
+    allocVersions,
+    catAllocVersions,
+    firmVersions,
     periods,
     partnerAllocations,
   ] = await Promise.all([
-    listMappings(prisma, clientId),
+    listMappingVersions(prisma, clientId),
     prisma.client.findUnique({
       where: { id: clientId },
       select: { verticalsEnabled: true },
     }),
     listVerticals(prisma, clientId),
-    listAllocations(prisma, clientId),
-    listCategoryAllocations(prisma, clientId),
-    getFirmDefaultSplits(prisma, clientId),
+    listAllocationVersions(prisma, clientId),
+    listCategoryAllocationVersions(prisma, clientId),
+    listFirmDefaultVersions(prisma, clientId),
     getAvailablePeriods(clientId),
     listPartnerAllocations(prisma, clientId),
   ]);
@@ -241,32 +248,7 @@ export async function loadMapariCashflow(
   const verticalsEnabled = clientFlag?.verticalsEnabled ?? false;
   const emptyPartnerSummaries: Record<string, PartnerSummary> = {};
   const emptyCategoryInflows: Record<string, CategoryInflow> = {};
-  const categoryAllocationIds = new Set(
-    categoryAllocations.map((ca) => ca.categoryId)
-  );
-
-  // Build a full resolver state so the UI uses the same prefix-walk semantics
-  // as the snapshot computation. A leaf cont like "704" must resolve to the
-  // 2-digit root mapping on "70", and "641.001" must resolve to the 3-digit
-  // sub-category mapping on "641" before falling back to "64".
-  const resolverState = buildResolverState(tree, mappings);
-
-  // Vertical resolver mirrors the snapshot cascade so the per-cont "effective
-  // split" shown in the UI matches what the owner report computes. Needs the
-  // default vertical id; if verticals aren't enabled there is none and we skip
-  // effective-split resolution (UI hides that column anyway).
   const defaultVerticalId = verticals.find((v) => v.isDefault)?.id ?? null;
-  const verticalResolver = verticalsEnabled
-    ? buildVerticalResolver(
-        allocations,
-        defaultVerticalId,
-        categoryAllocations,
-        firmDefaultSplits
-      )
-    : null;
-
-  const allocByCont = new Map<string, AllocationView>();
-  for (const a of allocations) allocByCont.set(a.cont, a);
 
   // How many partners on each cont carry their OWN line-of-business split
   // (a PartnerVerticalAllocation), overriding the cont's split. Drives the
@@ -295,8 +277,8 @@ export async function loadMapariCashflow(
       verticalsEnabled,
       verticals,
       partnerSummariesByCont: emptyPartnerSummaries,
-      categoryAllocations,
-      firmDefaultSplits,
+      categoryAllocations: [],
+      firmDefaultSplits: null,
       categoryInflows: emptyCategoryInflows,
       defaultVerticalResidueAbsorbed: 0,
     };
@@ -322,6 +304,53 @@ export async function loadMapariCashflow(
     opts?.month !== undefined && monthsForYear.includes(opts.month)
       ? opts.month
       : Math.max(...monthsForYear);
+
+  // Resolve the cont->category mappings AS OF the selected period (ADR-0004):
+  // the account list shows each cont on the line it carries for this month, not
+  // a single global mapping. The prefix-walk + analytic-over-base semantics in
+  // resolveCategoryForCont are unchanged — only which version is active shifts.
+  const resolverState = buildResolverStateAsOf(
+    tree,
+    mappingVersions,
+    periodKey(targetYear, latestMonth)
+  );
+
+  // Keys whose mapping varies across periods: any dated or bounded version.
+  // A row is flagged when its cont OR contBase carries such a version, so the
+  // UI can show a "varies in time" indicator (ADR-0004 D10).
+  const periodScopedKeys = new Set<string>();
+  for (const v of mappingVersions) {
+    if (v.effectiveFrom !== 0 || v.effectiveTo !== null) periodScopedKeys.add(v.cont);
+  }
+
+  // Vertical (axa B) resolver AS OF the selected period (ADR-0004): a 50/50
+  // split set "doar februarie" must show in February's Mapari view and vanish
+  // in other months, matching the owner report. Derive the per-cont, per-
+  // category and firm-default views from the same as-of state so the UI badges,
+  // the "Linii de business" accordion and the effective-split cascade all agree.
+  const verticalResolver = verticalsEnabled
+    ? buildVerticalResolverAsOf(
+        allocVersions,
+        defaultVerticalId,
+        catAllocVersions,
+        firmVersions,
+        periodKey(targetYear, latestMonth)
+      )
+    : null;
+  const allocations: AllocationView[] = verticalResolver
+    ? Array.from(verticalResolver.byCont.values())
+    : [];
+  const categoryAllocations: CategoryAllocationView[] = verticalResolver
+    ? Array.from(verticalResolver.byCategoryId.values())
+    : [];
+  const firmDefaultSplits: AllocationSplit[] | null =
+    verticalResolver?.firmDefaultSplits ?? null;
+  const allocByCont = new Map<string, AllocationView>();
+  for (const a of allocations) allocByCont.set(a.cont, a);
+  const categoryAllocationIds = new Set(
+    categoryAllocations.map((ca) => ca.categoryId)
+  );
+
   const [balanceResult, partnerSummariesByCont, partnerAdjustments] = await Promise.all([
     getBalanceRowsCached(clientId, targetYear, latestMonth),
     loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
@@ -435,6 +464,8 @@ export async function loadMapariCashflow(
       partnerOverriddenRulaj: partnerSummary?.overriddenRulaj ?? 0,
       partnerLobOverrideCount:
         partnerLobOverridesByContBase.get(row.contBase) ?? 0,
+      mappingPeriodScoped:
+        periodScopedKeys.has(row.cont) || periodScopedKeys.has(row.contBase),
     });
   }
 

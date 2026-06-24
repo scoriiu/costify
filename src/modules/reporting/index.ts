@@ -22,6 +22,7 @@ export type {
   KpiSnapshot,
   CppData,
   CppLine,
+  CppVerticalColumn,
   CppF20Data,
   CppF20Line,
   BalanceSheetData,
