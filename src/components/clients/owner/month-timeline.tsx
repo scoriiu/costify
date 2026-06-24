@@ -66,7 +66,7 @@ export function MonthTimeline({
     const params = new URLSearchParams(searchParams.toString());
     params.set("year", String(year));
     params.set("month", String(month));
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   return (
