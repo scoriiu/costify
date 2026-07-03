@@ -111,12 +111,21 @@ spec:
               path: /api/warmup
               port: 3000
             periodSeconds: 10
+            timeoutSeconds: 5
+          # Liveness hits the cheap warmup endpoint (already hot after the
+          # startup probe), NOT a full page render. timeout 5s + 3 failures
+          # means ~90s of sustained unresponsiveness before a kill — heavy
+          # compute bursts (imports, snapshot recomputes) must not execute
+          # the pod. Prod incident iul 2026: /login with the default 1s
+          # timeout killed pods during a 30s compute burst.
           livenessProbe:
             httpGet:
-              path: /login
+              path: /api/warmup
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
 ---
 apiVersion: v1
 kind: Service

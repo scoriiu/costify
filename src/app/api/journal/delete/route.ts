@@ -21,8 +21,10 @@ export async function POST(request: Request) {
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
+  // Same year-range guard as /api/journal/count: a mid-typing year like
+  // 100020 is a valid JS Date but crashes Prisma's argument conversion.
   const date = new Date(fromDate);
-  if (isNaN(date.getTime())) {
+  if (isNaN(date.getTime()) || date.getFullYear() < 1990 || date.getFullYear() > 2100) {
     return NextResponse.json({ error: "Data invalida" }, { status: 400 });
   }
 

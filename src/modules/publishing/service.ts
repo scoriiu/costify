@@ -259,17 +259,29 @@ export async function listPublishedPeriods(
  */
 export type PeriodSyncStatus = "in_sync" | "out_of_sync";
 
+/** Max stale periods whose hash we verify inline during a page load. A
+ *  full-history client (150+ published months) touched by a config change
+ *  would otherwise trigger 150+ owner-snapshot recomputes in ONE request —
+ *  tens of seconds of CPU that starves the event loop, fails the liveness
+ *  probe and gets the pod killed (prod incident, iul 2026). The accountant
+ *  acts on the most recent months, so we verify only those. */
+const MAX_INLINE_SYNC_CHECKS = 6;
+/** Snapshot recomputes are memory + CPU heavy; run them in small batches. */
+const SYNC_CHECK_CONCURRENCY = 2;
+
 /**
  * Determine, per published period, whether what the patron sees still matches
  * the live data. Returns a map keyed by "year-month".
  *
- * Cost model: O(number of STALE published periods). A published period whose
- * `staleSince` is null was never touched since publish, so it's in sync with
- * zero compute. For each stale period we recompute the current owner snapshot
- * (cached per dataVersion, so repeated page loads are cheap) and compare its
- * hash to the frozen `snapshotHash`. Equal hashes mean a re-import produced
- * byte-identical patron output, so we downgrade the coarse "touched" flag to
- * "in_sync" — no false "out of sync" after a no-op re-import.
+ * Cost model: bounded. A published period whose `staleSince` is null was
+ * never touched since publish, so it's in sync with zero compute. Of the
+ * stale ones, only the MAX_INLINE_SYNC_CHECKS most recent get a live
+ * hash-compare (recompute cached per dataVersion); anything older keeps the
+ * coarse "touched" signal and reports out_of_sync without compute. That can
+ * over-flag an old period after a no-op re-import, but it can never hide a
+ * real difference, and it keeps the page load O(1) instead of O(history).
+ * Equal hashes on the verified rows downgrade "touched" to "in_sync" — no
+ * false "out of sync" after a no-op re-import on the months that matter.
  */
 export async function checkPublishedSync(
   clientId: string
@@ -280,7 +292,9 @@ export async function checkPublishedSync(
   });
 
   const out = new Map<string, PeriodSyncStatus>();
-  const staleRows = rows.filter((r) => r.staleSince !== null);
+  const staleRows = rows
+    .filter((r) => r.staleSince !== null)
+    .sort((a, b) => b.year - a.year || b.month - a.month);
 
   // Non-stale rows are in sync without any compute.
   for (const r of rows) {
@@ -288,29 +302,37 @@ export async function checkPublishedSync(
   }
   if (staleRows.length === 0) return out;
 
+  const toVerify = staleRows.slice(0, MAX_INLINE_SYNC_CHECKS);
+  // Beyond the cap: keep the honest coarse signal without recompute.
+  for (const r of staleRows.slice(MAX_INLINE_SYNC_CHECKS)) {
+    out.set(`${r.year}-${r.month}`, "out_of_sync");
+  }
+
   const client = await loadClientForSnapshot(clientId);
 
-  await Promise.all(
-    staleRows.map(async (r) => {
-      const key = `${r.year}-${r.month}`;
-      try {
-        const live = await loadOwnerSnapshot({
-          clientId: client.id,
-          clientName: client.name,
-          clientCui: client.cui,
-          clientSlug: client.slug,
-          year: r.year,
-          month: r.month,
-        });
-        const currentHash = computeSnapshotHash(live);
-        out.set(key, currentHash === r.snapshotHash ? "in_sync" : "out_of_sync");
-      } catch {
-        // If the live snapshot can't be computed, fall back to the coarse
-        // signal: treat a touched period as out of sync rather than hiding it.
-        out.set(key, "out_of_sync");
-      }
-    })
-  );
+  const verifyOne = async (r: (typeof toVerify)[number]) => {
+    const key = `${r.year}-${r.month}`;
+    try {
+      const live = await loadOwnerSnapshot({
+        clientId: client.id,
+        clientName: client.name,
+        clientCui: client.cui,
+        clientSlug: client.slug,
+        year: r.year,
+        month: r.month,
+      });
+      const currentHash = computeSnapshotHash(live);
+      out.set(key, currentHash === r.snapshotHash ? "in_sync" : "out_of_sync");
+    } catch {
+      // If the live snapshot can't be computed, fall back to the coarse
+      // signal: treat a touched period as out of sync rather than hiding it.
+      out.set(key, "out_of_sync");
+    }
+  };
+
+  for (let i = 0; i < toVerify.length; i += SYNC_CHECK_CONCURRENCY) {
+    await Promise.all(toVerify.slice(i, i + SYNC_CHECK_CONCURRENCY).map(verifyOne));
+  }
 
   return out;
 }

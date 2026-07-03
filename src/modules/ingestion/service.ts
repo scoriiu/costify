@@ -18,6 +18,8 @@ import { ok, err, appError } from "@/shared/errors";
 import type { JournalEntry } from "./types";
 
 const BATCH_SIZE = 5000;
+/** Import-time ComputedPeriod pre-warm cap — most recent months only. */
+const MAX_PREWARM_PERIODS = 24;
 
 export interface ImportResult {
   importEventId: string;
@@ -176,16 +178,25 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   await bumpClientDataVersion(input.clientId);
   const tBump = performance.now();
 
-  // Pre-compute every touched (year, month) into ComputedPeriod so the
+  // Pre-compute recent touched (year, month) rows into ComputedPeriod so the
   // accountant's first page-load after import is instant. Best-effort:
   // if a period fails to compute we just skip it — the lazy read-path
   // will fall back to live compute on demand. This stage runs AFTER the
   // version bump so the rows we write are tagged with the new version
   // and are immediately valid for future reads.
+  //
+  // Capped to the most recent periods: a full-history client (qhm21 spans
+  // 2013-2026 = 158 months) would otherwise keep the import worker pinned
+  // for minutes and starve the pod's event loop (liveness probe kills the
+  // container mid-import — prod incident, iul 2026). Older months compute
+  // lazily on first open, which is rare for history that old.
   await report({ stage: "finalizing", percent: 97, label: "Precalculez balantele" });
+  const periodsToWarm = [...touchedPeriods]
+    .sort((a, b) => b.year - a.year || b.month - a.month)
+    .slice(0, MAX_PREWARM_PERIODS);
   const precomputedBalances = await precomputePeriods(
     input.clientId,
-    touchedPeriods,
+    periodsToWarm,
     async (year, month) => {
       const [balanceResult, catalog, taxRegime] = await Promise.all([
         getBalanceRows(input.clientId, year, month),
@@ -222,7 +233,7 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
     `accounts=${(tAccounts - tPartners).toFixed(0)}ms ` +
     `stale=${(tStale - tAccounts).toFixed(0)}ms ` +
     `bump=${(tBump - tStale).toFixed(0)}ms ` +
-    `precompute=${(tPrecompute - tBump).toFixed(0)}ms (${precomputedBalances}/${touchedPeriods.length}) ` +
+    `precompute=${(tPrecompute - tBump).toFixed(0)}ms (${precomputedBalances}/${periodsToWarm.length} warmed, ${touchedPeriods.length} touched) ` +
     `total=${(tPrecompute - tStart).toFixed(0)}ms`
   );
 

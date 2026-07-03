@@ -18,8 +18,12 @@ export async function GET(request: Request) {
   const hasAccess = await verifyTenantAccess(user.id, clientId);
   if (!hasAccess) return NextResponse.json({ error: "Acces interzis" }, { status: 403 });
 
+  // Guard the year range too: a date typed as "100020-05-03" (mid-typing in
+  // the year field) is a VALID JS Date that Prisma cannot convert — it threw
+  // PrismaClientUnknownRequestError in prod. Reject anything outside the
+  // plausible accounting window instead of passing it to the DB.
   const date = new Date(fromDate);
-  if (isNaN(date.getTime())) {
+  if (isNaN(date.getTime()) || date.getFullYear() < 1990 || date.getFullYear() > 2100) {
     return NextResponse.json({ error: "Data invalida" }, { status: 400 });
   }
 
