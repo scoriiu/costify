@@ -8,11 +8,8 @@ import { bulkUpsertFromImport } from "@/modules/accounts";
 import { recordAuditEvent } from "@/modules/audit";
 import { markPeriodsAsStale } from "@/modules/publishing";
 import { bumpClientDataVersion } from "@/modules/clients/data-version";
-import { getBalanceRows } from "@/modules/balances";
 import { precomputePeriods } from "@/modules/balances/computed-period";
-import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
-import { getCatalogMap } from "@/modules/accounts";
-import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
+import { buildPeriodPayload } from "@/modules/reporting/period-payload";
 import type { Result } from "@/shared/errors";
 import { ok, err, appError } from "@/shared/errors";
 import type { JournalEntry } from "./types";
@@ -197,21 +194,7 @@ export async function importJournal(input: ImportInput): Promise<Result<ImportRe
   const precomputedBalances = await precomputePeriods(
     input.clientId,
     periodsToWarm,
-    async (year, month) => {
-      const [balanceResult, catalog, taxRegime] = await Promise.all([
-        getBalanceRows(input.clientId, year, month),
-        getCatalogMap(),
-        getRegimeForPeriod(input.clientId, year, month),
-      ]);
-      if (!balanceResult.ok) return null;
-      return {
-        rows: balanceResult.data,
-        kpis: computeKpis(balanceResult.data, catalog),
-        cpp: computeCpp(balanceResult.data, catalog, { taxRegime }),
-        cppF20: computeCppF20(balanceResult.data, catalog, { taxRegime }),
-        taxRegime,
-      };
-    },
+    (year, month) => buildPeriodPayload(input.clientId, year, month),
   );
 
   const tPrecompute = performance.now();

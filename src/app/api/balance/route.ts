@@ -22,14 +22,10 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/modules/auth/session";
 import { verifyTenantAccess } from "@/modules/tenant";
 import { getBalanceRowsCached } from "@/modules/cache/loaders";
-import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
-import { loadCppVerticalContext } from "@/modules/reporting/cpp-vertical-context";
-import { getCatalogMap } from "@/modules/accounts";
-import { getRegimeForPeriod } from "@/modules/clients/tax-regime";
+import { buildPeriodPayload } from "@/modules/reporting/period-payload";
 import {
   readComputedPeriod,
   writeComputedPeriod,
-  type ComputedPeriodPayload,
 } from "@/modules/balances/computed-period";
 
 export async function GET(request: Request) {
@@ -65,15 +61,10 @@ export async function GET(request: Request) {
   // unstable_cache for the balance rows themselves). On success we
   // materialize the result so the next read goes through tier 1.
   const t0 = Date.now();
-  const [balanceResult, catalog, taxRegime, verticalCtx] = await Promise.all([
-    getBalanceRowsCached(clientId, year, month),
-    getCatalogMap(),
-    getRegimeForPeriod(clientId, year, month),
-    loadCppVerticalContext(clientId, year, month),
-  ]);
-  const tLoad = Date.now() - t0;
+  const payload = await buildPeriodPayload(clientId, year, month, getBalanceRowsCached);
+  const tLive = Date.now() - t0;
 
-  if (!balanceResult.ok) {
+  if (!payload) {
     return NextResponse.json({
       rows: [],
       kpis: null,
@@ -82,30 +73,6 @@ export async function GET(request: Request) {
       taxRegime: null,
     });
   }
-
-  const t1 = Date.now();
-  const kpis = computeKpis(balanceResult.data, catalog);
-  const tKpi = Date.now() - t1;
-  const t2 = Date.now();
-  const cpp = computeCpp(balanceResult.data, catalog, {
-    taxRegime,
-    vertical: verticalCtx ?? undefined,
-  });
-  const tCpp = Date.now() - t2;
-  const t3 = Date.now();
-  const cppF20 = computeCppF20(balanceResult.data, catalog, {
-    taxRegime,
-    vertical: verticalCtx ?? undefined,
-  });
-  const tF20 = Date.now() - t3;
-
-  const payload: ComputedPeriodPayload = {
-    rows: balanceResult.data,
-    kpis,
-    cpp,
-    cppF20,
-    taxRegime,
-  };
 
   // Materialize for future reads. We await the write so the next
   // request hits tier 1. Fire-and-forget caused a window where pod B
@@ -122,7 +89,7 @@ export async function GET(request: Request) {
   }
 
   console.log(
-    `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${balanceResult.data.length} | source=live cache=${tCache}ms load=${tLoad}ms kpi=${tKpi}ms cpp=${tCpp}ms f20=${tF20}ms`,
+    `[api/balance] client=${clientId.slice(0, 8)} y=${year} m=${month} rows=${payload.rows.length} | source=live cache=${tCache}ms compute=${tLive}ms`,
   );
 
   return NextResponse.json(payload, {
