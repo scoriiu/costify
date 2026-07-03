@@ -127,7 +127,7 @@ export const COSTI_TOOLS: Tool[] = [
   },
   {
     name: "get_account_catalog",
-    description: "Cauta in catalogul standard OMFP 1802 (~321 conturi). Util pentru a verifica daca un cod exista oficial, ce denumire oficiala are, ce tip (A/P/B) si ce grupa CPP. Poate cauta dupa cod exact sau dupa prefix (ex '60' pentru toate conturile de cheltuieli).",
+    description: "Cauta in catalogul standard OMFP 1802 (~568 conturi, versiunea omfp_1802_2025_v2). Util pentru a verifica daca un cod exista oficial, ce denumire oficiala are, ce tip (A/P/B) si ce grupa CPP. Poate cauta dupa cod exact sau dupa prefix (ex '60' pentru toate conturile de cheltuieli).",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -148,6 +148,25 @@ export const COSTI_TOOLS: Tool[] = [
         client_name: { type: "string", description: "Numele clientului" },
       },
       required: ["client_name"],
+    },
+  },
+  {
+    name: "get_business_lines",
+    description:
+      "Obtine defalcarea pe linii de business (axa B / verticale) pentru un client care are verticalsEnabled (ex: QHM21 cu Outsourcing/Recrutare/Coworking). Returneaza lista liniilor (inclusiv 'Toata firma' = verticala default care absoarbe regia nealocata) si, pentru perioada ceruta, venituri/cheltuieli/rezultat cumulate (YTD ianuarie -> luna) per linie, defalcate conform maparilor lunii selectate (ADR-0004), exact ca in coloanele din tab-ul CPP. Suma liniilor = totalul firmei, fara scurgeri. Daca se da parametrul 'cont', returneaza si cum se imparte ACEL cont pe linii in luna respectiva (procent per linie + de unde vine regula: analitic/contBase/categorie/firma/default). Util cand contabilul intreaba 'cum sta Outsourcing-ul', 'ce profit a facut Coworking-ul' sau 'ce procent din 6028 merge pe Recrutare'. Daca firma nu are linii de business activate, raspunde clar ca nu exista verticale.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        year: { type: "number", description: "Anul" },
+        month: { type: "number", description: "Luna (1-12)" },
+        cont: {
+          type: "string",
+          description:
+            "Optional: un cont (ex '6028', '628.01' sau baza '62') pentru a vedea cum se imparte pe linii de business in luna respectiva",
+        },
+      },
+      required: ["client_name", "year", "month"],
     },
   },
   {

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getBalanceRows, getActiveEntries } from "@/modules/balances";
 import { computeKpis, computeCpp, computeCppF20 } from "@/modules/reporting";
+import { loadCppVerticalContext } from "@/modules/reporting/cpp-vertical-context";
 import { getCatalogMap } from "@/modules/accounts";
 import {
   getRegimeForPeriod,
@@ -16,7 +17,12 @@ import {
   buildResolverStateAsOf,
   resolveCategoryForCont,
 } from "@/modules/categories";
+import { resolveAllocationForCont } from "@/modules/verticals";
 import { periodKey, periodYear, periodMonth, pickEffective } from "@/lib/period";
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 const MAX_JOURNAL_RESULTS = 50;
 const DEFAULT_JOURNAL_RESULTS = 20;
@@ -63,6 +69,8 @@ export async function handleToolCall(
       return handleGetEmployeeCounts(userId, input);
     case "get_account_catalog":
       return handleGetAccountCatalog(input);
+    case "get_business_lines":
+      return handleGetBusinessLines(userId, input);
     case "get_account_mapping_timeline":
       return handleGetAccountMappingTimeline(userId, input);
     default:
@@ -238,21 +246,28 @@ async function handleGetCpp(userId: string, input: Record<string, unknown>): Pro
   const resolved = await resolveClient(userId, input.client_name as string);
   if ("error" in resolved) return JSON.stringify(resolved);
 
-  const [result, catalog, taxRegime] = await Promise.all([
-    getBalanceRows(resolved.client.id, input.year as number, input.month as number),
+  const year = input.year as number;
+  const month = input.month as number;
+  const [result, catalog, taxRegime, vertical] = await Promise.all([
+    getBalanceRows(resolved.client.id, year, month),
     getCatalogMap(),
-    getRegimeForPeriod(resolved.client.id, input.year as number, input.month as number),
+    getRegimeForPeriod(resolved.client.id, year, month),
+    loadCppVerticalContext(resolved.client.id, year, month),
   ]);
   if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
 
   const mode = (input.mode as string | undefined) === "f20" ? "f20" : "simplified";
+  const verticalNote = vertical
+    ? "Defalcare pe linii de business (axa B), conform maparilor lunii selectate. byVertical mapeaza id-ul liniei la suma; suma coloanelor = valoarea totala a randului (fara scurgeri)."
+    : undefined;
+  const businessLines = vertical?.verticals.map((v) => ({ id: v.id, name: v.name, isDefault: v.isDefault }));
 
   if (mode === "f20") {
-    const cpp = computeCppF20(result.data, catalog, { taxRegime });
+    const cpp = computeCppF20(result.data, catalog, { taxRegime, vertical: vertical ?? undefined });
     return JSON.stringify({
       client: resolved.client.name,
-      year: input.year,
-      month: input.month,
+      year,
+      month,
       mode: "f20",
       taxRegime,
       version: cpp.version,
@@ -266,16 +281,18 @@ async function handleGetCpp(userId: string, input: Record<string, unknown>): Pro
       cheltuieliTotale: cpp.cheltuieliTotale,
       rezultatBrut: cpp.rezultatBrut,
       rezultatNet: cpp.rezultatNet,
+      businessLines,
+      verticalNote,
       // Only non-zero rows — keeps Costi's context tight.
       rows: cpp.lines.filter((l) => l.value !== 0),
     });
   }
 
-  const cpp = computeCpp(result.data, catalog, { taxRegime });
+  const cpp = computeCpp(result.data, catalog, { taxRegime, vertical: vertical ?? undefined });
   return JSON.stringify({
     client: resolved.client.name,
-    year: input.year,
-    month: input.month,
+    year,
+    month,
     mode: "simplified",
     taxRegime,
     venituriExploatare: cpp.venituriExploatare,
@@ -286,6 +303,8 @@ async function handleGetCpp(userId: string, input: Record<string, unknown>): Pro
     rezultatFinanciar: cpp.rezultatFinanciar,
     rezultatBrut: cpp.rezultatBrut,
     rezultatNet: cpp.rezultatNet,
+    businessLines,
+    verticalNote,
     lines: cpp.lines.filter((l) => !l.isHeader && l.value !== 0),
   });
 }
@@ -506,6 +525,103 @@ async function handleGetAccountCatalog(input: Record<string, unknown>): Promise<
       cppGroup: e.cppGroup,
       special: e.special,
     })),
+  });
+}
+
+async function handleGetBusinessLines(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const year = input.year as number;
+  const month = input.month as number;
+
+  const [result, catalog, taxRegime, vertical] = await Promise.all([
+    getBalanceRows(resolved.client.id, year, month),
+    getCatalogMap(),
+    getRegimeForPeriod(resolved.client.id, year, month),
+    loadCppVerticalContext(resolved.client.id, year, month),
+  ]);
+  if (!result.ok) return JSON.stringify({ error: "Nu exista date pentru aceasta perioada." });
+
+  if (!vertical) {
+    return JSON.stringify({
+      client: resolved.client.name,
+      year,
+      month,
+      verticalsEnabled: false,
+      note: "Firma nu are linii de business (verticale) activate. Se activeaza din Setari > 'Verticale de business'.",
+    });
+  }
+
+  const cpp = computeCpp(result.data, catalog, { taxRegime, vertical });
+
+  // Aggregate per-line revenue/expenses from CPP section detail rows. The
+  // current section header decides sign; section totals/headers are skipped.
+  // All section details precede the first REZULTAT total, after which only
+  // result subtotals and the tax line follow (tax must NOT count as an
+  // operating/financial expense), so we stop there. byVertical already sums
+  // to value with no leak, keeping each line reconciled to the firm total.
+  const venituri: Record<string, number> = {};
+  const cheltuieli: Record<string, number> = {};
+  let bucket: "rev" | "exp" | null = null;
+  for (const line of cpp.lines) {
+    if (line.isTotal && line.denumire.toUpperCase().includes("REZULTAT")) break;
+    if (line.isHeader) {
+      const d = line.denumire.toUpperCase();
+      bucket = d.includes("VENITURI") ? "rev" : d.includes("CHELTUIELI") ? "exp" : null;
+      continue;
+    }
+    if (line.isTotal || !line.byVertical || bucket === null) continue;
+    const target = bucket === "rev" ? venituri : cheltuieli;
+    for (const [vid, amt] of Object.entries(line.byVertical)) {
+      target[vid] = (target[vid] ?? 0) + amt;
+    }
+  }
+
+  const lines = vertical.verticals.map((v) => {
+    const rev = round2(venituri[v.id] ?? 0);
+    const exp = round2(cheltuieli[v.id] ?? 0);
+    return {
+      id: v.id,
+      name: v.name,
+      isDefault: v.isDefault,
+      venituri: rev,
+      cheltuieli: exp,
+      rezultat: round2(rev - exp),
+    };
+  });
+
+  let contSplit: unknown;
+  const cont = typeof input.cont === "string" ? input.cont.trim() : "";
+  if (cont) {
+    const r = resolveAllocationForCont(cont, vertical.resolver);
+    const nameById = new Map(vertical.verticals.map((v) => [v.id, v.name]));
+    contSplit = {
+      cont,
+      matchedScope: r.matchedScope,
+      splits: r.splits.map((s) => ({
+        line: nameById.get(s.verticalId) ?? s.verticalId,
+        percent: s.percent,
+      })),
+    };
+  }
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    year,
+    month,
+    verticalsEnabled: true,
+    note: "Venituri/cheltuieli/rezultat cumulate ianuarie -> luna selectata (YTD, pre-impozit), defalcate conform maparilor lunii. 'Toata firma' este verticala default care absoarbe regia nealocata. Suma liniilor = totalul firmei.",
+    firmTotals: {
+      venituri: round2(cpp.venituriExploatare + cpp.venituriFinanciare),
+      cheltuieli: round2(cpp.cheltuieliExploatare + cpp.cheltuieliFinanciare),
+      rezultatBrut: cpp.rezultatBrut,
+    },
+    lines,
+    contSplit,
   });
 }
 

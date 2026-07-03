@@ -4,8 +4,8 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 12 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(12);
+  it("defines 13 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(13);
   });
 
   it("all tools have name, description, and input_schema", () => {
@@ -142,6 +142,18 @@ describe("Costi tool definitions", () => {
     expect(tool).toBeDefined();
     const desc = tool!.description!.toLowerCase();
     expect(desc).toMatch(/timeline|tranzitie|istoric/);
+  });
+
+  it("exposes get_business_lines for axa-B (verticale) questions", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_business_lines");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name", "year", "month"]);
+    expect(schema.properties.cont).toBeDefined();
+    expect(tool!.description?.toLowerCase()).toMatch(/linii de business|verticale/);
   });
 
   it("exposes get_account_mapping_timeline for period-scoped mapping questions", () => {
