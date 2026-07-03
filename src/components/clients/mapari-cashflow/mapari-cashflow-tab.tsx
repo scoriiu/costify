@@ -26,9 +26,8 @@
  * No client-side optimistic state — eliminates "saved but UI lies" bugs.
  */
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, Network, X, Users, CornerUpRight, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Plus, Pencil, Trash2, Check, AlertTriangle, Sparkles, Info, Layers, X, Users, CornerUpRight, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
@@ -37,6 +36,12 @@ import { ToggleGroup } from "@/components/ui/toggle-group";
 import { Tooltip } from "@/components/ui/tooltip";
 import { DocsLink } from "@/components/ui/docs-link";
 import { DocsLinks } from "@/modules/docs/links";
+import {
+  VIEW_OPTIONS,
+  readViewFromUrl,
+  writeViewToUrl,
+  type ViewMode,
+} from "./view-mode";
 import { useEscapeKey } from "@/lib/use-escape-key";
 import type {
   CostCategoryNode,
@@ -107,7 +112,7 @@ type ResidueSourceDetail = {
   targets: { categoryId: string; categoryName: string; amount: number }[];
 };
 
-type CashflowTab = "categorii" | "verticale";
+
 
 /**
  * Public entry point — owns the per-year data cache and the current-year
@@ -302,9 +307,6 @@ function MapariCashflowContent({
    *  ~2-4s on big clients). */
   onMutated: () => void;
 }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
@@ -338,13 +340,13 @@ function MapariCashflowContent({
 
   /** Shared drill-in helper used by AllExceptionsDialog + ReviewQueueDialog
    *  to navigate the user into the partner slide-panel for a specific cont.
-   *  Closes the active dialog, ensures we're on categorii tab (the only
-   *  one that hosts the slide-panel), and asks CategoryWorkspace to open
+   *  Closes the active dialog, ensures the list view is shown (the treemap
+   *  doesn't host the slide-panel), and asks CategoryWorkspace to open
    *  the panel for the matching account. */
   function openContPanelFromDialog(contBase: string) {
     setReviewQueueOpen(false);
     setAllExceptionsOpen(false);
-    setActiveTab("categorii");
+    changeView("list");
     setPendingPanelContBase(contBase);
   }
   // Mutations bump a local key so the windowed trend chart (its own fetch)
@@ -355,19 +357,19 @@ function MapariCashflowContent({
     setChartReload((v) => v + 1);
   };
 
-  // Active wizard tab persisted in URL (?cashflow-tab=categorii|verticale)
-  // so the contabil can deep-link straight to "Linii de business" and refresh
-  // without losing context. Default = categorii (the obligatory axis A).
-  const urlTab = searchParams.get("cashflow-tab");
-  const activeTab: CashflowTab = urlTab === "verticale" ? "verticale" : "categorii";
-
-  function setActiveTab(next: CashflowTab) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (next === "categorii") params.delete("cashflow-tab");
-    else params.set("cashflow-tab", next);
-    const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-  }
+  // Primary view (Linii de cost / Harta de cost / Linii de business). Lifted
+  // here so the switcher can live in the always-visible sticky period dock.
+  // Adopted from the URL after mount (avoids SSR/hydration mismatch), then
+  // mirrored back via history.replaceState — no navigation, stays instant.
+  const [view, setView] = useState<ViewMode>("list");
+  useEffect(() => {
+    const fromUrl = readViewFromUrl();
+    if (fromUrl !== "list") setView(fromUrl);
+  }, []);
+  const changeView = useCallback((next: ViewMode) => {
+    setView(next);
+    writeViewToUrl(next);
+  }, []);
 
   // Source conts that contribute to the default-vertical residue absorption:
   // for every category that RECEIVES partner-override inflow but has NO own
@@ -436,12 +438,14 @@ function MapariCashflowContent({
   ).length;
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-7xl">
       <PageHeader
         period={data.period}
         coverage={data.coverage}
         freshlySeeded={data.freshlySeeded}
         onJumpToUnmapped={() => {
+          // The unmapped filter lives in the list view — make sure it's shown.
+          changeView("list");
           setCategoryInitialFilter("unmapped");
         }}
       />
@@ -452,6 +456,8 @@ function MapariCashflowContent({
           availableYears={data.availableYears}
           availablePeriods={data.availablePeriods}
           onPeriodChange={onPeriodChange}
+          view={view}
+          onViewChange={changeView}
         />
       )}
 
@@ -468,6 +474,7 @@ function MapariCashflowContent({
 
       <CategoryAxisContent
         data={data}
+        view={view}
         initialFilter={categoryInitialFilter}
         initialPanelContBase={pendingPanelContBase}
         onInitialPanelOpened={() => setPendingPanelContBase(undefined)}
@@ -477,132 +484,16 @@ function MapariCashflowContent({
   );
 }
 
-function CashflowTabBar({
-  active,
-  onChange,
-  verticalsEnabled,
-  unmappedCount,
-}: {
-  active: CashflowTab;
-  onChange: (t: CashflowTab) => void;
-  verticalsEnabled: boolean;
-  unmappedCount: number;
-}) {
-  const tabs: {
-    id: CashflowTab;
-    label: string;
-    hint: string;
-    icon: typeof Layers;
-    badge?: { text: string; tone: "danger" | "neutral" };
-  }[] = [
-    {
-      id: "categorii",
-      label: "Linii de cost",
-      hint: "Cum se grupeaza cheltuielile si veniturile pentru patron",
-      icon: Layers,
-      badge:
-        unmappedCount > 0
-          ? { text: `${unmappedCount} nemapate`, tone: "danger" }
-          : undefined,
-    },
-    {
-      id: "verticale",
-      label: "Linii de business",
-      hint: verticalsEnabled
-        ? "Cum se imparte firma pe linii de business"
-        : "Optional · activeaza daca firma are mai multe linii",
-      icon: Network,
-    },
-  ];
-
-  return (
-    <div>
-      <div
-        className="font-mono text-[10px] uppercase tracking-wider text-gray mb-2"
-        style={{ letterSpacing: "-0.02em" }}
-      >
-        Axa de lucru
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2" role="tablist">
-        {tabs.map((tab) => {
-          const isActive = active === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => onChange(tab.id)}
-              className={`group relative text-left rounded-xl border p-4 transition-all ${
-                isActive
-                  ? "border-primary bg-primary/[0.08] shadow-[0_0_0_3px_rgba(13,107,94,0.12)]"
-                  : "border-dark-3 bg-dark-2 hover:border-dark-4 hover:bg-dark-3/40"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <tab.icon
-                    size={16}
-                    strokeWidth={1.75}
-                    className={`shrink-0 self-center ${
-                      isActive ? "text-white" : "text-gray-light"
-                    }`}
-                    aria-hidden
-                  />
-                  <span
-                    className={`text-[16px] font-semibold ${
-                      isActive ? "text-white" : "text-gray-light"
-                    }`}
-                    style={{ letterSpacing: "-0.04em" }}
-                  >
-                    {tab.label}
-                  </span>
-                  {tab.badge && (
-                    <span
-                      className={`font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        tab.badge.tone === "danger"
-                          ? "bg-neg-bg text-neg"
-                          : "bg-dark-3 text-gray-light"
-                      }`}
-                    >
-                      {tab.badge.text}
-                    </span>
-                  )}
-                </div>
-                {isActive && (
-                  <span
-                    aria-hidden
-                    className="font-mono text-[10px] uppercase tracking-wider text-primary-light shrink-0"
-                    style={{ letterSpacing: "-0.02em" }}
-                  >
-                    Activ
-                  </span>
-                )}
-              </div>
-              <div
-                className={`text-[12px] mt-1.5 ${
-                  isActive ? "text-gray-light" : "text-gray"
-                }`}
-                style={{ letterSpacing: "-0.02em" }}
-              >
-                {tab.hint}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function CategoryAxisContent({
   data,
+  view,
   initialFilter,
   initialPanelContBase,
   onInitialPanelOpened,
   onMutate,
 }: {
   data: MapariCashflowData;
+  view: ViewMode;
   initialFilter?: "all" | "unmapped" | "expense" | "revenue";
   initialPanelContBase?: string;
   onInitialPanelOpened?: () => void;
@@ -615,6 +506,7 @@ function CategoryAxisContent({
         accounts={data.accounts}
         clientId={data.clientId}
         period={data.period}
+        view={view}
         onMutate={onMutate}
         verticalsEnabled={data.verticalsEnabled}
         verticals={data.verticals}
@@ -2857,22 +2749,29 @@ function CoverageBar({ percent }: { percent: number }) {
  * picking an earlier month shows the YTD picture as of that month's close.
  */
 /**
- * Sticky toolbar that keeps the period controls (luna/an + prev/next) in view
- * while the accountant scrolls the long Mapari page. It must be a direct child
- * of the tall content container, not nested inside the short header block, or
- * `position: sticky` would release it the moment the header scrolls away.
- * Sits at `top-14` (under the h-14 TopNav), below the nav's z-50.
+ * Sticky toolbar that keeps the period controls (luna/an + prev/next) AND the
+ * primary view switcher (Linii de cost / Harta de cost / Linii de business)
+ * in view while the accountant scrolls the long Mapari page. The switcher
+ * lives here — not inside the workspace card — because switching views is a
+ * top-level action the contabil needs at any scroll depth. It must be a
+ * direct child of the tall content container, not nested inside the short
+ * header block, or `position: sticky` would release it the moment the header
+ * scrolls away. Sits at `top-14` (under the h-14 TopNav), below the nav's z-50.
  */
 function StickyPeriodBar({
   period,
   availableYears,
   availablePeriods,
   onPeriodChange,
+  view,
+  onViewChange,
 }: {
   period: { year: number; month: number };
   availableYears: number[];
   availablePeriods: { year: number; month: number }[];
   onPeriodChange: (year: number, month: number) => void;
+  view: ViewMode;
+  onViewChange: (v: ViewMode) => void;
 }) {
   const description =
     period.month === 12
@@ -2883,7 +2782,9 @@ function StickyPeriodBar({
       data-testid="mapari-period-bar"
       className="sticky top-14 z-30 rounded-xl border border-dark-3 bg-dark-2/95 px-4 py-2.5 backdrop-blur-sm"
     >
-      <div className="flex items-center gap-4">
+      {/* flex-wrap so on narrow screens the switcher wraps under the period
+          controls instead of overflowing the dock. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="shrink-0">
           <PeriodSelector
             availableYears={availableYears}
@@ -2893,13 +2794,25 @@ function StickyPeriodBar({
             onChange={onPeriodChange}
           />
         </div>
+        <div data-testid="mapari-view-switcher" className="shrink-0">
+          <ToggleGroup<ViewMode>
+            value={view}
+            onChange={onViewChange}
+            options={VIEW_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+              icon: o.icon,
+            }))}
+            ariaLabel="Schimba vizualizarea"
+          />
+        </div>
         <span
-          className="flex-1 min-w-0 truncate text-right font-mono text-[11px] text-gray tabular-nums"
+          className="hidden lg:block flex-1 min-w-0 truncate text-right font-mono text-[11px] text-gray tabular-nums"
           style={{ letterSpacing: "-0.02em" }}
         >
           Rulaj cumulat: <span className="text-gray-light">{description}</span>
         </span>
-        <div className="hidden md:flex items-center shrink-0 text-[12px]">
+        <div className="hidden xl:flex items-center shrink-0 text-[12px]">
           <DocsLink href={DocsLinks.mappingLanguage}>Limbajul maparii</DocsLink>
         </div>
       </div>

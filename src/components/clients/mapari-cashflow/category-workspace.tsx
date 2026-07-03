@@ -21,7 +21,8 @@
  */
 
 import { useState, useTransition, useMemo, useEffect, useCallback, useRef, createContext, useContext } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft, FolderPlus, FolderTree, Check, List, LayoutGrid, Columns3, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, ArrowRightLeft, X, Users, CornerUpRight, CornerDownLeft, FolderPlus, FolderTree, Check, Clock } from "lucide-react";
+import type { ViewMode } from "./view-mode";
 import { Button } from "@/components/ui/button";
 import { useEscapeKey } from "@/lib/use-escape-key";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,9 @@ interface Props {
   accounts: AccountListItem[];
   clientId: string;
   period: { year: number; month: number } | null;
+  /** Active view, controlled by the parent tab — the switcher lives in the
+   *  sticky period dock so it stays visible while scrolling. */
+  view: ViewMode;
   onMutate: () => void;
   /** Whether the firm has activated the lines-of-business dimension. Drives
    *  the Linii view's activate CTA vs. the full workspace. */
@@ -157,50 +161,17 @@ function useContDrag() {
 
 const CONT_DND_MIME = "application/x-costify-cont";
 
-type ViewMode = "list" | "treemap" | "verticals";
-
-// Single source of truth for the primary view switcher — order, labels and
-// icons. Ordered by increasing aggregation: raw list -> visual map -> rolled
-// up into business lines. Both render sites share this so they never drift.
-const VIEW_OPTIONS: { value: ViewMode; label: string; icon: typeof List }[] = [
-  { value: "list", label: "Linii de cost", icon: List },
-  { value: "treemap", label: "Harta de cost", icon: LayoutGrid },
-  { value: "verticals", label: "Linii de business", icon: Columns3 },
-];
-
-// URL slugs for the view toggle, kept friendly/stable so deep links read well
-// (?cashflow-view=harta). The internal ViewMode names stay as-is.
-const VIEW_PARAM = "cashflow-view";
-const VIEW_TO_SLUG: Record<ViewMode, string> = {
-  list: "list",
-  treemap: "harta",
-  verticals: "linii",
-};
-const SLUG_TO_VIEW: Record<string, ViewMode> = {
-  list: "list",
-  harta: "treemap",
-  linii: "verticals",
-};
-
-function readViewFromUrl(): ViewMode {
-  if (typeof window === "undefined") return "list";
-  const slug = new URLSearchParams(window.location.search).get(VIEW_PARAM);
-  return (slug && SLUG_TO_VIEW[slug]) || "list";
-}
-
-function writeViewToUrl(view: ViewMode) {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  if (view === "list") url.searchParams.delete(VIEW_PARAM);
-  else url.searchParams.set(VIEW_PARAM, VIEW_TO_SLUG[view]);
-  window.history.replaceState(window.history.state, "", url.toString());
-}
+// View mode (Linii de cost / Harta de cost / Linii de business) is OWNED by
+// the parent tab: the switcher lives in the always-visible sticky period dock
+// (StickyPeriodBar), and this workspace just renders the matching body.
+// Shared type/options live in ./view-mode so the two sides never drift.
 
 export function CategoryWorkspace({
   tree,
   accounts,
   clientId,
   period,
+  view,
   onMutate,
   verticalsEnabled = false,
   verticals = [],
@@ -220,19 +191,6 @@ export function CategoryWorkspace({
     if (initialFilter) setFilter(initialFilter);
   }, [initialFilter]);
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<ViewMode>("list");
-  // Adopt the view from the URL after mount (avoids SSR/hydration mismatch),
-  // then keep the URL in sync on every change via history.replaceState — no
-  // navigation, no server re-render, so the toggle stays instant.
-  useEffect(() => {
-    const fromUrl = readViewFromUrl();
-    if (fromUrl !== "list") setView(fromUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const changeView = useCallback((next: ViewMode) => {
-    setView(next);
-    writeViewToUrl(next);
-  }, []);
   const [editingCategoryAlloc, setEditingCategoryAlloc] =
     useState<CostCategoryNode | null>(null);
   const [panelAccount, setPanelAccount] = useState<AccountListItem | null>(null);
@@ -461,7 +419,7 @@ export function CategoryWorkspace({
 
   if (view === "treemap") {
     return (
-      <WorkspaceShell view={view} onViewChange={changeView}>
+      <WorkspaceShell view={view}>
         <CategoryTreemap
           tree={tree}
           accountsByCategory={accountsByCategory}
@@ -476,7 +434,7 @@ export function CategoryWorkspace({
       // PeriodProvider so allocation dialogs opened from the Linii de business
       // view also expose the period-scope control (ADR-0004), same as the list.
       <PeriodProvider value={period}>
-        <WorkspaceShell view={view} onViewChange={changeView}>
+        <WorkspaceShell view={view}>
           <LinesView
             accounts={accounts}
             verticals={verticals}
@@ -507,7 +465,7 @@ export function CategoryWorkspace({
     <PartnerPanelContext.Provider value={{ open: setPanelAccount }}>
      <ContDragContext.Provider value={dragValue}>
      <ResidueContext.Provider value={residueValue}>
-      <WorkspaceShell view={view} onViewChange={changeView}>
+      <WorkspaceShell view={view}>
        <div className="rounded-xl border border-dark-3 bg-dark-2 p-5 space-y-5">
         <WorkspaceFilters
           unmappedCount={unmappedAccounts.length}
@@ -612,28 +570,21 @@ const VIEW_INTRO: Record<ViewMode, { title: string; desc: string }> = {
 };
 
 /**
- * The one consistent frame for all three views. Renders the card, the title
- * on the left and the primary view switcher on the right — in the SAME place
- * and SAME size regardless of which view is active. Each view supplies its
- * own body (and the list view its own filters) as children.
+ * The one consistent frame for all three views: the per-view title + intro
+ * copy in the same place and size regardless of which view is active. The
+ * view SWITCHER is not here — it lives in the sticky period dock rendered by
+ * the parent tab, so it stays visible while the accountant scrolls.
  */
 function WorkspaceShell({
   view,
-  onViewChange,
   children,
 }: {
   view: ViewMode;
-  onViewChange: (v: ViewMode) => void;
   children: React.ReactNode;
 }) {
   const intro = VIEW_INTRO[view];
   return (
     <div className="space-y-4">
-      {/* The view switcher is a full-width 3-way segmented bar on its own row,
-          ABOVE the title. It never moves or resizes when the active view (and
-          its title/description below) changes, because it owns its own row and
-          each segment is an equal third of the card width. */}
-      <ViewSwitcher view={view} onViewChange={onViewChange} />
       <div>
         <h3
           className="text-[15px] font-semibold text-white"
@@ -649,49 +600,6 @@ function WorkspaceShell({
         </p>
       </div>
       {children}
-    </div>
-  );
-}
-
-/**
- * Full-width 3-way segmented control for the primary view switch. Each segment
- * is an equal third so the bar is stable regardless of label length, and the
- * active segment never shifts the inactive ones. Color follows the design
- * system: active segment is `bg-primary text-[#E9E8E3]` (never `text-white`
- * on teal), inactive is muted with hover.
- */
-function ViewSwitcher({
-  view,
-  onViewChange,
-}: {
-  view: ViewMode;
-  onViewChange: (v: ViewMode) => void;
-}) {
-  return (
-    <div
-      role="group"
-      aria-label="Schimba vizualizarea"
-      className="grid grid-cols-3 gap-1 rounded-[10px] bg-dark-2 p-1.5"
-    >
-      {VIEW_OPTIONS.map((opt) => {
-        const active = view === opt.value;
-        const Icon = opt.icon;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onViewChange(opt.value)}
-            data-state={active ? "active" : "inactive"}
-            aria-pressed={active}
-            className={`flex h-10 items-center justify-center gap-2.5 rounded-lg font-mono text-[15px] font-medium transition-colors ${
-              active ? "bg-primary text-[#E9E8E3]" : "text-gray hover:text-white"
-            }`}
-          >
-            <Icon size={16} aria-hidden className="shrink-0" />
-            <span>{opt.label}</span>
-          </button>
-        );
-      })}
     </div>
   );
 }

@@ -477,7 +477,7 @@ function LinesViewInner({
           />
         ))}
         {adding ? (
-          <div className="flex flex-col overflow-hidden rounded-xl border border-dashed border-primary/40 bg-primary/5 ring-1 ring-inset ring-primary/30 lg:flex-[5]">
+          <div className="flex flex-col overflow-hidden rounded-xl border border-dashed border-primary/40 bg-primary/5 ring-1 ring-inset ring-primary/30 lg:flex-1 lg:min-w-0">
             <div className="h-1 w-full bg-primary/30" aria-hidden />
             <div className="p-4">
               <div
@@ -522,7 +522,11 @@ function LinesViewInner({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="group flex flex-col overflow-hidden rounded-xl border border-dashed border-dark-3 bg-dark-2 text-left text-gray hover:border-primary/60 hover:text-primary transition-colors lg:flex-1 lg:min-w-[150px] cursor-pointer"
+            className={`group flex flex-col overflow-hidden rounded-xl border border-dashed border-dark-3 bg-dark-2 text-left text-gray hover:border-primary/60 hover:text-primary transition-colors cursor-pointer ${
+              selectedId !== null
+                ? "lg:w-[132px] lg:flex-none"
+                : "lg:flex-1 lg:min-w-[150px]"
+            }`}
             aria-label="Adauga linie"
           >
             <span className="h-1 w-full" aria-hidden />
@@ -809,12 +813,15 @@ function Pillar({
     );
   }
 
-  // Selected pillar takes the lion's share of the row; others shrink to a calm
-  // column. On narrow screens everything stacks full width.
+  // Selected pillar takes ALL remaining row width; others collapse to a
+  // fixed narrow rail (132px fits the compact header's widest line, e.g.
+  // "-1.555.364 lei"). This maximizes room for the composition tree, which
+  // is the whole point of selecting a pillar. On narrow screens everything
+  // stacks full width.
   const widthClass = selected
-    ? "lg:flex-[5]"
+    ? "lg:flex-1 lg:min-w-0"
     : anySelected
-    ? "lg:flex-[1] lg:min-w-[150px]"
+    ? "lg:w-[132px] lg:flex-none"
     : "lg:flex-1";
 
   // A compressed (someone-else-selected) pillar shows only name + share +
