@@ -419,13 +419,24 @@ export function CategoryWorkspace({
 
   if (view === "treemap") {
     return (
-      <WorkspaceShell view={view}>
-        <CategoryTreemap
-          tree={tree}
-          accountsByCategory={accountsByCategory}
-          aggregatedRulaj={aggregatedRulaj}
+      <PeriodProvider value={period}>
+        <WorkspaceShell view={view}>
+          <CategoryTreemap
+            tree={tree}
+            accountsByCategory={accountsByCategory}
+            aggregatedRulaj={aggregatedRulaj}
+            onOpenPartners={setPanelAccount}
+          />
+        </WorkspaceShell>
+        <PartnerLobPanel
+          account={panelAccount}
+          clientId={clientId}
+          period={period}
+          verticals={verticals}
+          onClose={() => setPanelAccount(null)}
+          onMutate={onMutate}
         />
-      </WorkspaceShell>
+      </PeriodProvider>
     );
   }
 

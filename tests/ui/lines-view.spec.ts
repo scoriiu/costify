@@ -339,12 +339,11 @@ test.describe("Linii de business — redesigned view", () => {
       .first();
     // Categories auto-expand on selection — the conturi are already revealed.
 
-    // The cont rows are nested <li>; pick the first one and reveal its
-    // hover actions, then click "Parteneri".
+    // The cont rows are nested <li>; the whole row is a button that opens
+    // the partner panel.
     const contRow = marfaRow.locator("li").first();
     await expect(contRow).toBeVisible({ timeout: 4000 });
-    await contRow.hover();
-    await contRow.getByRole("button", { name: "Parteneri" }).click();
+    await contRow.click();
 
     // The partner LOB panel slides in (role=dialog, labelled by cont).
     await expect(

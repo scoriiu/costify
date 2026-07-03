@@ -1564,7 +1564,23 @@ function ContRow({
 }) {
   const indentClass = indent === 2 ? "pl-9" : "pl-6";
   return (
-    <li className={`group grid ${GRID} items-center gap-2 rounded pr-3 py-1 hover:bg-dark-3/30`}>
+    <li
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpenPartners(account);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          onOpenPartners(account);
+        }
+      }}
+      aria-label={`Vezi partenerii contului ${account.cont}`}
+      className={`group grid ${GRID} items-center gap-2 rounded pr-3 py-1 hover:bg-dark-3/30`}
+    >
       <span className={`flex items-center gap-2 min-w-0 ${indentClass}`}>
         <span className="font-mono text-[10px] text-gray tabular-nums shrink-0 w-12">
           {account.cont}
@@ -1576,18 +1592,28 @@ function ContRow({
         >
           {account.denumire}
         </span>
-        {account.partnerLobOverrideCount > 0 && (
+        {account.partnerCount > 0 && (
           <Tooltip
-            content={`${account.partnerLobOverrideCount} ${
-              account.partnerLobOverrideCount === 1 ? "partener are exceptie" : "parteneri au exceptie"
-            }, diferita de a contului. Click pe parteneri ca sa vezi.`}
+            content={
+              account.partnerLobOverrideCount > 0
+                ? `${account.partnerCount} parteneri pe acest cont. ${account.partnerLobOverrideCount} ${
+                    account.partnerLobOverrideCount === 1 ? "are exceptie" : "au exceptie"
+                  }, se imparte diferit de cont. Click ca sa vezi.`
+                : `${account.partnerCount} parteneri pe acest cont. Click ca sa ii vezi.`
+            }
           >
             <span
               className="shrink-0 inline-flex items-center gap-1 rounded border border-dark-3 px-1.5 py-0.5 font-mono text-[10px] text-gray tabular-nums"
               style={{ letterSpacing: "-0.02em" }}
             >
               <Users size={9} />
-              {account.partnerLobOverrideCount}
+              {account.partnerCount}
+              {account.partnerLobOverrideCount > 0 && (
+                <span
+                  className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-gray-light"
+                  aria-hidden
+                />
+              )}
             </span>
           </Tooltip>
         )}
@@ -1600,20 +1626,13 @@ function ContRow({
         {formatLei(amount)}
       </span>
       <span className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Tooltip content="Vezi / imparte partenerii pe linii.">
-          <button
-            type="button"
-            onClick={() => onOpenPartners(account)}
-            className="p-1 text-gray hover:text-gray-light"
-            aria-label="Parteneri"
-          >
-            <Users size={12} />
-          </button>
-        </Tooltip>
         <Tooltip content="Schimba pe ce linii merge acest cont.">
           <button
             type="button"
-            onClick={() => onEditCont(account)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditCont(account);
+            }}
             className="p-1 text-gray hover:text-primary"
             aria-label="Editeaza linia contului"
           >

@@ -12,14 +12,16 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { X, Users } from "lucide-react";
 import type { CostCategoryNode, AccountListItem } from "@/modules/categories";
+import { Tooltip } from "@/components/ui/tooltip";
 import { squarify } from "@/lib/squarify";
 
 interface Props {
   tree: CostCategoryNode[];
   accountsByCategory: Map<string, AccountListItem[]>;
   aggregatedRulaj: Map<string, number>;
+  onOpenPartners: (account: AccountListItem) => void;
 }
 
 type Kind = "expense" | "revenue";
@@ -28,6 +30,7 @@ export function CategoryTreemap({
   tree,
   accountsByCategory,
   aggregatedRulaj,
+  onOpenPartners,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -89,6 +92,7 @@ export function CategoryTreemap({
           accountsByCategory={accountsByCategory}
           aggregatedRulaj={aggregatedRulaj}
           onClose={() => setSelectedId(null)}
+          onOpenPartners={onOpenPartners}
         />
       )}
 
@@ -98,6 +102,7 @@ export function CategoryTreemap({
         aggregatedRulaj={aggregatedRulaj}
         selectedId={selectedId}
         onSelect={setSelectedId}
+        onOpenPartners={onOpenPartners}
       />
     </div>
   );
@@ -433,11 +438,13 @@ function CategoryDetail({
   accountsByCategory,
   aggregatedRulaj,
   onClose,
+  onOpenPartners,
 }: {
   node: CostCategoryNode;
   accountsByCategory: Map<string, AccountListItem[]>;
   aggregatedRulaj: Map<string, number>;
   onClose: () => void;
+  onOpenPartners: (account: AccountListItem) => void;
 }) {
   // Flatten the subtree into a list of "lines" — each line is either a
   // sub-category header or an account row. This gives the contabil a single
@@ -501,7 +508,7 @@ function CategoryDetail({
       ) : (
         <ul className="space-y-0.5">
           {lines.map((line, idx) => (
-            <DetailLine key={idx} line={line} />
+            <DetailLine key={idx} line={line} onOpenPartners={onOpenPartners} />
           ))}
         </ul>
       )}
@@ -511,9 +518,15 @@ function CategoryDetail({
 
 type DetailLineData =
   | { kind: "subcategory"; depth: number; name: string; total: number; isOmfp: boolean }
-  | { kind: "account"; depth: number; cont: string; denumire: string; rulaj: number };
+  | { kind: "account"; depth: number; account: AccountListItem; rulaj: number };
 
-function DetailLine({ line }: { line: DetailLineData }) {
+function DetailLine({
+  line,
+  onOpenPartners,
+}: {
+  line: DetailLineData;
+  onOpenPartners: (account: AccountListItem) => void;
+}) {
   if (line.kind === "subcategory") {
     return (
       <li
@@ -543,23 +556,67 @@ function DetailLine({ line }: { line: DetailLineData }) {
   }
   return (
     <li
-      className="flex items-baseline gap-3 py-1 hover:bg-dark-3/20 rounded"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenPartners(line.account)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenPartners(line.account);
+        }
+      }}
+      aria-label={`Vezi partenerii contului ${line.account.cont}`}
+      className="flex items-center gap-3 py-1 hover:bg-dark-3/20 rounded"
       style={{ paddingLeft: `${line.depth * 16}px` }}
     >
       <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 min-w-[60px]">
-        {line.cont}
+        {line.account.cont}
       </span>
       <span
-        className="flex-1 text-[12px] text-gray-light truncate"
+        className="min-w-0 truncate text-[12px] text-gray-light"
         style={{ letterSpacing: "-0.02em" }}
-        title={line.denumire}
+        title={line.account.denumire}
       >
-        {line.denumire}
+        {line.account.denumire}
+      </span>
+      <span className="flex-1 min-w-0">
+        <PartnerCountBadge account={line.account} />
       </span>
       <span className="font-mono text-[11px] text-gray-light tabular-nums shrink-0">
         {formatRon(line.rulaj)} lei
       </span>
     </li>
+  );
+}
+
+/** Same badge language as the Linii view: total partners on the cont, plus a
+ *  dot when some of them carry an exception. */
+function PartnerCountBadge({ account }: { account: AccountListItem }) {
+  if (account.partnerCount <= 0) return null;
+  return (
+    <Tooltip
+      content={
+        account.partnerLobOverrideCount > 0
+          ? `${account.partnerCount} parteneri pe acest cont. ${account.partnerLobOverrideCount} ${
+              account.partnerLobOverrideCount === 1 ? "are exceptie" : "au exceptie"
+            }, se imparte diferit de cont. Click ca sa vezi.`
+          : `${account.partnerCount} parteneri pe acest cont. Click ca sa ii vezi.`
+      }
+    >
+      <span
+        className="shrink-0 inline-flex items-center gap-1 rounded border border-dark-3 px-1.5 py-0.5 font-mono text-[10px] text-gray tabular-nums"
+        style={{ letterSpacing: "-0.02em" }}
+      >
+        <Users size={9} />
+        {account.partnerCount}
+        {account.partnerLobOverrideCount > 0 && (
+          <span
+            className="ml-0.5 inline-block h-1.5 w-1.5 rounded-full bg-gray-light"
+            aria-hidden
+          />
+        )}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -584,8 +641,7 @@ function flattenForDetail(
       lines.push({
         kind: "account",
         depth: depth + 1,
-        cont: a.cont,
-        denumire: a.denumire,
+        account: a,
         rulaj: a.kind === "expense" ? a.rulajD : a.rulajC,
       });
     }
@@ -636,12 +692,14 @@ function CategoryTreeView({
   aggregatedRulaj,
   selectedId,
   onSelect,
+  onOpenPartners,
 }: {
   tree: CostCategoryNode[];
   accountsByCategory: Map<string, AccountListItem[]>;
   aggregatedRulaj: Map<string, number>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onOpenPartners: (account: AccountListItem) => void;
 }) {
   const expenseRoots = tree.filter((n) => n.kind === "expense");
   const revenueRoots = tree.filter((n) => n.kind === "revenue");
@@ -682,6 +740,7 @@ function CategoryTreeView({
           aggregatedRulaj={aggregatedRulaj}
           selectedId={selectedId}
           onSelect={onSelect}
+          onOpenPartners={onOpenPartners}
           accent="bg-primary"
         />
         <TreeSide
@@ -692,6 +751,7 @@ function CategoryTreeView({
           aggregatedRulaj={aggregatedRulaj}
           selectedId={selectedId}
           onSelect={onSelect}
+          onOpenPartners={onOpenPartners}
           accent="bg-violet-400"
         />
       </div>
@@ -707,6 +767,7 @@ function TreeSide({
   aggregatedRulaj,
   selectedId,
   onSelect,
+  onOpenPartners,
   accent,
 }: {
   title: string;
@@ -716,6 +777,7 @@ function TreeSide({
   aggregatedRulaj: Map<string, number>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onOpenPartners: (account: AccountListItem) => void;
   accent: string;
 }) {
   return (
@@ -750,6 +812,7 @@ function TreeSide({
               aggregatedRulaj={aggregatedRulaj}
               selectedId={selectedId}
               onSelect={onSelect}
+              onOpenPartners={onOpenPartners}
               accent={accent}
             />
           ))}
@@ -767,6 +830,7 @@ function TreeRow({
   aggregatedRulaj,
   selectedId,
   onSelect,
+  onOpenPartners,
   accent,
 }: {
   node: CostCategoryNode;
@@ -776,6 +840,7 @@ function TreeRow({
   aggregatedRulaj: Map<string, number>;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onOpenPartners: (account: AccountListItem) => void;
   accent: string;
 }) {
   const [expanded, setExpanded] = useState(depth === 0); // roots open by default
@@ -850,12 +915,23 @@ function TreeRow({
               aggregatedRulaj={aggregatedRulaj}
               selectedId={selectedId}
               onSelect={onSelect}
+              onOpenPartners={onOpenPartners}
               accent={accent}
             />
           ))}
           {directAccounts.map((a) => (
             <li
               key={a.cont}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenPartners(a)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenPartners(a);
+                }
+              }}
+              aria-label={`Vezi partenerii contului ${a.cont}`}
               className="flex items-center gap-2 py-1 px-2 hover:bg-dark-3/20 rounded"
               style={{ paddingLeft: `${(depth + 1) * 14 + 22}px` }}
             >
@@ -863,11 +939,14 @@ function TreeRow({
                 {a.cont}
               </span>
               <span
-                className="flex-1 text-[11px] text-gray truncate"
+                className="min-w-0 truncate text-[11px] text-gray"
                 style={{ letterSpacing: "-0.02em" }}
                 title={a.denumire}
               >
                 {a.denumire}
+              </span>
+              <span className="flex-1 min-w-0">
+                <PartnerCountBadge account={a} />
               </span>
               <span className="font-mono text-[11px] text-gray tabular-nums shrink-0 w-24 text-right">
                 {formatRon(
