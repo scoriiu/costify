@@ -461,7 +461,10 @@ function MapariCashflowContent({
         />
       )}
 
-      {data.period && (
+      {/* The monthly evolution chart reads the cost-line axis (list/treemap).
+          On the business-lines view it is off-topic and eats half a screen,
+          so it stays hidden there. */}
+      {data.period && view !== "verticals" && (
         <LineTrendsChart
           clientId={data.clientId}
           year={data.period.year}

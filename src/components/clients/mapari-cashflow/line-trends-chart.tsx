@@ -1053,7 +1053,9 @@ function ConfigOverviewBanner({
   items: PeriodConfigItem[];
   onJump?: (year: number, month: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  // Collapsed by default: the timeline is a drill-down surface, not something
+  // the accountant needs on every visit. The header row stays as the button.
+  const [expanded, setExpanded] = useState(false);
   const [openBreakdown, setOpenBreakdown] = useState<string | null>(null);
   const [showChangelog, setShowChangelog] = useState(false);
   const [query, setQuery] = useState("");

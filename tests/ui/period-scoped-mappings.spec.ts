@@ -213,6 +213,9 @@ test.describe("Period-scoped mappings", () => {
       page.getByText("Configurari care se schimba in timp")
     ).toBeVisible();
 
+    // Banner starts collapsed; open it to reach the per-line rows.
+    await page.getByTestId("config-overview-toggle").click();
+
     const row = page.locator("li").filter({ hasText: `cont ${seededCont}` }).first();
     await expect(row).toBeVisible();
 
@@ -232,6 +235,8 @@ test.describe("Period-scoped mappings", () => {
     await expect(page.getByTestId("config-overview-toggle")).toBeVisible({
       timeout: 10000,
     });
+    // Banner starts collapsed; the override marker lives inside it.
+    await page.getByTestId("config-overview-toggle").click();
 
     // qhm21's Vanzari line carries a category split, but cont 704 inside it has
     // its own (44/33/23) split - the headline is not the whole truth. That must
