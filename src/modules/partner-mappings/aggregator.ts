@@ -203,6 +203,22 @@ export interface PartnerSummary {
   /** Sum across partners that have an override. */
   overriddenRulaj: number;
   unresolvedRulaj: number;
+  /** Money pinned by partner-level line-of-business splits
+   *  (PartnerVerticalAllocation), per verticalId. The "Linii de business"
+   *  view routes these amounts straight to their lines, ahead of the cont's
+   *  own cascade split. Empty when no partner on this cont has a pin. */
+  lobByVertical: Record<string, number>;
+  /** Total rulaj covered by the pins above. The cont's cascade split applies
+   *  only to (rulaj - lobPinnedRulaj). */
+  lobPinnedRulaj: number;
+}
+
+/** Minimal structural shape of a partner line-of-business pin. Matches
+ *  PartnerAllocationView from @/modules/verticals without importing it
+ *  (partner-mappings must not depend on verticals). */
+export interface PartnerLobAllocationInput {
+  partnerNameNormalized: string;
+  splits: Array<{ verticalId: string; percent: number }>;
 }
 
 export function summarizePartnersForCont(
@@ -210,7 +226,8 @@ export function summarizePartnersForCont(
   lines: JournalLineForAggregation[],
   partnerNames: Map<string, string>,
   overridesForCont: PartnerCategoryOverrideRow[],
-  crossContOverrides: PartnerCategoryOverrideRow[] = []
+  crossContOverrides: PartnerCategoryOverrideRow[] = [],
+  lobAllocations: PartnerLobAllocationInput[] = []
 ): PartnerSummary {
   const { partners, partnerRulaj, unresolvedRulaj } =
     aggregatePartnersForCont(
@@ -233,6 +250,29 @@ export function summarizePartnersForCont(
     }
   }
 
+  const lobByKey = new Map<string, PartnerLobAllocationInput>();
+  for (const alloc of lobAllocations) lobByKey.set(alloc.partnerNameNormalized, alloc);
+  const lobByVertical: Record<string, number> = {};
+  let lobPinnedRulaj = 0;
+  if (lobByKey.size > 0) {
+    for (const p of partners) {
+      if (p.rulaj === 0) continue;
+      const alloc = lobByKey.get(p.nameNormalized);
+      if (!alloc) continue;
+      let pct = 0;
+      for (const s of alloc.splits) {
+        if (s.percent <= 0) continue;
+        lobByVertical[s.verticalId] =
+          (lobByVertical[s.verticalId] ?? 0) + (p.rulaj * s.percent) / 100;
+        pct += s.percent;
+      }
+      lobPinnedRulaj += (p.rulaj * Math.min(pct, 100)) / 100;
+    }
+    for (const vid of Object.keys(lobByVertical)) {
+      lobByVertical[vid] = round2(lobByVertical[vid]);
+    }
+  }
+
   return {
     partnerCount: partners.length,
     mappedPartnerCount,
@@ -240,6 +280,8 @@ export function summarizePartnersForCont(
     totalPartnerRulaj: partnerRulaj,
     overriddenRulaj: round2(overriddenRulaj),
     unresolvedRulaj,
+    lobByVertical,
+    lobPinnedRulaj: round2(lobPinnedRulaj),
   };
 }
 

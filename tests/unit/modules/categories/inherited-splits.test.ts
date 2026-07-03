@@ -19,6 +19,8 @@ function account(overrides: Partial<AccountListItem> = {}): AccountListItem {
     partnerOverrideCount: 0,
     partnerOverriddenRulaj: 0,
     partnerLobOverrideCount: 0,
+    partnerLobByVertical: {},
+    partnerLobPinnedRulaj: 0,
     mappingPeriodScoped: false,
     ...overrides,
   };

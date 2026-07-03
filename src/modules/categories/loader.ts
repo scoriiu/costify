@@ -95,6 +95,14 @@ export interface AccountListItem {
    *  split (PartnerVerticalAllocation), differing from the cont's split.
    *  > 0 → show the "some partners split differently" marker on the row. */
   partnerLobOverrideCount: number;
+  /** Partner-pinned money per verticalId, at contBase grain (partner rulaj is
+   *  aggregated per contBase; sibling analytic leaves under the same base
+   *  share the values — consumers must scale by each leaf's share of the base
+   *  rulaj to avoid double counting). Routed ahead of the cont's cascade
+   *  split in the "Linii de business" money model. */
+  partnerLobByVertical: Record<string, number>;
+  /** Total rulaj covered by partnerLobByVertical (contBase grain). */
+  partnerLobPinnedRulaj: number;
   /** True when this cont's category mapping varies across periods (ADR-0004):
    *  it has at least one dated (effectiveFrom != 0) or bounded (effectiveTo set)
    *  version on the cont or its contBase. Drives the per-row "varies in time"
@@ -353,7 +361,13 @@ export async function loadMapariCashflow(
 
   const [balanceResult, partnerSummariesByCont, partnerAdjustments] = await Promise.all([
     getBalanceRowsCached(clientId, targetYear, latestMonth),
-    loadPartnerSummariesForClient(prisma, clientId, targetYear, latestMonth),
+    loadPartnerSummariesForClient(
+      prisma,
+      clientId,
+      targetYear,
+      latestMonth,
+      partnerAllocations
+    ),
     loadPartnerCategoryAdjustments(prisma, clientId, targetYear, latestMonth),
   ]);
   const categoryInflows = aggregateCategoryInflows(partnerAdjustments);
@@ -464,6 +478,8 @@ export async function loadMapariCashflow(
       partnerOverriddenRulaj: partnerSummary?.overriddenRulaj ?? 0,
       partnerLobOverrideCount:
         partnerLobOverridesByContBase.get(row.contBase) ?? 0,
+      partnerLobByVertical: partnerSummary?.lobByVertical ?? {},
+      partnerLobPinnedRulaj: partnerSummary?.lobPinnedRulaj ?? 0,
       mappingPeriodScoped:
         periodScopedKeys.has(row.cont) || periodScopedKeys.has(row.contBase),
     });

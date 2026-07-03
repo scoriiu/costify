@@ -438,6 +438,8 @@ describe("summarizePartnersForCont", () => {
       totalPartnerRulaj: 0,
       overriddenRulaj: 0,
       unresolvedRulaj: 0,
+      lobByVertical: {},
+      lobPinnedRulaj: 0,
     });
   });
 

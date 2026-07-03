@@ -22,6 +22,7 @@ import {
   type JournalLineForAggregation,
   type PartnerAggregationResult,
   type PartnerCategoryAdjustment,
+  type PartnerLobAllocationInput,
   type PartnerSummary,
 } from "./aggregator";
 import {
@@ -202,7 +203,13 @@ export async function loadPartnerSummariesForClient(
   prisma: PrismaClient,
   clientId: string,
   year: number,
-  month: number
+  month: number,
+  /** Partner line-of-business pins (from @/modules/verticals), used to
+   *  compute per-cont pinned amounts in the same aggregation pass. Keyed by
+   *  contBase by the caller-agnostic `contBase` field on each row. */
+  lobAllocations: Array<
+    PartnerLobAllocationInput & { contBase: string }
+  > = []
 ): Promise<Record<string, PartnerSummary>> {
   const [allLines, partnerNames, allOverrides] = await Promise.all([
     fetchAllCostAndRevenueLines(prisma, clientId, year, month),
@@ -234,6 +241,13 @@ export async function loadPartnerSummariesForClient(
     else overridesByContBase.set(o.contBase, [o]);
   }
 
+  const lobByContBase = new Map<string, PartnerLobAllocationInput[]>();
+  for (const alloc of lobAllocations) {
+    const bucket = lobByContBase.get(alloc.contBase);
+    if (bucket) bucket.push(alloc);
+    else lobByContBase.set(alloc.contBase, [alloc]);
+  }
+
   // Union of conts that have either journal activity OR overrides — an
   // override-only cont (no journal lines this period) still needs a summary
   // so the UI can show "the historical mapping exists but the partner was
@@ -254,7 +268,8 @@ export async function loadPartnerSummariesForClient(
       lines,
       partnerNames,
       overrides,
-      allOverrides
+      allOverrides,
+      lobByContBase.get(contBase) ?? []
     );
   }
 
