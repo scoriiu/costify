@@ -9,6 +9,10 @@ const MS_PER_MIN = 60_000;
 const MS_PER_HR = 3_600_000;
 const MS_PER_DAY = 86_400_000;
 
+/** Latest actions shown by default; the rest sit behind a native <details>
+ *  expander so the Setari page stays short (server component, no JS). */
+const INITIAL_VISIBLE = 8;
+
 function timeAgo(date: Date): string {
   const diff = Date.now() - date.getTime();
   if (diff < MS_PER_MIN) return "acum cateva secunde";
@@ -18,7 +22,32 @@ function timeAgo(date: Date): string {
   return date.toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function AuditRow({ row }: { row: AccountantAuditRow }) {
+  return (
+    <li className="py-3 flex items-start gap-3">
+      <div
+        className="font-mono text-[10px] uppercase tracking-wider text-gray shrink-0 w-24 pt-0.5"
+        title={row.createdAt.toLocaleString("ro-RO")}
+      >
+        {timeAgo(row.createdAt)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p
+          className="text-[13px] text-gray-light"
+          style={{ letterSpacing: "-0.02em" }}
+        >
+          <span className="font-medium text-white">{row.actorName}</span>{" "}
+          {row.description}
+        </p>
+      </div>
+    </li>
+  );
+}
+
 export function AuditSection({ rows }: Props) {
+  const recent = rows.slice(0, INITIAL_VISIBLE);
+  const older = rows.slice(INITIAL_VISIBLE);
+
   return (
     <section
       className="rounded-xl border border-dark-3 bg-dark-2 p-5 sm:p-6"
@@ -38,7 +67,8 @@ export function AuditSection({ rows }: Props) {
           className="mt-1.5 text-[12px] text-gray"
           style={{ letterSpacing: "-0.02em" }}
         >
-          Toate modificarile inregistrate pe aceasta firma — publicari, importuri, schimbari de regim fiscal, accese.
+          Toate modificarile inregistrate pe aceasta firma (publicari, importuri,
+          schimbari de regim fiscal, accese).
         </p>
       </header>
 
@@ -50,27 +80,37 @@ export function AuditSection({ rows }: Props) {
           Nicio actiune inregistrata pana acum.
         </p>
       ) : (
-        <ul className="mt-5 divide-y divide-dark-3">
-          {rows.map((row) => (
-            <li key={row.id} className="py-3 flex items-start gap-3">
-              <div
-                className="font-mono text-[10px] uppercase tracking-wider text-gray shrink-0 w-24 pt-0.5"
-                title={row.createdAt.toLocaleString("ro-RO")}
+        <>
+          <ul className="mt-5 divide-y divide-dark-3">
+            {recent.map((row) => (
+              <AuditRow key={row.id} row={row} />
+            ))}
+          </ul>
+          {older.length > 0 && (
+            <details className="group mt-1">
+              <summary
+                className="list-none py-2 text-center font-mono text-[11px] font-medium uppercase tracking-wider text-gray hover:text-gray-light transition-colors [&::-webkit-details-marker]:hidden"
+                style={{ letterSpacing: "-0.02em" }}
               >
-                {timeAgo(row.createdAt)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p
-                  className="text-[13px] text-gray-light"
-                  style={{ letterSpacing: "-0.02em" }}
-                >
-                  <span className="font-medium text-white">{row.actorName}</span>{" "}
-                  {row.description}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+                <span className="group-open:hidden">
+                  Vezi tot istoricul (
+                  {older.length === 1
+                    ? "1 actiune mai veche"
+                    : `${older.length} actiuni mai vechi`}
+                  )
+                </span>
+                <span className="hidden group-open:inline">
+                  Ascunde actiunile vechi
+                </span>
+              </summary>
+              <ul className="divide-y divide-dark-3 border-t border-dark-3 max-h-[26rem] overflow-y-auto pr-1 -mr-1 [scrollbar-gutter:stable]">
+                {older.map((row) => (
+                  <AuditRow key={row.id} row={row} />
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
       )}
     </section>
   );

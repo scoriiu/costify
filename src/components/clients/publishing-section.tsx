@@ -11,9 +11,9 @@
  * with journal data but no publication.
  */
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Send, CheckCircle2, AlertTriangle, X, Loader2, RefreshCw } from "lucide-react";
+import { Send, CheckCircle2, AlertTriangle, X, Loader2, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
@@ -121,6 +121,23 @@ export function PublishingSection({ clientId, rows }: Props) {
 
   const hiddenCount = rows.length - visible.length;
 
+  // Scroll affordance for the capped list: a bottom fade + hint shown while
+  // there is content below the fold. Without it users don't realize the
+  // container scrolls and think the list ends where the card cuts it.
+  const listRef = useRef<HTMLUListElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+  const updateMoreBelow = useCallback(() => {
+    const el = listRef.current;
+    if (!el) {
+      setMoreBelow(false);
+      return;
+    }
+    setMoreBelow(el.scrollTop + el.clientHeight < el.scrollHeight - 8);
+  }, []);
+  useEffect(() => {
+    updateMoreBelow();
+  }, [visible.length, updateMoreBelow]);
+
   if (rows.length === 0) {
     return (
       <section
@@ -194,17 +211,35 @@ export function PublishingSection({ clientId, rows }: Props) {
 
       {!onlyDesynced && <BulkPublish clientId={clientId} rows={rows} />}
 
-      <ul
-        className={`mt-5 divide-y divide-dark-3 ${
-          visible.length > SCROLL_AFTER_ROWS
-            ? "max-h-[28rem] overflow-y-auto pr-1 -mr-1 [scrollbar-gutter:stable]"
-            : ""
-        }`}
-      >
-        {visible.map((row) => (
-          <PublishRow key={`${row.year}-${row.month}`} clientId={clientId} row={row} />
-        ))}
-      </ul>
+      <div className="relative mt-5">
+        <ul
+          ref={listRef}
+          onScroll={updateMoreBelow}
+          className={`divide-y divide-dark-3 ${
+            visible.length > SCROLL_AFTER_ROWS
+              ? "max-h-[28rem] overflow-y-auto pr-1 -mr-1 [scrollbar-gutter:stable]"
+              : ""
+          }`}
+        >
+          {visible.map((row) => (
+            <PublishRow key={`${row.year}-${row.month}`} clientId={clientId} row={row} />
+          ))}
+        </ul>
+        {moreBelow && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex h-16 items-end justify-center bg-gradient-to-t from-dark-2 via-dark-2/70 to-transparent"
+            aria-hidden
+          >
+            <span
+              className="mb-1 inline-flex items-center gap-1 rounded-full border border-dark-3 bg-dark-2 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-gray"
+              style={{ letterSpacing: "-0.02em" }}
+            >
+              <ChevronDown size={11} />
+              Deruleaza pentru lunile mai vechi
+            </span>
+          </div>
+        )}
+      </div>
 
       {onlyDesynced ? (
         <button
