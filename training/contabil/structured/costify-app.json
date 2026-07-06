@@ -80,6 +80,12 @@
       ],
       "implementation_note": "Toate formulele sunt in src/modules/reporting/kpi.ts si folosesc roluri din AccountCatalog (derivate de src/modules/accounts/flags.ts). Schimbarile la formule afecteaza toate clientii in timp real — sunt pur-computate, fara cache."
     },
+    "costi_trends_tool": {
+      "description": "ADR-0005 Stage 1. Tool-ul get_trends da lui Costi serii lunare gata calculate, ca intrebarile de evolutie ('de ce scade marja de 3 luni?', 'cum au mers veniturile anul asta?') sa se rezolve intr-un singur apel, nu prin N apeluri get_cpp inlantuite.",
+      "semantics": "CPP-ul e YTD (cumulat ianuarie -> luna), asa ca fluxul lunar se deriveaza: flux(luna) = YTD(luna) - YTD(snapshot-ul precedent din acelasi an); primul snapshot al anului e propriul flux (baza ianuarie = 0). 'cash' vine din KPI (pozitie la finalul lunii, punctuala, NU flux). 'monthsCovered' > 1 semnaleaza ca jurnalul sare peste luni si fluxul acopera intervalul. Cu include_business_lines=true, fiecare punct poarta 'byLine' per linie de business (aceleasi delte, din byVertical-ul CPP).",
+      "implementation": "Sursa de date: ComputedPeriod (snapshot-urile materializate, aceleasi pe care le serveste /api/balance). Pe miss/staleness handler-ul calculeaza prin buildPeriodPayload si scrie inapoi (self-healing, la fel ca tier 3 din /api/balance) — deci prima apelare pe perioade reci poate dura cateva secunde, urmatoarele sunt instant. Matematica pura (delte YTD, agregarea byVertical pe sectiuni CPP, concentrarea partenerilor) e in src/modules/costi/analysis.ts, unit-tested separat de I/O.",
+      "window": "Default ultimele 12 luni cu date, max 24. Optional to_year/to_month ancoreaza capatul seriei in trecut."
+    },
     "industry_kpis": {
       "description": "Iunie 2026. Sistem de KPI esentiali + specifici industriei. Tab nou 'KPI' pe pagina clientului (intre CPP si Plan de Conturi) pentru contabil, plus sectiunea 'Indicatorii afacerii tale' pe /firma pentru antreprenor. Ambele afiseaza ACEEASI computatie din acelasi registry, doar limbajul difera (labelContabil vs labelAntreprenor).",
       "industry_detection": "Industria se detecteaza AUTOMAT din codul CAEN al clientului (Setari > Informatii generale): 45-47=retail, 61=telecom, 64-66=banking, 68/77=inchirieri (imobiliare si inchirieri), 6920=servicii_contabile, 62/63/69-74/78/82=consultanta, altfel general. Contabilul poate suprascrie manual din dropdown-ul 'Industrie' (optiunea 'Automat dupa CAEN' revine la detectare). Sursa: Client.industry + Client.industrySource ('auto'|'manual'). Schimbarea industriei sau a CAEN bumpeaza dataVersion (invalidare cache snapshot).",
@@ -363,8 +369,8 @@
     },
     "owner_view": "Patronul NU vede acest tab. Vede doar rezultatul pe /firma sub 'Unde s-au dus banii' si 'De unde au venit banii' — labels-urile devin numele categoriilor patron, amounts rolup la nivelul ROOT. Sprint 7 va adauga trust badge mic ('Date revizuite manual · acoperire X%').",
     "tools_available_for_costi": [
-      "Costi nu are inca tools dedicate pentru partner overrides. Pentru a raspunde 'cati parteneri am pe contul X?' sau 'ce override-uri am pus pe firma X?', poate citi din DB direct prin get_balance (vede conturile + rulajele) sau cere context contabilului.",
-      "Posibil viitor: get_category_mapping(client_name), get_partner_overrides(client_name, cont_base), get_all_exceptions(client_name) — pentru a putea raspunde direct la 'ce exceptii am acumulat pe firma X?'."
+      "get_mappings_overview(client_name, [year, month]) → imaginea completa a tab-ului Mapari intr-un apel: coverage (procent + rulaj mapat/nemapat), liniile de cost cu conturile lor (top 8 per linie, rulaj YTD, sursa splitului pe linii de business, numar parteneri/exceptii/pin-uri per cont), splitul default al firmei, conturile nemapate (top 15), redirectionarile de rulaj intre categorii cauzate de exceptiile de partener (categoryInflows) si reziduul absorbit de verticala default. Raspunde la 'ce conturi am pe linia Marfa?', 'cat la suta e mapat?', 'ce a ramas de mapat?'.",
+      "get_partner_analysis(client_name, year, month, [cont], [limit]) → cu 'cont': partenerii acelui cont cu rulaj, pondere, exceptia de categorie (PartnerCategoryOverride: linie + confirmata + sursa), sugestia cross-cont si pin-ul pe linii de business (PartnerVerticalAllocation). Fara 'cont': top parteneri firm-wide pe venituri si cheltuieli + concentrare top1/top3/top5 + numarul total de exceptii si pin-uri. Raspunde la 'ce exceptii am acumulat?', 'cati parteneri am pe 628?', 'cat la suta din venituri vine de la un singur client?'."
     ]
   },
   "verticals_module": {
@@ -392,6 +398,8 @@
     "tools_available_for_costi": [
       "get_business_lines(client_name, year, month, [cont]) → defalcarea pe linii de business: lista verticalelor (inclusiv 'Toata firma' default) + venituri/cheltuieli/rezultat YTD per linie, conform maparilor lunii (ADR-0004), reconciliat la totalul firmei. Cu 'cont' optional intoarce si cum se imparte acel cont pe linii (procent + matchedScope: analytic/contBase/category/firm/default). Raspunde la 'cum sta Outsourcing-ul', 'ce profit a facut Coworking-ul', 'ce procent din 6028 merge pe Recrutare'.",
       "get_cpp(client_name, year, month, mode?) → cand verticalsEnabled, raspunsul poarta 'businessLines' + 'byVertical' per rand (defalcarea exacta din coloanele CPP).",
+      "get_trends(client_name, [months], [to_year, to_month], [include_business_lines]) → cu include_business_lines=true, fiecare punct lunar poarta 'byLine' (venituri/cheltuieli/rezultat PE LUNA per linie de business, derivate din snapshot-urile YTD). Raspunde la 'cum a evoluat Outsourcing-ul luna de luna?'.",
+      "get_partner_analysis(client_name, year, month, cont) → include pin-urile de partener pe linii de business (PartnerVerticalAllocation) per partener, cu splits numite.",
       "Viitor PR-2d: tools de buget per (categorie x verticala x luna)."
     ]
   },

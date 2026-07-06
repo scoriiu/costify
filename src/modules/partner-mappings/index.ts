@@ -15,10 +15,13 @@ export {
   loadPartnersForCont,
   loadPartnerSummariesForClient,
   loadPartnerCategoryAdjustments,
+  loadPartnerTotalsForClient,
   loadSuggestionQueue,
   loadAllExceptions,
   type SuggestionQueueItem,
   type AllExceptionsRow,
+  type PartnerTotal,
+  type PartnerTotalsForClient,
 } from "./loader";
 
 export {

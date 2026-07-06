@@ -14,6 +14,8 @@
  *     full partner detail into the page bundle.
  */
 import type { PrismaClient } from "@prisma/client";
+import { normalizePartnerName } from "@/lib/partner-normalize";
+import { round2 } from "@/lib/money";
 import {
   aggregatePartnersForCont,
   summarizePartnersForCont,
@@ -274,6 +276,113 @@ export async function loadPartnerSummariesForClient(
   }
 
   return result;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                    FIRM-WIDE PARTNER TOTALS (Costi / CFO)                  */
+/* -------------------------------------------------------------------------- */
+
+export interface PartnerTotal {
+  partnerNameNormalized: string;
+  partnerNameOriginal: string;
+  /** YTD rulaj across every cont of this kind. */
+  rulaj: number;
+  /** ContBases this partner touched, sorted by their contribution DESC. */
+  contBases: string[];
+}
+
+export interface PartnerTotalsForClient {
+  revenue: PartnerTotal[];
+  expense: PartnerTotal[];
+  /** Rulaj with no identified partner, per side (TVA, dobanzi, transferuri). */
+  unresolvedRevenue: number;
+  unresolvedExpense: number;
+  totalRevenue: number;
+  totalExpense: number;
+}
+
+/**
+ * Aggregate partner rulaj firm-wide, split by side (venituri / cheltuieli).
+ * One journal pass; the concentration questions a CFO asks ("cat % din venit
+ * vine de la un singur client?") read straight off this.
+ */
+export async function loadPartnerTotalsForClient(
+  prisma: PrismaClient,
+  clientId: string,
+  year: number,
+  month: number
+): Promise<PartnerTotalsForClient> {
+  const [allLines, partnerNames] = await Promise.all([
+    fetchAllCostAndRevenueLines(prisma, clientId, year, month),
+    fetchPartnerNames(prisma, clientId),
+  ]);
+
+  type Bucket = {
+    nameOriginal: string;
+    rulaj: number;
+    byCont: Map<string, number>;
+  };
+  const sides: Record<ContKind, Map<string, Bucket>> = {
+    expense: new Map(),
+    revenue: new Map(),
+  };
+  let unresolvedRevenue = 0;
+  let unresolvedExpense = 0;
+  let totalRevenue = 0;
+  let totalExpense = 0;
+
+  for (const line of allLines) {
+    const kind: ContKind | null = line.contDBase.startsWith("6")
+      ? "expense"
+      : line.contCBase.startsWith("7")
+        ? "revenue"
+        : null;
+    if (!kind) continue;
+    const contBase = kind === "expense" ? line.contDBase : line.contCBase;
+    if (kind === "expense") totalExpense += line.suma;
+    else totalRevenue += line.suma;
+
+    const partnerAnalytic = kind === "expense" ? line.contC : line.contD;
+    const rawName = partnerNames.get(partnerAnalytic);
+    const key = rawName ? normalizePartnerName(rawName) : "";
+    if (!rawName || key === "") {
+      if (kind === "expense") unresolvedExpense += line.suma;
+      else unresolvedRevenue += line.suma;
+      continue;
+    }
+    const bucket = sides[kind].get(key);
+    if (bucket) {
+      bucket.rulaj += line.suma;
+      bucket.byCont.set(contBase, (bucket.byCont.get(contBase) ?? 0) + line.suma);
+    } else {
+      sides[kind].set(key, {
+        nameOriginal: rawName.trim(),
+        rulaj: line.suma,
+        byCont: new Map([[contBase, line.suma]]),
+      });
+    }
+  }
+
+  const toSorted = (m: Map<string, Bucket>): PartnerTotal[] =>
+    Array.from(m.entries())
+      .map(([key, b]) => ({
+        partnerNameNormalized: key,
+        partnerNameOriginal: b.nameOriginal,
+        rulaj: round2(b.rulaj),
+        contBases: Array.from(b.byCont.entries())
+          .sort((a, z) => Math.abs(z[1]) - Math.abs(a[1]))
+          .map(([cont]) => cont),
+      }))
+      .sort((a, z) => Math.abs(z.rulaj) - Math.abs(a.rulaj));
+
+  return {
+    revenue: toSorted(sides.revenue),
+    expense: toSorted(sides.expense),
+    unresolvedRevenue: round2(unresolvedRevenue),
+    unresolvedExpense: round2(unresolvedExpense),
+    totalRevenue: round2(totalRevenue),
+    totalExpense: round2(totalExpense),
+  };
 }
 
 /* -------------------------------------------------------------------------- */

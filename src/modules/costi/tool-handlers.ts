@@ -17,8 +17,34 @@ import {
   buildResolverStateAsOf,
   resolveCategoryForCont,
 } from "@/modules/categories";
-import { resolveAllocationForCont } from "@/modules/verticals";
+import {
+  resolveAllocationForCont,
+  listPartnerAllocations,
+  listVerticals,
+  type AllocationSplit,
+} from "@/modules/verticals";
+import {
+  loadPartnersForCont,
+  loadPartnerTotalsForClient,
+  listOverridesForClient,
+  type PartnerTotal,
+} from "@/modules/partner-mappings";
+import { loadMapariCashflowCached } from "@/modules/cache/loaders";
+import { getAvailablePeriods } from "@/modules/balances";
+import {
+  readComputedPeriod,
+  writeComputedPeriod,
+} from "@/modules/balances/computed-period";
+import { buildPeriodPayload } from "@/modules/reporting/period-payload";
+import { getContBase } from "@/lib/accounts";
+import {
+  aggregateCppByLine,
+  computeTrendPoints,
+  computeConcentration,
+  type PeriodFigures,
+} from "./analysis";
 import { periodKey, periodYear, periodMonth, pickEffective } from "@/lib/period";
+import type { CostCategoryNode } from "@/modules/categories/types";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -73,6 +99,12 @@ export async function handleToolCall(
       return handleGetBusinessLines(userId, input);
     case "get_account_mapping_timeline":
       return handleGetAccountMappingTimeline(userId, input);
+    case "get_partner_analysis":
+      return handleGetPartnerAnalysis(userId, input);
+    case "get_mappings_overview":
+      return handleGetMappingsOverview(userId, input);
+    case "get_trends":
+      return handleGetTrends(userId, input);
     default:
       return JSON.stringify({ error: `Tool necunoscut: ${toolName}` });
   }
@@ -557,29 +589,7 @@ async function handleGetBusinessLines(
   }
 
   const cpp = computeCpp(result.data, catalog, { taxRegime, vertical });
-
-  // Aggregate per-line revenue/expenses from CPP section detail rows. The
-  // current section header decides sign; section totals/headers are skipped.
-  // All section details precede the first REZULTAT total, after which only
-  // result subtotals and the tax line follow (tax must NOT count as an
-  // operating/financial expense), so we stop there. byVertical already sums
-  // to value with no leak, keeping each line reconciled to the firm total.
-  const venituri: Record<string, number> = {};
-  const cheltuieli: Record<string, number> = {};
-  let bucket: "rev" | "exp" | null = null;
-  for (const line of cpp.lines) {
-    if (line.isTotal && line.denumire.toUpperCase().includes("REZULTAT")) break;
-    if (line.isHeader) {
-      const d = line.denumire.toUpperCase();
-      bucket = d.includes("VENITURI") ? "rev" : d.includes("CHELTUIELI") ? "exp" : null;
-      continue;
-    }
-    if (line.isTotal || !line.byVertical || bucket === null) continue;
-    const target = bucket === "rev" ? venituri : cheltuieli;
-    for (const [vid, amt] of Object.entries(line.byVertical)) {
-      target[vid] = (target[vid] ?? 0) + amt;
-    }
-  }
+  const { venituri, cheltuieli } = aggregateCppByLine(cpp);
 
   const lines = vertical.verticals.map((v) => {
     const rev = round2(venituri[v.id] ?? 0);
@@ -703,4 +713,320 @@ async function handleGetAccountMappingTimeline(
 
 function describePeriod(key: number): string {
   return `${String(periodMonth(key)).padStart(2, "0")}.${periodYear(key)}`;
+}
+
+const DEFAULT_PARTNER_RESULTS = 15;
+const MAX_PARTNER_RESULTS = 30;
+const MAX_CONTS_PER_CATEGORY = 8;
+const MAX_UNMAPPED_ROWS = 15;
+const DEFAULT_TREND_MONTHS = 12;
+const MAX_TREND_MONTHS = 24;
+
+function walkCategoryNames(tree: CostCategoryNode[]): Map<string, string> {
+  const names = new Map<string, string>();
+  const walk = (nodes: CostCategoryNode[], prefix: string) => {
+    for (const n of nodes) {
+      const path = prefix ? `${prefix} > ${n.name}` : n.name;
+      names.set(n.id, path);
+      walk(n.children, path);
+    }
+  };
+  walk(tree, "");
+  return names;
+}
+
+function namedSplits(
+  splits: AllocationSplit[],
+  nameById: Map<string, string>
+): Array<{ line: string; percent: number }> {
+  return splits.map((s) => ({
+    line: nameById.get(s.verticalId) ?? s.verticalId,
+    percent: s.percent,
+  }));
+}
+
+function sharePct(amount: number, total: number): number | null {
+  return total !== 0 ? round2((Math.abs(amount) / Math.abs(total)) * 100) : null;
+}
+
+async function handleGetPartnerAnalysis(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const year = input.year as number;
+  const month = input.month as number;
+  const limit = Math.min(
+    (input.limit as number) || DEFAULT_PARTNER_RESULTS,
+    MAX_PARTNER_RESULTS
+  );
+  const cont = typeof input.cont === "string" ? input.cont.trim() : "";
+
+  return cont
+    ? partnerAnalysisForCont(resolved.client, cont, year, month, limit)
+    : partnerAnalysisForFirm(resolved.client, year, month, limit);
+}
+
+async function partnerAnalysisForCont(
+  client: { id: string; name: string },
+  cont: string,
+  year: number,
+  month: number,
+  limit: number
+): Promise<string> {
+  const contBase = getContBase(cont);
+  const classDigit = contBase.charAt(0);
+  if (classDigit !== "6" && classDigit !== "7") {
+    return JSON.stringify({
+      error:
+        "Analiza de parteneri exista doar pentru conturi de cheltuieli (6xx) sau venituri (7xx).",
+    });
+  }
+
+  const [agg, pins, treeResult, verticals] = await Promise.all([
+    loadPartnersForCont(prisma, client.id, contBase, year, month),
+    listPartnerAllocations(prisma, client.id, contBase),
+    listCategoryTree(prisma, client.id, { autoSeed: false }),
+    listVerticals(prisma, client.id),
+  ]);
+  const categoryNames = walkCategoryNames(treeResult.tree);
+  const verticalNames = new Map(verticals.map((v) => [v.id, v.name]));
+  const pinByPartner = new Map(pins.map((p) => [p.partnerNameNormalized, p.splits]));
+
+  const total = round2(agg.partnerRulaj + agg.unresolvedRulaj);
+  const partners = [...agg.partners].sort(
+    (a, b) => Math.abs(b.rulaj) - Math.abs(a.rulaj)
+  );
+  const rows = partners.slice(0, limit).map((p) => {
+    const pin = pinByPartner.get(p.nameNormalized);
+    return {
+      partener: p.nameOriginal,
+      rulaj: p.rulaj,
+      pondereDinCont: sharePct(p.rulaj, total),
+      exceptieCategorie: p.override
+        ? {
+            linie: categoryNames.get(p.override.categoryId) ?? p.override.categoryId,
+            confirmata: p.override.confirmedAt !== null,
+            sursa: p.override.source,
+          }
+        : undefined,
+      sugestieCategorie:
+        !p.override && p.suggestedCategoryId
+          ? categoryNames.get(p.suggestedCategoryId) ?? p.suggestedCategoryId
+          : undefined,
+      pinLiniiBusiness: pin ? namedSplits(pin, verticalNames) : undefined,
+    };
+  });
+
+  return JSON.stringify({
+    client: client.name,
+    year,
+    month,
+    cont: contBase,
+    kind: classDigit === "6" ? "cheltuiala" : "venit",
+    totalRulaj: total,
+    partnerRulaj: agg.partnerRulaj,
+    unresolvedRulaj: agg.unresolvedRulaj,
+    partnerCount: partners.length,
+    showing: rows.length,
+    concentration: computeConcentration(partners.map((p) => p.rulaj), total),
+    partners: rows,
+    note:
+      "Rulaj cumulat YTD ianuarie -> luna selectata. 'unresolvedRulaj' = miscari fara partener identificat (TVA, dobanzi, transferuri interne). Ponderile si concentrarea sunt raportate la totalul contului, inclusiv partea nerezolvata.",
+  });
+}
+
+async function partnerAnalysisForFirm(
+  client: { id: string; name: string },
+  year: number,
+  month: number,
+  limit: number
+): Promise<string> {
+  const [totals, pins, overrides] = await Promise.all([
+    loadPartnerTotalsForClient(prisma, client.id, year, month),
+    listPartnerAllocations(prisma, client.id),
+    listOverridesForClient(prisma, client.id),
+  ]);
+
+  const side = (list: PartnerTotal[], total: number, unresolved: number) => ({
+    total: round2(total),
+    unresolvedRulaj: unresolved,
+    partnerCount: list.length,
+    concentration: computeConcentration(list.map((p) => p.rulaj), total),
+    top: list.slice(0, limit).map((p) => ({
+      partener: p.partnerNameOriginal,
+      rulaj: p.rulaj,
+      pondere: sharePct(p.rulaj, total),
+      conturi: p.contBases,
+    })),
+  });
+
+  return JSON.stringify({
+    client: client.name,
+    year,
+    month,
+    venituri: side(totals.revenue, totals.totalRevenue, totals.unresolvedRevenue),
+    cheltuieli: side(totals.expense, totals.totalExpense, totals.unresolvedExpense),
+    exceptiiCategorie: overrides.length,
+    pinuriLiniiBusiness: pins.length,
+    note:
+      "Rulaj cumulat YTD ianuarie -> luna selectata, agregat pe toata firma. Ponderile si concentrarea (top1/top3/top5) sunt raportate la totalul fiecarei parti, inclusiv rulajul fara partener identificat. Pentru detaliul unui cont (exceptii, pin-uri, sugestii), apeleaza din nou cu parametrul 'cont'.",
+  });
+}
+
+async function handleGetMappingsOverview(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const year = typeof input.year === "number" ? input.year : undefined;
+  const month = typeof input.month === "number" ? input.month : undefined;
+  const data = await loadMapariCashflowCached(resolved.client.id, { year, month });
+  if (!data.period) {
+    return JSON.stringify({ error: "Clientul nu are date in jurnal." });
+  }
+
+  const categoryNames = walkCategoryNames(data.tree);
+  const verticalNames = new Map(data.verticals.map((v) => [v.id, v.name]));
+  const catAllocByCategory = new Map(
+    data.categoryAllocations.map((a) => [a.categoryId, a.splits])
+  );
+
+  type Acc = (typeof data.accounts)[number];
+  const rulajOf = (a: Acc) => (a.kind === "expense" ? a.rulajD : a.rulajC);
+  const byRulajDesc = (x: Acc, y: Acc) => Math.abs(rulajOf(y)) - Math.abs(rulajOf(x));
+
+  const byCategory = new Map<string, Acc[]>();
+  const unmapped: Acc[] = [];
+  for (const a of data.accounts) {
+    if (!a.currentMapping) {
+      unmapped.push(a);
+      continue;
+    }
+    const bucket = byCategory.get(a.currentMapping.categoryId);
+    if (bucket) bucket.push(a);
+    else byCategory.set(a.currentMapping.categoryId, [a]);
+  }
+
+  const linii = Array.from(byCategory.entries())
+    .map(([catId, accounts]) => {
+      const sorted = [...accounts].sort(byRulajDesc);
+      const catSplits = catAllocByCategory.get(catId);
+      return {
+        linie: categoryNames.get(catId) ?? catId,
+        kind: accounts[0].kind === "expense" ? "cheltuiala" : "venit",
+        rulaj: round2(accounts.reduce((s, a) => s + rulajOf(a), 0)),
+        contCount: accounts.length,
+        splitLiniiBusiness: catSplits ? namedSplits(catSplits, verticalNames) : undefined,
+        conturi: sorted.slice(0, MAX_CONTS_PER_CATEGORY).map((a) => ({
+          cont: a.cont,
+          denumire: a.denumire,
+          rulaj: round2(rulajOf(a)),
+          sursaSplitLinii: data.verticalsEnabled ? a.effectiveAllocation.source : undefined,
+          parteneri: a.partnerCount || undefined,
+          exceptiiParteneri: a.partnerOverrideCount || undefined,
+          pinuriParteneri: a.partnerLobOverrideCount || undefined,
+        })),
+        conturiTrunchiate: accounts.length > MAX_CONTS_PER_CATEGORY || undefined,
+      };
+    })
+    .sort((a, b) => Math.abs(b.rulaj) - Math.abs(a.rulaj));
+
+  const redirectionari = Object.entries(data.categoryInflows).map(([catId, inf]) => ({
+    linie: categoryNames.get(catId) ?? catId,
+    amount: inf.amount,
+  }));
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    period: data.period,
+    coverage: data.coverage,
+    verticalsEnabled: data.verticalsEnabled,
+    liniiBusiness: data.verticals.map((v) => ({ name: v.name, isDefault: v.isDefault })),
+    splitDefaultFirma: data.firmDefaultSplits
+      ? namedSplits(data.firmDefaultSplits, verticalNames)
+      : null,
+    linii,
+    nemapate: {
+      count: unmapped.length,
+      rulaj: data.coverage.unmappedRulaj,
+      top: [...unmapped].sort(byRulajDesc).slice(0, MAX_UNMAPPED_ROWS).map((a) => ({
+        cont: a.cont,
+        denumire: a.denumire,
+        rulaj: round2(rulajOf(a)),
+      })),
+    },
+    redirectionariExceptii: redirectionari.length > 0 ? redirectionari : undefined,
+    reziduuAbsorbitDeDefault: data.defaultVerticalResidueAbsorbed || undefined,
+    note:
+      "Rulaj YTD ianuarie -> luna perioadei. 'sursaSplitLinii' spune de unde vine splitul pe linii de business al contului: own (regula proprie) / category (mosteneste linia de cost) / firm (splitul default al firmei) / default (fallback pe verticala default). 'redirectionariExceptii' = rulaj mutat intre linii de cost de exceptiile de partener.",
+  });
+}
+
+async function handleGetTrends(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const months = Math.min(
+    (input.months as number) || DEFAULT_TREND_MONTHS,
+    MAX_TREND_MONTHS
+  );
+  const includeLines = input.include_business_lines === true;
+
+  const all = await getAvailablePeriods(resolved.client.id);
+  if (all.length === 0) {
+    return JSON.stringify({ error: "Clientul nu are date in jurnal." });
+  }
+
+  const toYear = input.to_year as number | undefined;
+  const toMonth = input.to_month as number | undefined;
+  const eligible =
+    toYear !== undefined && toMonth !== undefined
+      ? all.filter((p) => p.year < toYear || (p.year === toYear && p.month <= toMonth))
+      : all;
+  if (eligible.length === 0) {
+    return JSON.stringify({ error: "Nu exista date pana la perioada ceruta." });
+  }
+
+  // One extra period before the window (same fiscal year only) so the first
+  // point's delta subtracts a real baseline instead of falling back to YTD.
+  const window = eligible.slice(-months);
+  const startIdx = eligible.length - window.length;
+  const withBaseline =
+    startIdx > 0 && eligible[startIdx - 1].year === window[0].year
+      ? eligible.slice(startIdx - 1)
+      : window;
+
+  const figures: PeriodFigures[] = [];
+  for (const p of withBaseline) {
+    const cached = await readComputedPeriod(resolved.client.id, p.year, p.month);
+    if (cached) {
+      figures.push({ year: p.year, month: p.month, kpis: cached.kpis, cpp: cached.cpp });
+      continue;
+    }
+    const payload = await buildPeriodPayload(resolved.client.id, p.year, p.month);
+    if (!payload) continue;
+    await writeComputedPeriod(resolved.client.id, p.year, p.month, payload);
+    figures.push({ year: p.year, month: p.month, kpis: payload.kpis, cpp: payload.cpp });
+  }
+
+  const first = window[0];
+  const points = computeTrendPoints(figures, includeLines).filter(
+    (pt) => pt.year > first.year || (pt.year === first.year && pt.month >= first.month)
+  );
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    months: points.length,
+    points,
+    note:
+      "Venituri, cheltuieli, rezultatBrut si marjaPct sunt fluxuri PE LUNA (derivate din snapshot-urile YTD ale CPP, cu reset in ianuarie). 'cash' e pozitia la finalul lunii (punctuala, nu flux). 'monthsCovered' > 1 inseamna ca jurnalul sare peste luni si fluxul acopera tot intervalul. 'byLine' apare doar cu include_business_lines si verticale active.",
+  });
 }

@@ -4,8 +4,8 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 13 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(13);
+  it("defines 16 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(16);
   });
 
   it("all tools have name, description, and input_schema", () => {
@@ -179,6 +179,73 @@ describe("Costi tool definitions", () => {
     const desc = tool!.description!.toLowerCase();
     expect(desc).toContain("effectivefrom");
     expect(desc).toContain("effectiveto");
+  });
+
+  it("get_partner_analysis requires client_name, year, month with optional cont + limit", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_partner_analysis");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name", "year", "month"]);
+    expect(schema.properties.cont).toBeDefined();
+    expect(schema.properties.limit).toBeDefined();
+  });
+
+  it("get_partner_analysis description covers concentration and both exception layers", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_partner_analysis");
+    expect(tool).toBeDefined();
+    const desc = tool!.description!.toLowerCase();
+    expect(desc).toContain("concentrare");
+    expect(desc).toContain("partnercategoryoverride");
+    expect(desc).toContain("partnerverticalallocation");
+    expect(desc).toContain("unresolvedrulaj");
+  });
+
+  it("get_mappings_overview requires only client_name, period optional", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_mappings_overview");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name"]);
+    expect(schema.properties.year).toBeDefined();
+    expect(schema.properties.month).toBeDefined();
+  });
+
+  it("get_mappings_overview description references coverage and both axes", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_mappings_overview");
+    expect(tool).toBeDefined();
+    const desc = tool!.description!.toLowerCase();
+    expect(desc).toContain("acoperire");
+    expect(desc).toContain("linii de cost");
+    expect(desc).toContain("linii de business");
+    expect(desc).toContain("nemapate");
+  });
+
+  it("get_trends requires only client_name and exposes window + line-breakdown params", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_trends");
+    expect(tool).toBeDefined();
+    const schema = tool!.input_schema as {
+      required?: string[];
+      properties: Record<string, unknown>;
+    };
+    expect(schema.required).toEqual(["client_name"]);
+    expect(schema.properties.months).toBeDefined();
+    expect(schema.properties.to_year).toBeDefined();
+    expect(schema.properties.to_month).toBeDefined();
+    expect(schema.properties.include_business_lines).toBeDefined();
+  });
+
+  it("get_trends description explains monthly deltas vs point-in-time cash", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_trends");
+    expect(tool).toBeDefined();
+    const desc = tool!.description!.toLowerCase();
+    expect(desc).toContain("ytd");
+    expect(desc).toContain("cash");
+    expect(desc).toContain("monthscovered");
   });
 });
 

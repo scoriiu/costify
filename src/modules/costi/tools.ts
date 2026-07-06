@@ -170,6 +170,58 @@ export const COSTI_TOOLS: Tool[] = [
     },
   },
   {
+    name: "get_partner_analysis",
+    description:
+      "Analiza partenerilor (clienti/furnizori) rezolvati din jurnal via JournalPartner, cumulat YTD ianuarie -> luna selectata. Fara parametrul 'cont': top parteneri pe venituri si pe cheltuieli la nivel de firma, cu rulaj, pondere din total si concentrarea (top1/top3/top5 la suta din total) — raspunde la 'cat la suta din venituri vine de la un singur client?' sau 'de cine depinde firma?'. Cu parametrul 'cont' (ex '704'): partenerii acelui cont, fiecare cu rulaj, pondere, exceptia de categorie (PartnerCategoryOverride, daca partenerul e mapat pe alta linie de cost decat contul), sugestia de categorie (dedusa din alte conturi) si pin-ul pe linii de business (PartnerVerticalAllocation, cand banii partenerului merg pe alta linie decat splitul contului). 'unresolvedRulaj' e rulajul fara partener identificat (TVA, dobanzi, transferuri interne) — inclus in numitor, deci ponderile sunt oneste.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        year: { type: "number", description: "Anul" },
+        month: { type: "number", description: "Luna (1-12); analiza e cumulata ianuarie -> luna" },
+        cont: {
+          type: "string",
+          description: "Optional: un cont 6xx/7xx (ex '704', '628.01') pentru analiza partenerilor acelui cont",
+        },
+        limit: { type: "number", description: "Numar maxim de parteneri per lista (default 15, max 30)" },
+      },
+      required: ["client_name", "year", "month"],
+    },
+  },
+  {
+    name: "get_mappings_overview",
+    description:
+      "Imaginea completa a maparilor din tab-ul Mapari Cashflow, intr-un singur apel: acoperirea (cat la suta din rulajul clasei 6+7 e mapat pe linii de cost), liniile de cost (axa A) cu conturile lor si rulajul YTD, splitul pe linii de business (axa B) acolo unde exista (propriu/categorie/firma/default), splitul default al firmei, conturile nemapate (cele mai mari primele), numarul de exceptii de partener per cont si redirectionarile de rulaj intre categorii cauzate de exceptii (categoryInflows). Util cand contabilul intreaba 'ce conturi am pe linia Marfa?', 'cat la suta din cashflow e mapat?', 'ce a mai ramas de mapat?' sau 'unde se duc banii din 628?'. Fara year/month foloseste ultima perioada disponibila.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        year: { type: "number", description: "Optional: anul perioadei (default ultima disponibila)" },
+        month: { type: "number", description: "Optional: luna perioadei (1-12)" },
+      },
+      required: ["client_name"],
+    },
+  },
+  {
+    name: "get_trends",
+    description:
+      "Serii lunare gata calculate pentru intrebari de evolutie: venituri, cheltuieli, rezultat brut si marja PE LUNA (fluxuri lunare, derivate din snapshot-urile YTD ale CPP: flux(luna) = YTD(luna) - YTD(luna precedenta), cu reset la inceput de an), plus pozitia de cash la finalul fiecarei luni (punctuala, nu flux). Optional defalcare pe linii de business per luna (include_business_lines). Acopera ultimele N luni cu date (default 12, max 24). 'monthsCovered' > 1 semnaleaza ca jurnalul sare peste luni si fluxul acopera intervalul. Foloseste acest tool pentru 'de ce scade marja de 3 luni?', 'cum au evoluat veniturile anul asta?', 'in ce luna am avut cel mai mare profit?' — NU inlantui apeluri get_cpp per luna. Prima apelare pe perioade nematerializate poate dura cateva secunde (se calculeaza si se salveaza snapshot-urile).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        months: { type: "number", description: "Cate luni inapoi (default 12, max 24)" },
+        to_year: { type: "number", description: "Optional: anul ultimei luni din serie (default ultima perioada cu date)" },
+        to_month: { type: "number", description: "Optional: ultima luna din serie (1-12)" },
+        include_business_lines: {
+          type: "boolean",
+          description: "Include defalcarea lunara pe linii de business (doar pentru firme cu verticale active)",
+        },
+      },
+      required: ["client_name"],
+    },
+  },
+  {
     name: "get_account_mapping_timeline",
     description:
       "Returneaza istoricul maparii unui cont pe linia de cost (axa A) in timp, pentru clientii care folosesc mapari pe perioade (ADR-0004). Fiecare versiune are o luna de inceput (effectiveFrom, format YYYYMM; 0 = de la inceput), o eventuala luna de sfarsit (effectiveTo, doar pentru exceptii pe o fereastra) si linia de cost activa (sau 'nemapat' pentru un tombstone). Rezolvarea: o exceptie marginita (cu effectiveTo) castiga doar in fereastra ei; altfel se ia versiunea deschisa cu cel mai mare effectiveFrom <= luna ceruta. Util cand contabilul intreaba 'pe ce linie a fost contul 6028 in martie fata de aprilie' sau 'cand am schimbat maparea contului X'. Daca se da year+month, intoarce si linia activa rezolvata pentru acea luna.",
