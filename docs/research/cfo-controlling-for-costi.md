@@ -97,6 +97,47 @@ Management Reporting anatomy: a report is complete only when it carries "a speci
 - Fixed lever lists: DSO ↓ (invoice immediately, dunning discipline, early-pay discounts, stop-shipment for chronic late payers); DIO ↓ (drop dead stock, purchasing cadence); DPO ↑ (pay per contract terms, never earlier, without burning suppliers).
 - Owner translation: "banii tai stau N zile blocati in facturi neincasate."
 
+### Cost behavior classification (added 2026-07-08, practitioner discussion)
+
+Standard cost-accounting foundation, and the basis of the German flexible-marginal-costing tradition (Grenzplankostenrechnung) referenced by the IGC model. Four behaviors, not three:
+
+- **Fixed** — independent of volume: rent (612), depreciation (6811), back-office salaries, subscriptions.
+- **Variable** — proportional to volume: marfa (607), materii prime (601/602), commissions, piece-rate labor.
+- **Step-fixed ("sprungfix")** — fixed within a capacity band, jumps at thresholds: one manager per ~10 people (the 11th hire triggers a second manager), one machine per N units. The classic hidden trap in hiring scenarios.
+- **Semi-variable (mixed)** — fixed base + variable component: utilities (605), sales salary + commission.
+
+What it unlocks: **contribution margin** (revenue − variable costs, per business line — we already have the axes), **break-even** ("de la ce venit lunar firma e pe plus" = fixed costs / contribution margin %), **operating leverage** ("if revenue drops 20%, result drops X%" — high-fixed-cost firms are fragile in downturns), and honest **hiring scenarios** (a new hire = new fixed cost vs incremental contribution margin, plus the step warning).
+
+Depreciation's dual role: it is a **fixed cost** in break-even AND a **non-cash add-back** in the cash-vs-profit bridge and distributable earnings. Both roles must be encoded or the two most important owner answers come out wrong.
+
+Costi application (theory is in the base model; the value is per-client application):
+- Default cost-behavior per cont from the account catalog (607 variable, 612/6811 fixed, 605 semi-variable...), overridable per client — a lightweight classification axis, NOT a new mapping UI by default.
+- **Personnel (641) is undecidable from the journal**: the same cont is 100% fixed at a consultancy and mostly variable with piece-rate factory operators or zilieri. This is a flagship Stage 5 interview question ("salariile din productie sunt legate de volum sau fixe?") whose answer unlocks break-even — the exact insight-driven-acquisition pattern from ADR-0005 D4/D5.
+
+### Asset utilization / investment controlling (added 2026-07-08, practitioner discussion)
+
+IGC process #3 (Investment Controlling) applied to SMEs. Two standard concepts:
+
+- **Nutzkosten vs Leerkosten** (used vs idle capacity cost): a server bought as CapEx at 10% utilization means ~90% of its depreciation + running costs is idle-capacity cost. Quantify it in lei/year, don't moralize.
+- **Investitionsnachrechnung** (post-investment audit): 6-12 months after a CapEx purchase, check whether the investment's premises held. Almost never done at SRL level — high-value, low-effort advisory.
+
+Costi application:
+- The journal sees half the story: the asset (class 2), depreciation (6811), purchase timing. It can detect **candidates**: depreciation heavy relative to revenue, imobilizari growing without revenue growth, declining asset turnover (the DuPont asset-turnover branch).
+- **Utilization is invisible in the journal** — operational knowledge only the human has. Data-anchored interview question: "Vad echipamente de 120.000 lei cu amortizare 24.000 lei/an. Cat din capacitatea lor folositi efectiv?" → typed fact → unlocks the idle-cost insight.
+- Fixed measure list for the playbook: sell and right-size, rent out spare capacity, sale-and-leaseback, replace owned with rented/cloud (converts fixed cost into variable cost — ties directly into cost-behavior analysis).
+
+### Team structure as organic context (added 2026-07-08, practitioner discussion)
+
+The pattern behind both discussions above generalizes: **the journal records money, not structure**. Cont 641 is one opaque number; the business reality behind it (who does what) is the highest-leverage fact category for ADR-0005 Stage 4 memory, because it correlates with nearly every insight:
+
+- **Cost behavior of 641** (fixed / step / variable split) → break-even, operating leverage, downturn fragility.
+- **Per-line assignment** ("operatorii lucreaza doar pe Outsourcing") → the business-line split of salaries. Real observed gap: on QHM21, 641 (1.63M lei, the firm's biggest expense) resolves to the default vertical because the split is team knowledge, not journal knowledge — the per-line rezultat is distorted until someone answers one question.
+- **Management ratios** ("un manager la ~10 oameni") → the step-cost warning in hiring scenarios.
+- **Productive vs overhead headcount** → revenue per productive employee (sharper than plain revenue/employee).
+- **Seasonal/day labor** → payroll cash-spike planning, seasonality interpretation.
+
+Today Costify holds only `EmployeeCount` (monthly average, manually entered). Team-structure facts belong in the Stage 4 `ClientBusinessFact` registry under `echipa`, with candidate keys: `team.productive_count`, `team.overhead_count`, `team.line_assignment.<vertical>`, `team.pay_volume_linked` (bool/percent), `team.management_ratio`, `team.seasonal_pattern`. Each key exists because a named insight is blocked without it (D4 discipline); the interview questions are data-anchored ("Salariile sunt 1,6M lei si merg toate pe Toata firma. Cati oameni lucreaza pe fiecare linie?").
+
 ---
 
 ## 3. The Romanian context (numbers Costi can cite)
@@ -193,6 +234,12 @@ Management Reporting anatomy: a report is complete only when it carries "a speci
 22. Rolling forecast principle when we add projections: plan frozen, forecast separate, driver-level granularity, never tied to targets.
 23. KPI surfaces stay at 5-8 metrics; IBCS semantics for any new chart (solid=actual, outline=plan, hatched=forecast, green/red only for signed variances).
 24. Position "data management" (coverage, unmapped, mapping hygiene) explicitly as part of the controlling value Costi delivers — it already exists in the product; the IGC model legitimizes it as a first-class process.
+
+### From practitioner discussions (2026-07-08)
+
+25. **Cost-behavior axis** (fix / trepte / semi-variabil / variabil): catalog defaults per cont + per-client override; 641 decided by interview, never assumed. Unlocks break-even, contribution margin, operating leverage, honest hiring scenarios with the step warning. Amortizarea encoded with BOTH roles (fixed cost in break-even, non-cash add-back in the cash bridge).
+26. **Idle-capacity playbook**: detect candidates from the journal (heavy 6811 vs revenue, imobilizari up without revenue, falling asset turnover), ask the utilization question, quantify Leerkosten in lei/year, offer the fixed measure list (sell/right-size, rent out, sale-and-leaseback, owned → rented/cloud). Post-investment audit 6-12 months after any big CapEx.
+27. **Team structure = flagship memory category** (`echipa`): productive/overhead counts, per-line assignment, pay-volume linkage, management ratio, seasonality. Each key tied to a named insight it unlocks; questions anchored in the client's own numbers (the QHM21 641-on-default example).
 
 ---
 
