@@ -69,6 +69,19 @@ export const DOC_NAVIGATION: DocCategory[] = [
     ],
   },
   {
+    id: "costi",
+    label: "Costi AI",
+    description: "Cum gandeste si raspunde Costi ca CFO",
+    pages: [
+      {
+        slug: "costi-cfo-playbooks",
+        title: "Playbook-urile CFO ale lui Costi",
+        description: "Identitatea, contractul de raspuns si cele 16 playbook-uri. Draft pentru review: raspunde inline la fiecare sectiune.",
+        interactive: true,
+      },
+    ],
+  },
+  {
     id: "faq",
     label: "FAQ & Clarificari",
     description: "Intrebari frecvente si discutii deschise",
