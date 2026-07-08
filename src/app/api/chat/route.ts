@@ -23,13 +23,23 @@ export async function POST(request: Request) {
     });
   }
 
-  const { messages } = (await request.json()) as { messages: ChatMessage[] };
+  const { messages, context } = (await request.json()) as {
+    messages: ChatMessage[];
+    context?: { page?: string };
+  };
   if (!messages?.length) {
     return new Response("No messages provided", { status: 400 });
   }
 
+  const { resolvePageContext } = await import("@/modules/costi/page-context");
+  const pageContext = await resolvePageContext(user.id, context?.page);
+
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-  const systemPrompt = buildSystemPrompt(lastUserMessage?.content ?? "");
+  const systemPrompt = buildSystemPrompt(
+    lastUserMessage?.content ?? "",
+    undefined,
+    pageContext
+  );
   const chatParams = getChatParams();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

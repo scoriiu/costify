@@ -6,3 +6,8 @@ export {
   isCfoModeEnabled,
   type ChatParams,
 } from "./prompt";
+export {
+  parsePage,
+  resolvePageContext,
+  type PageContext,
+} from "./page-context";

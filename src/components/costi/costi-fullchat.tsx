@@ -113,7 +113,10 @@ export function CostiFullChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages.slice(-API_CONTEXT_LIMIT) }),
+        body: JSON.stringify({
+          messages: newMessages.slice(-API_CONTEXT_LIMIT),
+          context: { page: window.location.pathname + window.location.search },
+        }),
         signal: abortRef.current.signal,
       });
 

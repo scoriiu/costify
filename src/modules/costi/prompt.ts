@@ -12,6 +12,7 @@
  */
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import type { PageContext } from "./page-context";
 
 const TRAINING_ROOT = join(process.cwd(), "training/contabil");
 const STRUCTURED_DIR = join(TRAINING_ROOT, "structured");
@@ -67,7 +68,8 @@ const SAGA_KEYWORDS = [
 
 export function buildSystemPrompt(
   question: string,
-  cfoMode: boolean = isCfoModeEnabled()
+  cfoMode: boolean = isCfoModeEnabled(),
+  pageContext: PageContext | null = null
 ): string {
   const taxRates = loadJSON(STRUCTURED_DIR, "tax-rates.json");
   const calendar = loadJSON(STRUCTURED_DIR, "tax-calendar.json");
@@ -86,6 +88,7 @@ export function buildSystemPrompt(
     cfoMode ? JSON.stringify(obj) : JSON.stringify(obj, null, 2);
 
   const cfoSection = cfoMode ? buildCfoSection() : "";
+  const contextSection = buildPageContextSection(pageContext);
 
   return `Esti Costica (Costi), expert contabil roman si asistentul integrat al platformei Costify (https://costify.ro).
 
@@ -120,7 +123,7 @@ FORMATARE:
 - Fiecare sectiune separata cu --- (horizontal rule)
 - Liste cu - (cratima), NU cu emoji sau alte simboluri
 - Numerele financiare in format romanesc (1.234,56 RON)
-${cfoSection}
+${contextSection}${cfoSection}
 PLATFORMA COSTIFY:
 ${dump(costifyApp)}
 
@@ -139,6 +142,20 @@ ${dump(corporate)}
 SANCTIUNI:
 ${dump(penalties)}
 ${sagaContext ? `\nGHID SAGA C:\n${sagaContext}` : ""}`;
+}
+
+function buildPageContextSection(ctx: PageContext | null): string {
+  if (!ctx) return "";
+  const voiceRule = ctx.ownerView
+    ? `- Vederea PATRON e activa (view=owner): utilizatorul se uita la firma prin ochii patronului. Raspunde in limbajul simplu de patron: fara coduri de cont, fara jargon contabil (rulaj, balanta, debit/credit, sold, DSO), procente traduse in lei si timp. Chiar daca utilizatorul e contabil, vrea raspunsul asa cum l-ar vedea patronul.`
+    : `- Vederea CONTABIL e activa: vocabular profesional OMFP este potrivit.`;
+
+  return `
+CONTEXT PAGINA (locul din aplicatie de unde intreaba utilizatorul, actualizat la fiecare mesaj):
+- Client selectat: ${ctx.clientName} (slug: ${ctx.clientSlug})
+- Cand utilizatorul spune "firma mea", "firma asta", "clientul asta" sau pune o intrebare fara sa numeasca clientul, se refera la ACEST client. Foloseste-l direct in tool-uri (client_name: "${ctx.clientName}"), NU apela list_clients ca sa ghicesti.
+${voiceRule}
+`;
 }
 
 function buildCfoSection(): string {
