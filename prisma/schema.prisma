@@ -101,9 +101,37 @@ model Client {
   firmVerticalDefault      FirmVerticalDefault[]
   partnerVerticalAllocs    PartnerVerticalAllocation[]
   employeeCounts           EmployeeCount[]
+  facts                    ClientFact[]
 
   @@unique([userId, slug])
   @@index([userId])
+}
+
+/// Costi's per-client business memory: facts the journal cannot compute
+/// (salary behavior, contract terms with key partners, seasonality causes,
+/// asset utilization, pipeline). Written by Costi via remember_client_fact
+/// when the user reveals them in conversation; recalled in every future
+/// conversation through get_client_diagnostic / get_client_facts.
+///
+/// Computable figures (concentration %, runway, DSO) must NEVER be stored
+/// here — they go stale; they are recomputed fresh from the journal.
+/// `key` is a stable snake identifier (e.g. "cost_behavior.641",
+/// "contract_end.roche"); re-saving the same key overwrites the value.
+model ClientFact {
+  id        String   @id @default(cuid())
+  clientId  String
+  key       String
+  value     String
+  /// "user" = stated by the accountant/owner in chat.
+  /// "costi" = inferred by Costi and confirmed by the user.
+  source    String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, key])
+  @@index([clientId])
 }
 
 /// Accountant-entered auxiliary input: the average number of employees for one

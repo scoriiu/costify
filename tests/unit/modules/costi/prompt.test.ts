@@ -136,6 +136,27 @@ describe("buildSystemPrompt: CFO mode (flag on)", () => {
     expect(prompt.toLowerCase()).toContain("nu invoca niciodata \"buget\"");
     expect(prompt).toContain("Concluzie Sintetica ramane DOAR pentru intrebari de legislatie");
   });
+
+  it("mandates diagnostic-first for client conversations", () => {
+    const prompt = buildSystemPrompt("test", true);
+    expect(prompt).toContain("DIAGNOSTIC INTAI:");
+    expect(prompt).toContain("PRIMUL apel este get_client_diagnostic");
+  });
+
+  it("carries the anti-generic style rules", () => {
+    const prompt = buildSystemPrompt("test", true);
+    expect(prompt).toContain("ANTI-GENERIC");
+    expect(prompt).toContain("Prima propozitie a raspunsului este VERDICTUL");
+    expect(prompt).toContain("NU incheia cu meniu de optiuni");
+    expect(prompt).toContain("NU anunta ce urmeaza sa faci");
+  });
+
+  it("carries the client-memory rules", () => {
+    const prompt = buildSystemPrompt("test", true);
+    expect(prompt).toContain("MEMORIA CLIENTULUI:");
+    expect(prompt).toContain("remember_client_fact");
+    expect(prompt).toContain("NU salva niciodata cifre calculabile");
+  });
 });
 
 describe("cfo-playbooks.json content", () => {

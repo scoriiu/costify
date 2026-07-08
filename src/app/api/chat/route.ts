@@ -81,6 +81,10 @@ async function processWithTools(
   encoder: TextEncoder
 ) {
   let currentMessages = [...messages];
+  // Text emitted alongside tool calls is transition narration ("Sa verific...")
+  // that the response contract forbids. We hold it back and stream only the
+  // final round's text: the first thing the user reads is the answer itself.
+  let heldNarration = "";
 
   for (let round = 0; round < params.maxToolRounds; round++) {
     const response = await client.messages.create({
@@ -92,31 +96,34 @@ async function processWithTools(
       messages: currentMessages,
     });
 
-    let hasToolUse = false;
-    const toolResults: ContentBlockParam[] = [];
+    const hasToolUse = response.content.some((b) => b.type === "tool_use");
+    const roundText = response.content
+      .filter((b): b is Extract<typeof b, { type: "text" }> => b.type === "text")
+      .map((b) => b.text)
+      .filter(Boolean)
+      .join("\n\n");
 
-    for (const block of response.content) {
-      if (block.type === "text" && block.text) {
-        controller.enqueue(encoder.encode(block.text));
-      }
-
-      if (block.type === "tool_use") {
-        hasToolUse = true;
-        const result = await handleToolCall(
-          userId,
-          block.name,
-          block.input as Record<string, unknown>
-        );
-
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: result,
-        } as ContentBlockParam);
-      }
+    if (!hasToolUse) {
+      controller.enqueue(encoder.encode(roundText || heldNarration));
+      return;
     }
 
-    if (!hasToolUse) break;
+    if (roundText) heldNarration = roundText;
+
+    const toolResults: ContentBlockParam[] = [];
+    for (const block of response.content) {
+      if (block.type !== "tool_use") continue;
+      const result = await handleToolCall(
+        userId,
+        block.name,
+        block.input as Record<string, unknown>
+      );
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: result,
+      } as ContentBlockParam);
+    }
 
     currentMessages = [
       ...currentMessages,
@@ -124,4 +131,12 @@ async function processWithTools(
       { role: "user", content: toolResults },
     ];
   }
+
+  // Tool-round budget exhausted without a closing text block.
+  controller.enqueue(
+    encoder.encode(
+      heldNarration ||
+        "Nu am reusit sa inchei analiza in limita de pasi. Pune o intrebare mai specifica si reiau de acolo."
+    )
+  );
 }

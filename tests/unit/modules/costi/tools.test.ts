@@ -4,8 +4,35 @@ import { COSTI_TOOLS } from "@/modules/costi/tools";
 const TOOLS_WITHOUT_CLIENT = new Set(["list_clients", "get_account_catalog"]);
 
 describe("Costi tool definitions", () => {
-  it("defines 16 tools", () => {
-    expect(COSTI_TOOLS).toHaveLength(16);
+  it("defines 20 tools", () => {
+    expect(COSTI_TOOLS).toHaveLength(20);
+  });
+
+  it("get_client_diagnostic requires only client_name", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "get_client_diagnostic");
+    expect(tool).toBeDefined();
+    expect((tool!.input_schema as { required?: string[] }).required).toEqual([
+      "client_name",
+    ]);
+  });
+
+  it("remember_client_fact requires client_name, key and value", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "remember_client_fact");
+    expect(tool).toBeDefined();
+    expect((tool!.input_schema as { required?: string[] }).required).toEqual([
+      "client_name",
+      "key",
+      "value",
+    ]);
+  });
+
+  it("forget_client_fact requires client_name and key", () => {
+    const tool = COSTI_TOOLS.find((t) => t.name === "forget_client_fact");
+    expect(tool).toBeDefined();
+    expect((tool!.input_schema as { required?: string[] }).required).toEqual([
+      "client_name",
+      "key",
+    ]);
   });
 
   it("all tools have name, description, and input_schema", () => {

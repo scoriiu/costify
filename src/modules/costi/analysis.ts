@@ -177,3 +177,266 @@ export function computeConcentration(
     );
   return { top1Pct: share(1), top3Pct: share(3), top5Pct: share(5) };
 }
+
+/* -------------------------------------------------------------------------- */
+/*                     Client diagnostic (P00 flash, computed)                 */
+/* -------------------------------------------------------------------------- */
+
+export type FlagSeverity = "alarma" | "atentie" | "info";
+
+export interface DiagnosticFlag {
+  id: string;
+  severity: FlagSeverity;
+  /** Pre-worded Romanian sentence with the numbers already in it. */
+  text: string;
+}
+
+export interface TopPartner {
+  name: string;
+  rulaj: number;
+  pct: number;
+}
+
+export interface DiagnosticInputs {
+  latest: { year: number; month: number };
+  kpis: KpiSnapshot;
+  /** Monthly trend points, oldest -> newest, last one = latest period. */
+  trend: TrendPoint[];
+  /** Top revenue partners with firm-total share, sorted desc. */
+  topPartners: TopPartner[];
+  /** Mapping coverage of the latest period. */
+  unmapped: { count: number; rulaj: number } | null;
+  /** Share of YTD figures sitting on the default vertical; null when
+   *  business lines are disabled. */
+  defaultLineShare: { venituriPct: number; cheltuieliPct: number } | null;
+  /** Latest known employee count and how many months behind it is. */
+  employee: { count: number; year: number; month: number; staleMonths: number } | null;
+}
+
+export interface DiagnosticResult {
+  flags: DiagnosticFlag[];
+  burnLunar: number | null;
+  runwayLuni: number | null;
+  marjaTrend: "in crestere" | "in scadere" | "stabila" | null;
+  lunaPartialaSuspecta: boolean;
+}
+
+const MONTH_NAMES = [
+  "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie",
+  "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie",
+];
+
+function monthLabel(year: number, month: number): string {
+  return `${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+function fmtLei(n: number): string {
+  return `${Math.round(n).toLocaleString("ro-RO")} lei`;
+}
+
+function avg(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((s, v) => s + v, 0) / values.length;
+}
+
+/** Exception rule from the CFO response contract: relative AND absolute. */
+export function isException(
+  delta: number,
+  reference: number,
+  ytdRevenue: number
+): boolean {
+  if (reference === 0) return Math.abs(delta) > Math.max(1000, 0.005 * ytdRevenue);
+  const relPct = Math.abs(delta / reference) * 100;
+  return relPct > 10 && Math.abs(delta) > Math.max(1000, 0.005 * ytdRevenue);
+}
+
+const PARTIAL_MONTH_RATIO = 0.4;
+const RUNWAY_ALARM_MONTHS = 3;
+const RUNWAY_WATCH_MONTHS = 6;
+const CONCENTRATION_WATCH_PCT = 30;
+const CONCENTRATION_ALARM_PCT = 50;
+const DEFAULT_LINE_HONESTY_PCT = 50;
+const MARGIN_DRIFT_PP = 5;
+const RECEIVABLE_MONTHS_WATCH = 2;
+
+/**
+ * The computed P00 flash: every insight Costi must never miss, derived
+ * deterministically so answer quality does not depend on model discretion.
+ * Flags come pre-worded (Romanian, numbers included) and sorted by severity.
+ */
+export function computeDiagnostic(inputs: DiagnosticInputs): DiagnosticResult {
+  const { latest, kpis, trend, topPartners, unmapped, defaultLineShare, employee } = inputs;
+  const flags: DiagnosticFlag[] = [];
+  const latestLabel = monthLabel(latest.year, latest.month);
+
+  // Partial-month detection first: it decides which points feed the averages.
+  const last = trend.length > 0 ? trend[trend.length - 1] : null;
+  const priorPoints = trend.slice(0, -1);
+  const prior3Rev = avg(priorPoints.slice(-3).map((p) => p.venituri));
+  const lunaPartialaSuspecta =
+    last !== null &&
+    prior3Rev !== null &&
+    prior3Rev > 0 &&
+    last.venituri < PARTIAL_MONTH_RATIO * prior3Rev;
+
+  if (lunaPartialaSuspecta && last) {
+    flags.push({
+      id: "luna_partiala",
+      severity: "atentie",
+      text: `Luna ${latestLabel} pare incompleta: venituri ${fmtLei(last.venituri)} fata de media ${fmtLei(prior3Rev!)} pe ultimele 3 luni. Nu da verdict final pe luna asta inainte de confirmarea inchiderii.`,
+    });
+  }
+
+  // Burn and runway on full months only.
+  const fullPoints = lunaPartialaSuspecta ? priorPoints : trend;
+  const burn = avg(fullPoints.slice(-3).map((p) => p.cheltuieli));
+  const netAvg = avg(fullPoints.slice(-3).map((p) => p.rezultatBrut));
+  const cash = kpis.cashBank;
+
+  let runway: number | null = null;
+  if (cash <= 0) {
+    flags.push({
+      id: "cash_negativ",
+      severity: "alarma",
+      text: `Cash negativ la ${latestLabel}: ${fmtLei(cash)}. Fie descoperit de cont, fie lipsesc incasari din jurnal. De verificat cu extrasul inainte de orice alta discutie.`,
+    });
+    runway = 0;
+  } else if (burn !== null && burn > 0) {
+    // Playbook P02: runway uses NET burn and only matters when the firm is
+    // losing money; a self-financing firm has no runway problem by definition.
+    const selfFinancing = netAvg === null || netAvg >= 0;
+    if (selfFinancing) {
+      runway = null;
+    } else {
+      runway = round2(cash / -netAvg);
+      if (runway < RUNWAY_ALARM_MONTHS) {
+        flags.push({
+          id: "runway",
+          severity: "alarma",
+          text: `Rezistenta cash sub prag: ${fmtLei(cash)} in banca acopera ~${runway.toFixed(1)} luni la ritmul actual de pierdere (${fmtLei(-netAvg)}/luna neta). Sub 3 luni inseamna prioritate absoluta pe incasari.`,
+        });
+      } else if (runway < RUNWAY_WATCH_MONTHS) {
+        flags.push({
+          id: "runway",
+          severity: "atentie",
+          text: `Rezistenta cash de urmarit: ~${runway.toFixed(1)} luni (${fmtLei(cash)} in banca, ardere neta ${fmtLei(-netAvg)}/luna).`,
+        });
+      }
+    }
+  }
+
+  // Concentration with names: the "Roche" deduction, never missed again.
+  const top1 = topPartners[0];
+  if (top1 && top1.pct >= CONCENTRATION_WATCH_PCT) {
+    const severity = top1.pct >= CONCENTRATION_ALARM_PCT ? "alarma" : "atentie";
+    flags.push({
+      id: "concentrare",
+      severity,
+      text: `${top1.pct >= CONCENTRATION_ALARM_PCT ? "Mai mult de jumatate" : `${Math.round(top1.pct)}%`} din venituri vine de la un singur partener: ${top1.name} (${fmtLei(top1.rulaj)}, ${top1.pct}% YTD). Daca acest partener intarzie sau pleaca, impactul e imediat.`,
+    });
+  }
+
+  // Honesty check: results per business line are cosmetic when the default
+  // line holds most of the money.
+  if (defaultLineShare) {
+    const worst = Math.max(defaultLineShare.venituriPct, defaultLineShare.cheltuieliPct);
+    if (worst >= DEFAULT_LINE_HONESTY_PCT) {
+      const parts: string[] = [];
+      if (defaultLineShare.venituriPct >= DEFAULT_LINE_HONESTY_PCT)
+        parts.push(`${Math.round(defaultLineShare.venituriPct)}% din venituri`);
+      if (defaultLineShare.cheltuieliPct >= DEFAULT_LINE_HONESTY_PCT)
+        parts.push(`${Math.round(defaultLineShare.cheltuieliPct)}% din cheltuieli`);
+      flags.push({
+        id: "linii_nealocate",
+        severity: "atentie",
+        text: `Alocarea pe linii de business e in mare parte nefolosita: ${parts.join(" si ")} stau pe linia default. Orice rezultat pe linii e cosmetizat pana la alocare. Nu prezenta cifrele pe linii ca fiind concludente.`,
+      });
+    }
+  }
+
+  if (unmapped && unmapped.count > 0 && Math.abs(unmapped.rulaj) > 0) {
+    flags.push({
+      id: "conturi_nemapate",
+      severity: "info",
+      text: `${unmapped.count} conturi nemapate cu rulaj total ${fmtLei(unmapped.rulaj)}. Cifrele pe linii de cost sunt incomplete pana la mapare.`,
+    });
+  }
+
+  // Margin drift: average of last 3 full months vs the 3 before them.
+  const m = fullPoints.map((p) => p.marjaPct).filter((v): v is number => v !== null);
+  const recent = avg(m.slice(-3));
+  const before = avg(m.slice(-6, -3));
+  let marjaTrend: DiagnosticResult["marjaTrend"] = null;
+  if (recent !== null && before !== null) {
+    const drift = recent - before;
+    marjaTrend = drift > MARGIN_DRIFT_PP ? "in crestere" : drift < -MARGIN_DRIFT_PP ? "in scadere" : "stabila";
+    if (marjaTrend === "in scadere") {
+      flags.push({
+        id: "marja_scade",
+        severity: "atentie",
+        text: `Marja e in scadere: media ${recent.toFixed(1)}% pe ultimele 3 luni fata de ${before.toFixed(1)}% pe cele 3 dinainte. Merita descompusa cauza (venituri vs linii de cost).`,
+      });
+    }
+  }
+
+  // Loss streak (P15 signal).
+  let streak = 0;
+  for (let i = fullPoints.length - 1; i >= 0 && fullPoints[i].rezultatBrut < 0; i--) streak++;
+  if (streak >= 3) {
+    flags.push({
+      id: "pierderi_consecutive",
+      severity: "alarma",
+      text: `Rezultat negativ ${streak} luni la rand. Tiparul cere analiza acum, cat optiunile sunt deschise, nu inca o luna de monitorizare.`,
+    });
+  }
+
+  // Receivables pressure relative to monthly invoicing.
+  const avgRev = avg(fullPoints.slice(-6).map((p) => p.venituri));
+  if (avgRev !== null && avgRev > 0 && kpis.clientiCreante > RECEIVABLE_MONTHS_WATCH * avgRev) {
+    const months = round2(kpis.clientiCreante / avgRev);
+    flags.push({
+      id: "creante_mari",
+      severity: "atentie",
+      text: `Clientii datoreaza ${fmtLei(kpis.clientiCreante)}, echivalentul a ~${months.toFixed(1)} luni de facturare. Banii castigati exista, dar nu sunt inca in cont.`,
+    });
+  }
+
+  // Month-over-month exceptions on the last two comparable points.
+  const cmp = fullPoints.slice(-2);
+  if (cmp.length === 2) {
+    const [prev, cur] = cmp;
+    const ytdRev = kpis.totalVenituri;
+    for (const [id, label, d, ref] of [
+      ["venituri_variatie", "Veniturile", cur.venituri - prev.venituri, prev.venituri],
+      ["cheltuieli_variatie", "Cheltuielile", cur.cheltuieli - prev.cheltuieli, prev.cheltuieli],
+    ] as const) {
+      if (isException(d, ref, ytdRev)) {
+        const dir = d > 0 ? "au crescut cu" : "au scazut cu";
+        flags.push({
+          id,
+          severity: "info",
+          text: `${label} lunii ${monthLabel(cur.year, cur.month)} ${dir} ${fmtLei(Math.abs(d))} (${Math.abs(round2((d / ref) * 100))}%) fata de ${monthLabel(prev.year, prev.month)}. Cauza merita numita inainte de orice comentariu.`,
+        });
+      }
+    }
+  }
+
+  if (employee && employee.staleMonths > 0) {
+    flags.push({
+      id: "angajati_neactualizati",
+      severity: "info",
+      text: `Numarul de angajati e cunoscut pana in ${monthLabel(employee.year, employee.month)} (${employee.count}). Pentru calcule per angajat foloseste aceasta ultima valoare si spune-o intr-o singura fraza; nu transforma lipsa intr-o recomandare separata.`,
+    });
+  }
+
+  const order: Record<FlagSeverity, number> = { alarma: 0, atentie: 1, info: 2 };
+  flags.sort((a, b) => order[a.severity] - order[b.severity]);
+
+  return {
+    flags,
+    burnLunar: burn !== null ? round2(burn) : null,
+    runwayLuni: runway,
+    marjaTrend,
+    lunaPartialaSuspecta,
+  };
+}

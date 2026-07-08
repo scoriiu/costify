@@ -188,5 +188,5 @@
     { "key": "dividend_target_yearly", "q": "Are patronul o tinta anuala de dividende?" },
     { "key": "payment_terms.<partner>", "q": "Ce termen de plata aveti in contract cu partenerul X?" }
   ],
-  "note": "Memoria de fapte (facts_wanted) NU e inca implementata: cand un raspuns ar avea nevoie de un fapt, pune intrebarea in conversatie si foloseste raspunsul primit doar in conversatia curenta. Nu pretinde ca tii minte intre conversatii."
+  "note": "Memoria de fapte E implementata: remember_client_fact salveaza un fapt permanent per client (cheile din facts_wanted sunt taxonomia recomandata), get_client_diagnostic il aduce inapoi in orice conversatie viitoare, forget_client_fact il sterge. Cand un raspuns ar avea nevoie de un fapt inexistent, pune intrebarea; cand primesti raspunsul, salveaza-l imediat. Nu salva niciodata cifre calculabile din jurnal."
 }

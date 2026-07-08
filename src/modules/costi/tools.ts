@@ -239,4 +239,65 @@ export const COSTI_TOOLS: Tool[] = [
       required: ["client_name", "cont"],
     },
   },
+  {
+    name: "get_client_diagnostic",
+    description:
+      "PRIMUL apel pentru orice conversatie despre un client: diagnosticul calculat al firmei pe ultima perioada din jurnal. Intoarce ancora de timp (ultima luna cu date + data ultimei inregistrari + suspiciune de luna partiala), 'semnale' (constatari pre-calculate si pre-formulate, ordonate dupa severitate: cash negativ, rezistenta cash, concentrare pe un partener CU NUME, cheltuieli/venituri nealocate pe linii de business, marja in scadere, pierderi consecutive, creante mari, variatii-exceptie luna/luna), cifrele cheie YTD, top clienti cu procente, acoperirea maparilor, numarul de angajati cunoscut si 'fapteCunoscute' (memoria salvata despre firma: comportamentul salariilor, contracte, sezonalitate). Construieste verdictul de deschidere DIN semnale, in ordinea severitatii. Nu repeta apoi aceleasi date prin alte tool-uri decat pentru drill-down.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+      },
+      required: ["client_name"],
+    },
+  },
+  {
+    name: "remember_client_fact",
+    description:
+      "Salveaza in memoria permanenta a clientului un fapt de business pe care jurnalul NU il poate calcula si pe care utilizatorul l-a spus in conversatie: comportamentul salariilor (fixe/variabile), termenii sau scadenta contractului cu un partener, cauza sezonalitatii, gradul de utilizare al unui echipament, pipeline-ul, tinta de dividende, raportul de management. Cheia e un identificator stabil snake_case (ex: 'cost_behavior.641', 'contract_end.roche', 'sezonalitate'); salvarea pe aceeasi cheie suprascrie valoarea. NU salva NICIODATA cifre calculabile din jurnal (procente de concentrare, solduri, marje) — ele se recalculeaza mereu proaspete. Faptele salvate apar automat in get_client_diagnostic in orice conversatie viitoare.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        key: {
+          type: "string",
+          description: "Identificator stabil snake_case (ex: 'cost_behavior.641', 'contract_end.roche')",
+        },
+        value: {
+          type: "string",
+          description: "Faptul, formulat scurt si complet (max 500 caractere)",
+        },
+        source: {
+          type: "string",
+          description: "'user' (spus de utilizator, default) sau 'costi' (dedus de tine si confirmat de utilizator)",
+        },
+      },
+      required: ["client_name", "key", "value"],
+    },
+  },
+  {
+    name: "get_client_facts",
+    description:
+      "Listeaza toate faptele salvate in memoria clientului (cheie, valoare, sursa, data actualizarii). Util cand utilizatorul intreaba 'ce stii despre firma mea?' sau cand vrei sa verifici daca un fapt exista inainte sa pui o intrebare. Nota: get_client_diagnostic include deja aceste fapte, deci nu apela ambele pentru acelasi raspuns.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+      },
+      required: ["client_name"],
+    },
+  },
+  {
+    name: "forget_client_fact",
+    description:
+      "Sterge un fapt din memoria clientului, cand utilizatorul spune ca nu mai e valabil (ex: contractul s-a renegociat, echipamentul s-a vandut). Pentru o simpla actualizare foloseste remember_client_fact pe aceeasi cheie (suprascrie).",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        client_name: { type: "string", description: "Numele clientului" },
+        key: { type: "string", description: "Cheia faptului de sters" },
+      },
+      required: ["client_name", "key"],
+    },
+  },
 ];

@@ -37,11 +37,14 @@ import {
 } from "@/modules/balances/computed-period";
 import { buildPeriodPayload } from "@/modules/reporting/period-payload";
 import { getContBase } from "@/lib/accounts";
+import { recordClientMutation } from "@/modules/audit/helpers";
 import {
   aggregateCppByLine,
   computeTrendPoints,
   computeConcentration,
+  computeDiagnostic,
   type PeriodFigures,
+  type TopPartner,
 } from "./analysis";
 import { periodKey, periodYear, periodMonth, pickEffective } from "@/lib/period";
 import type { CostCategoryNode } from "@/modules/categories/types";
@@ -105,6 +108,14 @@ export async function handleToolCall(
       return handleGetMappingsOverview(userId, input);
     case "get_trends":
       return handleGetTrends(userId, input);
+    case "get_client_diagnostic":
+      return handleGetClientDiagnostic(userId, input);
+    case "remember_client_fact":
+      return handleRememberClientFact(userId, input);
+    case "get_client_facts":
+      return handleGetClientFacts(userId, input);
+    case "forget_client_fact":
+      return handleForgetClientFact(userId, input);
     default:
       return JSON.stringify({ error: `Tool necunoscut: ${toolName}` });
   }
@@ -231,7 +242,7 @@ async function handleGetEmployeeCounts(
 
   return JSON.stringify({
     client: resolved.client.name,
-    note: "Numar mediu de angajati pe luna, introdus de contabil in Setari. Deblocheaza Venituri/Profit per angajat. Lunile fara valoare nu au aceste KPI calculate.",
+    note: "Numar mediu de angajati pe luna, introdus de contabil in Setari. Pentru lunile fara valoare, foloseste ultima valoare cunoscuta (latest) in calculele per angajat si mentioneaza asta intr-o singura fraza (ex: 'la ultimul numar cunoscut, N angajati in luna M'). NU transforma lipsa intr-o recomandare separata de a completa Setarile.",
     latest,
     counts,
   });
@@ -967,6 +978,264 @@ async function handleGetMappingsOverview(
   });
 }
 
+const DIAGNOSTIC_TREND_PERIODS = 13;
+const MAX_TOP_PARTNERS = 5;
+const MAX_FACT_KEY_LENGTH = 100;
+const MAX_FACT_VALUE_LENGTH = 500;
+
+async function handleGetClientDiagnostic(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+  const clientId = resolved.client.id;
+
+  const all = await getAvailablePeriods(clientId);
+  if (all.length === 0) {
+    return JSON.stringify({ error: "Clientul nu are date in jurnal." });
+  }
+  const latest = all[all.length - 1];
+
+  const [figures, partnerTotals, mapari, employeeCounts, facts, lastEntry] =
+    await Promise.all([
+      loadPeriodFigures(clientId, all.slice(-DIAGNOSTIC_TREND_PERIODS)),
+      loadPartnerTotalsForClient(prisma, clientId, latest.year, latest.month),
+      loadMapariCashflowCached(clientId, { year: latest.year, month: latest.month }),
+      getEmployeeCounts(clientId),
+      prisma.clientFact.findMany({ where: { clientId }, orderBy: { key: "asc" } }),
+      prisma.journalLine.aggregate({
+        where: { clientId, deletedAt: null },
+        _max: { data: true },
+      }),
+    ]);
+
+  const latestFigure = figures.find(
+    (f) => f.year === latest.year && f.month === latest.month
+  );
+  if (!latestFigure?.kpis || !latestFigure.cpp) {
+    return JSON.stringify({ error: "Nu am putut calcula perioada curenta." });
+  }
+  const kpis = latestFigure.kpis;
+  const trend = computeTrendPoints(figures);
+
+  const topPartners: TopPartner[] = partnerTotals.revenue
+    .slice(0, MAX_TOP_PARTNERS)
+    .map((p) => ({
+      name: p.partnerNameOriginal,
+      rulaj: round2(p.rulaj),
+      pct:
+        partnerTotals.totalRevenue !== 0
+          ? round2((p.rulaj / partnerTotals.totalRevenue) * 100)
+          : 0,
+    }));
+
+  let defaultLineShare: { venituriPct: number; cheltuieliPct: number } | null = null;
+  const verticals = latestFigure.cpp.verticals;
+  if (verticals && verticals.length > 0) {
+    const defaultVertical = verticals.find((v) => v.isDefault);
+    if (defaultVertical) {
+      const byLine = aggregateCppByLine(latestFigure.cpp);
+      const totalV = Object.values(byLine.venituri).reduce((s, v) => s + v, 0);
+      const totalC = Object.values(byLine.cheltuieli).reduce((s, v) => s + v, 0);
+      defaultLineShare = {
+        venituriPct:
+          totalV !== 0
+            ? round2(((byLine.venituri[defaultVertical.id] ?? 0) / totalV) * 100)
+            : 0,
+        cheltuieliPct:
+          totalC !== 0
+            ? round2(((byLine.cheltuieli[defaultVertical.id] ?? 0) / totalC) * 100)
+            : 0,
+      };
+    }
+  }
+
+  const lastCount =
+    employeeCounts.length > 0 ? employeeCounts[employeeCounts.length - 1] : null;
+  const employee = lastCount
+    ? {
+        count: Number(lastCount.count),
+        year: lastCount.year,
+        month: lastCount.month,
+        staleMonths:
+          (latest.year - lastCount.year) * 12 + (latest.month - lastCount.month),
+      }
+    : null;
+
+  const diagnostic = computeDiagnostic({
+    latest,
+    kpis,
+    trend,
+    topPartners,
+    unmapped: {
+      count: mapari.coverage.unmappedCount,
+      rulaj: round2(mapari.coverage.unmappedRulaj),
+    },
+    defaultLineShare,
+    employee,
+  });
+
+  return JSON.stringify({
+    client: resolved.client.name,
+    ancora: {
+      year: latest.year,
+      month: latest.month,
+      ultimaInregistrare: lastEntry._max.data?.toISOString().slice(0, 10) ?? null,
+      lunaPartialaSuspecta: diagnostic.lunaPartialaSuspecta,
+    },
+    semnale: diagnostic.flags,
+    cifre: {
+      cash: round2(kpis.cashBank),
+      creanteClienti: round2(kpis.clientiCreante),
+      datoriiFurnizori: round2(kpis.furnizoriDatorii),
+      tvaDePlata: round2(kpis.tvaDePlata),
+      venituriYtd: round2(kpis.totalVenituri),
+      cheltuieliYtd: round2(kpis.totalCheltuieli),
+      rezultatYtd: round2(kpis.rezultat),
+      marjaYtdPct: kpis.marjaOperationala,
+      burnLunar: diagnostic.burnLunar,
+      runwayLuni: diagnostic.runwayLuni,
+      marjaTrend: diagnostic.marjaTrend,
+    },
+    topClienti: topPartners,
+    acoperireMapari: {
+      percent: mapari.coverage.percent,
+      conturiNemapate: mapari.coverage.unmappedCount,
+    },
+    liniiBusiness: defaultLineShare
+      ? { procentPeLiniaDefault: defaultLineShare }
+      : null,
+    angajati: employee,
+    fapteCunoscute: facts.map((f) => ({
+      key: f.key,
+      value: f.value,
+      sursa: f.source,
+      actualizat: f.updatedAt.toISOString().slice(0, 10),
+    })),
+    note:
+      "Diagnosticul e calculat pe ultima perioada din jurnal si trendul lunar. 'semnale' sunt constatari pre-calculate, ordonate dupa severitate: construieste verdictul din ele, incepand cu alarmele. 'fapteCunoscute' sunt memoria ta despre firma (salvate cu remember_client_fact): foloseste-le natural in raspuns. Cifrele YTD sunt ianuarie -> luna ancorei.",
+  });
+}
+
+async function handleRememberClientFact(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const key = typeof input.key === "string" ? input.key.trim() : "";
+  const value = typeof input.value === "string" ? input.value.trim() : "";
+  if (!key || !value) {
+    return JSON.stringify({ error: "key si value sunt obligatorii." });
+  }
+  if (key.length > MAX_FACT_KEY_LENGTH || value.length > MAX_FACT_VALUE_LENGTH) {
+    return JSON.stringify({
+      error: `key max ${MAX_FACT_KEY_LENGTH} caractere, value max ${MAX_FACT_VALUE_LENGTH}.`,
+    });
+  }
+  const source = input.source === "costi" ? "costi" : "user";
+
+  const existing = await prisma.clientFact.findUnique({
+    where: { clientId_key: { clientId: resolved.client.id, key } },
+  });
+  const fact = await prisma.clientFact.upsert({
+    where: { clientId_key: { clientId: resolved.client.id, key } },
+    create: { clientId: resolved.client.id, key, value, source },
+    update: { value, source },
+  });
+  await recordClientMutation({
+    clientId: resolved.client.id,
+    actorId: userId,
+    action: existing ? "update" : "create",
+    entityType: "client_fact",
+    entityId: fact.id,
+    before: existing ? { key: existing.key, value: existing.value } : null,
+    after: { key, value, source },
+    metadata: { via: "costi_chat" },
+  });
+
+  return JSON.stringify({
+    saved: { key, value, source },
+    replaced: existing ? existing.value : null,
+    note: "Fapt salvat in memoria clientului. Il vei primi automat in get_client_diagnostic si get_client_facts in orice conversatie viitoare.",
+  });
+}
+
+async function handleGetClientFacts(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const facts = await prisma.clientFact.findMany({
+    where: { clientId: resolved.client.id },
+    orderBy: { key: "asc" },
+  });
+  return JSON.stringify({
+    client: resolved.client.name,
+    count: facts.length,
+    facts: facts.map((f) => ({
+      key: f.key,
+      value: f.value,
+      sursa: f.source,
+      actualizat: f.updatedAt.toISOString().slice(0, 10),
+    })),
+  });
+}
+
+async function handleForgetClientFact(
+  userId: string,
+  input: Record<string, unknown>
+): Promise<string> {
+  const resolved = await resolveClient(userId, input.client_name as string);
+  if ("error" in resolved) return JSON.stringify(resolved);
+
+  const key = typeof input.key === "string" ? input.key.trim() : "";
+  if (!key) return JSON.stringify({ error: "key este obligatoriu." });
+
+  const existing = await prisma.clientFact.findUnique({
+    where: { clientId_key: { clientId: resolved.client.id, key } },
+  });
+  if (!existing) {
+    return JSON.stringify({ error: `Nu exista faptul "${key}" pentru acest client.` });
+  }
+  await prisma.clientFact.delete({ where: { id: existing.id } });
+  await recordClientMutation({
+    clientId: resolved.client.id,
+    actorId: userId,
+    action: "delete",
+    entityType: "client_fact",
+    entityId: existing.id,
+    before: { key: existing.key, value: existing.value },
+    after: null,
+    metadata: { via: "costi_chat" },
+  });
+
+  return JSON.stringify({ deleted: { key, value: existing.value } });
+}
+
+async function loadPeriodFigures(
+  clientId: string,
+  periods: { year: number; month: number }[]
+): Promise<PeriodFigures[]> {
+  const figures: PeriodFigures[] = [];
+  for (const p of periods) {
+    const cached = await readComputedPeriod(clientId, p.year, p.month);
+    if (cached) {
+      figures.push({ year: p.year, month: p.month, kpis: cached.kpis, cpp: cached.cpp });
+      continue;
+    }
+    const payload = await buildPeriodPayload(clientId, p.year, p.month);
+    if (!payload) continue;
+    await writeComputedPeriod(clientId, p.year, p.month, payload);
+    figures.push({ year: p.year, month: p.month, kpis: payload.kpis, cpp: payload.cpp });
+  }
+  return figures;
+}
+
 async function handleGetTrends(
   userId: string,
   input: Record<string, unknown>
@@ -1004,18 +1273,7 @@ async function handleGetTrends(
       ? eligible.slice(startIdx - 1)
       : window;
 
-  const figures: PeriodFigures[] = [];
-  for (const p of withBaseline) {
-    const cached = await readComputedPeriod(resolved.client.id, p.year, p.month);
-    if (cached) {
-      figures.push({ year: p.year, month: p.month, kpis: cached.kpis, cpp: cached.cpp });
-      continue;
-    }
-    const payload = await buildPeriodPayload(resolved.client.id, p.year, p.month);
-    if (!payload) continue;
-    await writeComputedPeriod(resolved.client.id, p.year, p.month, payload);
-    figures.push({ year: p.year, month: p.month, kpis: payload.kpis, cpp: payload.cpp });
-  }
+  const figures = await loadPeriodFigures(resolved.client.id, withBaseline);
 
   const first = window[0];
   const points = computeTrendPoints(figures, includeLines).filter(
