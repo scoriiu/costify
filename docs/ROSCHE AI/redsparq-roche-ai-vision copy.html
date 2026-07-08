@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redsparq | AI-Powered Case Operations for Roche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-semibold.woff2') format('woff2');
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: #0D6B5E;
+    --primary-dark: #0A5A4F;
+    --primary-light: #34D3A0;
+    --danger: #EF4444;
+    --danger-deep: #B91C1C;
+    --warning: #F59E0B;
+    --green: #3FB950;
+    --surface-0: #F0EFEA;
+    --surface-1: #F7F6F2;
+    --surface-2: #E6E4DE;
+    --surface-3: #D9D7D0;
+    --text-1: #1A1918;
+    --text-2: #44413C;
+    --text-3: #7A766E;
+    --on-primary: #E9E8E3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--surface-0);
+    font-family: 'Altform', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    overflow: hidden;
+  }
+
+  .mono { font-family: 'Geist Mono', ui-monospace, 'SF Mono', monospace; }
+
+  .deck { height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 52px 76px 72px;
+    background: var(--surface-0);
+  }
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+    margin-bottom: 14px;
+  }
+  .kicker.red { color: var(--danger-deep); }
+
+  h1 { font-size: 56px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; }
+  h2 { font-size: 38px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; }
+  h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.04em; }
+
+  .sub { font-size: 17px; color: var(--text-2); max-width: 900px; line-height: 1.55; margin-top: 12px; }
+
+  .body-block { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    padding: 26px 28px;
+  }
+
+  .label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+  .whyviz {
+    display: block;
+    height: 46px;
+    margin-bottom: 14px;
+  }
+  .whyviz text {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+  }
+
+  .pill {
+    display: inline-block;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    color: var(--text-2);
+  }
+  .pill.teal { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .pill.green { background: rgba(63,185,80,0.10); border-color: rgba(63,185,80,0.40); color: #1F7A34; }
+
+  .footer {
+    position: absolute;
+    bottom: 24px;
+    left: 76px;
+    right: 76px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+  .brand-mark { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .brand-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); }
+  .counter { font-variant-numeric: tabular-nums; }
+
+  .accent-bar { width: 56px; height: 5px; border-radius: 3px; background: var(--primary); margin-bottom: 28px; }
+
+  /* ================= MACHINE DIAGRAMS ================= */
+
+  .machine { display: flex; flex-direction: column; gap: 0; width: 100%; }
+
+  .m-row { display: flex; align-items: stretch; }
+
+  .m-stage { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  .m-node {
+    position: relative;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 12px;
+    padding: 16px 18px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .m-title { font-size: 15px; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .m-desc { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+  .m-sys {
+    display: inline-block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    background: var(--surface-2);
+    border-radius: 5px;
+    padding: 2px 8px;
+    margin-bottom: 7px;
+    align-self: flex-start;
+  }
+
+  /* sick machine styling */
+  .sick .m-node.hurt {
+    border: 1.5px dashed rgba(239,68,68,0.55);
+    background: rgba(239,68,68,0.05);
+  }
+  .sick .m-node.tilt-a { transform: rotate(-1.3deg); }
+  .sick .m-node.tilt-b { transform: rotate(1.2deg); }
+  .sick .m-node.tilt-c { transform: rotate(-0.8deg); }
+
+  .m-arrow { width: 40px; flex: none; position: relative; }
+  .m-arrow::before {
+    content: '';
+    position: absolute;
+    left: 5px; right: 13px; top: 50%;
+    height: 2px;
+    background: var(--surface-3);
+  }
+  .m-arrow::after {
+    content: '';
+    position: absolute;
+    right: 5px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid var(--surface-3);
+    border-top: 5.5px solid transparent;
+    border-bottom: 5.5px solid transparent;
+  }
+  .m-arrow.broken::before {
+    background: none;
+    border-top: 2.5px dashed rgba(239,68,68,0.65);
+    height: 0;
+    transform: rotate(-4deg);
+  }
+  .m-arrow.broken::after { border-left-color: rgba(239,68,68,0.65); }
+
+  .m-arrow.solid-teal::before { background: var(--primary); }
+  .m-arrow.solid-teal::after { border-left-color: var(--primary); }
+
+  .pct-chip {
+    position: absolute;
+    top: -13px; left: 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+  .pct-chip.full { background: var(--primary); color: var(--on-primary); box-shadow: 0 2px 8px rgba(13,107,94,0.35); }
+  .pct-chip.low { background: var(--danger); color: #FDF6F5; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
+
+  /* leaks */
+  .leak-row { display: flex; margin-top: 4px; }
+  .leak-cell { display: flex; justify-content: center; }
+  .leak-spacer { width: 40px; flex: none; }
+  .leak {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding-top: 2px;
+  }
+  .leak .drip { display: flex; flex-direction: column; align-items: center; }
+  .leak .drop {
+    width: 7px; height: 7px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--danger);
+    opacity: 0.85;
+    margin: 3px 0;
+    animation: drip 2.2s ease-in infinite;
+  }
+  .leak .drop:nth-child(2) { animation-delay: 0.7s; opacity: 0.55; }
+  @keyframes drip {
+    0% { transform: rotate(-45deg) translate(0,0); opacity: 0.9; }
+    100% { transform: rotate(-45deg) translate(9px,9px); opacity: 0; }
+  }
+  .leak .leak-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--danger-deep);
+    white-space: nowrap;
+  }
+
+  .pool {
+    margin-top: 14px;
+    border-radius: 12px;
+    border: 1.5px dashed rgba(239,68,68,0.5);
+    background: rgba(239,68,68,0.07);
+    padding: 16px 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 16px;
+  }
+  .pool .pool-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    color: var(--danger-deep);
+  }
+  .pool .pool-text {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--danger-deep);
+  }
+
+  /* healthy machine */
+  .healthy { position: relative; padding-bottom: 46px; }
+  .healthy .m-node { border-color: var(--surface-3); }
+
+  .ai-node {
+    position: relative;
+    border: 1.5px solid var(--primary);
+    background: rgba(13,107,94,0.06);
+    border-radius: 12px;
+    padding: 13px 16px;
+  }
+  .ai-tag {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+  .ai-node .m-title { font-size: 14px; }
+  .ai-node .m-desc { font-size: 11.5px; }
+
+  .gear {
+    width: 15px; height: 15px;
+    flex: none;
+    fill: var(--primary);
+    animation: spin 14s linear infinite;
+  }
+  .gear.slow { animation-duration: 22s; animation-direction: reverse; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-link { width: 2px; background: var(--primary); height: 12px; margin: 0 auto; opacity: 0.55; }
+
+  .loopback {
+    position: absolute;
+    left: 4%; right: 4%;
+    bottom: 0;
+    height: 44px;
+    pointer-events: none;
+  }
+  .loopback svg { width: 100%; height: 100%; overflow: visible; }
+  .loop-label {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    background: var(--surface-0);
+    padding: 0 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+
+  /* vertex architecture */
+  .perimeter {
+    position: relative;
+    border: 2px dashed var(--primary);
+    border-radius: 18px;
+    padding: 36px 26px 22px;
+    background: rgba(13,107,94,0.035);
+    flex: 1;
+  }
+  .perimeter-label {
+    position: absolute;
+    top: -13px; left: 26px;
+    background: var(--surface-0);
+    padding: 2px 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+  }
+  .arrow-caption {
+    display: block;
+    text-align: center;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin-top: 6px;
+  }
+  .noflow {
+    border: 1.5px dashed rgba(239,68,68,0.55);
+    background: rgba(239,68,68,0.05);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .noflow .x {
+    font-family: 'Geist Mono', monospace;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--danger-deep);
+    line-height: 1;
+  }
+  .chip-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+
+  /* compact layout for the vertex architecture slide */
+  .slide.vertex h2 { font-size: 32px; }
+  .slide.vertex .sub { font-size: 14.5px; margin-top: 6px; max-width: 1050px; }
+  .slide.vertex .body-block { justify-content: center; padding-top: 14px; }
+  .slide.vertex .link-stage {
+    flex: 0 0 98px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .slide.vertex .link-stage .m-arrow { width: 100%; height: 14px; flex: none; }
+  .slide.vertex .link-stage .arrow-caption { font-size: 8.5px; line-height: 1.5; margin-top: 0; }
+  .slide.vertex .perimeter { flex: 0 0 auto; padding: 30px 22px 18px; }
+  .slide.vertex .m-node, .slide.vertex .ai-node { padding: 12px 14px; }
+  .slide.vertex .m-title { font-size: 13.5px; }
+  .slide.vertex .m-desc { font-size: 11px; }
+  .slide.vertex .chip-row .pill { font-size: 10px; padding: 5px 11px; }
+  .slide.vertex .noflow { padding: 11px 16px; }
+  .slide.vertex .noflow p { font-size: 13px !important; }
+  .slide.vertex .noflow .x { font-size: 22px; }
+
+  /* card visuals */
+  .viz {
+    display: block;
+    width: 100%;
+    height: 62px;
+    margin-bottom: 14px;
+  }
+  .viz text {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    letter-spacing: 0.04em;
+  }
+
+  /* big stat slides */
+  .big-stat {
+    font-family: 'Geist Mono', monospace;
+    font-size: 84px;
+    font-weight: 600;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  /* timeline */
+  .timeline { display: flex; gap: 10px; align-items: stretch; }
+  .t-seg {
+    flex: 1;
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    position: relative;
+  }
+  .t-seg .t-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .t-seg .t-dur {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+  }
+  .t-price {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 8px;
+  }
+
+  /* payback chart */
+  .pay-chart { position: relative; padding-top: 24px; }
+  .pay-band {
+    position: absolute;
+    left: calc(220px + (100% - 220px - 178px) * 0.5);
+    right: 178px; top: 0; bottom: 30px;
+    background: repeating-linear-gradient(-45deg, rgba(122,118,110,0.08) 0 8px, transparent 8px 16px);
+    border-left: 1.5px dashed var(--surface-3);
+    border-radius: 0 10px 10px 0;
+  }
+  .pay-band-label {
+    position: absolute;
+    top: 2px; left: 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+  .pay-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--surface-2);
+  }
+  .pay-row:last-of-type { border-bottom: none; }
+  .pay-label { width: 202px; flex: none; }
+  .pay-label .pay-scenario { font-size: 15px; font-weight: 600; letter-spacing: -0.03em; }
+  .pay-label .pay-value {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 3px;
+    display: block;
+  }
+  .pay-track { flex: 1; display: flex; align-items: center; }
+  .pay-bar {
+    height: 30px;
+    border-radius: 7px;
+    background: var(--primary);
+    box-shadow: 0 2px 10px rgba(13,107,94,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--on-primary);
+    white-space: nowrap;
+  }
+  .pay-return {
+    width: 160px; flex: none;
+    text-align: right;
+    font-family: 'Geist Mono', monospace;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .pay-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-left: 220px;
+    margin-right: 178px;
+    margin-top: 8px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    opacity: 0.45;
+  }
+
+  @media print {
+    html, body { overflow: visible; height: auto; }
+    .deck { height: auto; }
+    .slide { display: flex !important; position: relative; height: 100vh; page-break-after: always; }
+    .nav-hint { display: none; }
+    .gear, .leak .drop { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- ========== SLIDE 1: TITLE ========== -->
+  <section class="slide active">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Redsparq for Roche · Confidential</div>
+      <h1>Every call answered.<br>Every case checked.<br><span style="color:var(--primary);">100%.</span></h1>
+      <p class="sub" style="font-size:19px; margin-top:24px;">
+        Two applications, one closed quality loop: velocity guides every call at intake,
+        the PRI Tool reads every case in review. Built by the team that runs the operation today.
+        A person always decides.
+      </p>
+      <div style="margin-top:38px; display:flex; gap:12px;">
+        <span class="pill teal">velocity · Guided Intake · App 1</span>
+        <span class="pill teal">PRI Tool · 100% Review · App 2</span>
+        <span class="pill green">Payback in months, even in the stress case</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v2.0 · July 2026</span>
+      <span class="counter">01</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 2: THE SICK MACHINE ========== -->
+  <section class="slide">
+    <div class="kicker red">The System Today</div>
+    <h2>A machine that leaks at every joint.</h2>
+    <div class="body-block">
+      <div class="machine sick">
+        <div class="m-row">
+          <div class="m-stage" style="flex:0.85;">
+            <div class="m-node">
+              <span class="pct-chip full">100%</span>
+              <div class="m-sys">Intake</div>
+              <div class="m-title">Customer calls</div>
+              <div class="m-desc">Error code, malfunction, any language, any phrasing.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.25;">
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">PDFs + RDK</div>
+              <div class="m-title">Keyword hunting, live</div>
+              <div class="m-desc">Operator digs through manuals while the customer waits.</div>
+            </div>
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Salesforce / Rexis</div>
+              <div class="m-title">Typed in parallel</div>
+              <div class="m-desc">Two systems, free text, whatever attention is left.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.1;">
+            <div class="m-node hurt tilt-c">
+              <div class="m-sys">Keyword lists</div>
+              <div class="m-title">PRI by gut feel</div>
+              <div class="m-desc">Human discretion against a fixed word list. Blind to typos, phrasings, languages, mislabels.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.15;">
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Salesforce &rarr; Smartiva</div>
+              <div class="m-title">50 rigid questions</div>
+              <div class="m-desc">Every question, every time.</div>
+            </div>
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">Rexis &rarr; nothing</div>
+              <div class="m-title">No questionnaire</div>
+              <div class="m-desc">Same risk. Zero validation.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:0.9;">
+            <div class="m-node hurt">
+              <span class="pct-chip low">20&ndash;25%</span>
+              <div class="m-sys">PRI specialists</div>
+              <div class="m-title">Quality review</div>
+              <div class="m-desc">The process is so heavy that only 1 case in 4 gets a second look.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="leak-row">
+          <div class="leak-cell" style="flex:0.85;"></div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.25;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">attention lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.1;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">meaning lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.15;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">rigor lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:0.9;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">coverage lost</span></div>
+          </div>
+        </div>
+
+        <div class="pool">
+          <span class="pool-num">75&ndash;80%</span>
+          <span class="pool-text">of cases are never checked. That is where missed PRIs live.</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">02</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 3: THE COST, 3 BIG NUMBERS ========== -->
+  <section class="slide">
+    <div class="kicker red">What The Leak Costs</div>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card" style="text-align:left;">
+          <div class="big-stat" style="color:var(--danger-deep);">3<span style="font-size:44px;">/4</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">cases never get a second look.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Selection by keywords, not by risk.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">2<span style="font-size:44px;">&ne;</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">two systems, two standards.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Smartiva for one queue, nothing for the other. Indefensible in an audit.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">missed reportable incident found by an auditor.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Finding, remediation program, closer scrutiny. Costs more than the entire fix.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.05);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--danger-deep);">Fixing this with headcount is not an option. The market does not supply device safety specialists at that scale. The real alternative is a permanent blind spot.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">03</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 4: THE SWISS CLOCK ========== -->
+  <section class="slide">
+    <div class="kicker">The Proposal · Two Applications, One Loop</div>
+    <h2>The same machine, rebuilt like a Swiss clock.</h2>
+    <div class="body-block">
+      <div class="machine healthy">
+        <div class="m-row">
+          <div class="m-stage" style="flex:0.8;">
+            <div class="m-node">
+              <span class="pct-chip full">100%</span>
+              <div class="m-sys">Intake</div>
+              <div class="m-title">Customer calls</div>
+              <div class="m-desc">Same number, same operator, better answers.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.3;">
+            <div class="m-node">
+              <div class="m-sys">Operator</div>
+              <div class="m-title">Full focus on the customer</div>
+              <div class="m-desc">The conversation is the job again.</div>
+            </div>
+            <div class="ai-link"></div>
+            <div class="ai-node">
+              <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>velocity · App 1</div>
+              <div class="m-title">Guided steps, with pictures</div>
+              <div class="m-desc">Validated picture workflows on Salesforce, per product. The agent follows steps instead of digging through manuals.</div>
+            </div>
+            <div class="ai-link"></div>
+            <div class="ai-node">
+              <div class="ai-tag"><svg class="gear slow" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>velocity · App 1</div>
+              <div class="m-title">Right data, first time</div>
+              <div class="m-desc">Which questions to ask, complaint or PRI recognised at intake, required details recorded in the case.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.2;">
+            <div class="ai-node" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <span class="pct-chip full" style="left:auto; right:14px;">100%</span>
+              <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>PRI Tool · App 2</div>
+              <div class="m-title">Every case, read and understood</div>
+              <div class="m-desc">Both systems, both queues, all languages. Meaning, not keywords. Every flag carries written reasoning and its source.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.05;">
+            <div class="ai-node" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div class="ai-tag"><svg class="gear slow" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>PRI Tool · App 2</div>
+              <div class="m-title">Only the questions the case needs</div>
+              <div class="m-desc">One validation logic, identical rigor for Salesforce and Rexis. The split standard ends.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:0.95;">
+            <div class="m-node" style="border:1.5px solid var(--primary); flex:1;">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">PRI specialists</div>
+              <div class="m-title">A person always decides</div>
+              <div class="m-desc">Prepared, reasoned queue. No record ever changed automatically. Every decision logged.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="loopback">
+          <svg viewBox="0 0 1000 44" preserveAspectRatio="none">
+            <path d="M 965 2 C 965 40, 35 40, 38 6" fill="none" stroke="#0D6B5E" stroke-width="2" stroke-dasharray="7 5" opacity="0.6"/>
+            <path d="M 33 14 L 38 3 L 44 13" fill="none" stroke="#0D6B5E" stroke-width="2" opacity="0.75"/>
+          </svg>
+          <span class="loop-label">one closed quality loop · velocity prevents at intake · the PRI Tool detects in review · findings retrain intake</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">04</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 5: BEFORE / AFTER ========== -->
+  <section class="slide">
+    <div class="kicker">Side By Side</div>
+    <div class="body-block">
+      <div class="grid-2" style="gap:24px;">
+        <div class="card" style="border:1.5px dashed rgba(239,68,68,0.45); background: rgba(239,68,68,0.04);">
+          <div class="label" style="color:var(--danger-deep); margin-bottom:20px;">Today</div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Cases quality checked</span><span class="mono" style="font-size:22px; font-weight:600; color:var(--danger-deep);">20&ndash;25%</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Case selection</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">keyword lists</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Validation standards</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">2, inconsistent</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Flag justification</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">none written</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Operator during call</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">3 jobs at once</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Scaling coverage</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">hire, hire, hire</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Where errors come from</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">invisible</span></div>
+          </div>
+        </div>
+        <div class="card" style="border:1.5px solid var(--primary); background: rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:20px;">With velocity + the PRI Tool</div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Cases quality checked</span><span class="mono" style="font-size:22px; font-weight:600; color:var(--primary);">100%</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Case selection</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">meaning + risk</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Validation standards</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">1, both systems</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Flag justification</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">reasoned + sourced</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Operator during call</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">1 job: the customer</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Scaling coverage</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">built in</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:15px; color:var(--text-2);">Where errors come from</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">case type · product · team</span></div>
+          </div>
+        </div>
+      </div>
+      <p style="text-align:center; margin-top:24px; font-size:15px; color:var(--text-2);">Same people. Same systems. Same regulators. <strong style="color:var(--text-1);">Different machine.</strong></p>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">05</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 6: HUMAN CONTROL ========== -->
+  <section class="slide">
+    <div class="body-block" style="align-items:center; text-align:center;">
+      <div class="kicker">The One Rule That Never Bends</div>
+      <h1 style="font-size:60px; max-width:1000px;">The AI reads, prepares<br>and explains.<br><span style="color:var(--primary);">A person always decides.</span></h1>
+      <div style="display:flex; gap:14px; margin-top:40px;">
+        <span class="pill">No record changed automatically</span>
+        <span class="pill">No medical assessment by AI</span>
+        <span class="pill">No reporting decision by AI</span>
+        <span class="pill">Every flag traceable, every decision logged</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">06</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 7: THE ENGINE, CLAUDE ON VERTEX AI ========== -->
+  <section class="slide vertex">
+    <div class="kicker">Technology · The Engine</div>
+    <h2>Claude on Vertex AI, inside Roche's own Google Cloud.</h2>
+    <p class="sub">Not a SaaS subscription, not a new data processor: a frontier model endpoint inside the perimeter Roche already operates, secures and audits.</p>
+    <div class="body-block">
+      <div class="perimeter">
+        <span class="perimeter-label">Roche Google Cloud perimeter · EU region · VPC Service Controls · CMEK</span>
+        <div class="m-row">
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node">
+              <div class="m-sys">Case data</div>
+              <div class="m-title">Rexis · Salesforce · PDFs · RDK</div>
+              <div class="m-desc">Cases, documentation and decision rules, read in place. Nothing copied outside.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+          <div class="m-stage" style="flex:1.15;">
+            <div class="ai-node" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>PRI Tool · App 2</div>
+              <div class="m-title">Reads, reasons, drafts flags</div>
+              <div class="m-desc">PRI discovery and one validation logic across both queues. Versioned prompts, every call logged for audit.</div>
+            </div>
+          </div>
+          <div class="m-stage link-stage">
+            <div class="m-arrow solid-teal"></div>
+            <span class="arrow-caption">case + rules &rarr;<br>&larr; reasoned flags</span>
+          </div>
+          <div class="m-stage" style="flex:1.05;">
+            <div class="m-node" style="border:1.5px solid var(--primary); flex:1;">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">Vertex AI · managed endpoint</div>
+              <div class="m-title">Claude, version-pinned</div>
+              <div class="m-desc">Zero retention, zero training on Roche data. Model version frozen per validated release, upgraded only through change control.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node">
+              <div class="m-sys">People</div>
+              <div class="m-title">Operators &amp; PRI specialists</div>
+              <div class="m-desc">Work their existing Salesforce queue. Confirm, reject, decide. Every decision logged.</div>
+            </div>
+          </div>
+        </div>
+        <div class="chip-row">
+          <span class="pill">IAM + audit logging on every call</span>
+          <span class="pill">Encryption in transit and at rest</span>
+          <span class="pill">Provisioned throughput, predictable latency</span>
+          <span class="pill">Billed through the existing Google agreement</span>
+        </div>
+      </div>
+      <div class="m-row" style="margin-top:16px; gap:16px; align-items:center;">
+        <div class="noflow" style="flex:1;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:14px;">
+            <span class="x">&times;</span>
+            <p style="font-size:14px; font-weight:600; letter-spacing:-0.03em; color:var(--danger-deep);">No data path to the public internet, to Anthropic servers, or into model training. The model comes to the data. The data never goes to the model vendor.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">07</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 8: WHY CLAUDE, SPECIFICALLY ========== -->
+  <section class="slide">
+    <div class="kicker">Technology · The Fit</div>
+    <h2>Why Claude, for this exact job.</h2>
+    <div class="body-block">
+      <div class="grid-3" style="gap:16px;">
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <rect x="2" y="5" width="26" height="13" rx="3" stroke="var(--surface-3)" stroke-width="1.3" stroke-dasharray="3 3"/>
+            <rect x="12" y="17" width="26" height="13" rx="3" stroke="var(--surface-3)" stroke-width="1.3" stroke-dasharray="3 3"/>
+            <rect x="4" y="29" width="26" height="13" rx="3" stroke="var(--surface-3)" stroke-width="1.3" stroke-dasharray="3 3"/>
+            <path d="M50 23 H72 M66 17 L72 23 L66 29" stroke="var(--text-3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="84" y="5" width="130" height="37" rx="7" stroke="var(--primary)" stroke-width="1.6"/>
+            <path d="M94 15 H204 M94 23.5 H204 M94 32 H168" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Whole-case reading</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">The full case file in one pass.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Call notes, case history, product manual and PRI decision rules fit in a single context window. No chopping documents into fragments that lose the meaning keyword tools already miss.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <path d="M4 10 H162" stroke="var(--surface-3)" stroke-width="1.4" stroke-dasharray="4 4"/>
+            <path d="M4 36 H162" stroke="var(--surface-3)" stroke-width="1.4" stroke-dasharray="4 4"/>
+            <path d="M4 23 C 26 23, 36 15, 58 15 S 92 31, 114 31 S 152 23, 162 23" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round"/>
+            <circle cx="192" cy="23" r="13" stroke="var(--primary)" stroke-width="1.6"/>
+            <path d="M186 23 l4.5 4.5 l8 -9" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Rule fidelity</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Follows written procedure like a specialist.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Claude is the strongest frontier model at holding to documented decision rules and staying inside its sources. It says "not enough information" instead of inventing an answer. In this domain, that is the difference between a tool and a liability.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <circle cx="12" cy="13" r="4" stroke="var(--primary)" stroke-width="1.6"/>
+            <path d="M17 13 H45" stroke="var(--primary)" stroke-width="1.5"/>
+            <circle cx="50" cy="13" r="4" stroke="var(--primary)" stroke-width="1.6"/>
+            <path d="M55 13 H83" stroke="var(--primary)" stroke-width="1.5"/>
+            <circle cx="88" cy="13" r="4" stroke="var(--primary)" stroke-width="1.6"/>
+            <path d="M93 13 H116" stroke="var(--primary)" stroke-width="1.5"/>
+            <path d="M120 25 V4 H140 L135 9.5 L140 15 H120" stroke="var(--primary)" stroke-width="1.6" fill="var(--primary)" fill-opacity="0.12" stroke-linejoin="round"/>
+            <path d="M12 18 V35 M50 18 V35 M88 18 V35" stroke="var(--surface-3)" stroke-width="1.3" stroke-dasharray="2 3"/>
+            <path d="M2 38 H140" stroke="var(--text-3)" stroke-width="1.4" stroke-linecap="round"/>
+            <text x="148" y="41" font-size="8" letter-spacing="1.5" fill="var(--text-3)">SOURCES</text>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Auditable reasoning</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Every flag explains itself.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Clear written reasoning with source references, in language a reviewer, an auditor or an inspector can verify. The reasoning becomes part of the case record, not a black-box score.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <rect x="2" y="9" width="28" height="28" rx="6" stroke="var(--surface-3)" stroke-width="1.4"/>
+            <text x="16" y="28" font-size="13" text-anchor="middle" fill="var(--text-2)">A</text>
+            <rect x="36" y="9" width="28" height="28" rx="6" stroke="var(--surface-3)" stroke-width="1.4"/>
+            <text x="50" y="28" font-size="13" text-anchor="middle" fill="var(--text-2)">文</text>
+            <rect x="70" y="9" width="28" height="28" rx="6" stroke="var(--surface-3)" stroke-width="1.4"/>
+            <text x="84" y="28" font-size="13" text-anchor="middle" fill="var(--text-2)">한</text>
+            <rect x="104" y="9" width="28" height="28" rx="6" stroke="var(--surface-3)" stroke-width="1.4"/>
+            <text x="118" y="28" font-size="13" text-anchor="middle" fill="var(--text-2)">ع</text>
+            <path d="M140 23 H158 M152 17 L158 23 L152 29" stroke="var(--text-3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="166" y="9" width="28" height="28" rx="6" fill="var(--primary)"/>
+            <path d="M174 23 l4.5 4.5 l8 -9" stroke="var(--on-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Multilingual by default</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Every language in the queue, day one.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Cases arrive in the customer's language; keyword lists never kept up. Claude reads and reasons across languages natively, including the APAC extension scope.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <path d="M31 13 V6" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="31" cy="4.5" r="2.5" fill="var(--primary)"/>
+            <rect x="4" y="13" width="54" height="24" rx="6" fill="var(--primary)"/>
+            <text x="31" y="29" font-size="11" text-anchor="middle" fill="var(--on-primary)">v1.7</text>
+            <path d="M64 25 H98" stroke="var(--text-3)" stroke-width="1.4" stroke-dasharray="3 4"/>
+            <path d="M106 9 V41 M136 9 V41" stroke="var(--text-3)" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="121" cy="25" r="8" stroke="var(--primary)" stroke-width="1.5"/>
+            <path d="M117.5 25 l2.8 2.8 l5 -5.6" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M144 25 H160" stroke="var(--text-3)" stroke-width="1.4" stroke-dasharray="3 4"/>
+            <rect x="164" y="13" width="54" height="24" rx="6" stroke="var(--surface-3)" stroke-width="1.4" stroke-dasharray="3 3"/>
+            <text x="191" y="29" font-size="11" text-anchor="middle" fill="var(--text-3)">v1.8</text>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">GxP-compatible versioning</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">A frozen, testable model.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Vertex serves pinned Claude versions with long support windows. We validate against one version, freeze it, and upgrade only through change control with golden-dataset regression. A validated system cannot sit on a model that changes under it.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <svg class="whyviz" viewBox="0 0 220 46" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMid meet">
+            <rect x="4" y="3" width="62" height="40" rx="5" stroke="var(--text-3)" stroke-width="1.4"/>
+            <path d="M12 11 H58 M12 18 H58 M12 25 H44" stroke="var(--surface-3)" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M12 35 C 17 29, 21 39, 26 33 S 34 31, 40 34" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="58" cy="34" r="9.5" stroke="var(--primary)" stroke-width="1.5" fill="var(--surface-1)"/>
+            <path d="M54 34 l3 3 l5.5 -6" stroke="var(--primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="80" y="22" font-size="8" letter-spacing="1.5" fill="var(--text-3)">GOOGLE CLOUD AGREEMENT</text>
+            <text x="80" y="34" font-size="8" letter-spacing="1.5" fill="var(--primary)">ALREADY ON FILE</text>
+          </svg>
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Enterprise terms, existing paper</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">No new procurement path.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Consumed as a Google Cloud service under Roche's existing agreement and committed spend. Zero data retention, no training on Roche data, contractually. InfoSec reviews at the stage gates, not a new vendor onboarding.</p>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">08</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 9: WHY WE WIN ========== -->
+  <section class="slide">
+    <div class="kicker">Why Redsparq</div>
+    <h2>Others would have to learn this operation.<br>We run it.</h2>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">13</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">specialists work these exact cases, today, for Roche.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">They already hunt hidden complaints by hand. The tool scales their proven practice, and they train and judge it at every gate.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">Day 1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">golden dataset from real judged cases.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">No vendor discovery phase to learn what a PRI looks like. The knowledge cell builds the measuring stick before the first line of code.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">&euro;0</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">paid before proof. Roche owns the result.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Fixed-price stages, invoiced only against signed acceptance. Licence transfers to Roche at completion. No perpetual fees.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The people who know exactly where details get missed teach the system what to look for. Then they judge whether it learned. No other bidder can offer that.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">Source code in escrow</span>
+        <span class="pill">90-day handover commitment</span>
+        <span class="pill">Full documentation as a deliverable</span>
+        <span class="pill">Quarterly steering + stage-gate reviews</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">09</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 10: WHERE THE MONEY COMES FROM ========== -->
+  <section class="slide">
+    <div class="kicker">The Value Engine</div>
+    <h2>Where the money comes from.</h2>
+    <p class="sub">Four independent value streams. Each one certified from Roche's own data in Stage 0, before a euro of build is spent.</p>
+    <div class="body-block">
+      <div class="grid-2" style="gap:16px;">
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">1 · Coverage without hiring</div>
+          <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">100% review at the cost of compute, not headcount.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Checking every case by hand means multiplying the 13-specialist team several times over, permanently. The market does not supply device-safety QC specialists at that scale, and salaries recur forever. The AI reads; the existing team decides.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">2 · Findings that never happen</div>
+          <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">One prevented audit finding pays for the program.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">A missed reportable incident found by an inspector means a finding, a remediation program and closer scrutiny of everything that follows. Remediation alone routinely exceeds the entire 5-year cost of this system.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">3 · Minutes, multiplied by volume</div>
+          <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Seconds instead of searching, on every single call.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Troubleshooting answers arrive with their source instead of a live PDF hunt. The case drafts itself instead of being typed twice into two systems. Minutes saved per case, across every call, every day.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">4 · Errors fixed at the source</div>
+          <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Every caught mistake becomes prevention.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Error analytics by case type, product and team turn each review finding into targeted retraining. Fewer wrong labels enter the queue: prevent at intake, detect in review. Quality compounds instead of being re-bought every month.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px; padding:16px 30px; display:flex; align-items:center; justify-content:space-around; gap:14px;">
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">Build once</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em;">&euro;2.45&ndash;2.85M</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">Value back, every year</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--primary);">&euro;5&ndash;25M</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">Who owns the asset</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em;">Roche</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px; background:var(--primary); border-color:var(--primary); padding:18px 26px;">
+        <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">Deliberately not the target: cutting the review team. The 13 specialists stop hunting and start deciding. Coverage finally matches volume, and the case holds even if management's &euro;25M estimate is 80% wrong.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">10</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 11: THE MONEY ========== -->
+  <section class="slide">
+    <div class="kicker">The Money</div>
+    <h2>Even the stress case clears the bar.</h2>
+    <p class="sub">Measured against management's €25M savings estimate, validated with Finance in Stage 0. The case does not depend on that figure being precise.</p>
+    <div class="body-block">
+      <div class="card" style="padding:20px 26px 16px;">
+        <div class="pay-chart">
+          <div class="pay-band"><span class="pay-band-label">Typical corporate approval range · 12&ndash;24 mo payback</span></div>
+          <div class="pay-row">
+            <div class="pay-label">
+              <div class="pay-scenario">100% of estimate real</div>
+              <span class="pay-value">&euro;25.0M annual value</span>
+            </div>
+            <div class="pay-track">
+              <div class="pay-bar" style="width:10%;"></div>
+              <span class="mono" style="margin-left:10px; font-size:12.5px; font-weight:600; color:var(--primary); white-space:nowrap;">~2.4 mo payback</span>
+            </div>
+            <div class="pay-return">~12&times; over 3 yrs</div>
+          </div>
+          <div class="pay-row">
+            <div class="pay-label">
+              <div class="pay-scenario">50% · conservative</div>
+              <span class="pay-value">&euro;12.5M annual value</span>
+            </div>
+            <div class="pay-track">
+              <div class="pay-bar" style="width:20%;"></div>
+              <span class="mono" style="margin-left:10px; font-size:12.5px; font-weight:600; color:var(--primary); white-space:nowrap;">~4.8 mo payback</span>
+            </div>
+            <div class="pay-return">~6&times; over 3 yrs</div>
+          </div>
+          <div class="pay-row">
+            <div class="pay-label">
+              <div class="pay-scenario">20% · stress case</div>
+              <span class="pay-value">&euro;5.0M annual value</span>
+            </div>
+            <div class="pay-track">
+              <div class="pay-bar" style="width:50%;"></div>
+              <span class="mono" style="margin-left:10px; font-size:12.5px; font-weight:600; color:var(--primary); white-space:nowrap;">~12 mo payback</span>
+            </div>
+            <div class="pay-return">~2.5&times; over 3 yrs</div>
+          </div>
+          <div class="pay-axis"><span>0</span><span>6 mo</span><span>12 mo</span><span>18 mo</span><span>24 mo</span></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:16px;">
+        <span class="pill teal">&euro;2.45&ndash;2.85M development, paid on proof</span>
+        <span class="pill">&euro;45&ndash;55K/mo operations + compute at cost</span>
+        <span class="pill">&euro;4.3&ndash;5.2M total 5-year TCO</span>
+        <span class="pill green">&euro;0 licence fees. Roche owns the application</span>
+      </div>
+      <div class="card" style="margin-top:14px; padding:16px 22px;">
+        <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; text-align:center;">At the estimate, the entire build costs about <span style="color:var(--primary);">five weeks</span> of the value it unlocks. For comparison: large system integrators quote &euro;2&ndash;8M for implementation alone, before owning the asset, before operations.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">11</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 12: ROADMAP ========== -->
+  <section class="slide">
+    <div class="kicker">Delivery</div>
+    <h2>Four gates. No proof, no invoice.</h2>
+    <div class="body-block">
+      <div class="timeline">
+        <div class="t-seg">
+          <div class="t-num">0</div>
+          <h3>Discovery &amp; Baseline</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Certified numbers from Roche data. Golden dataset v1. Firm quotes.</p>
+          <div class="t-dur">Aug&ndash;Sep 2026 · 6&ndash;8 wks</div>
+          <div class="t-price">&euro;75K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">1</div>
+          <h3>MVP, one system</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Specialists confirm or reject flags. Gate: accuracy targets on the golden dataset.</p>
+          <div class="t-dur">Oct 2026&ndash;Feb 2027</div>
+          <div class="t-price">&euro;600&ndash;700K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">2</div>
+          <h3>Full scope</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Both systems, all priority case types, multiple languages, production volume.</p>
+          <div class="t-dur">Mar&ndash;Aug 2027</div>
+          <div class="t-price">&euro;850&ndash;1,000K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">3</div>
+          <h3>Validation &amp; rollout</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">GxP validation package, security review, training, hypercare.</p>
+          <div class="t-dur">Sep 2027&ndash;Feb 2028</div>
+          <div class="t-price">&euro;800&ndash;950K</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+        <span class="pill green">Acceptance criteria signed before each stage</span>
+        <span class="pill green">Nothing scales without measured proof</span>
+        <span class="pill green">Roche owns the application at completion</span>
+        <span class="pill">Steady-state operations from Q1 2028</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">12</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 13: DECISION ========== -->
+  <section class="slide">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Decision Requested</div>
+      <h1 style="font-size:48px;">Two approvals.<br>One starts now.</h1>
+      <div class="grid-2" style="margin-top:36px; max-width:1020px;">
+        <div class="card" style="border:1.5px solid var(--primary);">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">A · Now, under the existing MSA</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Authorise Stage 0</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">&euro;75K · 6&ndash;8 weeks · starts during the approval window</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">Hands Finance firm, certified numbers instead of estimates. De-risks the funding decision without pre-empting it.</p>
+        </div>
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">B · In the H2 funding round</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Include the program</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">&euro;2.45&ndash;2.85M development envelope + operations from go-live</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">Stages 1&ndash;3 start the moment funding is released. Submission ready before 31 July 2026.</p>
+        </div>
+      </div>
+      <p style="margin-top:32px; font-size:17px; color:var(--text-2); max-width:920px; line-height:1.6;">
+        Every week this waits, three out of four cases go unchecked.
+        <strong style="color:var(--text-1);">At the stress case, that is ~&euro;100K of value forgone per week. At the estimate, ~&euro;480K.</strong>
+      </p>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v2.0 · July 2026 · Confidential</span>
+      <span class="counter">13</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav-hint">Arrows / Space / Click to navigate</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) show(current + 1);
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) show(current - 1);
+    if (event.key === 'Home') show(0);
+    if (event.key === 'End') show(slides.length - 1);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('a')) return;
+    const goBack = event.clientX < window.innerWidth * 0.2;
+    show(goBack ? current - 1 : current + 1);
+  });
+</script>
+</body>
+</html>

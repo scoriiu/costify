@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presenter Notes | The PRI Tool for Roche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-semibold.woff2') format('woff2');
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: #0D6B5E;
+    --primary-dark: #0A5A4F;
+    --danger: #EF4444;
+    --danger-deep: #B91C1C;
+    --green: #3FB950;
+    --green-deep: #1F7A34;
+    --surface-0: #F0EFEA;
+    --surface-1: #F7F6F2;
+    --surface-2: #E6E4DE;
+    --surface-3: #D9D7D0;
+    --text-1: #1A1918;
+    --text-2: #44413C;
+    --text-3: #7A766E;
+    --on-primary: #E9E8E3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--surface-0);
+    font-family: 'Altform', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    line-height: 1.6;
+  }
+
+  .mono { font-family: 'Geist Mono', ui-monospace, 'SF Mono', monospace; }
+
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+  }
+
+  .doc-kicker {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    margin-bottom: 14px;
+  }
+
+  .doc-sub {
+    font-size: 16px;
+    color: var(--text-2);
+    max-width: 640px;
+    margin-bottom: 36px;
+  }
+
+  .howto {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .howto h3 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    margin-bottom: 12px;
+  }
+  .howto ul { list-style: none; }
+  .howto li {
+    font-size: 14.5px;
+    color: var(--text-2);
+    padding: 5px 0 5px 22px;
+    position: relative;
+  }
+  .howto li::before {
+    content: "";
+    position: absolute;
+    left: 4px; top: 14px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.55;
+  }
+  .howto .key {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--surface-3);
+    border-radius: 5px;
+    padding: 1px 7px;
+    white-space: nowrap;
+  }
+
+  .memorize {
+    background: var(--primary);
+    border-radius: 14px;
+    padding: 22px 28px;
+    margin-bottom: 48px;
+  }
+  .memorize .label { color: rgba(233,232,227,0.7); }
+  .memorize p {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--on-primary);
+    margin-top: 6px;
+  }
+
+  .label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    color: var(--text-3);
+  }
+
+  .slide-note {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 26px;
+    break-inside: avoid;
+  }
+
+  .sn-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    border-bottom: 1px solid var(--surface-2);
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+  }
+  .sn-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    border-radius: 8px;
+    padding: 4px 11px;
+    flex: none;
+  }
+  .sn-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+  .sn-screen {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-left: auto;
+    text-align: right;
+    flex: none;
+  }
+
+  .sn-point {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--primary-dark);
+    margin-bottom: 16px;
+  }
+  .sn-point .label { color: var(--primary); display: block; margin-bottom: 4px; }
+
+  .say {
+    border-left: 3px solid var(--primary);
+    background: rgba(13,107,94,0.04);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .say .label { color: var(--primary); display: block; margin-bottom: 8px; }
+  .say p {
+    font-size: 15.5px;
+    color: var(--text-1);
+    margin-bottom: 10px;
+  }
+  .say p:last-child { margin-bottom: 0; }
+
+  .nums {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .nums .label { width: 100%; margin-bottom: 2px; }
+  .num-chip {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--primary-dark);
+    background: var(--surface-2);
+    border: 1px solid var(--surface-3);
+    border-radius: 8px;
+    padding: 5px 12px;
+    white-space: nowrap;
+  }
+
+  .qa { margin-top: 4px; }
+  .qa .label { display: block; margin-bottom: 8px; }
+  .qa-item { margin-bottom: 10px; }
+  .qa-item:last-child { margin-bottom: 0; }
+  .qa-q {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--danger-deep);
+  }
+  .qa-a {
+    font-size: 14px;
+    color: var(--text-2);
+    margin-top: 2px;
+  }
+
+  .warn {
+    font-size: 13.5px;
+    color: var(--text-2);
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.35);
+    border-radius: 10px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+  }
+  .warn strong { color: var(--text-1); }
+
+  .section-break {
+    margin: 52px 0 24px;
+  }
+  .section-break h2 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+  .section-break p { font-size: 14.5px; color: var(--text-2); margin-top: 6px; }
+
+  .gloss {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .gloss-item {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .gloss-term {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+  }
+  .gloss-def { font-size: 13.5px; color: var(--text-2); margin-top: 4px; }
+
+  @media print {
+    body { background: #fff; }
+    .page { padding: 20px 0; max-width: 100%; }
+    .slide-note { border-color: #ccc; page-break-inside: avoid; }
+    .memorize { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sn-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  @media (max-width: 720px) {
+    .gloss { grid-template-columns: 1fr; }
+    .sn-head { flex-wrap: wrap; }
+    .sn-screen { margin-left: 0; text-align: left; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-kicker">Redsparq · Internal · Do not hand out</div>
+  <h1>Presenter notes<br>The PRI Tool for Roche</h1>
+  <p class="doc-sub">Everything you need to present the 14 slides with confidence. No technical background needed. Plan for about 20 minutes of talking plus questions.</p>
+
+  <div class="howto">
+    <h3>Before you start</h3>
+    <ul>
+      <li>Open <span class="mono">Roche_App2_PRI_Tool_Presentation.html</span> in a browser, press <span class="key">F11</span> for full screen.</li>
+      <li>Move forward with <span class="key">&rarr;</span>, <span class="key">Space</span> or a click. Go back with <span class="key">&larr;</span> or a click on the left edge of the screen. <span class="key">Home</span> jumps to the first slide, <span class="key">End</span> to the last.</li>
+      <li>Speak slowly. Each slide is built so the picture does most of the work. Your job is to say the point, not to read the slide.</li>
+      <li>If you do not know an answer, say: "Good question, I will get you a precise answer from our delivery team this week." Never improvise numbers.</li>
+      <li>The audience decides about money. They care about three things: risk, cost, and who is accountable. Every answer should land on one of those.</li>
+    </ul>
+  </div>
+
+  <div class="memorize">
+    <span class="label">If you memorize only one sentence, memorize this</span>
+    <p>Today only 1 case in 4 gets a second look. We make it 100%, with a written reason for every flag, a person always makes the final call, and the whole program pays for itself even if the savings estimate is 80% wrong.</p>
+  </div>
+
+  <!-- SLIDE 1 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">01</span>
+      <span class="sn-title">Title</span>
+      <span class="sn-screen">"Every case read. Every flag explained. 100%."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Set the destination in one breath. Do not explain anything yet.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Thank you for the time. What we are proposing fits in one sentence: today, only about one case in four ever gets a quality check. We want to make that every single case, one hundred percent, with a written explanation for everything the system flags, and with your people always making the final decision."</p>
+      <p>"In the next twenty minutes I will show you what leaks today, how we fix it, what it costs, and what we are asking you to approve."</p>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Is this the AI project we heard about?"</div>
+        <div class="qa-a">"Yes. And you will see that the AI never decides anything on its own. That is the first rule of the design."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">02</span>
+      <span class="sn-title">Today's process leaks</span>
+      <span class="sn-screen">"A machine that leaks at every joint."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Walk the diagram left to right. The audience must feel the leak before you sell the fix.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"This is how a customer case flows today. A customer calls with a device problem. The operator has to dig through PDF manuals by keyword search while the customer waits, and at the same time type the case into two different systems."</p>
+      <p>"Then, potential reportable incidents, the cases that by law must be reported to authorities, are caught by fixed keyword lists and gut feeling. A typo, a different phrasing, another language, and the keyword list is blind."</p>
+      <p>"One system has a rigid 50-question form. The other has no check at all. Same risk, two different standards."</p>
+      <p>"And at the end, the quality team can only review 20 to 25 percent of cases. Look at the bottom of the slide: 75 to 80 percent are never checked. That is where missed incidents live."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">20&ndash;25% of cases checked today</span>
+      <span class="num-chip">75&ndash;80% never checked</span>
+      <span class="num-chip">2 systems, 2 standards</span>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Are you saying our people do a bad job?"</div>
+        <div class="qa-a">"The opposite. The people are good. The machine around them leaks. No human team can read every case at this volume. That is a fact about volume, not about people."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">03</span>
+      <span class="sn-title">What the leak costs</span>
+      <span class="sn-screen">Three big numbers: 3/4 · 2&ne; · 1</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Turn the leak into risk language. The third number is the one that lands with bosses.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Three numbers. Three out of four cases never get a second look. Two different validation standards for the same risk, which is very hard to defend in an audit. And one: it takes exactly one missed reportable incident, found by an auditor instead of by us, to trigger a finding, a remediation program, and closer scrutiny of everything that follows. That one event costs more than the entire fix we are proposing."</p>
+      <p>"And the red box matters: hiring our way out is not an option. The market simply does not supply device safety specialists at that scale. Without a different approach, this stays a permanent blind spot."</p>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Has an auditor actually found something?"</div>
+        <div class="qa-a">"The point is prevention. Every month at 25% coverage is a month of exposure we can remove."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">04</span>
+      <span class="sn-title">The fix: one machine, three agents</span>
+      <span class="sn-screen">"The same machine, rebuilt like a Swiss clock."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Same people, same systems. AI agents fitted where the work is heaviest. Explain the word "agent" once, simply. PRI Discovery is the core of the business case: give it the most airtime.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"This is the same machine, with AI agents fitted into it. An agent is simply a piece of AI software with one job, like a very fast assistant that never gets tired."</p>
+      <p>"During the call, a troubleshooting agent gives the operator the right answer with the source, in seconds. The operator still writes the case, that does not change. What changes is that a logging agent helps them make it as solid as possible: suggesting details, flagging what is missing, pointing to the right questions. That case text is the input everything downstream reads, so its quality matters more than anything."</p>
+      <p>"And as an option, if calls are transcribed, the agent can read the transcript and add notes and suggestions itself. Either way, the operator owns the record."</p>
+      <p>"After the call comes the heart of this proposal: the PRI discovery agent. It reads one hundred percent of cases, in every language, hunting for potential reportable incidents, the cases that by law must reach the authorities. Today only one case in four is checked; with this, every single one is, and it catches what keyword lists are blind to: typos, other phrasings, wrongly labelled cases. The validation agent then asks only the questions each case actually needs, the same standard for both systems."</p>
+      <p>"Notice two things. The specialists are still there, and a person always decides. And the loop at the bottom: what the review finds goes back to improve the intake. The machine gets better every month."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">100% scanned vs 20&ndash;25% today</span>
+      <span class="num-chip">Every flag has a written reason</span>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Does this change how operators work?"</div>
+        <div class="qa-a">"They keep the same systems and the same queue. The difference is they get help during the call instead of juggling three jobs at once."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">05</span>
+      <span class="sn-title">Before and after</span>
+      <span class="sn-screen">Side by side: Today vs With the PRI Tool</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Let the table speak. Read only two or three rows out loud, then pause.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"I will not read the whole table. Just three lines. Coverage: from a quarter of cases to all of them. Justification: today a flag has no written reason; with the tool, every flag comes with its reasoning and its source. And scaling: today more coverage means hiring; with the tool it is built in."</p>
+      <p>"Same people, same systems, same regulators. Different machine."</p>
+    </div>
+    <div class="warn"><strong>Tip:</strong> pause 3 seconds after the last sentence. It is the strongest line of the first half.</div>
+  </div>
+
+  <!-- SLIDE 6 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">06</span>
+      <span class="sn-title">Why agents beat hiring</span>
+      <span class="sn-screen">"This reading job is superhuman. That is the point."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>This is the business case in four cards. Frame it as "a job people cannot do at all", not "AI is better than people".</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"One thing to be very clear about. Reviewing every case is not a job people do badly. It is a job people cannot do at all, at this volume. That is the point of using agents."</p>
+      <p>"One hundred percent of cases, both systems, the same day. The same rigor on case one and case ten thousand, no fatigue, no Friday afternoon, and consistency is exactly what audits measure. Every language from day one. And zero new hires to scale: more volume means a configuration change and a compute bill, not a year of recruiting."</p>
+      <p>"The thirteen specialists stay. They stop spending their day searching and start spending it deciding. And the value protected is five to twenty-five million a year, for a one-time build of about two and a half million."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">13 specialists stay</span>
+      <span class="num-chip">&euro;5&ndash;25M protected yearly</span>
+      <span class="num-chip">&euro;2.45&ndash;2.85M once</span>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"So this replaces jobs?"</div>
+        <div class="qa-a">"No. Nobody is replaced. The team stays and finally covers everything instead of a quarter. What we replace is the blind spot."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">07</span>
+      <span class="sn-title">The one rule</span>
+      <span class="sn-screen">"The AI reads, prepares and explains. A person always decides."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>The safety brake. Slow down here. This slide answers the fear in the room before anyone voices it.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"This is the one rule of the design that never bends. The AI reads, prepares and explains. A person always decides."</p>
+      <p>"No record is ever changed automatically. The AI makes no medical assessment and no reporting decision. Every flag is traceable and every human decision is logged. If a regulator asks 'who decided this and why', there is always a name and a written reason."</p>
+    </div>
+    <div class="warn"><strong>Tip:</strong> read the headline from the screen word for word, then stop. Do not add anything for a few seconds. This is the trust moment.</div>
+  </div>
+
+  <!-- SLIDE 8 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">08</span>
+      <span class="sn-title">Where the AI lives</span>
+      <span class="sn-screen">"Claude on Vertex AI, inside Roche's own Google Cloud."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>The security answer for non-technical people: the data never leaves the house. Do not get technical.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Where does this AI actually run? Inside Roche's own Google Cloud, the environment your IT already operates, secures and audits. We bring the AI to the data. The data never travels to the AI company."</p>
+      <p>"The green banner is the sentence that matters: no data path to the public internet, no data to the model vendor, and nothing is ever used to train the model. Contractually and technically."</p>
+      <p>"Two more things in plain language. The AI version is frozen, like a calibrated instrument, so the same case with the same rules always gives the same answer. And it is billed through the Google agreement Roche already has, so there is no new vendor to onboard."</p>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Is our data safe with the AI company?"</div>
+        <div class="qa-a">"The AI company never sees the data. The model runs inside Roche's own cloud perimeter, with zero retention and zero training on Roche data, written into the contract."</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">Anything deeper technically?</div>
+        <div class="qa-a">"I will connect you with our delivery team for the technical deep dive. Happy to set that up this week."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">09</span>
+      <span class="sn-title">Why this AI engine</span>
+      <span class="sn-screen">"Why Claude, for this exact job."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Show the engine was chosen deliberately, not fashionably. Pick three of the six cards, skip the rest.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"We chose this specific AI for reasons that map to this exact job. Three highlights."</p>
+      <p>"It reads the whole case file in one pass: the call notes, the history, the manual, the decision rules. It is the strongest model at following written procedure, and, importantly, it says 'not enough information' instead of inventing an answer. In this domain that is the difference between a tool and a liability."</p>
+      <p>"And every flag explains itself in writing, in language an auditor can verify. The reasoning becomes part of the case record, not a black-box score."</p>
+    </div>
+    <div class="warn"><strong>Tip:</strong> do not read all six cards. If pressed on model comparisons, offer the technical follow-up instead of debating.</div>
+  </div>
+
+  <!-- SLIDE 10 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">10</span>
+      <span class="sn-title">Why Redsparq wins</span>
+      <span class="sn-screen">"Others would have to learn this operation. We run it."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>The unfair advantage: our people already do this work for Roche, by hand, today.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Why us. Thirteen of our specialists work these exact cases today, for Roche. They already hunt hidden complaints by hand. The tool scales their proven practice, and they are the ones who train it and judge it at every gate."</p>
+      <p>"From day one we build the measuring stick: a golden dataset of real, already-judged cases. Any other bidder starts with months of discovery just to learn what a reportable incident looks like."</p>
+      <p>"And commercially: zero euros before proof. Fixed-price stages, invoiced only against signed acceptance, zero licence fees, and no lock-in by design."</p>
+      <p>"The chips at the bottom are your protection: source code in escrow, a 90-day handover commitment, full documentation as a deliverable, and quarterly steering."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">13 specialists on the account today</span>
+      <span class="num-chip">&euro;0 before proof</span>
+      <span class="num-chip">No lock-in, ever</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 11 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">11</span>
+      <span class="sn-title">Where the money comes from</span>
+      <span class="sn-screen">Four value streams</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Value has four independent sources, so the case does not stand on one number.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Where does the value actually come from? Four independent places."</p>
+      <p>"One: coverage without hiring. Checking everything by hand would mean multiplying the specialist team several times over, forever. Two: findings that never happen. One prevented audit finding pays for the whole program on its own. Three: reviews in minutes. Every flag arrives already prepared and sourced, so each decision takes minutes instead of an investigation. Four: errors fixed at the source. Every caught mistake shows where it came from, by case type, product and team, and becomes prevention."</p>
+      <p>"And note what is deliberately not on this list: cutting the review team. That was never the goal."</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 12 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">12</span>
+      <span class="sn-title">The money</span>
+      <span class="sn-screen">"Even the stress case clears the bar."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>The chart says: we do not need the €25M estimate to be right. Walk the three bars top to bottom.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Management estimated twenty-five million a year in savings. We built the case so it does not depend on that number being precise."</p>
+      <p>"If the estimate is fully right, the program pays for itself in about two and a half months. If it is only half right, under five months. And the stress case: if the estimate is eighty percent wrong, and only five million is real, payback is still about twelve months. Look where that lands on the chart: at the very edge of the range where corporations normally approve without hesitation. Even our worst case clears the bar."</p>
+      <p>"Total cost over five years: four point three to five point two million, everything included, zero licence fees, and no vendor lock-in. For comparison, large system integrators quote two to eight million for implementation alone, before operations even start."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">Payback: ~2.4 / ~4.8 / ~12 months</span>
+      <span class="num-chip">&euro;2.45&ndash;2.85M build</span>
+      <span class="num-chip">&euro;45&ndash;55K/mo operations</span>
+      <span class="num-chip">&euro;4.3&ndash;5.2M 5-year total</span>
+      <span class="num-chip">&euro;0 licence fees</span>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Where does the €25M come from?"</div>
+        <div class="qa-a">"It is management's own estimate. And that is exactly what Stage 0 verifies: six to eight weeks producing certified numbers from Roche's real data, before any build money is committed."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 13 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">13</span>
+      <span class="sn-title">Roadmap</span>
+      <span class="sn-screen">"Four gates. No proof, no invoice."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>Risk is controlled by stage gates. Money only moves after signed acceptance at each gate.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"Delivery works in four stages, each with a gate. Nothing scales without measured proof, and no invoice without signed acceptance."</p>
+      <p>"Stage zero, August to September next year, seventy-five thousand: we certify the numbers from Roche's own data and build the golden dataset. Then the working system on one queue, live by February 2027. Then full scope, both systems, all case types, by August 2027. Then validation and rollout, with steady operation from the first quarter of 2028."</p>
+      <p>"At every gate you see measured results against the golden dataset before the next stage starts. You can stop at any gate."</p>
+    </div>
+    <div class="nums">
+      <span class="label">Numbers to hold</span>
+      <span class="num-chip">Stage 0: &euro;75K · 6&ndash;8 weeks</span>
+      <span class="num-chip">MVP: &euro;600&ndash;700K</span>
+      <span class="num-chip">Full scope: &euro;850&ndash;1,000K</span>
+      <span class="num-chip">Rollout: &euro;800&ndash;950K</span>
+      <span class="num-chip">Steady state Q1 2028</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 14 -->
+  <div class="slide-note">
+    <div class="sn-head">
+      <span class="sn-num">14</span>
+      <span class="sn-title">The ask</span>
+      <span class="sn-screen">"Two approvals. One starts now."</span>
+    </div>
+    <div class="sn-point"><span class="label">The point</span>End with a small, easy yes. Stage 0 is cheap, fast, already covered by the existing contract, and does not pre-commit the big money.</div>
+    <div class="say">
+      <span class="label">Say this</span>
+      <p>"We are asking for two things, and only one of them starts now."</p>
+      <p>"A: authorise Stage zero today, under the existing master agreement. Seventy-five thousand, six to eight weeks. It hands your finance team certified numbers instead of estimates. It de-risks the funding decision without pre-empting it."</p>
+      <p>"B: include the program in the H2 funding round, an envelope of two point four five to two point eight five million, so stages one to three can start the moment funding is released."</p>
+      <p>"One last thought. Every week this waits, three out of four cases go unchecked. Thank you."</p>
+    </div>
+    <div class="qa">
+      <span class="label">If they ask</span>
+      <div class="qa-item">
+        <div class="qa-q">"Why decide now?"</div>
+        <div class="qa-a">"The submission window closes 31 July. And Stage 0 is not the big decision, it is what makes the big decision safe."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HARD QUESTIONS -->
+  <div class="section-break">
+    <h2>The five hardest questions</h2>
+    <p>These can come at any point. Short answers, always landing on risk, cost or accountability.</p>
+  </div>
+
+  <div class="slide-note">
+    <div class="qa">
+      <div class="qa-item">
+        <div class="qa-q">"What if the AI makes a mistake?"</div>
+        <div class="qa-a">"It will sometimes flag things that are fine. That is by design: a specialist reviews every flag and rejects the wrong ones, and every rejection makes the system better. What it cannot do is act on a mistake, because it never changes a record and never makes a decision. Compare that with today, where 75% of cases are not looked at by anyone."</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">"Why not wait until the technology matures?"</div>
+        <div class="qa-a">"The technology is already in production in neighbouring regulated fields like pharmacovigilance, and regulators themselves use it. Meanwhile every month of waiting is a month at 25% coverage. Stage 0 costs 75 thousand and answers the maturity question with Roche's own data instead of opinions."</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">"Why you and not a big system integrator?"</div>
+        <div class="qa-a">"Three reasons. Our specialists already do this exact work for Roche today, so we start with the knowledge others would need months to acquire. We only invoice against proof at signed gates. And integrators quote two to eight million for implementation alone. Our model is fixed-price stages, zero licence fees, and no lock-in."</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">"Will the auditors and regulators accept an AI in this process?"</div>
+        <div class="qa-a">"The design was made for them: the AI only prepares, a person decides, every flag has written reasoning with sources, the model version is frozen and only changes through formal change control, and Stage 3 delivers a full validation package. Auditors get more traceability than today, not less."</div>
+      </div>
+      <div class="qa-item">
+        <div class="qa-q">"What happens if we stop, or if Redsparq disappears?"</div>
+        <div class="qa-a">"You can stop at any gate and pay nothing further. The source code is in escrow, documentation is a contractual deliverable, there is a 90-day handover commitment. There is no lock-in by design."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GLOSSARY -->
+  <div class="section-break">
+    <h2>Words that may come up</h2>
+    <p>Plain-language versions, in case someone asks what a term on the slides means.</p>
+  </div>
+
+  <div class="gloss">
+    <div class="gloss-item">
+      <div class="gloss-term">PRI</div>
+      <div class="gloss-def">Potential Reportable Incident. A customer case that might legally have to be reported to health authorities. Missing one is the big risk.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">AI agent</div>
+      <div class="gloss-def">A piece of AI software with one specific job, like reading cases or drafting a form. An assistant, not a decision-maker.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Claude</div>
+      <div class="gloss-def">The AI engine we use, made by Anthropic. One of the leading AI models, particularly strong at following written rules and explaining itself.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Vertex AI</div>
+      <div class="gloss-def">The Google Cloud service that runs the AI inside Roche's own cloud environment. It is how the model comes to the data instead of the data leaving.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Golden dataset</div>
+      <div class="gloss-def">A set of real past cases whose correct answers are already known. The measuring stick used to test the AI at every gate.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">GxP / validation</div>
+      <div class="gloss-def">The quality rules for computer systems in the medical world. In practice: everything documented, tested, frozen, and changed only through a formal process.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Rexis &amp; Salesforce</div>
+      <div class="gloss-def">The two systems where customer cases are logged today. Part of the problem is that they follow two different quality standards.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Smartiva</div>
+      <div class="gloss-def">The current 50-question validation form used for Salesforce cases only. Rigid: every question, every time, and nothing for Rexis.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">MSA</div>
+      <div class="gloss-def">The Master Service Agreement already in place between Roche and Redsparq. It is why Stage 0 can start without new contracting.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Stage gate</div>
+      <div class="gloss-def">A checkpoint between project stages. Measured results are reviewed and signed off before the next stage, and its invoice, can start.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">Escrow</div>
+      <div class="gloss-def">The source code is deposited with a neutral third party. If anything happens to Redsparq, Roche gets the code.</div>
+    </div>
+    <div class="gloss-item">
+      <div class="gloss-term">TCO</div>
+      <div class="gloss-def">Total cost of ownership. Everything over five years: build, operations, compute. Here: 4.3 to 5.2 million euros, with zero licence fees.</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
