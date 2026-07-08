@@ -677,6 +677,29 @@ model JournalPartner {
   @@index([clientId, partnerName])
 }
 
+/// One row per Costi chat turn: token usage summed across all tool rounds
+/// of the request, priced via src/modules/costi/pricing.ts at write time
+/// (so later price-table changes never rewrite history). Powers the
+/// /internal/ai-usage dashboard (total ever / per day / per request).
+model ChatUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  model            String
+  rounds           Int
+  inputTokens      Int
+  outputTokens     Int
+  cacheWriteTokens Int      @default(0)
+  cacheReadTokens  Int      @default(0)
+  costUsd          Decimal  @db.Decimal(10, 6)
+  /// Page the question was asked from (chat context), for per-client insight.
+  page             String?
+  durationMs       Int?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
 model AuditEvent {
   id            String   @id @default(cuid())
   tenantId      String

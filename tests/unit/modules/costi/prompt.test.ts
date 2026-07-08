@@ -16,6 +16,7 @@ function loadPlaybooks() {
 
 afterEach(() => {
   delete process.env.COSTI_CFO_MODE;
+  delete process.env.COSTI_MODEL;
 });
 
 describe("COSTI_CFO_MODE flag", () => {
@@ -44,19 +45,32 @@ describe("getChatParams", () => {
     });
   });
 
-  it("cfo mode upgrades model, tokens, temperature and tool rounds", () => {
+  it("cfo mode upgrades model, tokens and tool rounds; omits temperature", () => {
     const p = getChatParams(true);
-    expect(p.model).toBe("claude-sonnet-4-5");
+    expect(p.model).toBe("claude-sonnet-5");
     expect(p.maxTokens).toBe(4096);
-    expect(p.temperature).toBe(0.3);
+    expect(p.temperature).toBeNull();
     expect(p.maxToolRounds).toBe(8);
   });
 
   it("reads the env flag when no argument is given", () => {
     process.env.COSTI_CFO_MODE = "on";
-    expect(getChatParams().model).toBe("claude-sonnet-4-5");
+    expect(getChatParams().model).toBe("claude-sonnet-5");
     delete process.env.COSTI_CFO_MODE;
     expect(getChatParams().model).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("COSTI_MODEL overrides the CFO model only", () => {
+    process.env.COSTI_MODEL = "claude-opus-4-8";
+    const cfo = getChatParams(true);
+    expect(cfo.model).toBe("claude-opus-4-8");
+    expect(cfo.maxTokens).toBe(4096);
+    expect(getChatParams(false).model).toBe("claude-haiku-4-5-20251001");
+  });
+
+  it("ignores an empty COSTI_MODEL", () => {
+    process.env.COSTI_MODEL = "  ";
+    expect(getChatParams(true).model).toBe("claude-sonnet-5");
   });
 });
 

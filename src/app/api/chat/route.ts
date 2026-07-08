@@ -7,10 +7,44 @@ import {
   getChatParams,
   type ChatParams,
 } from "@/modules/costi";
+import { computeCostUsd, type UsageTotals } from "@/modules/costi/pricing";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+interface TurnUsage extends UsageTotals {
+  rounds: number;
+}
+
+async function recordChatUsage(
+  userId: string,
+  model: string,
+  usage: TurnUsage,
+  page: string | undefined,
+  durationMs: number
+): Promise<void> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.chatUsage.create({
+      data: {
+        userId,
+        model,
+        rounds: usage.rounds,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cacheWriteTokens: usage.cacheWriteTokens,
+        cacheReadTokens: usage.cacheReadTokens,
+        costUsd: computeCostUsd(model, usage),
+        page: page ?? null,
+        durationMs,
+      },
+    });
+  } catch (err) {
+    // Accounting must never break the chat itself.
+    console.error("chat usage record failed:", err);
+  }
 }
 
 export async function POST(request: Request) {
@@ -49,15 +83,32 @@ export async function POST(request: Request) {
   }));
 
   const encoder = new TextEncoder();
+  const startedAt = Date.now();
   const stream = new ReadableStream({
     async start(controller) {
+      const usage: TurnUsage = {
+        rounds: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+      };
       try {
-        await processWithTools(client, systemPrompt, chatParams, apiMessages, user.id, controller, encoder);
+        await processWithTools(client, systemPrompt, chatParams, apiMessages, user.id, controller, encoder, usage);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         controller.enqueue(encoder.encode(`\n\nEroare: ${msg}`));
       } finally {
         controller.close();
+        if (usage.rounds > 0) {
+          await recordChatUsage(
+            user.id,
+            chatParams.model,
+            usage,
+            context?.page,
+            Date.now() - startedAt
+          );
+        }
       }
     },
   });
@@ -78,7 +129,8 @@ async function processWithTools(
   messages: MessageParam[],
   userId: string,
   controller: ReadableStreamDefaultController,
-  encoder: TextEncoder
+  encoder: TextEncoder,
+  usage: TurnUsage
 ) {
   let currentMessages = [...messages];
   // Text emitted alongside tool calls is transition narration ("Sa verific...")
@@ -90,11 +142,26 @@ async function processWithTools(
     const response = await client.messages.create({
       model: params.model,
       max_tokens: params.maxTokens,
-      temperature: params.temperature,
-      system: systemPrompt,
+      ...(params.temperature !== null ? { temperature: params.temperature } : {}),
+      // cache_control on the system block caches tools + system prompt
+      // (~30k tokens, identical across turns and rounds): cache reads bill
+      // at 10% of input price.
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       tools: COSTI_TOOLS,
       messages: currentMessages,
     });
+
+    usage.rounds += 1;
+    usage.inputTokens += response.usage.input_tokens;
+    usage.outputTokens += response.usage.output_tokens;
+    usage.cacheWriteTokens += response.usage.cache_creation_input_tokens ?? 0;
+    usage.cacheReadTokens += response.usage.cache_read_input_tokens ?? 0;
 
     const hasToolUse = response.content.some((b) => b.type === "tool_use");
     const roundText = response.content

@@ -25,7 +25,8 @@ export function isCfoModeEnabled(): boolean {
 export interface ChatParams {
   model: string;
   maxTokens: number;
-  temperature: number;
+  /** null = omit from the API call (claude-sonnet-5+ rejects temperature). */
+  temperature: number | null;
   maxToolRounds: number;
 }
 
@@ -36,15 +37,24 @@ const LEGACY_PARAMS: ChatParams = {
   maxToolRounds: 5,
 };
 
+const CFO_DEFAULT_MODEL = "claude-sonnet-5";
+
 const CFO_PARAMS: ChatParams = {
-  model: "claude-sonnet-4-5",
+  model: CFO_DEFAULT_MODEL,
   maxTokens: 4096,
-  temperature: 0.3,
+  temperature: null,
   maxToolRounds: 8,
 };
 
+/**
+ * CFO-mode model is overridable via COSTI_MODEL (e.g. to trial an Opus
+ * snapshot in prod with `kubectl set env`, no rebuild). Legacy mode stays
+ * pinned: it is the byte-identical rollback path.
+ */
 export function getChatParams(cfoMode: boolean = isCfoModeEnabled()): ChatParams {
-  return cfoMode ? CFO_PARAMS : LEGACY_PARAMS;
+  if (!cfoMode) return LEGACY_PARAMS;
+  const override = process.env.COSTI_MODEL?.trim();
+  return override ? { ...CFO_PARAMS, model: override } : CFO_PARAMS;
 }
 
 function loadJSON(dir: string, filename: string): Record<string, unknown> {
