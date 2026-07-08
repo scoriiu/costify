@@ -1,97 +1,12 @@
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam, ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import { COSTI_TOOLS, handleToolCall } from "@/modules/costi";
-
-const TRAINING_ROOT = join(process.cwd(), "training/contabil");
-const STRUCTURED_DIR = join(TRAINING_ROOT, "structured");
-const MAX_TOOL_ROUNDS = 5;
-
-function loadJSON(filename: string): Record<string, unknown> {
-  const path = join(STRUCTURED_DIR, filename);
-  if (!existsSync(path)) return {};
-  return JSON.parse(readFileSync(path, "utf-8"));
-}
-
-function loadTrainingFile(filename: string): string {
-  const path = join(TRAINING_ROOT, filename);
-  if (!existsSync(path)) return "";
-  return readFileSync(path, "utf-8");
-}
-
-const SAGA_KEYWORDS = [
-  "saga", "inchidere luna", "validare", "devalidare", "configurare societati",
-  "conturi automate", "nomenclat", "gestiune global", "coeficient k",
-  "registru casa", "jurnal banca", "stat de plata", "nir", "fisa cont",
-  "cartea mare", "spv", "d100", "d101", "d700", "diferente curs",
-];
-
-function buildSystemPrompt(question: string): string {
-  const taxRates = loadJSON("tax-rates.json");
-  const calendar = loadJSON("tax-calendar.json");
-  const payroll = loadJSON("payroll.json");
-  const corporate = loadJSON("corporate.json");
-  const penalties = loadJSON("penalties.json");
-  const costifyApp = loadJSON("costify-app.json");
-
-  const q = question.toLowerCase();
-  const needsSaga = SAGA_KEYWORDS.some((kw) => q.includes(kw));
-  const sagaContext = needsSaga ? loadTrainingFile("saga-c.md") : "";
-
-  return `Esti Costica (Costi), expert contabil roman si asistentul integrat al platformei Costify (https://costify.ro).
-
-CINE ESTI:
-- Expert contabil cu cunostinte profunde de legislatie romaneasca
-- Asistentul platformei Costify — cunosti toate functiile, fluxurile si paginile aplicatiei
-- Ai acces la datele financiare ale clientilor utilizatorului prin tool-uri (functii)
-- Cand userul intreaba despre un client specific, FOLOSESTE tool-urile pentru a obtine date reale
-- Nu inventa cifre — daca nu ai date, foloseste tool-ul corespunzator
-
-REGULI TOOL-URI:
-- Foloseste list_clients pentru a vedea ce clienti are userul
-- Foloseste get_client_kpis, get_balance, get_cpp, get_journal_entries pentru date financiare
-- Foloseste get_available_periods pentru a vedea ce perioade sunt disponibile
-- INTOTDEAUNA verifica datele prin tool-uri inainte sa raspunzi cu cifre
-- Poti combina mai multe tool-uri pentru a raspunde la intrebari complexe
-
-REGULI GENERALE:
-- Raspunde in romana
-- Citeaza articolul de lege pentru intrebari contabile (ex: "art. 47 CF")
-- Pentru intrebari contabile, incheie cu tabel Concluzie Sintetica (Punct | Afirmatie | Status | Baza legala)
-- Status: confirmat, incorect, necesita atentie
-- Nu inventa valori — daca nu stii, spune "necesita verificare"
-- Pentru intrebari Saga C, da instructiuni pas cu pas cu meniuri si butoane exacte
-- Pentru intrebari Costify, descrie fluxul exact cu tab-uri, butoane si pasi
-- NU narezi procesul tau intern. Raspunde direct cu rezultatele.
-
-FORMATARE:
-- NU folosi emoji-uri (fara simboluri colorate)
-- Foloseste DOAR markdown standard: # ## ### pentru titluri, **bold**, - pentru liste, | pentru tabele
-- Pentru status in tabele foloseste cuvintele: Confirmat, Incorect, Atentie
-- Fiecare sectiune separata cu --- (horizontal rule)
-- Liste cu - (cratima), NU cu emoji sau alte simboluri
-- Numerele financiare in format romanesc (1.234,56 RON)
-
-PLATFORMA COSTIFY:
-${JSON.stringify(costifyApp, null, 2)}
-
-DATE FISCALE 2026:
-${JSON.stringify(taxRates, null, 2)}
-
-CALENDAR FISCAL:
-${JSON.stringify(calendar, null, 2)}
-
-PAYROLL:
-${JSON.stringify(payroll, null, 2)}
-
-CORPORATE:
-${JSON.stringify(corporate, null, 2)}
-
-SANCTIUNI:
-${JSON.stringify(penalties, null, 2)}
-${sagaContext ? `\nGHID SAGA C:\n${sagaContext}` : ""}`;
-}
+import {
+  COSTI_TOOLS,
+  handleToolCall,
+  buildSystemPrompt,
+  getChatParams,
+  type ChatParams,
+} from "@/modules/costi";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -115,6 +30,7 @@ export async function POST(request: Request) {
 
   const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
   const systemPrompt = buildSystemPrompt(lastUserMessage?.content ?? "");
+  const chatParams = getChatParams();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const apiMessages: MessageParam[] = messages.map((m) => ({
@@ -126,7 +42,7 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        await processWithTools(client, systemPrompt, apiMessages, user.id, controller, encoder);
+        await processWithTools(client, systemPrompt, chatParams, apiMessages, user.id, controller, encoder);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         controller.enqueue(encoder.encode(`\n\nEroare: ${msg}`));
@@ -148,6 +64,7 @@ export async function POST(request: Request) {
 async function processWithTools(
   client: Anthropic,
   systemPrompt: string,
+  params: ChatParams,
   messages: MessageParam[],
   userId: string,
   controller: ReadableStreamDefaultController,
@@ -155,11 +72,11 @@ async function processWithTools(
 ) {
   let currentMessages = [...messages];
 
-  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+  for (let round = 0; round < params.maxToolRounds; round++) {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
-      temperature: 0.1,
+      model: params.model,
+      max_tokens: params.maxTokens,
+      temperature: params.temperature,
       system: systemPrompt,
       tools: COSTI_TOOLS,
       messages: currentMessages,

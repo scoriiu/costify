@@ -407,5 +407,12 @@
     "model": "Fiecare User (contabil) are mai multi Clients (firme/SRL-uri)",
     "isolation": "JournalLine are clientId direct, izolare la nivel de serviciu",
     "audit": "Fiecare actiune (import, stergere) creeaza un AuditEvent cu checksum SHA-256"
+  },
+  "costi_cfo_mode": {
+    "description": "ADR-0005 Stage 2 (iul 2026). Costi are un mod CFO activat de flag-ul de mediu COSTI_CFO_MODE=on. In modul CFO, Costi urmeaza 16 playbook-uri (training/cfo/structured/cfo-playbooks.json): diagnostic client nou, verdict lunar, cash si rezistenta, puntea profit-cash, dividende, descompunerea marjei, concentrare, incasari/DSO, plafon micro, angajare, break-even, CapEx/utilizare, bancabilitate, taxe de plata, alarma timpurie. Documentatia umana: /docs/costi-cfo-playbooks (RO, interactiv) si docs/costi/cfo-playbooks.md (EN).",
+    "mode_switch": "Intrebarile de cautare raman raspunsuri directe; intrebarile de decizie/evolutie (pot sa, de ce, ce-ar fi daca, cum merge) primesc postura CFO: verdict intai, dovezi, cauza, recomandare cu suma si termen, marcata ACUM/LUNA ASTA/DE URMARIT.",
+    "flag_behavior": "COSTI_CFO_MODE nesetat sau diferit de 'on' = comportamentul clasic, byte-identic (Haiku, temperatura 0.1, 2048 tokeni, 5 runde de tool-uri, prompt cu JSON pretty-printed). 'on' = playbook-uri injectate, JSON compactat, model claude-sonnet-4-5, temperatura 0.3, 4096 tokeni, 8 runde de tool-uri. Rollback instant prin scoaterea flag-ului, fara reziduu (ruta de chat e stateless).",
+    "no_budget_rule": "Costify nu are suprafata de buget/plan. In modul CFO, Costi nu invoca niciodata 'buget'; compara cu luna precedenta, anul precedent si trendul 3-6 luni.",
+    "implementation": "src/modules/costi/prompt.ts (buildSystemPrompt cu flag, getChatParams), src/app/api/chat/route.ts (parametrii din getChatParams). Teste: tests/unit/modules/costi/prompt.test.ts."
   }
 }
