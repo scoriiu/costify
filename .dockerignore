@@ -4,7 +4,6 @@ node_modules
 .idea
 temp
 reference
-training
 docs/*
 !docs/ro
 tests
@@ -13,3 +12,4 @@ tests
 !docs/ro/*.md
 .env
 .env.*
+!training/**/*.md

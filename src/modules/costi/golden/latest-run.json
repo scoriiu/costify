@@ -1,0 +1,1299 @@
+{
+  "ranAt": "2026-07-09T17:07:40.621Z",
+  "durationMs": 893878,
+  "totals": {
+    "cases": 24,
+    "passed": 24,
+    "costUsd": 3.4081
+  },
+  "cases": [
+    {
+      "id": "overview_patron",
+      "title": "P00 - prezentare generala, vocea patron",
+      "question": "Spune-mi despre firma mea",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/Roche/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/28\\.0\\d\\d/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_not_contain:\"RO31679778\"",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_not_contain:/\\bCAEN\\b/",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 32944,
+      "costUsd": 0.29751,
+      "answer": "Verdictul: firma castiga bine (544.150 lei profit de la inceputul anului, marja 18 din fiecare 100 lei incasati), dar are doua probleme serioase chiar acum: nu are bani in cont si depinde aproape in totalitate de un singur client.\n\n**Banii din cont sunt in minus** — la ultima zi cu date (29 iunie), contul arata -28.073 lei. Asta inseamna ca firma cheltuie mai mult decat incaseaza in acest moment sau lipsesc incasari care nu au ajuns inca in evidenta. Trebuie verificat cu extrasul de cont inainte de orice alta decizie — nu e ceva de amanat.\n\n**Depinzi de un singur client pentru aproape toti banii** — Roche Diagnostics aduce 87 din fiecare 100 lei incasati anul asta (2.614.387 lei din 2.984.844 lei total). Stiu ca ai contract pe termen lung cu ei, cu renegociere programata in martie 2027, ceea ce e o veste buna de stabilitate — dar pana atunci, daca ceva se intampla cu ei (intarziere mare la plata, o problema neasteptata), firma simte imediat, pentru ca urmatorul client mare aduce doar 3-4 din 100 lei.\n\nAlte doua lucruri de tinut minte:\n- Iunie pare o luna neterminata (incasari mult sub ritmul ultimelor luni), asa ca inca nu tragem linie pe cum s-a incheiat.\n- Firma are 12 oameni, cu salarii fixe (nu depind de cat vindeti), ceea ce inseamna ca la o scadere de vanzari costurile nu scad automat cu ele.\n\nVrei sa incepem prin a lamuri de ce e contul in minus — verificam extrasul de banca fata de ce arata evidenta?"
+    },
+    {
+      "id": "overview_contabil",
+      "title": "P00 - diagnostic client, vocea contabil",
+      "question": "Ce parere ai despre clientul asta? Fa-mi un diagnostic.",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/Roche/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/iunie/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_trends"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 46977,
+      "costUsd": 0.339255,
+      "answer": "**Verdict: firma e profitabilă pe hârtie dar traversează o criză de lichiditate reală, cauzată de dependența aproape totală de un singur client.**\n\nMarja YTD arată bine (18,23%, rezultat 544.151 lei), dar cash-ul a explodat negativ: de la +649.625 lei la final de aprilie, la -174.056 lei la final de mai (o scădere de peste 823.000 lei într-o singură lună) și a rămas negativ, -28.073 lei, la 29 iunie — ultima zi cu date din jurnal.\n\n| Luna | Venituri | Rezultat | Marja | Cash la final de lună |\n|---|---|---|---|---|\n| Aprilie 2026 | 555.644 | 20.260 | 3,65% | 649.625 |\n| Mai 2026 | 759.679 | 151.491 | 19,94% | -174.056 |\n| Iunie 2026 (parțial) | 117.761 | 139 | 0,12% | -28.073 |\n\n**Cauza:** IESIRE ROCHE DIAGNOSTICS INTERNATIONAL LTD reprezintă 87,59% din veniturile YTD (2.614.387 lei) — al doilea partener, Ioan Crăciun, e la doar 3,63%. Practic firma trăiește dintr-un singur contract. În același timp, creanțele clienți sunt de 702.530 lei — foarte probabil majoritatea sunt facturi Roche neîncasate încă, ceea ce explică exact de ce rezultatul e pozitiv dar banii nu sunt în cont: profitul există pe hârtie, dar stă blocat în facturi neîncasate de la un singur partener de care depinzi 87,6%.\n\n**Risc:** știu că ai contract pe termen lung cu Roche, cu renegociere programată în martie 2027 — asta e liniștitor pe termen mediu, dar nu rezolvă golul de cash de acum. Dacă Roche întârzie o singură plată mare, firma n-are al doilea client care să acopere diferența.\n\n**Recomandare:**\n- **ACUM**: verifică scadențarul celor 702.530 lei creanțe — cât din sumă e Roche și cât e restant peste termen. Dacă o factură mare Roche e scadentă, e prioritatea zilei.\n- **LUNA ASTA**: discută cu Roche un termen de plată mai scurt sau avansuri parțiale, dat fiind cât de concentrat e riscul pe acest partener.\n- **DE URMĂRIT**: iunie pare o lună incompletă (117.761 lei venituri vs 654.775 lei media ultimelor 3 luni) — nu trage concluzii finale până nu confirmi că jurnalul e complet pentru luna asta.\n\nO mențiune tehnică: 90,65% din cheltuieli stau nealocate pe linia de business default, deci orice cifră \"pe linii\" ar fi cosmetizată acum — nu o folosi în decizii până nu se mapează.\n\nVrei să vedem exact câte zile întârzie Roche la plată și care e scadențarul detaliat?"
+    },
+    {
+      "id": "cash_runway",
+      "title": "P02 - cash si rezistenta",
+      "question": "Cati bani avem si cat rezistam daca nu mai intra nimic?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/28\\.0\\d\\d/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/iunie/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 39400,
+      "costUsd": 0.077252,
+      "answer": "Sunteti deja pe minus: la 29 iunie aveati **-28.073 lei** in cont. Practic, daca maine n-ar mai intra niciun leu, firma nu are din ce sa traiasca nici o zi — sunteti sub zero chiar acum, nu doar aproape de limita.\n\nCateva lucruri importante inainte sa tragem concluzia finala:\n\n- **Iunie pare o luna neinchisa complet** in evidente — incasarile inregistrate pana acum (117.761 lei) sunt de trei ori mai mici decat media ultimelor luni (aproape 655.000 lei/luna). E foarte posibil sa lipseasca pur si simplu niste incasari care nu au fost inca inregistrate, nu ca banii chiar au disparut din firma.\n- **Aveti 702.530 lei in facturi neincasate** de la clienti — o suma foarte mare fata de cati bani sunt acum in cont. Daca o parte semnificativa vine de la Roche (partenerul care aduce aproape 9 din 10 lei ai firmei), o singura incasare de-a lor v-ar scoate imediat din minus.\n- Cheltuielile lunare sunt foarte mari (peste 500.000 lei/luna in medie), dar stiu ca salariile voastre sunt fixe si contractul cu Roche e pe termen lung pana in martie 2027 — deci nu e un cost care sare imprevizibil, doar unul care cere bani sa intre la timp.\n\nRecomandarea de acum: verificati azi extrasul bancar real (nu doar ce arata evidenta) ca sa stiti sigur daca minusul e real sau doar o intarziere de inregistrare, si urmariti indeaproape cand incaseaza Roche din cei 702.530 lei restanti — de asta depinde daca problema se rezolva in cateva zile sau e nevoie de o discutie urgenta cu banca.\n\nVreti sa vedem cat din cele 702.530 lei neincasate vine exact de la Roche si de cat timp asteapta banii aceia?"
+    },
+    {
+      "id": "profit_vs_cash",
+      "title": "P03 - am profit, unde sunt banii",
+      "question": "Pe hartie am profit, dar in cont nu-i vad. Unde sunt banii?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/neincasat|nepl[aă]tit|factur/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/credit|rate|dividend|echipament|masin/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_balance"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 65363,
+      "costUsd": 0.201145,
+      "answer": "Profitul de 544.000 lei e real, dar banii nu exista inca in cont — de fapt esti pe minus, cu contul descoperit cu 28.000 lei. Diferenta se explica aproape in intregime prin patru locuri unde banii s-au dus, dar nu apar ca si cheltuiala in profit.\n\n**Cel mai mare motiv, de departe:** clientii tai nu te-au platit inca 702.500 lei din facturile emise — aproape toata suma vine de la Roche (706.000 lei neincasati). Asta e mai mare decat tot profitul pe 6 luni. Stii ca ai contract pe termen lung cu ei, cu renegociere abia in martie 2027 — dar suma asta stationata la ei e neobisnuit de mare si merita verificata acum, nu doar asteptata.\n\nRestul explicatiei, in ordinea marimii:\n\n- **Rate la banca:** ai platit efectiv aproape 150.000 lei din datoria la credite in aceste 6 luni. Sunt bani reali iesiti din cont, dar in profit nu apar ca o cheltuiala (doar dobanda apare acolo).\n- **Bani trimisi la o firma din grup:** 237.500 lei stau \"parcati\" la o firma afiliata, in afara contului tau.\n- **Dividende scoase:** 40.000 lei ai retras deja anul asta.\n\nPractic: ai castigat bani, dar i-ai lasat la clienti (mai ales Roche), i-ai pus in rate de credit, i-ai trimis la firma sora si ti-ai luat si dividende — de-asta contul e gol si chiar pe minus.\n\nPrioritatea acum: suna-i pe cei de la Roche si cere un calendar clar de plata pentru cei 706.000 lei — chiar si o incasare partiala de 200-300.000 lei luna asta scoate contul din minus si iti da din nou aer. Vrei sa vedem de cate zile intarzie exact plata lor fata de termenul obisnuit?"
+    },
+    {
+      "id": "dividends_150k",
+      "title": "P04 - dividende 150k (regresie benzi CASS)",
+      "question": "Pot sa scot 150.000 lei dividende anul asta? Cat ma costa?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/9\\.720/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/16\\s?%/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_balance",
+        "get_tax_regime_timeline"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 66071,
+      "costUsd": 0.147301,
+      "answer": "**Nu acum — nu ai de unde.** Legal ai voie (capitalul si rezervele nu blocheaza), dar firma sta cu **-28.073 lei in cont** la finalul lui iunie 2026. Practic, distribuibilul (cash minus obligatii de platit) e negativ, deci cei 150.000 lei nu exista fizic in firma azi.\n\n**Ce arata cifrele (iunie 2026 YTD):**\n\n| Punct | Valoare | Verdict |\n|---|---|---|\n| Cash/Banca | -28.073 lei | Blocaj practic — nu legal, dar real |\n| Creante clienti neincasate | 702.531 lei (87,6% de la Roche) | Sursa reala pentru dividende, odata incasata |\n| Datorii furnizori | 108.703 lei | De acoperit inainte de orice retragere |\n| Rezultat reportat (117, cumulat istoric) | ~124.485 lei profit, nu pierdere | Nu exista blocaj din pierdere reportata |\n| Capital social + rezerve legale | 240 lei | Activul net e mult peste jumatate din capitalul social — fara blocaj legal aici |\n\nCauza e simpla: profitul e real (544.151 lei YTD, marja 18,23%), dar banii stau blocati in facturi neincasate de la Roche si ceilalti clienti, nu in cont. Ai castigat pe hartie, dar n-ai incasat inca.\n\n**Costul fiscal, daca ai avea banii:**\n- Impozit dividende 16% retinut la sursa: **24.000 lei** → iti raman 126.000 lei nete imediat\n- CASS: la 150.000 lei/an esti peste plafonul de 97.200 lei, deci CASS e plafonat la **9.720 lei**, dar se plateste separat, prin Declaratia Unica, abia in **2027**\n- Net final, dupa ambele: **116.280 lei**\n\n**Recomandare ACUM:** verifica intai extrasul de banca sa confirmi ca minusul de 28.073 lei e real (nu o eroare de import in jurnal), apoi concentreaza-te pe incasarea Roche — de acolo vine aproape tot cash-ul de care ai nevoie. Dupa ce cash-ul redevine pozitiv si se stabilizeaza macar o luna, putem recalcula o suma sustenabila de dividende.\n\nVrei sa verificam intai cat din cei 702.531 lei de la Roche e deja scadent?"
+    },
+    {
+      "id": "margin_why",
+      "title": "P05 - de ce variaza marja",
+      "question": "De ce a variat marja asa mult in ultimele luni?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "required_tool:get_trends",
+          "level": "must",
+          "ok": true,
+          "detail": "apelat"
+        },
+        {
+          "id": "must_contain:/Roche|factur[aă]?re|concentr/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_trends",
+        "get_partner_analysis",
+        "get_cpp",
+        "get_cpp"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 72867,
+      "costUsd": 0.234217,
+      "answer": "**Verdict:** Marja n-a \"variat\" haotic — a urmat exact ritmul facturarii catre Roche (87,6% din venituri), iar in aprilie s-a suprapus si un salt de costuri salariale de aproape 393.000 lei intr-o singura luna, ceea ce a dus marja de la 32% (martie) la 3,65% (aprilie) inainte sa revina la 19,9% in mai.\n\n**Ce s-a intamplat, luna de luna (flux, nu YTD):**\n\n| Luna | Venituri | Cheltuieli | Marja |\n|---|---|---|---|\n| Ianuarie | 433.080 | 381.459 | 11,9% |\n| Februarie | 469.677 | 394.665 | 16,0% |\n| Martie | 649.003 | 441.242 | 32,0% |\n| Aprilie | 555.644 | 535.384 | 3,65% |\n| Mai | 759.679 | 608.188 | 19,9% |\n| Iunie | 117.761 (partiala) | 117.622 | 0,12% — nu trage concluzii, luna pare deschisa inca |\n\n**Cauza, descompusa:**\n\n1. **Venituri neuniforme din cauza unui singur client.** Martie -> aprilie: veniturile au SCAZUT cu 93.360 lei (de la 649.003 la 555.644), desi in mai au SARIT cu 204.035 lei (+36,7%). Cu Roche la 87,6% din venituri, facturarea vine in valuri de proiect, nu constant lunar — orice luna cu factura mare catre Roche arata marja umflata, orice luna fara ea arata marja subtire, chiar daca activitatea operationala reala e stabila.\n\n2. **Costurile salariale au sarit cu ~393.000 lei in aprilie fata de martie** (din delta YTD pe 641+6422+6461+436), in timp ce restul costurilor operationale au crescut doar marginal. Asta a lovit exact in luna in care veniturile oricum scazusera — dublu efect negativ. Ai spus ca salariile sunt fixe si nu depind de volum; un salt de aceasta marime intr-o singura luna nu arata a variatie normala de fond de salarii, ci a bonus/prim de 13-lea salariu sau a unor angajari concentrate in aprilie — merita verificat cu statul de plata daca a fost recurent sau one-off.\n\n3. **628 (Alte cheltuieli cu servicii)** a mai adaugat 73.400 lei in aprilie fata de martie — al doilea contribuitor, dar mult sub impactul salariilor.\n\n**Recomandare:**\n- **ACUM:** verifica in Saga daca saltul de 393.000 lei din 641/6422/6461 in aprilie e bonus unic sau angajari permanente — daca e recurent, pragul de rentabilitate al firmei s-a mutat sus si trebuie recalculat.\n- **LUNA ASTA:** discuta cu Roche un ritm de facturare mai des (lunar in loc de pe proiect) — atata timp cat un singur partener e 87,6% din venituri, orice discontinuitate de facturare de-al lor iti rescrie marja de la o luna la alta.\n\nVrei sa verificam daca saltul salarial din aprilie a fost bonus unic sau structural (angajari noi)?"
+    },
+    {
+      "id": "concentration",
+      "title": "P06 - dependenta de un client",
+      "question": "Cat de dependenti suntem de un singur client?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/Roche/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/%|din (fiecare )?100/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_partner_analysis"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 24770,
+      "costUsd": 0.070316,
+      "answer": "Aproape 9 din fiecare 10 lei care intra in firma vin de la un singur client: Roche Diagnostics International. Asta nu e o dependenta, e un risc de supravietuire.\n\n**Cifrele (ianuarie - iunie 2026):**\n- Roche a adus 2.614.387 lei din totalul de 2.984.844 lei incasati — 87,6%.\n- Urmatorul cel mai mare partener (Ioan Craciun) e la doar 3,6%. Practic, dupa Roche nu mai exista un \"al doilea motor\" real.\n- Daca Roche ar disparea maine, firma pierde aproximativ 435.000 lei pe luna din venituri (media lunara a acestui an) — si ramane doar cu vreo 61.000 lei/luna din restul clientilor, sub jumatate din ce cheltuie lunar acum.\n\n**De ce conteaza acum, nu doar teoretic:**\nFirma are deja banii din cont pe minus (-28.073 lei la finalul lui iunie), deci nu are nicio rezerva care sa amortizeze un soc de genul asta. Stiu ca ai contract pe termen lung cu Roche, cu renegociere programata in martie 2027 — asta e punctul de cotitura real de urmarit, nu o discutie abstracta de \"ce-ar fi daca\".\n\n**Ce fac acum:**\nPana la renegocierea din martie 2027, prioritatea e sa cresti orice altceva. Chiar si un al doilea client la 200.000-300.000 lei/an ar taia dependenta la sub 80%. In paralel, verifica azi cati bani iti datoreaza Roche in acest moment (facturi neincasate) — daca sunt sume mari acolo, orice tensiune la renegociere iti loveste si cash-ul, nu doar veniturile viitoare.\n\nVrei sa vedem exact cat din cei 702.530 lei de facturi neincasate stau la Roche?"
+    },
+    {
+      "id": "receivables",
+      "title": "P07 - cine ne datoreaza bani",
+      "question": "Cine ne datoreaza bani si cat de grava e situatia?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/702\\.53|Roche/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_balance"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 37750,
+      "costUsd": 0.106903,
+      "answer": "Situatia e serioasa: firma sta cu banii in cont pe minus (-28.073 lei) chiar in momentul in care asteapta sa incaseze 702.530 lei de la clienti — si aproape toata suma vine de la un singur client.\n\n**Cine iti datoreaza:**\n- Roche Diagnostics International: aproape 706.000 lei neincasati — practic toata suma pe care o astepti.\n- Lionbridge International: circa 19.000 lei.\n- Restul clientilor (Gracel, Isokinetic, Thales, Ioan Craciun etc.) nu mai au nimic neincasat in acest moment — au fost platiti la zi.\n\n**Ce inseamna asta:** Firma depinde in totalitate de un singur client ca sa iasa din minus. Stiu ca ai contract pe termen lung cu Roche, cu renegociere abia in martie 2027, deci nu e un risc de plecare — dar acum, pe termen scurt, orice intarziere suplimentara de-a lor tine firma cu banii pe minus, fara nicio rezerva. Nu mai ai alt client mare care sa echilibreze lucrurile daca Roche intarzie.\n\n**Ce faci acum:** Suna sau scrie-i lui Roche saptamana asta si cere o plata partiala, macar 300.000-400.000 lei, ca sa readuci contul pe plus. Nu astepta scadenta urmatoare — cu banii deja pe minus, orice zi in plus conteaza.\n\nVrei sa vad de cate zile sunt neincasate exact facturile Roche, ca sa stii cat de urgent sa insisti?"
+    },
+    {
+      "id": "micro_adversarial",
+      "title": "P08 - plafonul micro (firma e pe profit din 2023)",
+      "question": "Mai incapem in plafonul de microintreprindere anul asta?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "required_tool:get_tax_regime_timeline",
+          "level": "must",
+          "ok": true,
+          "detail": "apelat"
+        },
+        {
+          "id": "must_contain:/impozit pe profit|profit standard/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/2023/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_tax_regime_timeline"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 19119,
+      "costUsd": 0.060278,
+      "answer": "Nu e o discutie despre \"mai incapem\" — firma e deja de mult peste plafon, si corect incadrata la impozit pe profit 16% din 2023.\n\n**Cifrele:** venituri YTD ianuarie-iunie 2026: 2.984.844 lei. Plafonul micro pentru tot anul e 100.000 EUR, adica ~509.850 lei (curs 31.12.2025: 5,0985). QHM21 e deja la aproape 6x plafonul anual, doar in 6 luni.\n\n**De ce sta pe profit standard:** jurnalul arata tranzitia la profit_standard (cont 691) din 1 ianuarie 2023, cand cifra de afaceri a depasit plafonul micro de atunci. E stabila acolo de 3 ani. Nu exista niciun scenariu in care revine la micro cu acest nivel de venituri — ar trebui sa scada sub 500.000 lei anual, adica de 6 ori mai putin decat acum.\n\n**O nota separata, nu legata de plafon:** 2025 are un semnal in jurnal — s-au inregistrat sume atat pe 691 (30.041 lei) cat si pe 698 (24.142 lei) in acelasi an. Cel mai probabil e un rebooking la inchidere, dar merita verificat sa nu fie o eroare de inregistrare, ca sa nu ridice intrebari la un control.\n\nVrei sa verific inregistrarile din 2025 pe conturile 691/698 ca sa lamurim acel semnal mixt?"
+    },
+    {
+      "id": "hiring",
+      "title": "P09 - imi permit un angajat nou",
+      "question": "Imi permit sa mai angajez un om la 5.000 lei net?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/8\\.\\d{3}|8\\.7/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_employee_counts",
+        "get_trends",
+        "get_industry_kpis"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 45672,
+      "costUsd": 0.122473,
+      "answer": "**Verdict: financiar iti permiti angajarea (firma castiga in medie ~101.000 lei pe luna), dar NU chiar acum — contul e pe minus.**\n\nCe arata cifrele:\n\n- Firma a castigat in medie **101.000 lei pe luna** intre ianuarie si mai (iunie pare o luna neinchisa inca, deci n-o pun la socoteala). Un angajat nou la 5.000 lei in mana te costa complet, cu tot cu taxe, aproximativ **8.750 lei pe luna**. Din acest punct de vedere, iti permiti usor — e sub 10% din castigul lunar mediu.\n\n- Problema e alta: **acum ai bani putini in cont, de fapt esti pe minus cu 28.000 lei**. Motivul nu e ca firma nu castiga, ci ca **un singur client — Roche — iti datoreaza in acest moment 702.500 lei din facturi neincasate**, si Roche reprezinta aproape 9 din 10 lei din tot ce factureaza firma. Cand banii lui intarzie, tot contul tau se leaga de intarzierea aia.\n\n- In plus, din fiecare 100 lei incasati, **58 lei se duc deja pe salarii si taxele echipei** — usor peste nivelul sanatos pentru un business ca al tau (sub 55). Un angajat in plus mai impinge acest procent in sus.\n\nRecomandare: **nu semna contractul acum**. Asteapta pana incasezi macar o parte din cei 702.500 lei de la Roche (sau pana contul revine pe plus), apoi angajezi linistit — bugetul e acolo, doar ca nu e in banca inca. Daca angajezi chiar acum, riști sa nu ai lichiditate la data platii salariului.\n\nVrei sa vedem cat de departe e programata renegocierea contractului cu Roche (martie 2027) si ce inseamna asta pentru planul de angajare pe termen mai lung?"
+    },
+    {
+      "id": "breakeven_memory",
+      "title": "P10 - prag de rentabilitate cu memoria salariilor",
+      "question": "De la ce incasari lunare suntem pe plus?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/fix/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/lei/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_not_contain:/salariile.*(sunt|le ave[tț]i).*(fixe sau|sau variabile)\\?/i",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_mappings_overview",
+        "get_trends"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 59066,
+      "costUsd": 0.14785,
+      "answer": "## Pragul de rentabilitate\n\nSunteti pe plus incepand de la aproximativ **456.000 lei incasari pe luna**. In primele cinci luni din an ati facut in medie **573.000 lei/luna** (intre 433.000 si 760.000 lei, dupa luna), deci aveti o rezerva de siguranta de circa **20-25%** peste pragul de plus-minus.\n\n**De ce e asa de aproape de fix:**\nAproape toate costurile firmei sunt fixe — curg la fel indiferent cat vindeti: salariile (care mi-ati spus ca sunt fixe, nu variaza cu volumul), chiria, contabilitatea si abonamentele IT, taxele. Doar aproximativ **3 din fiecare 100 lei** cheltuiti (materiale, piese, combustibil) se leaga direct de cat de multa activitate aveti. Restul de 97 din 100 curge oricum.\n\n**Consecinta practica:** cand aproape tot costul e fix, o scadere de vanzari loveste profitul direct, nu treptat. Daca incasarile ar scadea cu 20% fata de medie (de la ~650.000 la ~520.000 lei/luna), tot ati fi pe plus, dar profitul lunar s-ar duce de la aproximativ 188.000 lei la doar 62.000 lei — o scadere de aproape doua treimi, desi vanzarile ar scadea \"doar\" cu o cincime.\n\n**De urmarit:** acest prag devine mult mai fragil din cauza unui singur lucru — mai mult de jumatate (de fapt 87,6%) din tot ce incasati vine de la un singur partener (Roche), cu care renegociati contractul in martie 2027. Daca acel contract se subtiaza, pragul de 456.000 lei nu se misca, dar sansele sa-l atingeti scad brusc.\n\nO intrebare care conteaza acum: vreti sa vedem cat din cei 702.530 lei in facturi neincasate tin de acest partener, ca sa stim exact cat de expusa e rezerva de siguranta de mai sus?"
+    },
+    {
+      "id": "lines_honesty",
+      "title": "P11 - linii de business, verificarea de onestitate",
+      "question": "Cum merg liniile de business?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/nealoc|Toat[aă] firma|cosmetiz/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_business_lines",
+        "get_business_lines",
+        "get_trends"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 42882,
+      "costUsd": 0.121542,
+      "answer": "**Verdict:** Toate trei liniile arata rezultat pozitiv si in crestere, dar cifra e cosmetizata: 91% din cheltuielile YTD (2.246.840 lei din 2.478.559 lei) stau nealocate pe \"Toata firma\" — inclusiv cei 12 angajati cu salarii fixe (stiu deja ca nu variaza cu volumul). Pana nu impartim echipa pe linii, marjele de mai jos sunt suprapraviteme.\n\n**Ce arata jurnalul (ian-iun 2026, cumulat):**\n\n| Linie | Venituri | Cheltuieli | Rezultat | Marja aparenta |\n|---|---|---|---|---|\n| Outsourcing | 1.276.639 lei | 87.866 lei | 1.188.773 lei | 93% |\n| Coworking | 933.209 lei | 140.657 lei | 792.551 lei | 85% |\n| Recrutare | 664.287 lei | 3.195 lei | 661.092 lei | 99,5% |\n| Toata firma (nealocat) | 110.709 lei | 2.246.841 lei | -2.136.131 lei | — |\n\nTrendul lunar (fara iunie, care e partial — vezi mai jos) arata Outsourcing in crestere constanta: 193k lei in ianuarie -> 336k lei in mai, aproape dublu. Recrutare si Coworking cresc mai lin, dar tot pozitiv luna de luna.\n\n**De ce nu poti decide pe baza asta:** Rezultatul de 661.092 lei pe Recrutare cu doar 3.195 lei cheltuieli alocate e nerealist — inseamna ca practic tot costul echipei care lucreaza pe Recrutare (salarii, utilitati, chirie) sta pe linia default, nu pe linie. Acelasi lucru se intampla cu Outsourcing si Coworking, doar ca proportiile difera. Practic vezi doar venitul brut al fiecarei linii, nu profitabilitatea ei reala.\n\nO nota separata: iunie 2026 arata un tipar ciudat (venituri 108.313 lei aparute direct pe \"Toata firma\", in loc sa mearga pe cele trei linii ca in lunile anterioare) — pare o luna partiala/inchidere incompleta, nu trage concluzii din ea inca.\n\n**Ce fac acum:** ca sa impartim corect cei 1,63M lei de cheltuieli nealocate pe cele trei linii, am nevoie sa stiu cati din cei 12 angajati lucreaza efectiv pe fiecare linie (Outsourcing / Recrutare / Coworking / suport). Poti sa-mi spui aproximativ impartirea?"
+    },
+    {
+      "id": "bank",
+      "title": "P13 - bancabilitate, doar ancore oficiale",
+      "question": "Ma imprumuta banca daca cer un credit?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "must_contain:/lichidit|activ net|dob[aâ]nz/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_not_contain:/banca cere (minim|un prag)/i",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_balance",
+        "get_industry_kpis"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 68987,
+      "costUsd": 0.214107,
+      "answer": "**Verdict: probabil da, dar cu conditii — profitabilitatea si acoperirea dobanzii sunt puternice, insa banca va opri ochiul pe gradul de indatorare (73%) si pe cash-ul aproape inexistent la ultima balanta.**\n\nCifrele de iunie 2026 (cumulat YTD):\n\n| Indicator | Valoare | Prag orientativ | Ce arata |\n|---|---|---|---|\n| Lichiditate curenta | 2,31 | ~2,0 | Bine — activele curente acopera confortabil datoriile pe termen scurt |\n| Rata cash (Cash Ratio) | 0,09 | > 0,5 | Slab — cash aproape zero, corelat cu cash negativ -28.073 lei la iunie |\n| Capitaluri proprii (activ net) | ~610.373 lei | > 1/2 capital social (100 lei) | Pozitiv, fara blocaj legal — dar capitalul social e simbolic (200 lei), nu spune nimic despre soliditate reala |\n| Datorii / Capital propriu | 1,57 | < 1,0 | Peste prag — finantare majoritar din datorii, nu din capital propriu |\n| Grad de indatorare | 73% | < 40% | Ridicat — aproape 3/4 din active sunt finantate prin datorii |\n| Acoperire dobanzi (EBIT/Dobanzi) | 19,62x | > 3,0 | Foarte solid — profitul acopera de aproape 20 de ori dobanzile actuale |\n\nCe va vedea concret banca in dosar: o firma profitabila (marja neta 16,3%, ROE 159%) care isi serveste usor datoria curenta, dar care sta pe un grad de indatorare mare si pe o creanta uriasa concentrata la un singur client — soldul Roche Diagnostics e 705.840 lei, aproape tot soldul de 702.530 lei de creante clienti YTD. Un ofiter de credit va intreba explicit despre acest client si despre contractul cu el.\n\nDoua lucruri de rezolvat inainte sa aplici, in ordinea impactului asupra dosarului:\n1. **Clarifica pozitia de cash** — soldul de -28.073 lei la iunie trebuie verificat cu extrasul de cont; daca e real (descoperit), afecteaza direct rata cash pe care banca o citeste prima. Daca e o problema de import in jurnal, corecteaz-o inainte de a genera balanta pentru dosar.\n2. **Incaseaza o parte din soldul Roche** — chiar si 200.000-300.000 lei incasati inainte de aplicare imbunatatesc simultan cash-ul, lichiditatea rapida si gradul de indatorare (prin cresterea activului lichid raportat la datorii).\n\nVrei sa vedem cat s-ar imbunata gradul de indatorare daca incasezi, de exemplu, 300.000 lei din soldul Roche inainte de a depune dosarul?"
+    },
+    {
+      "id": "taxes_due",
+      "title": "P14 - cat am de platit la stat",
+      "question": "Cat avem de platit la stat luna asta?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/TVA/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/25/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_balance",
+        "get_tax_regime_timeline"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 74080,
+      "costUsd": 0.192829,
+      "answer": "**Pana pe 25 iulie aveti de virat catre stat aproximativ 217.000 lei — plus o veste buna: la TVA statul va este dator, nu invers.**\n\nIata din ce se aduna suma, pe baza ultimelor date din jurnal (29 iunie 2026):\n\n- Taxe legate de salariile angajatilor (pensii, sanatate, impozit pe venit si contributia pentru munca): **176.973 lei**\n- Impozit pe profit (pentru trimestrul aprilie-iunie): **30.041 lei**\n- Alte taxe mici (chirii si diverse): **10.050 lei**\n- **Total de virat: cca. 217.000 lei**\n\nLa TVA nu platiti nimic luna asta — dimpotriva, aveti **40.074 lei de recuperat** de la stat, pentru ca ati cumparat mai mult decat ati facturat in aceasta perioada.\n\nO atentionare: iunie pare o luna incheiata partial in jurnal (ultima inregistrare e din 29 iunie, iar veniturile lunii sunt mult sub ritmul normal), deci s-ar putea sa mai apara inregistrari pentru salarii sau alte cheltuieli inainte de inchiderea finala — cifrele de mai sus pot creste putin cand luna se completeaza. V-as recomanda sa puneti deoparte cei 217.000 lei acum, ca sa nu va prinda strans pe 25 iulie, si sa reverificam suma cand luna iunie e inchisa complet."
+    },
+    {
+      "id": "alarm_scan",
+      "title": "P15 - scanare semnale de alarma",
+      "question": "Vezi semnale de alarma la firma asta?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "diagnostic_first",
+          "level": "must",
+          "ok": true,
+          "detail": "diagnosticul deschide"
+        },
+        {
+          "id": "must_contain:/cash|concentr/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 21567,
+      "costUsd": 0.058523,
+      "answer": "Doua alarme reale, nu una singura: firma are cash negativ si depinde aproape total de un singur client.\n\n**1. Cash negativ: -28.073 lei (iunie 2026)**\nContul e pe minus la finalul lunii — fie descoperit de cont, fie lipsesc incasari nereflectate inca in jurnal. Cu 702.531 lei creante clienti in sold, problema pare de *timing* al incasarilor, nu de lipsa de profit (YTD ai rezultat pozitiv 544.151 lei, marja 18,23%). Verifica extrasul bancar inainte sa tragi orice concluzie — daca cash-ul e real negativ, ai nevoie de o incasare urgenta din creante sau o linie de credit, nu de taiat costuri.\n\n**2. Concentrare critica: 87,59% din venituri vin de la Roche Diagnostics International Ltd**\n2.614.387 lei din 2.984.844 lei venituri YTD. Asta nu e doar \"risc de urmarit\", e dependenta structurala — daca Roche intarzie o plata sau renegociaza nefavorabil, firma pierde practic tot. Stiu ca aveti contract pe termen lung cu ei si renegociere programata martie 2027 — merita sa incepi discutia despre termeni (avans, penalitati de intarziere) cu cel putin 2-3 luni inainte, nu in ultima clipa.\n\n**Doua atentionari secundare:**\n- Iunie 2026 pare o luna incompleta (117.761 lei venituri fata de media 654.775 lei/luna pe ultimele 3 luni) — nu trage verdict de performanta pe iunie pana nu confirmi ca jurnalul e complet.\n- 91% din cheltuieli stau nealocate pe linia default — orice cifra pe linii de business (Outsourcing/Recrutare/Coworking) e cosmetizata acum, nu o folosi in decizii.\n\nVrei sa verificam intai daca extrasul bancar confirma cash-ul negativ, sau preferi sa vedem cat din cei 702.531 lei creante e chiar de la Roche si cat de vechi e?"
+    },
+    {
+      "id": "memory_write",
+      "title": "Memorie - salvarea unui fapt nou",
+      "question": "Retine te rog: avem 3 echipe a cate 8 oameni, iar bonusurile se platesc doar in decembrie.",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "required_tool:remember_client_fact",
+          "level": "must",
+          "ok": true,
+          "detail": "apelat"
+        }
+      ],
+      "toolNames": [
+        "remember_client_fact"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 10296,
+      "costUsd": 0.046055,
+      "answer": "Am reținut: firma are 3 echipe a câte 8 oameni (24 de angajați în total), iar bonusurile se plătesc exclusiv în decembrie. Asta explică de ce salariile lunare sunt relativ constante restul anului, cu un vârf în decembrie din bonusuri — o să țin cont de asta când analizăm evoluția costurilor cu personalul sau pragul de rentabilitate."
+    },
+    {
+      "id": "memory_recall",
+      "title": "Memorie - ce stie deja despre firma",
+      "question": "Ce stii deja despre firma mea din discutiile trecute?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/martie 2027/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/fix/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_facts"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 8162,
+      "costUsd": 0.043406,
+      "answer": "Am doua lucruri retinute despre firma ta:\n\n- **Contractul cu Roche** este pe termen lung, cu renegociere programata in martie 2027.\n- **Salariile** sunt fixe, nu variaza in functie de cat de multa activitate aveti.\n\nVrei sa vedem cum arata acum concentrarea pe Roche sau cat de sustenabile sunt costurile fixe cu salariile?"
+    },
+    {
+      "id": "lookup_fast",
+      "title": "Regula de comutare - lookup ramane scurt",
+      "question": "Cat cash are QHM21 in iunie 2026?",
+      "page": "/costi",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "must_contain:/28\\.0\\d\\d/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "max_length",
+          "level": "warn",
+          "ok": true,
+          "detail": "395 caractere (limita 1600)"
+        }
+      ],
+      "toolNames": [
+        "get_client_kpis"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 12301,
+      "costUsd": 0.273323,
+      "answer": "QHM21 are cash negativ: -28.072,58 lei in banca/casa la finalul lui iunie 2026.\n\nAsta e un semnal serios — firma e pe minus la lichiditati imediate, in ciuda unui rezultat YTD pozitiv de 544.150,66 lei. Diferenta vine probabil din creantele mari (702.530,56 lei de incasat de la clienti) care nu s-au transformat inca in bani. Vrei sa vedem de unde vine golul de cash (P03 - puntea profit-cash)?"
+    },
+    {
+      "id": "page_context",
+      "title": "Context pagina - fara list_clients",
+      "question": "Cati bani am in banca?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "forbidden_tool:list_clients",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/28\\.0\\d\\d/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 14290,
+      "costUsd": 0.053345,
+      "answer": "Nu ai bani in cont – la finalul lunii iunie 2026 contul arata pe minus, -28.073 lei. Practic esti descoperit, nu ai rezerva.\n\nAsta e un semnal serios, pentru ca peste 87 din fiecare 100 lei care intra in firma vin de la un singur client (Roche). Daca de acolo intarzie o plata, situatia se agraveaza rapid.\n\nInainte sa tragem vreo concluzie, verifica cu extrasul de cont real: e posibil ca cifra din -28.073 lei sa fie doar pentru ca lipsesc niste incasari care nu au ajuns inca in evidenta. Ai verificat extrasul bancii pentru sfarsitul lui iunie?"
+    },
+    {
+      "id": "no_budget",
+      "title": "Regula fara buget - nu inventa planuri",
+      "question": "Cum stam fata de buget anul asta?",
+      "page": "/clients/qhm21-network-srl",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "must_contain:/buget/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/trend|an(ul)? (precedent|trecut)/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_trends"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 49743,
+      "costUsd": 0.115779,
+      "answer": "Costify nu urmărește un buget – nu există această suprafață în platformă. Ce pot compara onest e față de aceeași perioadă din 2025 și față de trendul lunar, iar imaginea e bună la prima vedere dar cu două riscuri serioase dedesubt.\n\n**Verdict:** Ianuarie–mai 2026 (exclud iunie, pare parțial) firma a crescut de aproape 5x față de aceeași perioadă din 2025, dar creșterea vine aproape integral de la un singur client, iar la 29.06 casa e pe minus.\n\n| Indicator | 2025 (ian-mai) | 2026 (ian-mai, YTD real) | Diferență |\n|---|---|---|---|\n| Venituri | 606.668 lei | 2.867.083 lei* | +372,7% |\n| Cheltuieli | 512.301 lei | 2.323.071 lei* | +353,5% |\n| Rezultat | 94.367 lei | 544.012 lei* | +476,4% |\n| Marjă | 15,56% | 18,98%* | +3,4 pp |\n\n*calculat scăzând luna iunie (parțială) din cifrele YTD ale diagnosticului.\n\n**Ce înseamnă:** Din cei 2,98 milioane lei venituri YTD, 2.614.387 lei (87,59%) vin de la IESIRE ROCHE DIAGNOSTICS INTERNATIONAL LTD. Fără acest partener, evoluția firmei ar fi fost mult mai modestă, aproape de nivelul 2025. Contractul e pe termen lung cu renegociere programată în martie 2027, deci nu e un risc imediat, dar orice discuție despre \"cum stăm anul ăsta\" trebuie citită prin acest filtru: e performanța unui singur client, nu diversificare reală.\n\nConcomitent, la 29 iunie cash-ul e -28.073 lei (venea dintr-un mai foarte bun, +649.625 lei), iar veniturile lunii iunie (117.761 lei) sunt de 6,4x mai mici decât media ultimelor 3 luni (654.775 lei) — semn că luna nu e închisă complet, nu că afacerea a încetinit brusc.\n\n**Ce faci acum:**\n- **ACUM** – verifică extrasul bancar pentru cash-ul negativ din iunie; dacă nu e descoperit de cont, lipsesc încasări din jurnal.\n- **ACUM** – nu trage verdict pe trimestrul 2 până nu confirmi că iunie e închis integral în Saga.\n- **DE URMĂRIT** – concentrarea de 87,6% pe Roche: orice discuție de creștere trebuie însoțită de un plan de diversificare, chiar dacă renegocierea e abia în martie 2027.\n\nVrei să văd exact ce a intrat în jurnal pe iunie ca să confirmăm dacă luna e completă?"
+    },
+    {
+      "id": "employees_carry",
+      "title": "Numar de angajati citit corect din date (12 in iunie)",
+      "question": "Cat profit pe angajat facem?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/\\b12\\b/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_not_contain:/Set[aă]ri/",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic",
+        "get_employee_counts",
+        "get_industry_kpis"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 31693,
+      "costUsd": 0.100366,
+      "answer": "Fiecare om din echipa a adus, de la inceputul anului pana acum, un profit operational mediu de aproape **50.000 lei** — asta inseamna cam **8.300 lei pe luna per persoana**, calculat la echipa actuala de 12 oameni.\n\nCateva lucruri de stiut inainte sa te bazezi pe cifra asta:\n\n- Firma a castigat operational aproape 599.000 lei in primele 6 luni ale anului. Impartit la 12 oameni, iese cei ~50.000 lei per persoana.\n- Numarul de oameni nu a fost constant: ati fost 13 in februarie, 15 in aprilie, acum sunteti 12. Cifra foloseste echipa de acum, deci nu e o medie perfecta pe tot anul — daca ai avut mai multi oameni in unele luni, profitul real per persoana in acele luni a fost putin mai mic.\n- Iunie pare o luna incheiata partial in jurnal (mult mai putine incasari inregistrate fata de lunile anterioare), deci cifra de 50.000 lei ar putea sa creasca putin cand luna se inchide complet.\n- Un lucru important de tinut minte: peste 87% din veniturile firmei vin de la un singur client (Roche). Profitul per om arata bine acum, dar e sprijinit intr-o masura mare de acest partener.\n\nVrei sa vedem si cum s-a miscat profitul per om luna de luna, ca sa vezi daca tendinta e in crestere sau in scadere?"
+    },
+    {
+      "id": "jargon_translate",
+      "title": "Garda de jargon - traducerea marjei",
+      "question": "Ce inseamna ca avem marja de 18%?",
+      "page": "/clients/qhm21-network-srl?view=owner",
+      "ownerReview": true,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "patron_jargon_guard",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/100 (de )?lei/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [
+        "get_client_diagnostic"
+      ],
+      "stopReason": "end_turn",
+      "durationMs": 14343,
+      "costUsd": 0.051869,
+      "answer": "Din fiecare 100 de lei incasati de firma pe anul acesta (ianuarie - iunie), iti raman 18 lei dupa ce platesti toate cheltuielile de zi cu zi. Restul de 82 de lei se duc pe furnizori, salarii si celelalte costuri de functionare.\n\nE o marja buna - firma stie sa transforme incasarile in castig real. Dar are sens sa o privesti impreuna cu doua lucruri:\n\n- Aproape 9 din 10 lei de venit vin de la un singur client (Roche). Marja arata bine acum tocmai pentru ca acest contract merge. Daca s-ar schimba ceva la el, cifra de 18% s-ar putea prabusi rapid.\n- In cont ai un minus de aproximativ 28.000 lei chiar daca profitul pe hartie e bun - deci castigul nu inseamna neaparat bani lichizi disponibili acum.\n\nVrei sa vedem intai de ce banii din cont sunt pe minus, desi firma castiga bine pe hartie?"
+    },
+    {
+      "id": "legislation_table",
+      "title": "Legislatie - tabelul Concluzie Sintetica ramane",
+      "question": "E corect ca TVA standard e 21% in 2026?",
+      "page": "/costi",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "forbidden_tool:get_client_diagnostic",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/21\\s?%/",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/Concluzie Sintetic/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [],
+      "stopReason": "end_turn",
+      "durationMs": 10048,
+      "costUsd": 0.029715,
+      "answer": "Da, este corect.\n\nCota standard de TVA in Romania este **21%**, aplicabila incepand cu **1 iulie 2025** (majorare de la 19%). Aceasta cota este in vigoare si pe tot parcursul anului 2026.\n\nPe langa cota standard, exista si:\n- **Cota redusa de 11%** (din 1 iulie 2025) — aplicabila pentru alimente, apa, medicamente, hoteluri, restaurante (fara alcool), carti, ziare, energie termica, acces muzee\n- **Cota tranzitorie de 9%** — doar pentru anumite livrari de locuinte, valabila pana la 31.07.2026\n- **Cota 0%** — exporturi, livrari intracomunitare\n\n---\n\n## Concluzie Sintetica\n\n| Punct | Afirmatie | Status | Baza legala |\n|---|---|---|---|\n| 1 | TVA standard este 21% in 2026 | Confirmat | Cod Fiscal, cota in vigoare din 01.07.2025 |\n| 2 | Cota redusa de 11% se aplica pentru un cos extins de bunuri/servicii (alimente, hoteluri, energie termica, carti etc.) | Confirmat | Cod Fiscal, cota in vigoare din 01.07.2025 |\n| 3 | Cota tranzitorie de 9% pentru anumite locuinte expira la 31.07.2026 | Confirmat | Prevedere tranzitorie Cod Fiscal |\n\nDaca vrei, pot verifica si incadrarea corecta a unei operatiuni specifice (ex. ce cota se aplica pentru un anumit produs/serviciu)."
+    },
+    {
+      "id": "saga_flow",
+      "title": "Saga - fluxul de inchidere ramane intact",
+      "question": "Cum fac inchiderea de luna in Saga?",
+      "page": "/costi",
+      "ownerReview": false,
+      "status": "pass",
+      "error": null,
+      "checks": [
+        {
+          "id": "no_narration",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "no_closing_menu",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "memory_honesty",
+          "level": "must",
+          "ok": true,
+          "detail": "onest"
+        },
+        {
+          "id": "forbidden_tool:get_client_diagnostic",
+          "level": "must",
+          "ok": true,
+          "detail": "curat"
+        },
+        {
+          "id": "must_contain:/Saga/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        },
+        {
+          "id": "must_contain:/valid|opera[tț]i/i",
+          "level": "must",
+          "ok": true,
+          "detail": "prezent"
+        }
+      ],
+      "toolNames": [],
+      "stopReason": "end_turn",
+      "durationMs": 25357,
+      "costUsd": 0.302778,
+      "answer": "# Închiderea de lună în Saga C\n\nProcedura se face din meniul **Închidere Lună** și trebuie urmată STRICT în ordinea de mai jos — fiecare pas depinde de cel anterior.\n\n---\n\n## Pasii, in ordine\n\n**1. Verificare documente validate**\nInainte de orice, asigura-te ca toate documentele lunii (Intrari, Iesiri, Casa/Banca, State salarii) sunt **Validate**. Un document nevalidat nu genereaza nota contabila si nu intra in inchidere.\n\n**2. Inregistrare Operatii Contabile Stocuri** (daca ai gestiuni cantitativ-valorice)\nGenereaza notele contabile pentru miscarile de stoc din luna.\n\n**3. Descarcare Marfuri Gestiune Global-Valorica** (daca ai gestiuni global-valorice)\nCalculeaza coeficientul K si descarca gestiunea. Atentie: soldul 371 nu poate fi negativ — daca e negativ, verifica intrarile de marfa inainte de a continua.\n\n**4. Inchidere TVA**\nRegularizeaza TVA: compenseaza automat TVA de plata cu TVA de recuperat, regleaza diferentele intre jurnale si soldurile 4428.TP/4428.TI.\n\n**5. Cheltuieli/Venituri in Avans**\nTransfera automat cota lunara din avans pe cheltuieli/venituri curente (daca ai inregistrari de acest tip in Diverse > Cheltuieli/Venituri in avans).\n\n**6. Amortizare Imobilizari**\nGenereaza automat notele: 6811 = 280x (corporale) / 6811 = 281x (necorporale). Verifica daca ai autoturisme M1 — programul plafoneaza automat la 1.500 lei/luna cheltuiala deductibila.\n\n**7. Inchidere Conturi Venituri si Cheltuieli**\nTransfera soldurile conturilor din clasele 6 si 7 prin contul 121 (Profit si pierdere).\n\n**8. Impozit pe Profit sau Impozit pe Venit Micro** — DOAR in ultima luna de trimestru (martie, iunie, septembrie, decembrie)\n- Daca esti pe profit: ecran cu cheltuieli nedeductibile, venituri neimpozabile, pierdere reportata, rezerva legala, sponsorizari deductibile.\n- Daca esti pe micro: procentul (1% sau 3%) se completeaza automat in functie de numarul de salariati; se genereaza D107, D177.\n\n**9. Declaratia 100**\nButon **\"Actualizare date\"** preia automat sumele din luna inchisa. Genereaza D100, D710 si ordinele de plata.\n\n**10. Declaratia 101** — doar in decembrie\nDeclaratia anuala de impozit pe profit, cu date preluate din balanta.\n\n**11. Declaratia 392/700** — doar in decembrie\nDeclaratie informativa (se poate genera si din Configurare societati).\n\n**12. Calcul Diferente de Curs** (daca ai operatiuni in valuta)\nReevalueaza soldurile valutare la cursul BNR din ultima zi a lunii (preluat automat de pe bnr.ro). Atentie: dupa reevaluare, facturile nu mai pot fi devalidate.\n\n**13. Validare Inchidere Luna**\nButonul final — blocheaza luna curenta si trece programul pe luna urmatoare.\n\n---\n\n## Daca trebuie sa te intorci\n\nDevalidarea se face **in ordine inversa**, de jos in sus (nu poti devalida pasul 3 daca pasul 7 e deja facut). Cel mai frecvent caz: descoperi o factura uitata dupa ce ai inchis luna — trebuie sa devalidezi Inchiderea (pas 13), apoi sa dai inapoi pana la pasul unde ai nevoie sa modifici, faci corectura, si refaci toti pasii inainte in ordine.\n\n---\n\n## Verificari inainte sa validezi inchiderea\n\n- **Balanta** trebuie sa fie in egalitate (Debit total = Credit total). Daca nu e, de regula lipseste un cont din planul de conturi sau ai conturi extrabilantiere (clasele 8-9) neincluse corect.\n- **Jurnalele TVA** (cumparari/vanzari) trebuie sa corespunda cu soldurile 4426/4427/4428.\n- **Registrul de casa** (5311) nu trebuie sa aiba sold negativ.\n- **Situatia clienti/furnizori**: neachitat la zi trebuie sa fie egal cu neachitat final — daca difera, ai plati/incasari neasociate corect cu facturile.\n\nVrei sa detaliez vreun pas anume (de exemplu inchiderea TVA sau impozitul pe profit trimestrial)?"
+    }
+  ]
+}

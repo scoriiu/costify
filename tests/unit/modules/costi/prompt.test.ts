@@ -41,15 +41,17 @@ describe("getChatParams", () => {
       model: "claude-haiku-4-5-20251001",
       maxTokens: 2048,
       temperature: 0.1,
+      effort: null,
       maxToolRounds: 5,
     });
   });
 
-  it("cfo mode upgrades model, tokens and tool rounds; omits temperature", () => {
+  it("cfo mode upgrades model, sets adaptive effort, omits temperature", () => {
     const p = getChatParams(true);
     expect(p.model).toBe("claude-sonnet-5");
-    expect(p.maxTokens).toBe(4096);
+    expect(p.maxTokens).toBe(16384);
     expect(p.temperature).toBeNull();
+    expect(p.effort).toBe("high");
     expect(p.maxToolRounds).toBe(8);
   });
 
@@ -64,7 +66,7 @@ describe("getChatParams", () => {
     process.env.COSTI_MODEL = "claude-opus-4-8";
     const cfo = getChatParams(true);
     expect(cfo.model).toBe("claude-opus-4-8");
-    expect(cfo.maxTokens).toBe(4096);
+    expect(cfo.maxTokens).toBe(16384);
     expect(getChatParams(false).model).toBe("claude-haiku-4-5-20251001");
   });
 

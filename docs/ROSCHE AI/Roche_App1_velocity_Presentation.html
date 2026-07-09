@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redsparq | velocity for Roche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-semibold.woff2') format('woff2');
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: #0D6B5E;
+    --primary-dark: #0A5A4F;
+    --primary-light: #34D3A0;
+    --danger: #EF4444;
+    --danger-deep: #B91C1C;
+    --warning: #F59E0B;
+    --green: #3FB950;
+    --surface-0: #F0EFEA;
+    --surface-1: #F7F6F2;
+    --surface-2: #E6E4DE;
+    --surface-3: #D9D7D0;
+    --text-1: #1A1918;
+    --text-2: #44413C;
+    --text-3: #7A766E;
+    --on-primary: #E9E8E3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--surface-0);
+    font-family: 'Altform', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    overflow: hidden;
+  }
+
+  .mono { font-family: 'Geist Mono', ui-monospace, 'SF Mono', monospace; }
+
+  .deck { height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 52px 76px 72px;
+    background: var(--surface-0);
+  }
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+    margin-bottom: 14px;
+  }
+  .kicker.red { color: var(--danger-deep); }
+
+  h1 { font-size: 56px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; }
+  h2 { font-size: 38px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; }
+  h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.04em; }
+
+  .sub { font-size: 17px; color: var(--text-2); max-width: 900px; line-height: 1.55; margin-top: 12px; }
+
+  .body-block { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    padding: 26px 28px;
+  }
+
+  .label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  .pill {
+    display: inline-block;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    color: var(--text-2);
+  }
+  .pill.teal { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .pill.green { background: rgba(63,185,80,0.10); border-color: rgba(63,185,80,0.40); color: #1F7A34; }
+
+  .footer {
+    position: absolute;
+    bottom: 24px;
+    left: 76px;
+    right: 76px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+  .brand-mark { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .brand-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); }
+  .counter { font-variant-numeric: tabular-nums; }
+
+  .accent-bar { width: 56px; height: 5px; border-radius: 3px; background: var(--primary); margin-bottom: 28px; }
+
+  /* ================= MACHINE DIAGRAMS ================= */
+
+  .machine { display: flex; flex-direction: column; gap: 0; width: 100%; }
+
+  .m-row { display: flex; align-items: stretch; }
+
+  .m-stage { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  .m-node {
+    position: relative;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 12px;
+    padding: 16px 18px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .m-title { font-size: 15px; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .m-desc { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+  .m-sys {
+    display: inline-block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    background: var(--surface-2);
+    border-radius: 5px;
+    padding: 2px 8px;
+    margin-bottom: 7px;
+    align-self: flex-start;
+  }
+
+  /* sick machine styling */
+  .sick .m-node.hurt {
+    border: 1.5px dashed rgba(239,68,68,0.55);
+    background: rgba(239,68,68,0.05);
+  }
+  .sick .m-node.tilt-a { transform: rotate(-1.3deg); }
+  .sick .m-node.tilt-b { transform: rotate(1.2deg); }
+  .sick .m-node.tilt-c { transform: rotate(-0.8deg); }
+
+  .m-arrow { width: 40px; flex: none; position: relative; }
+  .m-arrow::before {
+    content: '';
+    position: absolute;
+    left: 5px; right: 13px; top: 50%;
+    height: 2px;
+    background: var(--surface-3);
+  }
+  .m-arrow::after {
+    content: '';
+    position: absolute;
+    right: 5px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid var(--surface-3);
+    border-top: 5.5px solid transparent;
+    border-bottom: 5.5px solid transparent;
+  }
+  .m-arrow.broken::before {
+    background: none;
+    border-top: 2.5px dashed rgba(239,68,68,0.65);
+    height: 0;
+    transform: rotate(-4deg);
+  }
+  .m-arrow.broken::after { border-left-color: rgba(239,68,68,0.65); }
+
+  .m-arrow.solid-teal::before { background: var(--primary); }
+  .m-arrow.solid-teal::after { border-left-color: var(--primary); }
+
+  .pct-chip {
+    position: absolute;
+    top: -13px; left: 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+  .pct-chip.full { background: var(--primary); color: var(--on-primary); box-shadow: 0 2px 8px rgba(13,107,94,0.35); }
+  .pct-chip.low { background: var(--danger); color: #FDF6F5; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
+
+  /* leaks */
+  .leak-row { display: flex; margin-top: 4px; }
+  .leak-cell { display: flex; justify-content: center; }
+  .leak-spacer { width: 40px; flex: none; }
+  .leak {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding-top: 2px;
+  }
+  .leak .drip { display: flex; flex-direction: column; align-items: center; }
+  .leak .drop {
+    width: 7px; height: 7px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--danger);
+    opacity: 0.85;
+    margin: 3px 0;
+    animation: drip 2.2s ease-in infinite;
+  }
+  .leak .drop:nth-child(2) { animation-delay: 0.7s; opacity: 0.55; }
+  @keyframes drip {
+    0% { transform: rotate(-45deg) translate(0,0); opacity: 0.9; }
+    100% { transform: rotate(-45deg) translate(9px,9px); opacity: 0; }
+  }
+  .leak .leak-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--danger-deep);
+    white-space: nowrap;
+  }
+
+  .pool {
+    margin-top: 14px;
+    border-radius: 12px;
+    border: 1.5px dashed rgba(239,68,68,0.5);
+    background: rgba(239,68,68,0.07);
+    padding: 16px 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 16px;
+  }
+  .pool .pool-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    color: var(--danger-deep);
+  }
+  .pool .pool-text {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--danger-deep);
+  }
+
+  /* healthy machine */
+  .healthy { position: relative; padding-bottom: 46px; }
+  .healthy .m-node { border-color: var(--surface-3); }
+
+  .ai-node {
+    position: relative;
+    border: 1.5px solid var(--primary);
+    background: rgba(13,107,94,0.06);
+    border-radius: 12px;
+    padding: 13px 16px;
+  }
+  .ai-tag {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+  .ai-node .m-title { font-size: 14px; }
+  .ai-node .m-desc { font-size: 11.5px; }
+
+  .gear {
+    width: 15px; height: 15px;
+    flex: none;
+    fill: var(--primary);
+    animation: spin 14s linear infinite;
+  }
+  .gear.slow { animation-duration: 22s; animation-direction: reverse; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-link { width: 2px; background: var(--primary); height: 12px; margin: 0 auto; opacity: 0.55; }
+
+  .loopback {
+    position: absolute;
+    left: 4%; right: 4%;
+    bottom: 0;
+    height: 44px;
+    pointer-events: none;
+  }
+  .loopback svg { width: 100%; height: 100%; overflow: visible; }
+  .loop-label {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    background: var(--surface-0);
+    padding: 0 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+
+  /* big stat slides */
+  .big-stat {
+    font-family: 'Geist Mono', monospace;
+    font-size: 84px;
+    font-weight: 600;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  /* timeline */
+  .timeline { display: flex; gap: 10px; align-items: stretch; }
+  .t-seg {
+    flex: 1;
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    position: relative;
+  }
+  .t-seg .t-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .t-seg .t-dur {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+  }
+  .t-price {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 8px;
+  }
+
+  /* license scenario cards */
+  .lic-card { position: relative; padding: 20px 24px; }
+  .lic-tag {
+    position: absolute;
+    top: -12px; right: 16px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: 0 2px 8px rgba(13,107,94,0.35);
+  }
+  .lic-price {
+    font-family: 'Geist Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin-top: 10px;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    opacity: 0.45;
+  }
+
+  @media print {
+    html, body { overflow: visible; height: auto; }
+    .deck { height: auto; }
+    .slide { display: flex !important; position: relative; height: 100vh; page-break-after: always; }
+    .nav-hint { display: none; }
+    .gear, .leak .drop { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- ========== SLIDE 1: TITLE ========== -->
+  <section class="slide active">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Redsparq for Roche · Confidential</div>
+      <h1>Every product. Every step.<br>In the agent's hands,<br><span style="color:var(--primary);">while the customer is on the line.</span></h1>
+      <p class="sub" style="font-size:19px; margin-top:24px;">
+        velocity: picture-based, validated guided workflows for ~25 physical products,
+        built on the Salesforce platform Roche already owns. Nothing needs to be bought to start.
+      </p>
+      <div style="margin-top:38px; display:flex; gap:12px;">
+        <span class="pill teal">Configured, not custom-coded</span>
+        <span class="pill teal">Every workflow SME-validated</span>
+        <span class="pill green">&euro;290&ndash;330K one-time · pilot starts under the existing MSA</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v1.0 · July 2026</span>
+      <span class="counter">01</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 2: THE SICK MACHINE ========== -->
+  <section class="slide">
+    <div class="kicker red">Intake Today</div>
+    <h2>The knowledge exists. It is just never where the call is.</h2>
+    <div class="body-block">
+      <div class="machine sick">
+        <div class="m-row">
+          <div class="m-stage" style="flex:0.85;">
+            <div class="m-node">
+              <span class="pct-chip full">100%</span>
+              <div class="m-sys">Intake</div>
+              <div class="m-title">Customer calls</div>
+              <div class="m-desc">A physical product, an error, a question. The clock starts.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.2;">
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">PDFs + manuals</div>
+              <div class="m-title">Searching, live</div>
+              <div class="m-desc">The agent digs through manuals and work instructions while the customer waits.</div>
+            </div>
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Tribal knowledge</div>
+              <div class="m-title">Each agent improvises</div>
+              <div class="m-desc">What gets asked depends on who picks up the phone.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.1;">
+            <div class="m-node hurt tilt-c">
+              <div class="m-sys">Salesforce case</div>
+              <div class="m-title">Free-text capture</div>
+              <div class="m-desc">Details recorded with whatever attention the search left over. Photos maybe, maybe linked.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.15;">
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Complaint or PRI?</div>
+              <div class="m-title">Recognition by experience</div>
+              <div class="m-desc">Veterans catch it. New agents miss it. There is no validated script for the moment that matters most.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:0.95;">
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">New agents</div>
+              <div class="m-title">Months to competence</div>
+              <div class="m-desc">Proficiency is passed down verbally, one shift at a time.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="leak-row">
+          <div class="leak-cell" style="flex:0.85;"></div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.2;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">time lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.1;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">details lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.15;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">capture lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:0.95;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">competence lost</span></div>
+          </div>
+        </div>
+
+        <div class="pool">
+          <span class="pool-num">600</span>
+          <span class="pool-text">agents, ~25 products, zero validated workflows at the point of the call.</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">02</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 3: WHAT IT COSTS ========== -->
+  <section class="slide">
+    <div class="kicker red">What Improvised Intake Costs</div>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">600<span style="font-size:44px;">&times;</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">versions of the truth.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Every agent carries their own mental copy of 25 products. Tribal knowledge does not scale, does not version, and does not survive an audit question.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">2<span style="font-size:44px;">&times;</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">work on every weak case.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">A case captured wrong at intake is corrected downstream, by someone more expensive, later, with less context. First-time-wrong data is paid for twice.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">reportable event missed at intake.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">In a medical products organisation, the moment of the call is where a complaint or PRI is either captured or lost. Everything downstream can only compensate.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.05);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--danger-deep);">More training alone does not fix this. Knowledge decays, agents rotate, products change. The fix is validated guidance inside the case, at the moment of the call.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">03</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 4: THE HEALTHY MACHINE ========== -->
+  <section class="slide">
+    <div class="kicker">The Proposal · velocity</div>
+    <h2>The workflow sits exactly where the agent already works.</h2>
+    <div class="body-block">
+      <div class="machine healthy">
+        <div class="m-row">
+          <div class="m-stage" style="flex:0.9;">
+            <div class="m-node" style="flex:1;">
+              <div class="m-sys">Intake · Agent</div>
+              <div class="m-title">Customer calls</div>
+              <div class="m-desc">The agent opens the case. Full focus on the conversation, not on the search.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.1;">
+            <div class="m-node" style="border:1.5px solid var(--primary); flex:1;">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">FlexCard · product</div>
+              <div class="m-title">The exact product, at a glance</div>
+              <div class="m-desc">Workflows, manuals and pictures attached to the product record follow it automatically.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.25;">
+            <div class="m-node" style="border:1.5px solid var(--primary);">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">OmniScript · guided steps</div>
+              <div class="m-title">Picture-based, step by step</div>
+              <div class="m-desc">The agent answers a question, irrelevant steps disappear, the right instruction and pictures appear.</div>
+            </div>
+            <div class="ai-link"></div>
+            <div class="m-node" style="border:1.5px solid var(--primary);">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">In-flow capture</div>
+              <div class="m-title">Photos land where they belong</div>
+              <div class="m-desc">Uploaded inside the workflow, linked automatically to the correct case and product records.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.15;">
+            <div class="m-node" style="border:1.5px solid var(--primary); flex:1;">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">Complaint or PRI?</div>
+              <div class="m-title">Recognised by validated logic</div>
+              <div class="m-desc">The workflow tells every agent, veteran or new, which questions distinguish a complaint from a PRI and which details to record.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node" style="border:1.5px solid var(--green); flex:1;">
+              <div class="m-sys" style="background:rgba(63,185,80,0.14); color:#2E7D32;">Outcome</div>
+              <div class="m-title" style="color:#2E7D32;">First-time-right case</div>
+              <div class="m-desc">Complete, consistent, SME-validated path on file. Version history and audit trail on every workflow.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="loopback">
+          <svg viewBox="0 0 1000 44" preserveAspectRatio="none">
+            <path d="M 965 2 C 965 40, 35 40, 38 6" fill="none" stroke="#0D6B5E" stroke-width="2" stroke-dasharray="7 5" opacity="0.6"/>
+            <path d="M 33 14 L 38 3 L 44 13" fill="none" stroke="#0D6B5E" stroke-width="2" opacity="0.75"/>
+          </svg>
+          <span class="loop-label">standard salesforce building blocks · configured, not coded · adding product 26 takes an editor days, not a project</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">04</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 5: BUILD MODEL ========== -->
+  <section class="slide">
+    <div class="kicker">How It Gets Built</div>
+    <h2>Design once. Repeat 25 times.</h2>
+    <p class="sub">The value is not the software. The software exists and Roche pays for it already. The value is validated content built fast, at consistent quality, by the right mix of seniority.</p>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">1 &middot; The architect</div>
+          <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em;">One senior Salesforce / OmniStudio consultant, 8 months.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Designs the data model, the workflow templates and the integration logic once. Stays on to develop and improve the tool while content is built. Hands over a documented, easy-to-maintain structure.</p>
+        </div>
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">2 &middot; The builders</div>
+          <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em;">Two process editors, 12 months, across the whole catalog.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Copy the templates product by product: pictures, steps, checks. Where workload allows they come from the team already on the Roche account, so they know the products from day one.</p>
+        </div>
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">3 &middot; The gatekeepers</div>
+          <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em;">SMEs approve every workflow before release.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Defined review, version history, audit trail. In a medical products organisation this guidance is quality-relevant documentation and is managed with controlled-document discipline.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The specialist designs everything once. The editors do the high-volume work at a lower cost. That is why ~300 validated workflows fit into &euro;290&ndash;330K, not into a seven-figure integration program.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">~25 physical products · digital priced separately</span>
+        <span class="pill">~12 workflows per product</span>
+        <span class="pill">Joint steering review every 3 months</span>
+        <span class="pill">One-week data-readiness check at start</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">05</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 6: WHERE AI ACCELERATES ========== -->
+  <section class="slide">
+    <div class="kicker">Where AI Works · Inside The Delivery</div>
+    <h2>AI does the heavy lifting. People do the approving.</h2>
+    <p class="sub">The content already exists as manuals, work instructions and imagery. Turning it into ~300 structured workflows is exactly the kind of work AI accelerates, and exactly the kind of work it must never sign off.</p>
+    <div class="body-block">
+      <div class="grid-4">
+        <div class="card" style="padding:22px 24px;">
+          <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Drafting</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">From manual to workflow draft.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">AI reads the existing manuals and work instructions and drafts each workflow in the template structure: steps, branching questions, picture placement. The editor corrects and completes instead of starting from a blank page. This is how two editors cover ~300 workflows in twelve months.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="ai-tag"><svg class="gear slow" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Review prep</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Every draft pre-checked before the SME sees it.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">AI compares each draft against the content model and the source documents, flags gaps and inconsistencies. SMEs spend their 2&ndash;4 hours per week judging, not hunting typos. The &le;5-day review turnaround holds, and the timeline holds with it.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Languages</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Additional languages at translation cost, not authoring cost.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Phase 1 is authored and validated in English. When more languages come, AI translates the validated content and an SME re-validates per language. The per-language price drops to review effort instead of a rebuild.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="ai-tag"><svg class="gear slow" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Maintenance</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Content that stays current instead of decaying.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Salesforce ships three releases a year and products evolve. AI-assisted impact assessment shows which workflows a change touches, so the maintenance retainer stays at the low end of &euro;43&ndash;70K and revalidation is targeted, not blanket.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">AI is not a line item in this offer. It is the reason ~300 validated workflows, in 13 months, at this price, is a realistic plan instead of an optimistic one.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">06</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 7: THE RULE ========== -->
+  <section class="slide">
+    <div class="body-block" style="align-items:center; text-align:center;">
+      <div class="kicker">The One Rule That Never Bends</div>
+      <h1 style="font-size:60px; max-width:1000px;">The AI drafts, checks<br>and translates.<br><span style="color:var(--primary);">An SME always approves.</span></h1>
+      <div style="display:flex; gap:14px; margin-top:40px; flex-wrap:wrap; justify-content:center;">
+        <span class="pill">No workflow released without SME sign-off</span>
+        <span class="pill">Version history and audit trail on every workflow</span>
+        <span class="pill">Same discipline as controlled documents</span>
+        <span class="pill">The AI never talks to a customer</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">07</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 8: LICENSES ========== -->
+  <section class="slide">
+    <div class="kicker">The Biggest Variable</div>
+    <h2>One conversation moves the license line<br>by two orders of magnitude.</h2>
+    <p class="sub">Our working assumption: velocity is the guided-workflow capability of the Salesforce platform Roche already uses. If that holds, no new software is bought. Which scenario applies is settled with the Salesforce Account Executive against current entitlements.</p>
+    <div class="body-block">
+      <div class="grid-4" style="margin-top:6px;">
+        <div class="card lic-card">
+          <div class="label" style="margin-bottom:8px;">S1 · Native platform</div>
+          <p style="font-size:13.5px; color:var(--text-2); line-height:1.5;">Guided flows and embedded images on licenses agents already hold.</p>
+          <div class="lic-price" style="color:#1F7A34;">&asymp; &euro;0 / year</div>
+        </div>
+        <div class="card lic-card" style="border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <span class="lic-tag">Most likely</span>
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">S2 · OmniStudio add-on</div>
+          <p style="font-size:13.5px; color:var(--text-2); line-height:1.5;">Guided-workflow layer added for existing users through the Salesforce agreement.</p>
+          <div class="lic-price" style="color:var(--primary);">Per-user add-on, AE quote</div>
+        </div>
+        <div class="card lic-card">
+          <div class="label" style="margin-bottom:8px;">S3 · Full Industry Cloud</div>
+          <p style="font-size:13.5px; color:var(--text-2); line-height:1.5;">Full Health / Life Sciences edition for 600 users. A platform decision, not a workflow decision.</p>
+          <div class="lic-price" style="color:var(--danger-deep);">&asymp; &euro;1.1&ndash;1.5M / year</div>
+        </div>
+        <div class="card lic-card">
+          <div class="label" style="margin-bottom:8px;">S4 · Third-party tool</div>
+          <p style="font-size:13.5px; color:var(--text-2); line-height:1.5;">Only if velocity turns out to be a standalone product outside Salesforce.</p>
+          <div class="lic-price">&asymp; &euro;90&ndash;140K / year</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px; padding:18px 26px;">
+        <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; text-align:center;">Right-sizing if a paid scenario applies: start near <span style="color:var(--primary);">500 seats</span>, expand mid-contract. Quote the author/editor split (est. 25&ndash;40) vs. viewers, include the base license the add-on depends on. Licenses can be added mid-term but rarely removed.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill green">Nothing needs to be bought to start</span>
+        <span class="pill">Foundation + pilot run under the existing MSA</span>
+        <span class="pill">Redsparq works on Roche-provisioned contractor accounts</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">08</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 9: THE MONEY ========== -->
+  <section class="slide">
+    <div class="kicker">The Money</div>
+    <h2>&euro;290&ndash;330K once. &euro;43&ndash;70K a year. That is the whole bill.</h2>
+    <p class="sub">Excluding licenses, which flow through Roche's Salesforce agreement per scenario S1&ndash;S4. The quality package range is fixed as a firm quote at the end of the pilot, once effort per product is calibrated on a real one.</p>
+    <div class="body-block">
+      <div class="timeline">
+        <div class="t-seg">
+          <div class="t-num">1</div>
+          <h3>Consultant</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Data model, workflow templates, integration logic, development and updates, documented handover.</p>
+          <div class="t-dur">8 months</div>
+          <div class="t-price">&euro;88,000</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">2</div>
+          <h3>Process editors &times; 2</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">AI-accelerated content build and validation across ~25 products, ~12 workflows each.</p>
+          <div class="t-dur">12 months</div>
+          <div class="t-price">&euro;122,400</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">3</div>
+          <h3>Implementation &amp; quality package</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Discovery, foundation and content model, validation and QA documentation, training materials and train-the-trainer, coordination.</p>
+          <div class="t-dur">Across program · firm at pilot end</div>
+          <div class="t-price">&euro;80&ndash;120K</div>
+        </div>
+        <div class="t-seg" style="border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="t-num">&Sigma;</div>
+          <h3>Total one-time</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Spend phases ~60% in the first six months, ~40% in the second. Fits the H2 2026 / H1 2027 budget cycles.</p>
+          <div class="t-dur">~13 months</div>
+          <div class="t-price" style="font-size:16px;">&asymp; &euro;290&ndash;330K</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:22px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill teal">Running: &euro;43&ndash;70K / year excl. licenses</span>
+        <span class="pill">Content retainer · release regression · audit readiness · CDN</span>
+        <span class="pill">GxP classification, data cleanup, extra volume: via change control, pre-agreed rates</span>
+        <span class="pill green">Budget with the upper bound. Surprises via change control only</span>
+      </div>
+      <div class="card" style="margin-top:14px; padding:16px 22px;">
+        <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; text-align:center;">Clean product master data is the single biggest cost driver. A <span style="color:var(--primary);">one-week data-readiness check</span> at project start settles it before it can surprise anyone.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">09</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 10: VALUE & METRICS ========== -->
+  <section class="slide">
+    <div class="kicker">Value · Measured In A Regulated Context</div>
+    <h2>Better-captured cases. Not fewer cases.</h2>
+    <div class="body-block">
+      <div class="grid-4">
+        <div class="card" style="padding:22px 24px;">
+          <div class="big-stat" style="font-size:38px; color:var(--primary);">AHT &darr;</div>
+          <p style="font-size:15px; font-weight:600; margin-top:14px; letter-spacing:-0.03em;">Handling time drops per case type.</p>
+          <p style="font-size:13px; color:var(--text-2); margin-top:8px; line-height:1.5;">Agents follow the validated workflow instead of searching manuals while the customer waits. Measurable per case type from day one.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="big-stat" style="font-size:38px; color:var(--primary);">Capture &uarr;</div>
+          <p style="font-size:15px; font-weight:600; margin-top:14px; letter-spacing:-0.03em;">Complaints and PRIs identified first time.</p>
+          <p style="font-size:13px; color:var(--text-2); margin-top:8px; line-height:1.5;">The share of cases where reportable events and required details are correctly identified at intake. The same quality objective App 2 verifies downstream.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="big-stat" style="font-size:38px; color:var(--primary);">1st &check;</div>
+          <p style="font-size:15px; font-weight:600; margin-top:14px; letter-spacing:-0.03em;">First-time-right case data.</p>
+          <p style="font-size:13px; color:var(--text-2); margin-top:8px; line-height:1.5;">Complete, consistent case fields at intake mean less downstream correction effort, cheaper cases and cleaner data for everything built on top.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="big-stat" style="font-size:38px; color:var(--primary);">Ramp &darr;</div>
+          <p style="font-size:15px; font-weight:600; margin-top:14px; letter-spacing:-0.03em;">New agents productive in weeks.</p>
+          <p style="font-size:13px; color:var(--text-2); margin-top:8px; line-height:1.5;">Validated visual workflows replace tribal knowledge. Time-to-competence stops depending on who happens to sit next to the new hire.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px; border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.06);">
+        <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:#92600A;">Deliberately not a target: ticket deflection. In a regulated complaint-intake environment, discouraging contact risks losing reportable events. The objective is better-captured cases, not fewer cases.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">10</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 11: THE CLOSED LOOP WITH APP 2 ========== -->
+  <section class="slide">
+    <div class="kicker">The Bigger Picture</div>
+    <h2>App 1 prevents at intake. App 2 detects in review.<br>One closed quality loop.</h2>
+    <div class="body-block">
+      <div class="grid-2" style="gap:24px;">
+        <div class="card" style="border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:14px;">App 1 · velocity · this proposal</div>
+          <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em;">The right questions get asked while the customer is on the line.</p>
+          <p style="font-size:14px; color:var(--text-2); margin-top:10px; line-height:1.6;">Validated guided workflows raise capture quality at the source. Fewer weak cases enter the system in the first place.</p>
+          <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="pill">Prevention</span>
+            <span class="pill">&euro;290&ndash;330K one-time</span>
+            <span class="pill">Live in months</span>
+          </div>
+        </div>
+        <div class="card" style="border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:14px;">App 2 · PRI Tool · proposed in parallel</div>
+          <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em;">Every case that still slips through is read, flagged and explained.</p>
+          <p style="font-size:14px; color:var(--text-2); margin-top:10px; line-height:1.6;">AI-assisted quality review of 100% of both queues verifies downstream exactly what velocity improves upstream: the complaint and PRI capture rate.</p>
+          <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="pill">Detection</span>
+            <span class="pill">100% coverage</span>
+            <span class="pill">A person always decides</span>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The same metric closes the loop: what App 2 finds in review becomes retraining and better workflows in App 1. Each system makes the other one cheaper to run and easier to defend in an audit.</p>
+      </div>
+      <p style="text-align:center; margin-top:18px; font-size:15px; color:var(--text-2);">Independent decisions, independent budgets. <strong style="color:var(--text-1);">But they are worth more together than apart.</strong></p>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">11</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 12: WHY REDSPARQ ========== -->
+  <section class="slide">
+    <div class="kicker">Why Redsparq</div>
+    <h2>Others would have to learn these products.<br>We train Roche's agents on them today.</h2>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">All</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">of the Roche product range, covered by our Training &amp; Quality expert.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Product knowledge and validation are anchored by the person who already owns training quality for these exact products. No vendor discovery phase.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">Day 1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">editors who know the products before the project starts.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Where workload allows, the editors come from the team already working on the Roche account. If not, dedicated editors are recruited, so neither the project nor operations run short.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">600</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">users trained by the same hands that built the content.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Train-the-trainer and materials are in the package. On request, Redsparq also provides the trainer for the ~600 users, not only the slides.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The people who answer for training quality on these products today are the ones who will write, validate and teach the workflows. No other bidder can offer that.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">Quarterly joint steering reviews</span>
+        <span class="pill">Documented, maintainable handover</span>
+        <span class="pill">Change control with pre-agreed rates</span>
+        <span class="pill">Firm quote at pilot end, not open-ended T&amp;M</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">12</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 13: DECISION ========== -->
+  <section class="slide">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Decision Requested</div>
+      <h1 style="font-size:48px;">Two actions.<br>Neither needs a purchase.</h1>
+      <div class="grid-2" style="margin-top:36px; max-width:1020px;">
+        <div class="card" style="border:1.5px solid var(--primary);">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">A · Now, under the existing MSA</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Start the foundation + pilot</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">One product end-to-end · weeks 4&ndash;8 · SME-validated</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">Proves the format, calibrates effort per product and converts the &euro;80&ndash;120K package range into a firm quote. Includes the one-week data-readiness check.</p>
+        </div>
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">B · In parallel, one phone call</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Confirm the license scenario</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">Salesforce AE vs. current entitlements for ~600 users</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">One answer moves the license line by up to two orders of magnitude, from &asymp;&euro;0 to seven figures. It costs nothing to ask and everything to assume.</p>
+        </div>
+      </div>
+      <p style="margin-top:32px; font-size:17px; color:var(--text-2); max-width:920px; line-height:1.6;">
+        Every month this waits, 600 agents keep improvising 25 products from memory,
+        and every weak case is paid for twice.
+        <strong style="color:var(--text-1);">The fix costs less than one senior hire per year, and it starts without buying anything.</strong>
+      </p>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v1.0 · July 2026 · Confidential</span>
+      <span class="counter">13</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav-hint">Arrows / Space / Click to navigate</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) show(current + 1);
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) show(current - 1);
+    if (event.key === 'Home') show(0);
+    if (event.key === 'End') show(slides.length - 1);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('a')) return;
+    const goBack = event.clientX < window.innerWidth * 0.2;
+    show(goBack ? current - 1 : current + 1);
+  });
+</script>
+</body>
+</html>

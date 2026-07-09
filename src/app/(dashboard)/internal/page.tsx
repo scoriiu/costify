@@ -1,7 +1,7 @@
 import { getSessionUser } from "@/modules/auth/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Palette, Megaphone, Smile, Globe, Building2, Gauge, CircleDollarSign } from "lucide-react";
+import { Palette, Megaphone, Smile, Globe, Building2, Gauge, CircleDollarSign, ClipboardCheck } from "lucide-react";
 import { isInternalUser } from "@/lib/internal-access";
 
 const ITEMS = [
@@ -12,6 +12,7 @@ const ITEMS = [
   { href: "/debug", icon: Smile, label: "Mascot", desc: "Costi — toate starile si expresiile" },
   { href: "/internal/kpi-coverage", icon: Gauge, label: "KPI Coverage", desc: "Spec Excel vs registru implementat — calculat / date op. / lipsa" },
   { href: "/internal/ai-usage", icon: CircleDollarSign, label: "Consum AI", desc: "Costul Anthropic al chatului Costi — total, pe zile, pe conversatie" },
+  { href: "/internal/golden-set", icon: ClipboardCheck, label: "Golden Set", desc: "Setul de intrebari de aur al lui Costi — cazuri, verificari, ultima rulare" },
 ];
 
 export default async function InternalPage() {

@@ -79,6 +79,12 @@ export const DOC_NAVIGATION: DocCategory[] = [
         description: "Identitatea, contractul de raspuns si cele 16 playbook-uri. Draft pentru review: raspunde inline la fiecare sectiune.",
         interactive: true,
       },
+      {
+        slug: "costi-validare-patron",
+        title: "Validare Costi: raspunsurile pentru patron",
+        description: "Intrebari de patron cu raspunsurile reale ale lui Costi pe datele QHM21. De trimis patronului pentru validare: e corect, e util, e clar? Raspunde inline sub fiecare.",
+        interactive: true,
+      },
     ],
   },
   {

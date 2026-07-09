@@ -47,6 +47,16 @@ import type { OwnerSnapshot } from "@/modules/reporting/owner";
  *  keep entries cheap and let LRU eviction handle pressure. */
 const CACHE_REVALIDATE_SECONDS = 24 * 60 * 60;
 
+/**
+ * `unstable_cache` only works inside the Next.js runtime (it needs the
+ * incremental cache the server injects). Standalone consumers (the golden-set
+ * runner, future queue workers) call the same loaders through plain tsx,
+ * where the wrapper throws "Invariant: incrementalCache missing". Outside
+ * Next we skip the cross-request layer and run the loader directly — the
+ * React `cache()` layer above it still deduplicates within a pass.
+ */
+const inNextRuntime = (): boolean => Boolean(process.env.NEXT_RUNTIME);
+
 /* -------------------------------------------------------------------------- */
 /*                             getBalanceRowsCached                            */
 /* -------------------------------------------------------------------------- */
@@ -74,6 +84,7 @@ const cachedBalanceRows = unstable_cache(
 /** Drop-in replacement for `getBalanceRows` from @/modules/balances. */
 export const getBalanceRowsCached = cache(
   async (clientId: string, year: number, month: number) => {
+    if (!inNextRuntime()) return computeBalanceRows(clientId, year, month);
     const dataVersion = await getClientDataVersion(clientId);
     return cachedBalanceRows(clientId, year, month, dataVersion);
   }
@@ -119,6 +130,7 @@ const cachedOwnerSnapshot = unstable_cache(
 
 export const loadOwnerSnapshotCached = cache(
   async (input: OwnerSnapshotInput): Promise<OwnerSnapshot> => {
+    if (!inNextRuntime()) return computeOwnerSnapshot(input);
     const dataVersion = await getClientDataVersion(input.clientId);
     return cachedOwnerSnapshot(
       input.clientId,
@@ -152,6 +164,7 @@ const cachedMapariCashflow = unstable_cache(
 
 export const loadMapariCashflowCached = cache(
   async (clientId: string, opts?: { year?: number; month?: number }) => {
+    if (!inNextRuntime()) return computeMapariCashflow(clientId, opts);
     const dataVersion = await getClientDataVersion(clientId);
     return cachedMapariCashflow(clientId, opts?.year, opts?.month, dataVersion);
   }

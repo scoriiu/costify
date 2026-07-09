@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redsparq | PRI Discovery — Action Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-semibold.woff2') format('woff2');
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: #0D6B5E;
+    --primary-light: #34D3A0;
+    --danger: #EF4444;
+    --danger-deep: #B91C1C;
+    --warning: #F59E0B;
+    --green: #3FB950;
+    --surface-0: #F0EFEA;
+    --surface-1: #F7F6F2;
+    --surface-2: #E6E4DE;
+    --surface-3: #D9D7D0;
+    --text-1: #1A1918;
+    --text-2: #44413C;
+    --text-3: #7A766E;
+    --on-primary: #E9E8E3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--surface-0);
+    font-family: 'Altform', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    line-height: 1.55;
+    padding: 56px 24px 80px;
+  }
+
+  .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  .kicker {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+    margin-bottom: 12px;
+  }
+
+  h1 { font-size: 40px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; }
+  h2 {
+    font-size: 24px; font-weight: 700; letter-spacing: -0.04em;
+    margin: 56px 0 8px;
+    padding-top: 24px;
+    border-top: 1px solid var(--surface-3);
+  }
+  h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.04em; }
+
+  .meta {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    margin-top: 16px;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  .lead { font-size: 16px; color: var(--text-2); max-width: 860px; margin-top: 18px; }
+
+  .sub { font-size: 14px; color: var(--text-2); max-width: 860px; margin-bottom: 20px; }
+
+  .pills { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .pill {
+    display: inline-block;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1); color: var(--text-2);
+  }
+  .pill.teal { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .pill.green { background: rgba(63,185,80,0.10); border-color: rgba(63,185,80,0.40); color: #1F7A34; }
+  .pill.red { background: rgba(239,68,68,0.07); border-color: rgba(239,68,68,0.35); color: var(--danger-deep); }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    padding: 22px 26px;
+    margin-top: 16px;
+  }
+
+  .label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  /* ---------- gantt ---------- */
+  .gantt { margin-top: 20px; overflow-x: auto; }
+  .g-grid {
+    display: grid;
+    grid-template-columns: 170px repeat(21, 1fr);
+    gap: 4px 0;
+    min-width: 900px;
+    align-items: center;
+  }
+  .g-quarters {
+    display: grid;
+    grid-template-columns: 170px repeat(7, 1fr);
+    min-width: 900px;
+    margin-bottom: 6px;
+  }
+  .g-quarters span {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-3);
+    border-left: 1px solid var(--surface-3);
+    padding: 2px 0 2px 8px;
+  }
+  .g-quarters span:first-child { border-left: none; }
+  .g-name {
+    font-size: 13px; font-weight: 600; letter-spacing: -0.03em;
+    padding-right: 14px;
+    white-space: nowrap;
+  }
+  .g-name .g-cost {
+    display: block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    color: var(--text-3);
+  }
+  .g-bar {
+    height: 26px;
+    border-radius: 7px;
+    background: var(--primary);
+    box-shadow: 0 2px 8px rgba(13,107,94,0.22);
+    display: flex; align-items: center;
+    padding: 0 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px; font-weight: 600;
+    color: var(--on-primary);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .g-bar.pre { background: var(--surface-3); color: var(--text-2); box-shadow: none; }
+  .g-bar.ops {
+    background: rgba(13,107,94,0.14);
+    color: var(--primary);
+    box-shadow: none;
+    border: 1.5px dashed var(--primary);
+  }
+  .g-gate {
+    width: 13px; height: 13px;
+    background: var(--warning);
+    transform: rotate(45deg);
+    border-radius: 3px;
+    margin-left: 6px;
+    justify-self: start;
+  }
+  .g-legend {
+    display: flex; gap: 20px; margin-top: 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px; color: var(--text-3);
+    align-items: center;
+  }
+  .g-legend .g-gate { margin: 0; width: 11px; height: 11px; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+  th {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-3);
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--surface-3);
+    background: var(--surface-1);
+  }
+  td {
+    font-size: 13.5px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--surface-2);
+    vertical-align: top;
+    color: var(--text-2);
+  }
+  td strong { color: var(--text-1); }
+  td.mono, th.mono { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12.5px; white-space: nowrap; }
+  tr:hover td { background: rgba(13,107,94,0.025); }
+
+  /* ---------- phase blocks ---------- */
+  .phase {
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    background: var(--surface-1);
+    margin-top: 18px;
+    overflow: hidden;
+  }
+  .phase-head {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 18px 26px 14px;
+    border-bottom: 1px solid var(--surface-2);
+  }
+  .phase-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    padding: 4px 12px;
+    border-radius: 8px;
+  }
+  .phase-head h3 { font-size: 18px; }
+  .phase-head .mono-meta {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11.5px; font-weight: 600;
+    color: var(--primary);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .phase-body { padding: 16px 26px 20px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 26px; }
+  .phase-body ul { list-style: none; }
+  .phase-body li {
+    font-size: 13.5px; color: var(--text-2);
+    padding: 4px 0 4px 20px;
+    position: relative;
+  }
+  .phase-body li::before {
+    content: '';
+    position: absolute; left: 2px; top: 12px;
+    width: 7px; height: 7px; border-radius: 2px;
+    background: var(--primary);
+    opacity: 0.55;
+  }
+  .gate-box {
+    margin: 0 26px 20px;
+    border: 1.5px dashed rgba(245,158,11,0.55);
+    background: rgba(245,158,11,0.06);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px; color: #92600A;
+  }
+  .gate-box strong { color: #7A5008; }
+
+  .checklist li::before { content: '\2610'; background: none; opacity: 1; top: 4px; font-size: 14px; color: var(--primary); }
+
+  .callout {
+    border: 1.5px solid var(--primary);
+    background: rgba(13,107,94,0.05);
+    border-radius: 12px;
+    padding: 16px 22px;
+    margin-top: 16px;
+    font-size: 14px;
+  }
+  .callout strong { color: var(--primary); }
+
+  .footer-note {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--surface-3);
+    display: flex; justify-content: space-between;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-3);
+  }
+
+  @media print {
+    body { padding: 20px; }
+    .phase, .card, table { break-inside: avoid; }
+    h2 { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="kicker">Redsparq · Internal · Confidential</div>
+  <h1>PRI Discovery — Plan of Action</h1>
+  <div class="meta">
+    <span>v1.0 · 8 July 2026</span>
+    <span>Owner: Engagement Lead</span>
+    <span>Client: Roche Customer Care / PRI</span>
+    <span>Basis: PRI Tool business case + Discovery deck</span>
+  </div>
+  <p class="lead">
+    One AI agent, at the review joint: read 100% of Rexis and Salesforce cases, flag suspected PRIs with written
+    reasoning, and route every flag to the 15 specialists who decide. Minimal organisational footprint on the Roche
+    side: read-only data, one team touched. This plan covers the path from today's approval push to steady-state
+    operations in Q1 2028.
+  </p>
+  <div class="pills">
+    <span class="pill teal">Development €2.45–2.85M · 4 stages · paid on proof</span>
+    <span class="pill">Operations €45–55K/mo from go-live</span>
+    <span class="pill">AI compute €5–10K/mo at cost</span>
+    <span class="pill green">First value: MVP flags real cases from Q4 2026</span>
+    <span class="pill">3 portfolios: DC (EMEA + NAM) · NPC (global) · RIS (global)</span>
+  </div>
+
+  <!-- ================= TIMELINE ================= -->
+  <h2>1 · Time Schedule</h2>
+  <p class="sub">Stage dates as committed in the business case. Every stage ends at a gate (◆): acceptance criteria signed before the stage starts, invoice only against signed acceptance, exit possible at every gate.</p>
+
+  <div class="gantt">
+    <div class="g-quarters">
+      <span></span><span>Q3 26</span><span>Q4 26</span><span>Q1 27</span><span>Q2 27</span><span>Q3 27</span><span>Q4 27</span><span>Q1 28</span>
+    </div>
+    <div class="g-grid">
+      <div class="g-name">Pre-work / approvals<span class="g-cost">no cost · under MSA</span></div>
+      <div class="g-bar pre" style="grid-column: 2 / span 1;">Jul</div>
+      <div style="grid-column: 3 / span 19;"></div>
+
+      <div class="g-name">Stage 0 · Discovery &amp; Baseline<span class="g-cost">€75K · 6–8 wks</span></div>
+      <div style="grid-column: 2 / span 1;"></div>
+      <div class="g-bar" style="grid-column: 3 / span 2;">Aug–Sep 26</div>
+      <div class="g-gate" style="grid-column: 5;" title="Gate 0"></div>
+      <div style="grid-column: 6 / span 17;"></div>
+
+      <div class="g-name">Stage 1 · MVP, one system<span class="g-cost">€600–700K</span></div>
+      <div style="grid-column: 2 / span 3;"></div>
+      <div class="g-bar" style="grid-column: 5 / span 5;">Oct 26 – Feb 27</div>
+      <div class="g-gate" style="grid-column: 10;" title="Gate 1 · golden dataset accuracy"></div>
+      <div style="grid-column: 11 / span 12;"></div>
+
+      <div class="g-name">Stage 2 · Full scope<span class="g-cost">€850–1,000K</span></div>
+      <div style="grid-column: 2 / span 8;"></div>
+      <div class="g-bar" style="grid-column: 10 / span 6;">Mar – Aug 27</div>
+      <div class="g-gate" style="grid-column: 16;" title="Gate 2 · per case type & language"></div>
+      <div style="grid-column: 17 / span 6;"></div>
+
+      <div class="g-name">Stage 3 · Validation &amp; rollout<span class="g-cost">€800–950K</span></div>
+      <div style="grid-column: 2 / span 14;"></div>
+      <div class="g-bar" style="grid-column: 16 / span 6;">Sep 27 – Feb 28</div>
+      <div class="g-gate" style="grid-column: 22;" title="Gate 3 · validated release live"></div>
+
+      <div class="g-name">Operations &amp; hypercare<span class="g-cost">€45–55K/mo</span></div>
+      <div style="grid-column: 2 / span 18;"></div>
+      <div class="g-bar ops" style="grid-column: 20 / span 3;">hypercare → steady state</div>
+    </div>
+    <div class="g-legend">
+      <span style="display:flex; align-items:center; gap:8px;"><span class="g-gate"></span> stage gate · signed acceptance</span>
+      <span>H2 2026 funding submission deadline: <strong style="color:var(--danger-deep);">31 July 2026</strong></span>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Scope structure (per L. Hermans, 9 July):</strong> three product portfolios with different procedures.
+    <span class="mono" style="font-size:12px;">DC (Diabetes Care)</span> has two procedure variants, EMEA and NAM, with process
+    differences between them, but <strong>support itself is global</strong>: DC cases also arrive from LATAM, APAC and other
+    regions, and the S0 mapping must state which procedure variant governs each region's cases; <span class="mono" style="font-size:12px;">NPC (Near Patient Care)</span> and
+    <span class="mono" style="font-size:12px;">RIS</span> are global. Consequence: the rulebook is not one document but
+    <strong>three portfolio rulebooks, DC with two regional variants</strong>. Everything below (baseline, golden dataset,
+    MVP scoping, acceptance) is structured per portfolio. <strong>And the teams differ too:</strong> the 15 specialists are
+    Redsparq's team for their portfolio(s); other Roche teams review the remaining portfolios under their own procedures,
+    headcount unknown. Consequence: the MVP runs on the portfolio our team owns (ground truth in-house); portfolios owned
+    by other teams enter in Stage 2 and need their SMEs for rules and golden-dataset validation, a dependency secured
+    through the sponsor, not assumed.
+  </div>
+
+  <div class="callout">
+    <strong>Two clocks run in parallel in July:</strong> (a) Stage 0 authorisation under the existing MSA, so work starts in August regardless of the funding round; (b) the H2 funding submission for Stages 1–3, due before 31 July. Neither waits for the other.
+  </div>
+
+  <!-- ================= PHASES ================= -->
+  <h2>2 · Phase-by-Phase Plan</h2>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">PRE</span>
+      <h3>Approvals &amp; setup</h3>
+      <span class="mono-meta">now – end of July 2026 · €0</span>
+    </div>
+    <div class="phase-body">
+      <div>
+        <div class="label" style="margin-bottom:8px;">Key actions</div>
+        <ul>
+          <li>Final review of the Discovery deck with Sorin and Lori; present to the sponsor</li>
+          <li>Obtain Stage 0 authorisation (€75K) under the existing MSA</li>
+          <li>Prepare and file the H2 funding submission (Stages 1–3 envelope) before 31 July</li>
+          <li>Send the week-1 access requests early (section 4) so approvals run during August</li>
+          <li>Confirm the €22M human-coverage estimate's owner and perimeter with the sponsor</li>
+          <li>Nominate the knowledge cell: 3–4 named specialists from the 15, aligned with account management so casework coverage is preserved</li>
+        </ul>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px;">Deliverables</div>
+        <ul>
+          <li>Signed Stage 0 work order</li>
+          <li>Funding submission filed</li>
+          <li>Access request tickets opened at Roche IT / cloud / InfoSec</li>
+          <li>Named knowledge cell + availability plan</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">S0</span>
+      <h3>Discovery &amp; Value Baseline</h3>
+      <span class="mono-meta">Aug – Sep 2026 · 6–8 wks · €75K</span>
+    </div>
+    <div class="phase-body">
+      <div>
+        <div class="label" style="margin-bottom:8px;">Key actions</div>
+        <ul>
+          <li>Week 1: chase data read-access, GCP project with Claude on Vertex enabled, contractor IAM accounts</li>
+          <li>Review-landscape map: which team reviews which portfolio and region, under which procedure, with which SME contacts; confirm which portfolios the 15 cover; for DC, map every support region (incl. LATAM, APAC) to its governing procedure variant</li>
+          <li>Rulebook extraction per portfolio: structured sessions with the knowledge cell; PRI decision logic into versioned, machine-readable rules for DC (with EMEA/NAM regional variants), NPC and RIS; shared core rules separated from portfolio overlays</li>
+          <li>Golden dataset v1: several hundred judged cases, stratified across the three portfolios and DC support regions (EMEA, NAM, plus LATAM/APAC samples); labels extracted, specialist disagreements adjudicated and documented</li>
+          <li>Certified baseline from Roche data: volumes per queue and per portfolio (incl. APAC), coverage, measured workloads, cost per reviewed case, Inquiry hit rate</li>
+          <li>Savings measurement method agreed with Finance; €22M perimeter validated</li>
+          <li>GxP classification decided; target architecture documented</li>
+          <li>Firm fixed quotes for Stages 1–3</li>
+        </ul>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px;">Deliverables</div>
+        <ul>
+          <li>Value baseline report (certified with Finance)</li>
+          <li>Golden dataset v1 + adjudication log</li>
+          <li>Versioned rulebook v1 (per portfolio; DC with regional variants)</li>
+          <li>Architecture &amp; GxP classification memo</li>
+          <li>Firm quotes + roadmap for Stages 1–3</li>
+        </ul>
+      </div>
+    </div>
+    <div class="gate-box"><strong>Gate 0:</strong> signed-off scope, value baseline and roadmap. Funding decision for Stage 1 is made on certified numbers, not estimates.</div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">S1</span>
+      <h3>MVP on one system</h3>
+      <span class="mono-meta">Oct 2026 – Feb 2027 · €600–700K</span>
+    </div>
+    <div class="phase-body">
+      <div>
+        <div class="label" style="margin-bottom:8px;">Key actions</div>
+        <ul>
+          <li>Read-only ingestion pipeline from the first system (SFDC or Rexis, chosen in S0)</li>
+          <li>Discovery agent: prompts + rulebook grounding on pinned Claude (Sonnet workhorse, Opus escalation), the portfolio our own team reviews (selected in S0), 2–3 priority case types, one language</li>
+          <li>Eval harness: every change measured against the golden dataset (precision / recall vs. keyword baseline)</li>
+          <li>10–20 iteration cycles: error analysis of model-vs-specialist disagreements with the knowledge cell</li>
+          <li>Review workspace: specialists confirm / reject flags, every decision logged</li>
+          <li>InfoSec checkpoint; traceability groundwork for Stage 3</li>
+        </ul>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px;">Deliverables</div>
+        <ul>
+          <li>Working MVP used by the specialists</li>
+          <li>Measured accuracy report vs. keyword selection</li>
+          <li>Review workspace v1</li>
+          <li>Versioned prompt + rulebook package</li>
+        </ul>
+      </div>
+    </div>
+    <div class="gate-box"><strong>Gate 1:</strong> agreed accuracy targets met on the golden dataset. Nothing scales without measured proof; Stage 2 funds only release after this gate.</div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">S2</span>
+      <h3>Development &amp; testing, full scope</h3>
+      <span class="mono-meta">Mar – Aug 2027 · €850–1,000K</span>
+    </div>
+    <div class="phase-body">
+      <div>
+        <div class="label" style="margin-bottom:8px;">Key actions</div>
+        <ul>
+          <li>Second system connected; one analysis layer over both queues</li>
+          <li>All three portfolios (DC EMEA + NAM, NPC, RIS); all priority case types; multiple languages; acceptance measured per portfolio and per language</li>
+          <li>Error analytics: findings traced by case type, product and team</li>
+          <li>Hardened integrations, monitoring, performance at production volume</li>
+          <li>Golden dataset v2 extended per case type and language</li>
+        </ul>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px;">Deliverables</div>
+        <ul>
+          <li>Full-scope system at production volume</li>
+          <li>Acceptance evidence per case type / language</li>
+          <li>Error analytics dashboard</li>
+        </ul>
+      </div>
+    </div>
+    <div class="gate-box"><strong>Gate 2:</strong> acceptance criteria met per case type and language at production volume.</div>
+  </div>
+
+  <div class="phase">
+    <div class="phase-head">
+      <span class="phase-num">S3</span>
+      <h3>Validation &amp; global rollout</h3>
+      <span class="mono-meta">Sep 2027 – Feb 2028 · €800–950K</span>
+    </div>
+    <div class="phase-body">
+      <div>
+        <div class="label" style="margin-bottom:8px;">Key actions</div>
+        <ul>
+          <li>Validation package per the S0 GxP classification (GAMP 5: URS, functional spec, traceability, IQ/OQ/PQ where applicable)</li>
+          <li>Security review with Roche InfoSec (second checkpoint)</li>
+          <li>Training and change management for the review team</li>
+          <li>Global rollout + 3 months hypercare (Dec 27 – Feb 28)</li>
+          <li>Handover documentation; application licence transfers to Roche</li>
+        </ul>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px;">Deliverables</div>
+        <ul>
+          <li>Validated release, live globally</li>
+          <li>Complete validation dossier</li>
+          <li>Trained review team</li>
+          <li>Operations runbook + handover pack</li>
+        </ul>
+      </div>
+    </div>
+    <div class="gate-box"><strong>Gate 3:</strong> validated release live, rollout complete. Steady-state operations begin (36-month term, €45–55K/mo + compute at cost).</div>
+  </div>
+
+  <!-- ================= RESOURCES ================= -->
+  <h2>3 · Resources Needed — Redsparq</h2>
+  <p class="sub">Approximate FTE load per stage. Peak team is ~6 people plus the knowledge cell. Knowledge-cell hours are aligned with the existing Roche account: no double billing, casework coverage preserved (backfill if needed).</p>
+
+  <table>
+    <thead>
+      <tr><th>Role</th><th>Responsibility</th><th class="mono">S0</th><th class="mono">S1</th><th class="mono">S2</th><th class="mono">S3</th><th class="mono">Ops</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Engagement lead / PM</strong></td><td>Client, gates, plan, commercial, steering</td><td class="mono">0.4</td><td class="mono">0.5</td><td class="mono">0.5</td><td class="mono">0.5</td><td class="mono">0.2</td></tr>
+      <tr><td><strong>Solution architect</strong></td><td>Target architecture, GCP/Vertex setup, integration design</td><td class="mono">0.8</td><td class="mono">1.0</td><td class="mono">0.6</td><td class="mono">0.4</td><td class="mono">0.1</td></tr>
+      <tr><td><strong>Engineers ×2</strong></td><td>Ingestion pipeline, review workspace, monitoring, hardening</td><td class="mono">0.5</td><td class="mono">2.0</td><td class="mono">2.0</td><td class="mono">1.0</td><td class="mono">0.5</td></tr>
+      <tr><td><strong>Prompt / eval engineer</strong></td><td>Agent prompts, eval harness, iteration cycles, model tiering</td><td class="mono">0.5</td><td class="mono">1.0</td><td class="mono">1.0</td><td class="mono">0.5</td><td class="mono">0.3</td></tr>
+      <tr><td><strong>PRI knowledge cell (3–4 of the 15)</strong></td><td>Decision rules, golden dataset, adjudication, gate judgement</td><td class="mono">4–6 h/wk each</td><td class="mono">2–4 h/wk</td><td class="mono">2–4 h/wk</td><td class="mono">2 h/wk</td><td class="mono">ad hoc</td></tr>
+      <tr><td><strong>QA / validation lead</strong></td><td>GxP classification, traceability, validation dossier</td><td class="mono">0.2</td><td class="mono">0.3</td><td class="mono">0.5</td><td class="mono">1.0</td><td class="mono">0.1</td></tr>
+      <tr><td><strong>Trainer / change manager</strong></td><td>Review-team training, rollout support</td><td class="mono">—</td><td class="mono">—</td><td class="mono">0.2</td><td class="mono">0.5</td><td class="mono">—</td></tr>
+      <tr><td><strong>Ops team (1st/2nd line + AI ops)</strong></td><td>Support, model quality monitoring, release regression</td><td class="mono">—</td><td class="mono">—</td><td class="mono">—</td><td class="mono">ramp</td><td class="mono">within €45–55K/mo</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4 · Resources Needed — Roche Side</h2>
+  <p class="sub">Everything below is an ask, not a cost line. The first three are the schedule-critical path: every week of delay on access shifts the MVP a week.</p>
+
+  <table>
+    <thead>
+      <tr><th>Who</th><th>What we need</th><th class="mono">When</th><th class="mono">Criticality</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Sponsor</strong></td><td>Stage 0 authorisation under MSA; H2 funding submission sign-off</td><td class="mono">July 2026</td><td class="mono" style="color:var(--danger-deep);">blocking</td></tr>
+      <tr><td><strong>IT (SFDC / Rexis owners)</strong></td><td>Read-only access to historical + live cases, anonymised where required; for DC this means global queues, all support regions, not only EMEA + NAM</td><td class="mono">week 1 of S0</td><td class="mono" style="color:var(--danger-deep);">blocking</td></tr>
+      <tr><td><strong>Cloud team (GCP)</strong></td><td>Roche GCP project (EU region), Claude enabled in Vertex Model Garden, quota, contractor IAM accounts</td><td class="mono">week 1 of S0</td><td class="mono" style="color:var(--danger-deep);">blocking</td></tr>
+      <tr><td><strong>Legal / privacy</strong></td><td>Approval of the anonymisation approach for historical case access</td><td class="mono">S0</td><td class="mono">high</td></tr>
+      <tr><td><strong>Finance</strong></td><td>One working session: savings measurement method + €22M perimeter</td><td class="mono">S0</td><td class="mono">high</td></tr>
+      <tr><td><strong>InfoSec</strong></td><td>Review checkpoints at the S1 and S3 gates</td><td class="mono">Feb 27 · S3</td><td class="mono">medium</td></tr>
+      <tr><td><strong>Regional access (DC global support)</strong></td><td>Access for / to people covering LATAM, APAC and other DC regions, as the S0 mapping requires; L. Hermans requests these when needed</td><td class="mono">as identified in S0</td><td class="mono">medium</td></tr>
+      <tr><td><strong>Other portfolio review teams</strong></td><td>SME hours (rules validation, golden-dataset judgement) for the portfolios our team does not review; introduction brokered by the sponsor</td><td class="mono">map in S0 · engage in S2</td><td class="mono">high</td></tr>
+      <tr><td><strong>PRI team coordination (with Li Li Lim)</strong></td><td>Knowledge-cell availability confirmed; casework coverage plan</td><td class="mono">July 2026</td><td class="mono">high</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= WEEK 1 ================= -->
+  <h2>5 · Week-1 Checklist (Stage 0 kickoff)</h2>
+  <div class="card">
+    <ul class="checklist" style="list-style:none;">
+      <li>Kickoff with sponsor + knowledge cell: scope, cadence, named contacts</li>
+      <li>Data access tickets submitted: SFDC read, Rexis read, historical export path</li>
+      <li>GCP project request: EU region, Vertex AI + Claude models, provisioned quota</li>
+      <li>Contractor IAM accounts requested for the Redsparq team</li>
+      <li>Anonymisation approach drafted and sent to legal/privacy</li>
+      <li>Finance session booked (baseline method + €22M perimeter)</li>
+      <li>Golden dataset case-selection criteria agreed with the knowledge cell, stratified per portfolio</li>
+      <li>Portfolio SOPs collected: DC (EMEA + NAM variants), NPC, RIS; knowledge-cell members mapped to portfolio expertise</li>
+      <li>Confirmed with Sorin / Lori: which portfolios and regions the 15 review; contact points named for the other review teams</li>
+      <li>DC region-to-procedure question tabled with Lori: which variant (EMEA / NAM) governs LATAM, APAC and remaining regions; access requests listed</li>
+      <li>Weekly internal cadence + client status rhythm set</li>
+    </ul>
+  </div>
+
+  <!-- ================= RISKS ================= -->
+  <h2>6 · Risks &amp; Mitigations</h2>
+  <table>
+    <thead>
+      <tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Data access / IAM approvals slow</strong></td><td>MVP slips week-for-week; team idles on fixed price</td><td>All requests filed in week 1 (or pre-work); sponsor escalation path agreed at kickoff; S0 work sequenced so rulebook extraction runs while access clears</td></tr>
+      <tr><td><strong>Dependency on non-Redsparq review teams</strong></td><td>NPC / RIS rules and ground truth cannot be validated without their SMEs; Stage 2 slips or ships with weaker acceptance</td><td>Landscape mapped in S0; sponsor commits introductions at Gate 0; Stage 2 sequencing starts with portfolios whose SMEs are secured; per-portfolio acceptance means one missing team never blocks the others</td></tr>
+      <tr><td><strong>Procedure divergence between portfolios / regions</strong></td><td>Rulebook fragments; adjudication effort multiplies; a flag correct in EMEA is wrong in NAM</td><td>Portfolio-keyed rulebook architecture from S0: shared core + portfolio overlays + DC regional variants; every case routed to its portfolio ruleset; acceptance measured per portfolio, never blended</td></tr>
+      <tr><td><strong>Knowledge-cell availability</strong></td><td>Golden dataset and adjudication stall; gate slips</td><td>Named members with booked weekly slots; coordination with account management; backfill plan so casework coverage never drops</td></tr>
+      <tr><td><strong>Specialists disagree on ground truth</strong></td><td>Accuracy targets unmeasurable</td><td>Adjudication protocol from day one: majority + documented tie-breaks; disagreements become rulebook clarifications</td></tr>
+      <tr><td><strong>GxP classified heavier than assumed</strong></td><td>Stage 3 +20–30% effort</td><td>Classification decided in S0, not discovered in S3; delta via change control at pre-agreed rates</td></tr>
+      <tr><td><strong>Detection below target at Gate 1</strong></td><td>No scale-up; program pauses</td><td>That is the gate working as designed: iterate within S1 budget, or stop with certified findings. No proof, no invoice</td></tr>
+      <tr><td><strong>Funding round slips past H2</strong></td><td>Gap between S0 and S1</td><td>S0 deliverables stand alone (baseline + firm quotes); keep knowledge cell warm; restart plan documented at Gate 0</td></tr>
+      <tr><td><strong>€22M anchor challenged by Finance</strong></td><td>Value story weakens</td><td>Business case survives at 20% of the figure (~13-month payback); S0 replaces the anchor with a certified bottom-up baseline</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= GOVERNANCE ================= -->
+  <h2>7 · Governance &amp; Cadence</h2>
+  <div class="card">
+    <table style="margin-top:0;">
+      <thead><tr><th>Rhythm</th><th>Who</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Weekly</strong> internal stand-up</td><td>Redsparq delivery team</td><td>Progress, blockers, access status</td></tr>
+        <tr><td><strong>Bi-weekly</strong> client status</td><td>PM + Sorin / PRI lead</td><td>Progress vs. plan, decisions needed, SME scheduling</td></tr>
+        <tr><td><strong>Quarterly</strong> steering review</td><td>Sponsor + Redsparq leadership</td><td>Plan, detection quality, value vs. S0 baseline, next-quarter priorities</td></tr>
+        <tr><td><strong>Per stage</strong> gate review</td><td>Sponsor, QA, knowledge cell, PM</td><td>Acceptance against pre-signed criteria; invoice release; go/no-go for next stage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-note">
+    <span>Redsparq · PRI Discovery Action Plan</span>
+    <span>v1.0 · July 2026 · Internal · Confidential</span>
+  </div>
+
+</div>
+</body>
+</html>

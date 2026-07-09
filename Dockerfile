@@ -33,6 +33,10 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/seeds ./seeds
 COPY --from=builder /app/docs ./docs
+# Costi's knowledge base: fiscal JSONs, CFO playbooks, Saga guide. Read at
+# runtime by buildSystemPrompt — without it Costi answers from base prompt
+# alone (this exact failure shipped once; see loadJSON's production error).
+COPY --from=builder /app/training ./training
 
 USER nextjs
 EXPOSE 3000

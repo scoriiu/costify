@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:fixtures:bake": "tsx scripts/build-fixture-snapshot.ts",
     "test:client": "vitest run tests/unit/modules/balances/client-reconciliation",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "golden": "tsx tests/golden/run.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19",
     "@types/sax": "^1.2.7",
     "@types/yauzl": "^2.10.3",
+    "dotenv": "^17.4.2",
     "eslint": "^10.3.0",
     "eslint-config-next": "16.2.6",
     "openai": "^6.37.0",

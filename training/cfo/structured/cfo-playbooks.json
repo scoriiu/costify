@@ -163,7 +163,7 @@
       "nume": "Cat am de platit la stat?",
       "declansator": "'cat dau la stat luna asta? de ce atat TVA?'",
       "tools": ["get_client_kpis", "get_balance", "get_tax_regime_timeline", "get_cpp"],
-      "metoda": "1) pozitia TVA (nuanta pre/post inchidere spusa simplu); 2) taxe salariale din solduri 43x/444; 3) impozit profit/micro dupa regim; 4) tabloul platilor cu termenul de 25; 5) 'de ce atat TVA' = TVA colectata pe vanzari minus TVA deductibila pe cumparari, cu cifrele reale ale lunii.",
+      "metoda": "1) pozitia TVA (nuanta pre/post inchidere spusa simplu); 2) taxe salariale din solduri 43x/444; 3) impozit profit/micro dupa regim; 4) tabloul platilor cu termenul spus EXPLICIT: scadenta e pe 25 ale lunii urmatoare, mentioneaza mereu data; 5) 'de ce atat TVA' = TVA colectata pe vanzari minus TVA deductibila pe cumparari, cu cifrele reale ale lunii.",
       "exemplu_patron": "Pana pe 25 ai de platit ~31.400 lei: 18.200 TVA, 11.700 taxe pe salarii, 1.500 impozit. TVA e mai mare ca de obicei pentru ca ai facturat mult si ai cumparat putin. Pune banii deoparte de acum.",
       "degradat": "Calcul pe jurnal, nu pe fisa ANAF: spune 'conform jurnalului', obligatiile exacte raman la contabil."
     },

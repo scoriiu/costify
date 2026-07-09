@@ -27,6 +27,12 @@ export interface ChatParams {
   maxTokens: number;
   /** null = omit from the API call (claude-sonnet-5+ rejects temperature). */
   temperature: number | null;
+  /** Adaptive-thinking effort for claude-sonnet-5+; null = omit thinking
+   *  config (legacy models). Sonnet-5 thinks by default and the reasoning
+   *  shares maxTokens with the answer: left unconfigured, long analyses can
+   *  burn the whole budget on thinking and ship an empty answer (found by
+   *  the golden set on P03). */
+  effort: "low" | "medium" | "high" | null;
   maxToolRounds: number;
 }
 
@@ -34,6 +40,7 @@ const LEGACY_PARAMS: ChatParams = {
   model: "claude-haiku-4-5-20251001",
   maxTokens: 2048,
   temperature: 0.1,
+  effort: null,
   maxToolRounds: 5,
 };
 
@@ -41,8 +48,11 @@ const CFO_DEFAULT_MODEL = "claude-sonnet-5";
 
 const CFO_PARAMS: ChatParams = {
   model: CFO_DEFAULT_MODEL,
-  maxTokens: 4096,
+  // Thinking and answer share this budget; 16k leaves room for both a deep
+  // reasoning pass and a long P03/P05 answer.
+  maxTokens: 16384,
   temperature: null,
+  effort: "high",
   maxToolRounds: 8,
 };
 
@@ -57,9 +67,19 @@ export function getChatParams(cfoMode: boolean = isCfoModeEnabled()): ChatParams
   return override ? { ...CFO_PARAMS, model: override } : CFO_PARAMS;
 }
 
+const missingReported = new Set<string>();
+
 function loadJSON(dir: string, filename: string): Record<string, unknown> {
   const path = join(dir, filename);
-  if (!existsSync(path)) return {};
+  if (!existsSync(path)) {
+    // A missing knowledge file must never be silent: it once shipped a prod
+    // image without training/ and Costi ran for weeks with an empty brain.
+    if (!missingReported.has(path)) {
+      missingReported.add(path);
+      console.error(`[costi] knowledge file missing: ${path} — prompt runs degraded`);
+    }
+    return {};
+  }
   return JSON.parse(readFileSync(path, "utf-8"));
 }
 
@@ -157,7 +177,7 @@ ${sagaContext ? `\nGHID SAGA C:\n${sagaContext}` : ""}`;
 function buildPageContextSection(ctx: PageContext | null): string {
   if (!ctx) return "";
   const voiceRule = ctx.ownerView
-    ? `- Vederea PATRON e activa (view=owner): utilizatorul se uita la firma prin ochii patronului. Raspunde in limbajul simplu de patron: fara jargon contabil (rulaj, balanta, debit/credit, sold, DSO), procente traduse in lei si timp. Codurile de cont (641, 6022, 4111...) sunt INTERZISE peste tot, inclusiv in calcule, paranteze sau justificari: spune "salarii cu tot cu taxe", "chirie", "facturi neincasate". Chiar daca utilizatorul e contabil, vrea raspunsul asa cum l-ar vedea patronul.`
+    ? `- Vederea PATRON e activa (view=owner): utilizatorul se uita la firma prin ochii patronului. Raspunde in limbajul simplu de patron: fara jargon contabil, procente traduse in lei si timp. Codurile de cont (641, 6022, 4111...) sunt INTERZISE peste tot, inclusiv in calcule, paranteze sau justificari. Substitutii OBLIGATORII (stanga nu are voie sa apara deloc): "sold"/"soldul" -> "banii din cont" sau "suma ramasa"; "rulaj" -> "miscarile din cont"; "creante" -> "facturi neincasate"; "balanta"/"debit"/"analitic"/"DSO"/"CPP" -> spune ideea in cuvinte de zi cu zi. Chiar daca utilizatorul e contabil, vrea raspunsul asa cum l-ar vedea patronul.`
     : `- Vederea CONTABIL e activa: vocabular profesional OMFP este potrivit.`;
 
   return `

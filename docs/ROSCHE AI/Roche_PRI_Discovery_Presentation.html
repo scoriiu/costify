@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redsparq | PRI Discovery for Roche</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-regular.woff2') format('woff2');
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-semibold.woff2') format('woff2');
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: 'Altform';
+    src: url('../../public/fonts/altform-bold.woff2') format('woff2');
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: #0D6B5E;
+    --primary-dark: #0A5A4F;
+    --primary-light: #34D3A0;
+    --danger: #EF4444;
+    --danger-deep: #B91C1C;
+    --warning: #F59E0B;
+    --green: #3FB950;
+    --surface-0: #F0EFEA;
+    --surface-1: #F7F6F2;
+    --surface-2: #E6E4DE;
+    --surface-3: #D9D7D0;
+    --text-1: #1A1918;
+    --text-2: #44413C;
+    --text-3: #7A766E;
+    --on-primary: #E9E8E3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--surface-0);
+    font-family: 'Altform', -apple-system, 'Segoe UI', sans-serif;
+    color: var(--text-1);
+    letter-spacing: -0.02em;
+    overflow: hidden;
+  }
+
+  .mono { font-family: 'Geist Mono', ui-monospace, 'SF Mono', monospace; }
+
+  .deck { height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 52px 76px 72px;
+    background: var(--surface-0);
+  }
+  .slide.active { display: flex; }
+
+  .kicker {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--primary);
+    margin-bottom: 14px;
+  }
+  .kicker.red { color: var(--danger-deep); }
+
+  h1 { font-size: 56px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; }
+  h2 { font-size: 38px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; }
+  h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.04em; }
+
+  .sub { font-size: 17px; color: var(--text-2); max-width: 900px; line-height: 1.55; margin-top: 12px; }
+
+  .body-block { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 14px;
+    padding: 26px 28px;
+  }
+
+  .label {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  .pill {
+    display: inline-block;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--surface-3);
+    background: var(--surface-1);
+    color: var(--text-2);
+  }
+  .pill.teal { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .pill.green { background: rgba(63,185,80,0.10); border-color: rgba(63,185,80,0.40); color: #1F7A34; }
+
+  .footer {
+    position: absolute;
+    bottom: 24px;
+    left: 76px;
+    right: 76px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-3);
+  }
+  .brand-mark { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .brand-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--primary); }
+  .counter { font-variant-numeric: tabular-nums; }
+
+  .accent-bar { width: 56px; height: 5px; border-radius: 3px; background: var(--primary); margin-bottom: 28px; }
+
+  .title-logo { position: absolute; top: 48px; right: 76px; width: 150px; height: auto; }
+
+  /* ================= MACHINE DIAGRAMS ================= */
+
+  .machine { display: flex; flex-direction: column; gap: 0; width: 100%; }
+
+  .m-row { display: flex; align-items: stretch; }
+
+  .m-stage { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  .m-node {
+    position: relative;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    border-radius: 12px;
+    padding: 16px 18px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .m-title { font-size: 15px; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 4px; }
+  .m-desc { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+  .m-sys {
+    display: inline-block;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    background: var(--surface-2);
+    border-radius: 5px;
+    padding: 2px 8px;
+    margin-bottom: 7px;
+    align-self: flex-start;
+  }
+
+  /* sick machine styling */
+  .sick .m-node.hurt {
+    border: 1.5px dashed rgba(239,68,68,0.55);
+    background: rgba(239,68,68,0.05);
+  }
+  .sick .m-node.tilt-a { transform: rotate(-1.3deg); }
+  .sick .m-node.tilt-b { transform: rotate(1.2deg); }
+  .sick .m-node.tilt-c { transform: rotate(-0.8deg); }
+
+  .m-arrow { width: 40px; flex: none; position: relative; }
+  .m-arrow::before {
+    content: '';
+    position: absolute;
+    left: 5px; right: 13px; top: 50%;
+    height: 2px;
+    background: var(--surface-3);
+  }
+  .m-arrow::after {
+    content: '';
+    position: absolute;
+    right: 5px; top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid var(--surface-3);
+    border-top: 5.5px solid transparent;
+    border-bottom: 5.5px solid transparent;
+  }
+  .m-arrow.broken::before {
+    background: none;
+    border-top: 2.5px dashed rgba(239,68,68,0.65);
+    height: 0;
+    transform: rotate(-4deg);
+  }
+  .m-arrow.broken::after { border-left-color: rgba(239,68,68,0.65); }
+
+  .m-arrow.solid-teal::before { background: var(--primary); }
+  .m-arrow.solid-teal::after { border-left-color: var(--primary); }
+
+  .pct-chip {
+    position: absolute;
+    top: -13px; left: 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    z-index: 2;
+  }
+  .pct-chip.full { background: var(--primary); color: var(--on-primary); box-shadow: 0 2px 8px rgba(13,107,94,0.35); }
+  .pct-chip.low { background: var(--danger); color: #FDF6F5; box-shadow: 0 2px 8px rgba(239,68,68,0.4); }
+  .pct-chip.gray { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--surface-3); }
+
+  /* leaks */
+  .leak-row { display: flex; margin-top: 4px; }
+  .leak-cell { display: flex; justify-content: center; }
+  .leak-spacer { width: 40px; flex: none; }
+  .leak {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding-top: 2px;
+  }
+  .leak .drip { display: flex; flex-direction: column; align-items: center; }
+  .leak .drop {
+    width: 7px; height: 7px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: var(--danger);
+    opacity: 0.85;
+    margin: 3px 0;
+    animation: drip 2.2s ease-in infinite;
+  }
+  .leak .drop:nth-child(2) { animation-delay: 0.7s; opacity: 0.55; }
+  @keyframes drip {
+    0% { transform: rotate(-45deg) translate(0,0); opacity: 0.9; }
+    100% { transform: rotate(-45deg) translate(9px,9px); opacity: 0; }
+  }
+  .leak .leak-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--danger-deep);
+    white-space: nowrap;
+  }
+
+  .pool {
+    margin-top: 14px;
+    border-radius: 12px;
+    border: 1.5px dashed rgba(239,68,68,0.5);
+    background: rgba(239,68,68,0.07);
+    padding: 16px 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 16px;
+  }
+  .pool .pool-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    color: var(--danger-deep);
+  }
+  .pool .pool-text {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--danger-deep);
+  }
+
+  /* healthy machine */
+  .healthy { position: relative; padding-bottom: 46px; }
+  .healthy .m-node { border-color: var(--surface-3); }
+  .healthy .m-node.untouched {
+    border-style: dashed;
+    background: var(--surface-1);
+    opacity: 0.82;
+  }
+
+  .ai-node {
+    position: relative;
+    border: 1.5px solid var(--primary);
+    background: rgba(13,107,94,0.06);
+    border-radius: 12px;
+    padding: 13px 16px;
+  }
+  .ai-tag {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 5px;
+  }
+  .ai-node .m-title { font-size: 14px; }
+  .ai-node .m-desc { font-size: 11.5px; }
+
+  .gear {
+    width: 15px; height: 15px;
+    flex: none;
+    fill: var(--primary);
+    animation: spin 14s linear infinite;
+  }
+  .gear.slow { animation-duration: 22s; animation-direction: reverse; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-link { width: 2px; background: var(--primary); height: 12px; margin: 0 auto; opacity: 0.55; }
+
+  .loopback {
+    position: absolute;
+    left: 4%; right: 4%;
+    bottom: 0;
+    height: 44px;
+    pointer-events: none;
+  }
+  .loopback svg { width: 100%; height: 100%; overflow: visible; }
+  .loop-label {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    background: var(--surface-0);
+    padding: 0 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+
+  /* big stat slides */
+  .big-stat {
+    font-family: 'Geist Mono', monospace;
+    font-size: 84px;
+    font-weight: 600;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+
+  /* timeline */
+  .timeline { display: flex; gap: 10px; align-items: stretch; }
+  .t-seg {
+    flex: 1;
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: var(--surface-1);
+    border: 1px solid var(--surface-3);
+    position: relative;
+  }
+  .t-seg .t-num {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--on-primary);
+    background: var(--primary);
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+  }
+  .t-seg .t-dur {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+  }
+  .t-price {
+    font-family: 'Geist Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 8px;
+  }
+
+  /* payback chart */
+  .pay-chart { position: relative; padding-top: 24px; }
+  .pay-band {
+    position: absolute;
+    left: calc(220px + (100% - 220px - 178px) * 0.5);
+    right: 178px; top: 0; bottom: 30px;
+    background: repeating-linear-gradient(-45deg, rgba(122,118,110,0.08) 0 8px, transparent 8px 16px);
+    border-left: 1.5px dashed var(--surface-3);
+    border-radius: 0 10px 10px 0;
+  }
+  .pay-band-label {
+    position: absolute;
+    top: 2px; left: 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+  .pay-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--surface-2);
+  }
+  .pay-row:last-of-type { border-bottom: none; }
+  .pay-label { width: 202px; flex: none; }
+  .pay-label .pay-scenario { font-size: 15px; font-weight: 600; letter-spacing: -0.03em; }
+  .pay-label .pay-value {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 3px;
+    display: block;
+  }
+  .pay-track { flex: 1; display: flex; align-items: center; }
+  .pay-bar {
+    height: 30px;
+    border-radius: 7px;
+    background: var(--primary);
+    box-shadow: 0 2px 10px rgba(13,107,94,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 10px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--on-primary);
+    white-space: nowrap;
+  }
+  .pay-return {
+    width: 160px; flex: none;
+    text-align: right;
+    font-family: 'Geist Mono', monospace;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .pay-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-left: 220px;
+    margin-right: 178px;
+    margin-top: 8px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 9.5px;
+    color: var(--text-3);
+    letter-spacing: 0.06em;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Geist Mono', monospace;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-3);
+    opacity: 0.45;
+  }
+
+  @media print {
+    html, body { overflow: visible; height: auto; }
+    .deck { height: auto; }
+    .slide { display: flex !important; position: relative; height: 100vh; page-break-after: always; }
+    .nav-hint { display: none; }
+    .gear, .leak .drop { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- ========== SLIDE 1: TITLE ========== -->
+  <section class="slide active">
+    <img class="title-logo" src="data:image/png;base64,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" alt="Redsparq">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Redsparq for Roche · Confidential</div>
+      <h1>Every case read.<br>Every flag explained.<br><span style="color:var(--primary);">One team touched.</span></h1>
+      <p class="sub" style="font-size:19px; margin-top:24px;">
+        PRI Discovery: AI-assisted quality review of every Rexis and Salesforce case.
+        Nothing changes for the 600 agents. Nothing changes at intake.
+        A person always decides.
+      </p>
+      <div style="margin-top:38px; display:flex; gap:12px;">
+        <span class="pill teal">100% of both queues</span>
+        <span class="pill teal">Read-only. Intake untouched</span>
+        <span class="pill green">Payback in months, even in the stress case</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v1.0 · July 2026</span>
+      <span class="counter">01</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 2: THE SICK MACHINE (WHOLE PROBLEM) ========== -->
+  <section class="slide">
+    <div class="kicker red">The Whole System Today</div>
+    <h2>Strong teams. A process that loses signal between the joints.</h2>
+    <div class="body-block">
+      <div class="machine sick">
+        <div class="m-row">
+          <div class="m-stage" style="flex:0.85;">
+            <div class="m-node">
+              <span class="pct-chip full">100%</span>
+              <div class="m-sys">Intake</div>
+              <div class="m-title">Customer calls</div>
+              <div class="m-desc">Error code, malfunction, any language, any phrasing.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.25;">
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">PDFs + RDK</div>
+              <div class="m-title">Keyword hunting, live</div>
+              <div class="m-desc">Operator digs through manuals while the customer waits.</div>
+            </div>
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Salesforce / Rexis</div>
+              <div class="m-title">Two teams, two systems</div>
+              <div class="m-desc">Half the team logs cases in Salesforce, half in Rexis. Free text, with whatever attention the search leaves.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.1;">
+            <div class="m-node hurt tilt-c">
+              <div class="m-sys">Keyword lists</div>
+              <div class="m-title">PRI by human discretion</div>
+              <div class="m-desc">Highly trained specialists, but the call is discretionary and person-dependent, backed only by a fixed word list. Blind to typos, phrasings, languages, mislabels.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:1.15;">
+            <div class="m-node hurt tilt-b">
+              <div class="m-sys">Salesforce &rarr; Smarteeva</div>
+              <div class="m-title">50 rigid questions</div>
+              <div class="m-desc">Every question, every time.</div>
+            </div>
+            <div class="m-node hurt tilt-a">
+              <div class="m-sys">Rexis &rarr; nothing</div>
+              <div class="m-title">No questionnaire</div>
+              <div class="m-desc">Same risk. Zero validation.</div>
+            </div>
+          </div>
+          <div class="m-arrow broken"></div>
+
+          <div class="m-stage" style="flex:0.9;">
+            <div class="m-node hurt">
+              <span class="pct-chip low">20&ndash;25%</span>
+              <div class="m-sys">PRI specialists</div>
+              <div class="m-title">Quality review</div>
+              <div class="m-desc">The process is so heavy that only 1 case in 4 gets a second look.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="leak-row">
+          <div class="leak-cell" style="flex:0.85;"></div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.25;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">attention lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.1;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">meaning lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:1.15;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">rigor lost</span></div>
+          </div>
+          <div class="leak-spacer"></div>
+          <div class="leak-cell" style="flex:0.9;">
+            <div class="leak"><div class="drip"><div class="drop"></div><div class="drop"></div></div><span class="leak-label">coverage lost</span></div>
+          </div>
+        </div>
+
+        <div class="pool">
+          <span class="pool-num">75&ndash;80%</span>
+          <span class="pool-text">of cases are never checked. That is where missed PRIs live.</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">02</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 3: THE COST ========== -->
+  <section class="slide">
+    <div class="kicker red">What The Leak Costs</div>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card" style="text-align:left;">
+          <div class="big-stat" style="color:var(--danger-deep);">3<span style="font-size:44px;">/4</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">cases never get a second look.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Selection by keywords, not by risk. The Inquiry queue, where mislabelled complaints hide, gets the least attention.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">2<span style="font-size:44px;">&ne;</span></div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">two systems, two standards.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Smarteeva for one queue, nothing for the other. Indefensible in an audit.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="color:var(--danger-deep);">1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:18px; letter-spacing:-0.03em;">missed reportable incident found by an auditor.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">A finding can trigger a CAPA: remediation program, closer scrutiny of everything that follows. It costs more than the entire fix.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.05);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--danger-deep);">Fixing this with headcount is not an option: by your own team's estimate, reaching 100% coverage with people costs ~&euro;22M, and the market does not supply device safety specialists at that scale anyway. The real alternative is a permanent blind spot.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">03</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 4: WHERE TO START ========== -->
+  <section class="slide">
+    <div class="kicker">The Strategic Choice</div>
+    <h2>Every joint can be fixed. Only one can be fixed<br>without mobilising the organisation.</h2>
+    <div class="body-block">
+      <div class="grid-2" style="gap:24px;">
+        <div class="card" style="border:1.5px dashed rgba(239,68,68,0.45); background: rgba(239,68,68,0.04);">
+          <div class="label" style="color:var(--danger-deep); margin-bottom:16px;">Fixing the intake side (left of the machine)</div>
+          <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em;">Guided workflows, assisted logging, smarter questionnaires. Right fixes, heavy footprint.</p>
+          <div style="display:flex; flex-direction:column; gap:11px; margin-top:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">People whose daily work changes</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">~600 agents</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Live processes redesigned</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">intake + logging</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Training and change management</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">global rollout</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Departments to align</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">many, for months</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Time before first value</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--danger-deep);">after the rollout</span></div>
+          </div>
+        </div>
+        <div class="card" style="border:1.5px solid var(--primary); background: rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:16px;">Fixing the review side (right of the machine)</div>
+          <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em;">PRI Discovery reads what already exists. Nobody's workflow changes except the reviewers'.</p>
+          <div style="display:flex; flex-direction:column; gap:11px; margin-top:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">People whose daily work changes</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">15 specialists</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Live processes redesigned</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">none</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">System access needed</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">read-only</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Departments to align</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">PRI team + IT + InfoSec</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;"><span style="font-size:14px; color:var(--text-2);">Time before first value</span><span class="mono" style="font-size:15px; font-weight:600; color:var(--primary);">first scanned queue</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The blind spot sits at the review joint anyway: 75&ndash;80% of cases unchecked. Start where the risk pools and the footprint is smallest. The rest of the machine can follow, on its own business case, informed by what discovery finds.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">04</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 5: THE FOCUSED SOLUTION ========== -->
+  <section class="slide">
+    <div class="kicker">The Proposal · PRI Discovery</div>
+    <h2>One agent, at the one joint where the risk pools.</h2>
+    <div class="body-block">
+      <div class="machine healthy">
+        <div class="m-row">
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node untouched" style="flex:1;">
+              <span class="pct-chip gray">untouched</span>
+              <div class="m-sys">Intake · today's process</div>
+              <div class="m-title">Agents work exactly as today</div>
+              <div class="m-desc">Same screens, same systems, same habits. Nothing to learn, nothing to roll out, nobody retrained.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node untouched">
+              <div class="m-sys">Salesforce queue</div>
+              <div class="m-title">Cases land as they always did</div>
+              <div class="m-desc">Complaints and inquiries, free text, any language.</div>
+            </div>
+            <div class="ai-link" style="opacity:0.25;"></div>
+            <div class="m-node untouched">
+              <div class="m-sys">Rexis queue</div>
+              <div class="m-title">Same flow, same risk</div>
+              <div class="m-desc">The queue that today gets no questionnaire and the least review.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1.35;">
+            <div class="ai-node" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <span class="pct-chip full" style="left:auto; right:14px;">100% scanned · today 20&ndash;25%</span>
+              <div class="ai-tag"><svg class="gear" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>AI Agent · PRI Discovery</div>
+              <div class="m-title">Reads every case, both queues, every language</div>
+              <div class="m-desc">Read-only. Checks each case against its portfolio's rulebook (DC, NPC, RIS) for meaning, not keywords: hidden complaints, mislabelled inquiries, missing reportable details. Every flag comes with written reasoning and source references. No record is ever changed.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1;">
+            <div class="m-node" style="border:1.5px solid var(--primary); flex:1;">
+              <div class="m-sys" style="background:rgba(13,107,94,0.1); color:var(--primary);">PRI specialists · the 15</div>
+              <div class="m-title">A person always decides</div>
+              <div class="m-desc">A prepared, reasoned queue instead of a haystack. Confirm or reject in minutes. Every decision logged.</div>
+            </div>
+          </div>
+          <div class="m-arrow solid-teal"></div>
+
+          <div class="m-stage" style="flex:1;">
+            <div class="ai-node" style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+              <div class="ai-tag"><svg class="gear slow" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9.4 4c0-.4 0-.8-.1-1.2l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2-1.2L16.5 3h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5a7.4 7.4 0 0 0 0 2.4l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>Error analytics</div>
+              <div class="m-title">Errors traced to their source</div>
+              <div class="m-desc">By case type, product and team. Evidence for where intake should improve one day. Reports and suggestions, never automatic changes.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="loopback">
+          <svg viewBox="0 0 1000 44" preserveAspectRatio="none">
+            <path d="M 965 2 C 965 40, 35 40, 38 6" fill="none" stroke="#0D6B5E" stroke-width="2" stroke-dasharray="7 5" opacity="0.6"/>
+            <path d="M 33 14 L 38 3 L 44 13" fill="none" stroke="#0D6B5E" stroke-width="2" opacity="0.75"/>
+          </svg>
+          <span class="loop-label">read-only in · reasoned flags out · intake untouched · no record changed automatically</span>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">05</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 6: MINIMAL FOOTPRINT ========== -->
+  <section class="slide">
+    <div class="kicker">Organisational Footprint</div>
+    <h2>What this asks of Roche: almost nothing.</h2>
+    <p class="sub">This is the deliberate difference from every other fix on the diagram. PRI Discovery consumes data that already exists and delivers to a team that already exists.</p>
+    <div class="body-block">
+      <div class="grid-2" style="gap:24px;">
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:18px;">What is NOT touched</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">&check;</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">The 600 agents.</strong> No new screens, no new steps, no training campaign. Most will never know the tool exists.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">&check;</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">The intake process.</strong> Calls, logging, Smarteeva, questionnaires: everything runs exactly as today.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">&check;</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">Rexis and Salesforce.</strong> No migration, no new fields, no write access. The tool reads; it never writes to a record.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">&check;</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">Medical and reporting decisions.</strong> No assessment, no submission decision by AI. That boundary also keeps the validation regime lean.</p></div>
+          </div>
+        </div>
+        <div class="card" style="border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:18px;">The only people we need</div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">1</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">The 15 PRI specialists, a few hours a week on top of their casework.</strong> During the build they provide the decision rules, build the golden dataset of judged cases, and judge the tool at every gate. Once live, every flag lands on their desk: they are the human validators, the decision layer the whole system answers to.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">2</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">IT, once.</strong> Read access to historical and live cases, anonymised where required. Requests start in week 1.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">3</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">InfoSec, at two gates.</strong> Review checkpoints at Stage 1 and Stage 3. Inside Roche's own Google Cloud, so no new vendor onboarding.</p></div>
+            <div style="display:flex; gap:12px; align-items:baseline;"><span class="mono" style="color:var(--primary); font-weight:600;">4</span><p style="font-size:14.5px; color:var(--text-2); line-height:1.5;"><strong style="color:var(--text-1);">Finance, once.</strong> Agree the savings measurement method in Stage 0, so value is certified, not asserted.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">No global rollout to coordinate. No process owners to convince. One team, read-only data, and a measured gate before every euro. And deliberately not the target: cutting the review team. The 15 specialists stop hunting and start deciding.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">06</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 7: THE RULE ========== -->
+  <section class="slide">
+    <div class="body-block" style="align-items:center; text-align:center;">
+      <div class="kicker">The One Rule That Never Bends</div>
+      <h1 style="font-size:60px; max-width:1000px;">The AI reads, prepares<br>and explains.<br><span style="color:var(--primary);">A person always decides.</span></h1>
+      <div style="display:flex; gap:14px; margin-top:40px; flex-wrap:wrap; justify-content:center;">
+        <span class="pill">No record changed automatically</span>
+        <span class="pill">No medical assessment by AI</span>
+        <span class="pill">No reporting decision by AI</span>
+        <span class="pill">Every flag traceable, every decision logged</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">07</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 8: THE ENGINE ========== -->
+  <section class="slide">
+    <div class="kicker">Technology · The Engine</div>
+    <h2>Claude on Vertex AI, inside Roche's own Google Cloud.</h2>
+    <p class="sub">One specialised discovery agent on a frontier reasoning engine, grounded in a versioned rulebook, inside the perimeter Roche already operates, secures and audits. Not a SaaS subscription, not a new data processor, no new procurement path.</p>
+    <div class="body-block">
+      <div class="grid-3" style="gap:16px;">
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Grounded, not creative</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">The agent may only flag what it can cite.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Cases, the PRI decision rules and product documentation are the only sources. Every flag carries written reasoning with references a reviewer, an auditor or an inspector can verify. It says "not enough information" instead of inventing an answer.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Frozen, testable, auditable</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">Version-pinned model, golden-dataset gates.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Validated against one pinned Claude version: same case, same rules, same answer. Upgrades only through change control with regression on the golden dataset of already-judged cases. A validated system cannot sit on a model that changes under it.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Inside the perimeter</div>
+          <p style="font-size:15px; font-weight:600; letter-spacing:-0.03em; margin-bottom:8px;">The model comes to the data.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">EU region, VPC Service Controls, CMEK, IAM and audit logging on every call. Zero retention, zero training on Roche data, contractually. Billed through the existing Google agreement. No data path to the public internet or to the model vendor.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px; border:1.5px dashed rgba(63,185,80,0.55); background:rgba(63,185,80,0.07);">
+        <div style="display:flex; align-items:center; justify-content:center; gap:14px;">
+          <span class="mono" style="font-size:26px; font-weight:600; color:#2E7D32; line-height:1;">&check;</span>
+          <p style="font-size:14px; font-weight:600; letter-spacing:-0.03em; color:#2E7D32;">No data path to the public internet, to Anthropic servers, or into model training. The data never goes to the model vendor.</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">Roche Google Cloud perimeter · EU region</span>
+        <span class="pill">Encryption in transit and at rest</span>
+        <span class="pill">Provisioned throughput, predictable latency</span>
+        <span class="pill">InfoSec checkpoints at the stage gates</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">08</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 9: MODEL COST ========== -->
+  <section class="slide">
+    <div class="kicker">Technology · What The Model Itself Costs</div>
+    <h2>Cents per case. Billed at cost, no markup.</h2>
+    <p class="sub">Three Claude tiers are available on Vertex AI. Which one reads which case is an evidence decision, made at the Stage 1 gate: the cheapest model that clears the accuracy targets on the golden dataset wins.</p>
+    <div class="body-block">
+      <div class="grid-3" style="gap:16px;">
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="margin-bottom:10px;">Claude Haiku · the sieve (optional)</div>
+          <div class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.03em;">&asymp; $1 / $5 <span style="font-size:12px; color:var(--text-3); font-weight:500;">per M tokens in / out</span></div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">A cheap pre-screen for cases with obviously no safety signal. Used only if Stage 1 proves it misses nothing. In a "never miss a PRI" context, the sieve must earn its place with evidence, not savings.</p>
+        </div>
+        <div class="card" style="padding:22px 24px; border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">Claude Sonnet · the workhorse</div>
+          <div class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.03em; color:var(--primary);">&asymp; $3 / $15 <span style="font-size:12px; color:var(--text-3); font-weight:500;">per M tokens in / out</span></div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">Reads every case against the rulebook: case file plus relevant rules in one pass, reasoning and citations out. With the rulebook prompt-cached, a full case review costs <strong style="color:var(--text-1);">&euro;0.03&ndash;0.10</strong>.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="margin-bottom:10px;">Claude Opus · the second opinion</div>
+          <div class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.03em;">&asymp; $5 / $25 <span style="font-size:12px; color:var(--text-3); font-weight:500;">per M tokens in / out</span></div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">Escalation for the ambiguous 5&ndash;10%: borderline phrasings, conflicting details, rare case types. Deeper reasoning where it matters, adding cents to the average case, not euros.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px; padding:16px 30px; display:flex; align-items:center; justify-content:space-around; gap:14px;">
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">All-in per case read</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em; color:var(--primary);">&asymp; &euro;0.05&ndash;0.15</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">At full production volume</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em;">&euro;5&ndash;10K / month</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">Billing</div>
+          <div class="mono" style="font-size:21px; font-weight:600; letter-spacing:-0.02em;">at cost · quarterly true-up</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px; background:var(--primary); border-color:var(--primary); padding:16px 26px;">
+        <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">A specialist's second look costs euros per case and cannot cover the volume. The model's read costs cents and covers everything. That is the entire economics of 100% coverage, in one line.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">Version-pinned models on Vertex AI</span>
+        <span class="pill">Priced through Roche's Google agreement</span>
+        <span class="pill">Real volumes certified in Stage 0</span>
+        <span class="pill green">No per-seat licence, no per-case fee, no markup</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">09</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 10: WHY REDSPARQ ========== -->
+  <section class="slide">
+    <div class="kicker">Why Redsparq</div>
+    <h2>Others would have to learn this operation.<br>We run it.</h2>
+    <div class="body-block">
+      <div class="grid-3">
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">15</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">specialists on our team alone work these exact cases, today, for Roche.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">They already hunt hidden complaints by hand, and the team grew from 13 to 15 in July because the volume keeps growing. The tool scales their proven practice, and they train and judge it at every gate.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">Day 1</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">golden dataset from real judged cases.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">No vendor discovery phase to learn what a PRI looks like. The knowledge cell builds the measuring stick before the first line of code.</p>
+        </div>
+        <div class="card">
+          <div class="big-stat" style="font-size:40px; color:var(--primary);">&euro;0</div>
+          <p style="font-size:16px; font-weight:600; margin-top:16px; letter-spacing:-0.03em;">paid before proof. No lock-in, ever.</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:8px; line-height:1.5;">Fixed-price stages, invoiced only against signed acceptance. Zero licence fees, application transfers to Roche, exit possible at any gate.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:22px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:17px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">The people who know exactly where details get missed teach the system what to look for. Then they judge whether it learned. No other bidder can offer that.</p>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; justify-content:center; flex-wrap:wrap;">
+        <span class="pill">Roche owns the application at completion</span>
+        <span class="pill">Full documentation as a deliverable</span>
+        <span class="pill">Quarterly steering + stage-gate reviews</span>
+        <span class="pill">Single accountable partner, build to operations</span>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">10</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 11: NUMBERS FOR FINANCE ========== -->
+  <section class="slide">
+    <div class="kicker">The Numbers · Ready For Finance</div>
+    <h2>What it costs. What it replaces.</h2>
+    <p class="sub">Planning figures (&plusmn;20%), firm fixed prices per stage delivered at the end of Stage 0. Every number below can go into a budget sheet today.</p>
+    <div class="body-block">
+      <div class="grid-4">
+        <div class="card" style="padding:22px 24px; border:1.5px solid var(--primary); background:rgba(13,107,94,0.05);">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">To begin with · MVP</div>
+          <div class="mono" style="font-size:30px; font-weight:600; letter-spacing:-0.04em; color:var(--primary);">&euro;675&ndash;775K</div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">Stage 0 discovery (&euro;75K) + Stage 1 MVP (&euro;600&ndash;700K). In ~7 months: specialists reviewing AI flags on one system, accuracy proven on the golden dataset. Full stop possible after this, with the evidence in hand.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="margin-bottom:10px;">Full build · one-time</div>
+          <div class="mono" style="font-size:30px; font-weight:600; letter-spacing:-0.04em;">&euro;2.45&ndash;2.85M</div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">All four stages over 18&ndash;20 months: both systems, all priority case types, multiple languages, GxP validation, rollout. Fixed-price stages, invoiced only against signed acceptance.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="margin-bottom:10px;">Running the app · yearly</div>
+          <div class="mono" style="font-size:30px; font-weight:600; letter-spacing:-0.04em;">&euro;0.6&ndash;0.8M</div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">&euro;45&ndash;55K per month: support, AI operations, model quality monitoring, re-testing after every Rexis or SFDC release. Plus AI compute at cost, &euro;5&ndash;10K per month, quarterly true-up.</p>
+        </div>
+        <div class="card" style="padding:22px 24px;">
+          <div class="label" style="margin-bottom:10px;">5-year total · TCO</div>
+          <div class="mono" style="font-size:30px; font-weight:600; letter-spacing:-0.04em;">&euro;4.3&ndash;5.2M</div>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:12px; line-height:1.55;">Development + 36 months of operations + compute. &euro;0 licence fees, ever. The application transfers to Roche at no extra cost. Roche owns the asset.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px; padding:18px 30px; display:flex; align-items:center; justify-content:space-around; gap:14px;">
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">100% coverage with people · your estimate</div>
+          <div class="mono" style="font-size:24px; font-weight:600; letter-spacing:-0.02em; color:var(--danger-deep);">&asymp; &euro;22M</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">100% coverage with the tool · 5 years, all-in</div>
+          <div class="mono" style="font-size:24px; font-weight:600; letter-spacing:-0.02em; color:var(--primary);">&euro;4.3&ndash;5.2M</div>
+        </div>
+        <svg width="36" height="14" viewBox="0 0 36 14" fill="none"><path d="M2 7 H30 M24 2 L30 7 L24 12" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="text-align:center;">
+          <div class="label" style="color:var(--text-3); margin-bottom:5px;">Same coverage, roughly</div>
+          <div class="mono" style="font-size:24px; font-weight:600; letter-spacing:-0.02em; color:var(--primary);">4&ndash;5&times; cheaper</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px; background:var(--primary); border-color:var(--primary); padding:16px 26px;">
+        <p style="font-size:15.5px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">And the &euro;22M route is theoretical: those specialists cannot be hired at that scale. The tool route is the only one that actually reaches 100%. Payback against that figure: under 3 months at full value, about 13 months even if only a fifth of it is real. The &euro;22M figure, its perimeter and its composition are certified with Finance as the first deliverable of Stage 0.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">11</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 12: ROADMAP ========== -->
+  <section class="slide">
+    <div class="kicker">Delivery</div>
+    <h2>Four gates. No proof, no invoice.</h2>
+    <div class="body-block">
+      <div class="timeline">
+        <div class="t-seg">
+          <div class="t-num">0</div>
+          <h3>Discovery &amp; Baseline</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Certified numbers from Roche data. Golden dataset v1. GxP classification. Firm quotes.</p>
+          <div class="t-dur">Aug&ndash;Sep 2026 · 6&ndash;8 wks</div>
+          <div class="t-price">&euro;75K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">1</div>
+          <h3>MVP, one system</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">One portfolio, one system. Specialists confirm or reject flags in a review workspace. Gate: accuracy targets on the golden dataset.</p>
+          <div class="t-dur">Oct 2026&ndash;Feb 2027</div>
+          <div class="t-price">&euro;600&ndash;700K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">2</div>
+          <h3>Full scope</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">Both systems, all three portfolios (DC with global support regions, NPC, RIS), priority case types, multiple languages, production volume.</p>
+          <div class="t-dur">Mar&ndash;Aug 2027</div>
+          <div class="t-price">&euro;850&ndash;1,000K</div>
+        </div>
+        <div class="t-seg">
+          <div class="t-num">3</div>
+          <h3>Validation &amp; rollout</h3>
+          <p style="font-size:13px; color:var(--text-2); margin-top:6px; line-height:1.5;">GxP validation package, security review, training for the review team, hypercare.</p>
+          <div class="t-dur">Sep 2027&ndash;Feb 2028</div>
+          <div class="t-price">&euro;800&ndash;950K</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+        <span class="pill green">Acceptance criteria signed before each stage</span>
+        <span class="pill green">Nothing scales without measured proof</span>
+        <span class="pill green">Exit possible at every gate</span>
+        <span class="pill">Steady-state operations from Q1 2028</span>
+      </div>
+      <div class="card" style="margin-top:16px; padding:16px 22px;">
+        <p style="font-size:14.5px; letter-spacing:-0.02em; text-align:center; color:var(--text-2);">And the other joints of the machine? Discovery's error analytics will show, with evidence, exactly where intake improvements pay. Each one becomes its own decision, on its own business case, <strong style="color:var(--text-1);">when Roche is ready. Nothing here depends on them.</strong></p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Confidential</span>
+      <span class="counter">12</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 13: DECISION ========== -->
+  <section class="slide">
+    <div class="body-block">
+      <div class="accent-bar"></div>
+      <div class="kicker">Decision Requested</div>
+      <h1 style="font-size:48px;">Two approvals.<br>One starts now.</h1>
+      <div class="grid-2" style="margin-top:36px; max-width:1020px;">
+        <div class="card" style="border:1.5px solid var(--primary);">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">A · Now, under the existing MSA</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Authorise Stage 0</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">&euro;75K · 6&ndash;8 weeks · starts during the approval window</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">Hands Finance firm, certified numbers instead of estimates. Needs only a few hours a week from the PRI team and read access to cases. De-risks the funding decision without pre-empting it.</p>
+        </div>
+        <div class="card">
+          <div class="label" style="color:var(--primary); margin-bottom:10px;">B · In the H2 funding round</div>
+          <p style="font-size:22px; font-weight:700; letter-spacing:-0.04em;">Include the PRI Discovery program</p>
+          <p class="mono" style="font-size:13px; color:var(--primary); font-weight:600; margin-top:6px;">&euro;2.45&ndash;2.85M development envelope + operations from go-live</p>
+          <p style="font-size:13.5px; color:var(--text-2); margin-top:10px; line-height:1.5;">Stages 1&ndash;3 start the moment funding is released. Submission ready before 31 July 2026.</p>
+        </div>
+      </div>
+      <p style="margin-top:32px; font-size:17px; color:var(--text-2); max-width:920px; line-height:1.6;">
+        Every week this waits, three out of four cases go unchecked.
+        <strong style="color:var(--text-1);">At the stress case, that is ~&euro;85K of value forgone per week. At your &euro;22M estimate, ~&euro;425K.</strong>
+      </p>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>v1.0 · July 2026 · Confidential</span>
+      <span class="counter">13</span>
+    </div>
+  </section>
+
+  <!-- ========== SLIDE 14: APPENDIX · INSIDE THE MVP PRICE ========== -->
+  <section class="slide">
+    <div class="kicker">Appendix · Inside The MVP Price</div>
+    <h2>The model reads the cases in a night.<br>The money buys the proof that it read them right.</h2>
+    <p class="sub">Stage 0 + Stage 1, &euro;675&ndash;775K, ~7 months. The AI run itself is a rounding error. What the budget actually builds:</p>
+    <div class="body-block">
+      <div class="grid-3" style="gap:16px;">
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~20% · The rulebook</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Decision logic extracted and versioned.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">What makes a case a PRI today lives across SOPs, training material and the specialists' judgement. Turning it into explicit, machine-readable, version-controlled rules is structured expert work, and it becomes a Roche asset regardless of the tool.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~20% · The measuring stick</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Golden dataset, adjudicated.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Hundreds of already-judged cases assembled into a reference set. Where specialists disagree with each other, and on borderline cases they do, the disagreement is resolved and documented. Without this, any accuracy claim is just an opinion.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~30% · The engineering</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Pipeline, eval harness, review workspace.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Read-only ingestion from the case system, the harness that measures every change against the golden dataset, and the workspace where specialists confirm or reject flags with one click, every decision logged.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~15% · The iteration</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">10&ndash;20 measured improvement cycles.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">The first run always over-flags. Each cycle, a human reads hundreds of model-vs-specialist disagreements, classifies why, refines the rules, re-measures. This reading is where detection quality is actually made.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~10% · The evidence</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">A result QA can attack and not break.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Methodology, accuracy statistics, worked examples, limitations, reproducibility, plus the traceability groundwork that keeps Stage 3 validation from starting over. "It looks good" is worthless in a QMS; signed evidence is the deliverable.</p>
+        </div>
+        <div class="card" style="padding:20px 24px;">
+          <div class="label" style="color:var(--primary); margin-bottom:8px;">~5% · The coordination</div>
+          <p style="font-size:14.5px; font-weight:600; letter-spacing:-0.03em; margin-bottom:6px;">Access, approvals, gates.</p>
+          <p style="font-size:13px; color:var(--text-2); line-height:1.5;">Data access, IAM and Vertex provisioning driven from week 1, the InfoSec checkpoint, and the signed acceptance process. Fixed price means schedule risk on approvals sits with Redsparq, not with Roche's budget.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px; background:var(--primary); border-color:var(--primary);">
+        <p style="font-size:16px; font-weight:600; letter-spacing:-0.03em; text-align:center; color:var(--on-primary);">Knowledge-cell hours are aligned with the existing account: nothing is billed twice, and today's review coverage does not drop while the tool is built. Compare: a large integrator quotes &euro;1&ndash;2M for this stage, without the team that already knows the cases.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="brand-mark"><span class="brand-dot"></span>REDSPARQ</div>
+      <span>Appendix · Confidential</span>
+      <span class="counter">14</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav-hint">Arrows / Space / Click to navigate</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let current = 0;
+
+  function show(index) {
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(event.key)) show(current + 1);
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) show(current - 1);
+    if (event.key === 'Home') show(0);
+    if (event.key === 'End') show(slides.length - 1);
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('a')) return;
+    const goBack = event.clientX < window.innerWidth * 0.2;
+    show(goBack ? current - 1 : current + 1);
+  });
+</script>
+</body>
+</html>
